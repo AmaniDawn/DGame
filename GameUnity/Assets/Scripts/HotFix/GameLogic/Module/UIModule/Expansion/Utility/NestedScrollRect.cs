@@ -46,6 +46,10 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 开始拖拽时的回调，判断拖拽方向并启用对应的ScrollRect
+        /// </summary>
+        /// <param name="eventData">指针事件数据</param>
         public void OnBeginDrag(PointerEventData eventData)
         {
             if (eventData.delta.sqrMagnitude < 0.001f)
@@ -65,6 +69,10 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 拖拽过程中的回调，将事件传递给外层ScrollRect
+        /// </summary>
+        /// <param name="eventData">指针事件数据</param>
         public void OnDrag(PointerEventData eventData)
         {
             if (m_isDragUpOrDown != thisIsUpAndDown)
@@ -74,6 +82,10 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 结束拖拽时的回调，恢复内层ScrollRect的启用状态
+        /// </summary>
+        /// <param name="eventData">指针事件数据</param>
         public void OnEndDrag(PointerEventData eventData)
         {
             if (m_isDragUpOrDown != thisIsUpAndDown)

@@ -45,6 +45,9 @@ namespace GameLogic
 
         public SetUISafeFitHelper() { }
 
+        /// <summary>
+        /// 设置UI安全区域适配
+        /// </summary>
         public void SetUIFit()
         {
             if (m_curFitRect == null)

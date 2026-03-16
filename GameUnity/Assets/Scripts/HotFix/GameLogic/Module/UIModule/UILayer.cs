@@ -5,9 +5,24 @@ namespace GameLogic
     /// </summary>
     public enum UILayer : byte
     {
+        /// <summary>
+        /// 底层
+        /// </summary>
         Bottom = 0,
+
+        /// <summary>
+        /// UI层
+        /// </summary>
         UI = 1,
+
+        /// <summary>
+        /// 顶层
+        /// </summary>
         Top = 2,
+
+        /// <summary>
+        /// 提示层
+        /// </summary>
         Tips = 3,
 
         /// <summary>

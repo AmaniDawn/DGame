@@ -123,6 +123,9 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 每帧更新
+        /// </summary>
         public void OnUpdate()
         {
             if (m_uiStack == null || m_uiStack.Count <= 0)
@@ -205,6 +208,9 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 模拟iPhoneX刘海屏安全区域
+        /// </summary>
         public static void SimulateIPhoneXNotchScreen()
         {
             Rect rect;
@@ -232,6 +238,10 @@ namespace GameLogic
 
         #region Window队列系统
 
+        /// <summary>
+        /// 将窗口推入队列
+        /// </summary>
+        /// <typeparam name="T">窗口类型</typeparam>
         public void PushWindowToQueue<T>() where T : UIWindow, new()
         {
             T window = new T();
@@ -239,6 +249,9 @@ namespace GameLogic
             m_popWindowQueue.Enqueue(window);
         }
 
+        /// <summary>
+        /// 开始弹出队列中的窗口
+        /// </summary>
         public void StartPopWindowQueue()
         {
             if (m_isPoppingWindowQueue)
@@ -271,6 +284,9 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 清空窗口队列
+        /// </summary>
         public void ClearWindowQueue()
         {
             m_popWindowQueue.Clear();
@@ -295,6 +311,11 @@ namespace GameLogic
             return window.WindowFullName;
         }
 
+        /// <summary>
+        /// 获取指定层级顶部的窗口名称
+        /// </summary>
+        /// <param name="layer">窗口层级</param>
+        /// <returns>窗口名称</returns>
         public string GetTopWindow(int layer)
         {
             UIWindow lastOne = null;
@@ -314,6 +335,11 @@ namespace GameLogic
             return lastOne.WindowFullName;
         }
 
+        /// <summary>
+        /// 获取并关闭顶部窗口（排除指定层级）
+        /// </summary>
+        /// <param name="excludeLayer">排除的层级</param>
+        /// <returns>是否成功关闭</returns>
         public bool GetAndCloseTopWindow(int excludeLayer)
         {
             UIWindow lastOne = null;
@@ -340,6 +366,11 @@ namespace GameLogic
             return false;
         }
 
+        /// <summary>
+        /// 获取并关闭顶部窗口（排除多个层级）
+        /// </summary>
+        /// <param name="excludeLayers">排除的层级列表</param>
+        /// <returns>是否成功关闭</returns>
         public bool GetAndCloseTopWindow(List<int> excludeLayers)
         {
             UIWindow lastOne = null;
@@ -366,6 +397,12 @@ namespace GameLogic
             return false;
         }
 
+        /// <summary>
+        /// 获取并关闭顶部窗口（排除指定层级和窗口）
+        /// </summary>
+        /// <param name="excludeLayers">排除的层级列表</param>
+        /// <param name="excludeWindows">排除的窗口列表</param>
+        /// <returns>是否成功关闭</returns>
         public bool GetAndCloseTopWindow(List<int> excludeLayers, List<UIWindow> excludeWindows)
         {
             UIWindow lastOne = null;
@@ -397,8 +434,18 @@ namespace GameLogic
 
         #region ContainsWindow
 
+        /// <summary>
+        /// 检查是否包含指定窗口
+        /// </summary>
+        /// <typeparam name="T">窗口类型</typeparam>
+        /// <returns>是否包含</returns>
         public bool ContainsWindow<T>() => ContainsWindow(typeof(T));
 
+        /// <summary>
+        /// 检查是否包含指定窗口
+        /// </summary>
+        /// <param name="type">窗口类型</param>
+        /// <returns>是否包含</returns>
         public bool ContainsWindow(Type type) => IsContains(type.FullName);
 
         private bool IsContains(string windowFullName)
@@ -410,15 +457,35 @@ namespace GameLogic
 
         #region ShowWindowAsync
 
+        /// <summary>
+        /// 异步显示窗口
+        /// </summary>
+        /// <typeparam name="T">窗口类型</typeparam>
+        /// <param name="userDatas">用户数据</param>
         public void ShowWindowAsync<T>(params System.Object[] userDatas) where T : UIWindow, new()
             => ShowWindowImp<T>(true, userDatas);
 
+        /// <summary>
+        /// 异步显示窗口（通过类型）
+        /// </summary>
+        /// <param name="type">窗口类型</param>
+        /// <param name="userDatas">用户数据</param>
         public void ShowWindowAsync(Type type, params System.Object[] userDatas)
             => ShowWindowImp(type, true, userDatas);
 
+        /// <summary>
+        /// 同步显示窗口
+        /// </summary>
+        /// <typeparam name="T">窗口类型</typeparam>
+        /// <param name="userDatas">用户数据</param>
         public void ShowWindow<T>(params System.Object[] userDatas) where T : UIWindow, new()
             => ShowWindowImp<T>(false, userDatas);
 
+        /// <summary>
+        /// 同步显示窗口（通过类型）
+        /// </summary>
+        /// <param name="type">窗口类型</param>
+        /// <param name="userDatas">用户数据</param>
         public void ShowWindow(Type type, params System.Object[] userDatas)
             => ShowWindowImp(type, false, userDatas);
 
@@ -457,6 +524,12 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 异步显示窗口并等待加载完成
+        /// </summary>
+        /// <typeparam name="T">窗口类型</typeparam>
+        /// <param name="userDatas">用户数据</param>
+        /// <returns>窗口实例</returns>
         public async UniTask<T> ShowWindowAsyncAwait<T>(params System.Object[] userDatas) where T : UIWindow, new()
             => await ShowWindowAwaitImp<T>(true, userDatas);
 
@@ -491,6 +564,12 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 异步显示窗口并等待加载完成（通过窗口实例）
+        /// </summary>
+        /// <param name="uiWindow">窗口实例</param>
+        /// <param name="userDatas">用户数据</param>
+        /// <returns>窗口实例</returns>
         public async UniTask<UIWindow> ShowWindowAsyncAwait(UIWindow uiWindow, params System.Object[] userDatas)
             => await ShowWindowAwaitImp(uiWindow, true, userDatas);
 
@@ -602,6 +681,12 @@ namespace GameLogic
 
         private UIWindow GetWindow(uint windowID) => m_uiMap.GetValueOrDefault(windowID);
 
+        /// <summary>
+        /// 获取窗口并等待加载完成
+        /// </summary>
+        /// <typeparam name="T">窗口类型</typeparam>
+        /// <param name="cancellationToken">取消令牌</param>
+        /// <returns>窗口实例</returns>
         public async UniTask<T> GetWindowAsyncAwait<T>(CancellationToken cancellationToken = default) where T : UIWindow
         {
             string windowName = typeof(T).FullName;
@@ -639,6 +724,11 @@ namespace GameLogic
             return result;
         }
 
+        /// <summary>
+        /// 异步获取窗口并通过回调返回
+        /// </summary>
+        /// <typeparam name="T">窗口类型</typeparam>
+        /// <param name="callback">回调函数</param>
         public void GetWindowAsync<T>(Action<T> callback) where T : UIWindow
         {
             string windowName = typeof(T).FullName;
@@ -678,6 +768,10 @@ namespace GameLogic
 
         #region CloseWindow
 
+        /// <summary>
+        /// 关闭指定窗口
+        /// </summary>
+        /// <typeparam name="T">窗口类型</typeparam>
         public void CloseWindow<T>() where T : UIWindow => CloseWindow(typeof(T));
 
         private void CloseWindow(Type type)
@@ -696,6 +790,10 @@ namespace GameLogic
             HideWindow(window);
         }
 
+        /// <summary>
+        /// 隐藏窗口
+        /// </summary>
+        /// <param name="window">窗口实例</param>
         public void HideWindow(UIWindow window)
         {
             if (window == null)
@@ -723,6 +821,10 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 关闭窗口
+        /// </summary>
+        /// <param name="window">窗口实例</param>
         public void CloseWindow(UIWindow window)
         {
             if (window == null)
@@ -736,6 +838,9 @@ namespace GameLogic
             OnSetWindowVisible();
         }
 
+        /// <summary>
+        /// 关闭所有窗口
+        /// </summary>
         public void CloseAllWindows()
         {
             for (int i = 0; i < m_uiStack.Count; i++)
@@ -748,6 +853,10 @@ namespace GameLogic
             m_uiFullNameMap.Clear();
         }
 
+        /// <summary>
+        /// 关闭除指定窗口外的所有窗口
+        /// </summary>
+        /// <param name="withOutWindows">保留的窗口列表</param>
         public void CloseAllWindowsWithOut(List<UIWindow> withOutWindows)
         {
             for (int i = m_uiStack.Count - 1; i >= 0; i--)
@@ -764,6 +873,10 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 关闭除指定窗口外的所有窗口
+        /// </summary>
+        /// <param name="withOutWindows">保留的窗口</param>
         public void CloseAllWindowsWithOut(UIWindow withOutWindows)
         {
             for (int i = m_uiStack.Count - 1; i >= 0; i--)
@@ -780,6 +893,10 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 关闭除指定类型窗口外的所有窗口
+        /// </summary>
+        /// <typeparam name="T">保留的窗口类型</typeparam>
         public void CloseAllWindowsWithOut<T>() where T : UIWindow
         {
             for (int i = m_uiStack.Count - 1; i >= 0; i--)
@@ -798,6 +915,10 @@ namespace GameLogic
 
         #endregion
 
+        /// <summary>
+        /// 检查是否有窗口正在加载
+        /// </summary>
+        /// <returns>是否有窗口正在加载</returns>
         public bool IsAnyLoading()
         {
             for (int i = 0; i < m_uiStack.Count; i++)
