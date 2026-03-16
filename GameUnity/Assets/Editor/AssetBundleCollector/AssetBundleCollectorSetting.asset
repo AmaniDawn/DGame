@@ -149,7 +149,7 @@ MonoBehaviour:
       Collectors:
       - CollectPath: Assets/BundleAssets/UIRaw/Atlas
         CollectorGUID: 309b8a90cadc92e469cc90fcd173e566
-        CollectorType: 1
+        CollectorType: 0
         AddressRuleName: AddressByFileName
         PackRuleName: PackDirectory
         FilterRuleName: CollectAll
@@ -157,17 +157,9 @@ MonoBehaviour:
         UserData: 
       - CollectPath: Assets/BundleAssets/UIRaw/Raw
         CollectorGUID: d539b64bf5607884984872938210889e
-        CollectorType: 1
-        AddressRuleName: AddressByFileName
-        PackRuleName: PackDirectory
-        FilterRuleName: CollectAll
-        AssetTags: 
-        UserData: 
-      - CollectPath: Assets/AssetArt/Atlas
-        CollectorGUID: 282c22fc42ec4bb4e82406849394d17b
         CollectorType: 0
         AddressRuleName: AddressByFileName
-        PackRuleName: PackSeparately
+        PackRuleName: PackDirectory
         FilterRuleName: CollectAll
         AssetTags: 
         UserData: 
