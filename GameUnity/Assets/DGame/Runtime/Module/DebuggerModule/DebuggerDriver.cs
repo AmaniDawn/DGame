@@ -32,7 +32,7 @@ namespace DGame
         private Rect m_windowRect = DefaultWindowRect;
         private float m_windowScale = DefaultWindowScale;
 
-        [SerializeField] private ImageSettings imageSettings;
+        [SerializeField] private GUISkin reporterScrollerSkin;
 
         [SerializeField] [InspectorName("调试窗口开启模式")] private DebuggerActiveWindowType activeWindowType = DebuggerActiveWindowType.AlwaysOpen;
 
@@ -187,7 +187,7 @@ namespace DGame
 
             GUISkin cachedGuiSkin = GUI.skin;
             Matrix4x4 cachedMatrix = GUI.matrix;
-            GUI.skin = imageSettings.reporterScrollerSkin;
+            GUI.skin = reporterScrollerSkin;
             GUI.matrix = Matrix4x4.Scale(new Vector3(m_windowScale, m_windowScale, 1f));
 
             if (m_showFullWindow)
