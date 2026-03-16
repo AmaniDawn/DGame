@@ -304,7 +304,8 @@ namespace DGame
                 padding = Config.padding,
                 enableRotation = Config.enableRotation,
                 blockOffset = Config.blockOffset,
-                enableTightPacking = Config.tightPacking
+                enableTightPacking = Config.tightPacking,
+                enableAlphaDilation = Config.alphaDilation
             };
             atlas.SetPackingSettings(PackingSettings);
         }
@@ -334,7 +335,7 @@ namespace DGame
                 enableRotation = Config.enableRotation,
                 blockOffset = Config.blockOffset,
                 enableTightPacking = Config.tightPacking,
-                enableAlphaDilation = true
+                enableAlphaDilation = Config.alphaDilation
             };
             atlasImporter.packingSettings = packingSettings;
         }

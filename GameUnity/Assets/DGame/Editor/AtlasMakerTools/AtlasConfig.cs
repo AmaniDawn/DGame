@@ -30,6 +30,7 @@ namespace DGame
         public bool enableRotation = true;
         public int blockOffset = 1;
         public bool tightPacking = true;
+        public bool alphaDilation = false;
 
         [Header("其他设置")]
         [Range(0, 100)]
