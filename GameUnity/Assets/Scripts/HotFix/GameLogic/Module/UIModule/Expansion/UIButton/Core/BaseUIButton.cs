@@ -171,6 +171,10 @@ namespace GameLogic
             m_uiButtonDoubleClick?.AddDoubleClickListener(callback, interval);
         }
 
+        /// <summary>
+        /// 设置点击音效ID
+        /// </summary>
+        /// <param name="soundID">音效ID</param>
         public void SetClickSoundID(int soundID)
         {
             m_uiButtonClickSound?.SetClickSoundID(soundID);
