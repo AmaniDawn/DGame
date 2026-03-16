@@ -394,7 +394,7 @@ namespace GameLogic
         {
             if (itemList == null)
             {
-                Debug.LogError("itemList is null");
+                DLogger.Error($"itemList is null, please check GameObject: {gameObject.name}.{parentTrans.name}!");
                 return;
             }
 
@@ -435,7 +435,7 @@ namespace GameLogic
         {
             if (itemList == null)
             {
-                Debug.LogError("itemList is null");
+                DLogger.Error($"itemList is null, please check GameObject: {gameObject.name}.{parentTrans.name}!");
                 return;
             }
 

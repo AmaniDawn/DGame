@@ -86,7 +86,7 @@ namespace GameLogic
         {
             if (string.IsNullOrEmpty(path) || segments == null || segments.Length == 0)
             {
-                Debug.LogError("[RedDotModule] Path and segments cannot be empty");
+                DLogger.Error("[RedDotModule] Path and segments cannot be empty");
                 return null;
             }
 
@@ -106,7 +106,7 @@ namespace GameLogic
         {
             if (string.IsNullOrEmpty(path))
             {
-                Debug.LogError("[RedDotModule] Path cannot be empty");
+                DLogger.Error("[RedDotModule] Path cannot be empty");
                 return null;
             }
 
@@ -129,7 +129,7 @@ namespace GameLogic
         {
             if (string.IsNullOrEmpty(path) || segments == null || segments.Length == 0)
             {
-                Debug.LogError("[RedDotModule] Path and segments cannot be empty");
+                DLogger.Error("[RedDotModule] Path and segments cannot be empty");
                 return null;
             }
 
@@ -310,7 +310,7 @@ namespace GameLogic
 
             if (node == null)
             {
-                Debug.LogWarning($"[RedDotModule] Node not found: {id}");
+                DLogger.Warning($"[RedDotModule] Node not found: {id}");
                 return;
             }
 
@@ -326,7 +326,7 @@ namespace GameLogic
 
             if (node == null)
             {
-                Debug.LogWarning($"[RedDotModule] Node not found: {path}");
+                DLogger.Warning($"[RedDotModule] Node not found: {path}");
                 return;
             }
 
@@ -342,7 +342,7 @@ namespace GameLogic
 
             if (node == null)
             {
-                Debug.LogWarning($"[RedDotModule] Node not found: {id}");
+                DLogger.Warning($"[RedDotModule] Node not found: {id}");
                 return;
             }
 
@@ -358,7 +358,7 @@ namespace GameLogic
 
             if (node == null)
             {
-                Debug.LogWarning($"[RedDotModule] Node not found: {path}");
+                DLogger.Warning($"[RedDotModule] Node not found: {path}");
                 return;
             }
 
