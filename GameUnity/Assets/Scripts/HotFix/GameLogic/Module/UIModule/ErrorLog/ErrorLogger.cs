@@ -3,10 +3,17 @@ using UnityEngine;
 
 namespace GameLogic
 {
+    /// <summary>
+    /// 错误日志记录器，用于捕获并显示Unity日志错误
+    /// </summary>
     public class ErrorLogger : IDisposable
     {
         private readonly UIModule m_uiModule;
 
+        /// <summary>
+        /// 构造函数
+        /// </summary>
+        /// <param name="uiModule">UI模块实例</param>
         public ErrorLogger(UIModule uiModule)
         {
             m_uiModule = uiModule;
@@ -22,6 +29,9 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 释放资源，取消日志监听
+        /// </summary>
         public void Dispose()
         {
             Application.logMessageReceived -= LogHandler;

@@ -6,14 +6,31 @@ using UnityEngine.UI;
 
 namespace GameLogic
 {
+    /// <summary>
+    /// 材质效果类型枚举
+    /// </summary>
     [Flags]
     public enum MatEffectType
     {
+        /// <summary>
+        /// 无效果
+        /// </summary>
         None = 0,
+
+        /// <summary>
+        /// 灰度效果
+        /// </summary>
         Gray = 1 << 0,
+
+        /// <summary>
+        /// 圆形遮罩效果
+        /// </summary>
         Circle = 1 << 1,
     }
 
+    /// <summary>
+    /// UI图片特效组件，支持灰度和圆形遮罩效果
+    /// </summary>
     public class UIImageEffect : BaseMeshEffect
     {
         private const string MATERIAL_LOCATION = "UIMat";
@@ -23,10 +40,16 @@ namespace GameLogic
 
         [SerializeField] private bool m_debugRefresh = false;
 
+        /// <summary>
+        /// 是否需要刷新效果
+        /// </summary>
         public bool Dirty { get; set; } = false;
 
         [SerializeField] private bool m_isGray = false;
 
+        /// <summary>
+        /// 是否应用灰度效果
+        /// </summary>
         public bool IsGray
         {
             get => m_isGray;
@@ -42,6 +65,9 @@ namespace GameLogic
 
         [SerializeField] private bool m_isCircle = false;
 
+        /// <summary>
+        /// 是否应用圆形遮罩效果
+        /// </summary>
         public bool IsCircle
         {
             get => m_isCircle;
@@ -57,6 +83,9 @@ namespace GameLogic
 
         private Image m_cacheImage;
 
+        /// <summary>
+        /// 获取缓存的Image组件
+        /// </summary>
         public Image CacheImage => m_cacheImage == null ? m_cacheImage = GetComponent<Image>() : m_cacheImage;
 
         private static bool m_init = false;
@@ -141,6 +170,9 @@ namespace GameLogic
             return mat;
         }
         
+        /// <summary>
+        /// 清空材质缓存
+        /// </summary>
         public static void ClearCache()
         {
             foreach (var kvp in m_matDict)
@@ -154,6 +186,10 @@ namespace GameLogic
             m_init = false;
         }
 
+        /// <summary>
+        /// 修改网格顶点以应用圆形遮罩效果
+        /// </summary>
+        /// <param name="vh">顶点辅助器</param>
         public override void ModifyMesh(VertexHelper vh)
         {
             if (CacheImage == null || !IsActive())

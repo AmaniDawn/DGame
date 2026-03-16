@@ -217,6 +217,12 @@ namespace GameLogic
         private Transform FindChild(Transform trans, string path)
             => FindChildImp(trans, path);
 
+        /// <summary>
+        /// 查找子组件
+        /// </summary>
+        /// <typeparam name="T">组件类型</typeparam>
+        /// <param name="path">子节点路径</param>
+        /// <returns>找到的组件</returns>
         public T FindChildComponent<T>(string path) where T : Component
             => FindChildComponentImp<T>(rectTransform, path);
 
@@ -237,24 +243,80 @@ namespace GameLogic
         protected GameEventDriver EventDriver =>
             m_eventDriver == null ? m_eventDriver = MemoryPool.Spawn<GameEventDriver>() : m_eventDriver;
 
+        /// <summary>
+        /// 添加UI事件
+        /// </summary>
+        /// <param name="eventID">事件ID</param>
+        /// <param name="handler">事件处理函数</param>
         public void AddUIEvent(int eventID, Action handler)
             => EventDriver.AddUIEvent(eventID, handler);
 
+        /// <summary>
+        /// 添加UI事件（带1个参数）
+        /// </summary>
+        /// <typeparam name="T">参数类型</typeparam>
+        /// <param name="eventID">事件ID</param>
+        /// <param name="handler">事件处理函数</param>
         public void AddUIEvent<T>(int eventID, Action<T> handler)
             => EventDriver.AddUIEvent(eventID, handler);
 
+        /// <summary>
+        /// 添加UI事件（带2个参数）
+        /// </summary>
+        /// <typeparam name="T1">第1个参数类型</typeparam>
+        /// <typeparam name="T2">第2个参数类型</typeparam>
+        /// <param name="eventID">事件ID</param>
+        /// <param name="handler">事件处理函数</param>
         public void AddUIEvent<T1, T2>(int eventID, Action<T1, T2> handler)
             => EventDriver.AddUIEvent(eventID, handler);
 
+        /// <summary>
+        /// 添加UI事件（带3个参数）
+        /// </summary>
+        /// <typeparam name="T1">第1个参数类型</typeparam>
+        /// <typeparam name="T2">第2个参数类型</typeparam>
+        /// <typeparam name="T3">第3个参数类型</typeparam>
+        /// <param name="eventID">事件ID</param>
+        /// <param name="handler">事件处理函数</param>
         public void AddUIEvent<T1, T2, T3>(int eventID, Action<T1, T2, T3> handler)
             => EventDriver.AddUIEvent(eventID, handler);
 
+        /// <summary>
+        /// 添加UI事件（带4个参数）
+        /// </summary>
+        /// <typeparam name="T1">第1个参数类型</typeparam>
+        /// <typeparam name="T2">第2个参数类型</typeparam>
+        /// <typeparam name="T3">第3个参数类型</typeparam>
+        /// <typeparam name="T4">第4个参数类型</typeparam>
+        /// <param name="eventID">事件ID</param>
+        /// <param name="handler">事件处理函数</param>
         public void AddUIEvent<T1, T2, T3, T4>(int eventID, Action<T1, T2, T3, T4> handler)
             => EventDriver.AddUIEvent(eventID, handler);
 
+        /// <summary>
+        /// 添加UI事件（带5个参数）
+        /// </summary>
+        /// <typeparam name="T1">第1个参数类型</typeparam>
+        /// <typeparam name="T2">第2个参数类型</typeparam>
+        /// <typeparam name="T3">第3个参数类型</typeparam>
+        /// <typeparam name="T4">第4个参数类型</typeparam>
+        /// <typeparam name="T5">第5个参数类型</typeparam>
+        /// <param name="eventID">事件ID</param>
+        /// <param name="handler">事件处理函数</param>
         public void AddUIEvent<T1, T2, T3, T4, T5>(int eventID, Action<T1, T2, T3, T4, T5> handler)
             => EventDriver.AddUIEvent(eventID, handler);
 
+        /// <summary>
+        /// 添加UI事件（带6个参数）
+        /// </summary>
+        /// <typeparam name="T1">第1个参数类型</typeparam>
+        /// <typeparam name="T2">第2个参数类型</typeparam>
+        /// <typeparam name="T3">第3个参数类型</typeparam>
+        /// <typeparam name="T4">第4个参数类型</typeparam>
+        /// <typeparam name="T5">第5个参数类型</typeparam>
+        /// <typeparam name="T6">第6个参数类型</typeparam>
+        /// <param name="eventID">事件ID</param>
+        /// <param name="handler">事件处理函数</param>
         public void AddUIEvent<T1, T2, T3, T4, T5, T6>(int eventID, Action<T1, T2, T3, T4, T5, T6> handler)
             => EventDriver.AddUIEvent(eventID, handler);
 
@@ -339,13 +401,13 @@ namespace GameLogic
         }
 
         /// <summary>
-        /// 通过资源定位地址创建
+        /// 通过资源路径创建UIWidget
         /// </summary>
-        /// <param name="parentTrans">资源父节点</param>
-        /// <param name="assetLocation">资源定位地址</param>
+        /// <typeparam name="T">UIWidget类型</typeparam>
+        /// <param name="parentTrans">父节点</param>
+        /// <param name="assetLocation">资源路径</param>
         /// <param name="visible">是否可见</param>
-        /// <typeparam name="T"></typeparam>
-        /// <returns></returns>
+        /// <returns>UIWidget实例</returns>
         public T CreateWidgetByPath<T>(Transform parentTrans, string assetLocation, bool visible = true)
             where T : UIWidget, new()
         {
@@ -353,6 +415,14 @@ namespace GameLogic
             return CreateWidget<T>(goInst, visible);
         }
 
+        /// <summary>
+        /// 异步通过资源路径创建UIWidget
+        /// </summary>
+        /// <typeparam name="T">UIWidget类型</typeparam>
+        /// <param name="parentTrans">父节点</param>
+        /// <param name="assetLocation">资源路径</param>
+        /// <param name="visible">是否可见</param>
+        /// <returns>UIWidget实例</returns>
         public async UniTask<T> CreateWidgetByPathAsync<T>(Transform parentTrans, string assetLocation,
             bool visible = true)
             where T : UIWidget, new()
@@ -368,6 +438,14 @@ namespace GameLogic
         }
 
 
+        /// <summary>
+        /// 通过预制体创建UIWidget
+        /// </summary>
+        /// <typeparam name="T">UIWidget类型</typeparam>
+        /// <param name="goPrefab">预制体对象</param>
+        /// <param name="parentTrans">父节点</param>
+        /// <param name="visible">是否可见</param>
+        /// <returns>UIWidget实例</returns>
         public T CreateWidgetByPrefab<T>(GameObject goPrefab, Transform parentTrans = null, bool visible = true)
             where T : UIWidget, new()
         {
@@ -381,14 +459,37 @@ namespace GameLogic
             return widget;
         }
 
+        /// <summary>
+        /// 通过类型名称创建UIWidget
+        /// </summary>
+        /// <typeparam name="T">UIWidget类型</typeparam>
+        /// <param name="parentTrans">父节点</param>
+        /// <param name="visible">是否可见</param>
+        /// <returns>UIWidget实例</returns>
         public T CreateWidgetByType<T>(Transform parentTrans, bool visible = true)
             where T : UIWidget, new()
             => CreateWidgetByPath<T>(parentTrans, typeof(T).Name, visible);
 
+        /// <summary>
+        /// 异步通过类型名称创建UIWidget
+        /// </summary>
+        /// <typeparam name="T">UIWidget类型</typeparam>
+        /// <param name="parentTrans">父节点</param>
+        /// <param name="visible">是否可见</param>
+        /// <returns>UIWidget实例</returns>
         public async UniTask<T> CreateWidgetByTypeAsync<T>(Transform parentTrans, bool visible = true)
             where T : UIWidget, new()
             => await CreateWidgetByPathAsync<T>(parentTrans, typeof(T).Name, visible);
 
+        /// <summary>
+        /// 调整列表项数量
+        /// </summary>
+        /// <typeparam name="T">UIWidget类型</typeparam>
+        /// <param name="itemList">项目列表</param>
+        /// <param name="count">目标数量</param>
+        /// <param name="parentTrans">父节点</param>
+        /// <param name="prefab">预制体</param>
+        /// <param name="assetLocation">资源路径</param>
         public void AdjustItemNum<T>(List<T> itemList, int count, Transform parentTrans, GameObject prefab = null,
             string assetLocation = "") where T : UIWidget, new()
         {
@@ -416,12 +517,35 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 异步调整列表项数量
+        /// </summary>
+        /// <typeparam name="T">UIWidget类型</typeparam>
+        /// <param name="itemList">项目列表</param>
+        /// <param name="count">目标数量</param>
+        /// <param name="parentTrans">父节点</param>
+        /// <param name="prefab">预制体</param>
+        /// <param name="assetLocation">资源路径</param>
+        /// <param name="maxNumPerFrame">每帧最大处理数量</param>
+        /// <param name="updateAction">更新回调</param>
         public void AsyncAdjustItemNum<T>(List<T> itemList, int count, Transform parentTrans, GameObject prefab = null,
             string assetLocation = "", int maxNumPerFrame = 5, Action<T, int> updateAction = null)
             where T : UIWidget, new()
             => AsyncAdjustItemNumInternal(itemList, count, parentTrans, maxNumPerFrame, updateAction, prefab,
                 assetLocation).Forget();
 
+        /// <summary>
+        /// 异步等待调整列表项数量完成
+        /// </summary>
+        /// <typeparam name="T">UIWidget类型</typeparam>
+        /// <param name="itemList">项目列表</param>
+        /// <param name="count">目标数量</param>
+        /// <param name="parentTrans">父节点</param>
+        /// <param name="prefab">预制体</param>
+        /// <param name="assetLocation">资源路径</param>
+        /// <param name="maxNumPerFrame">每帧最大处理数量</param>
+        /// <param name="updateAction">更新回调</param>
+        /// <returns>异步任务</returns>
         public async UniTask AsyncAwaitAdjustItemNum<T>(List<T> itemList, int count, Transform parentTrans,
             GameObject prefab = null, string assetLocation = "", int maxNumPerFrame = 5,
             Action<T, int> updateAction = null)
@@ -499,6 +623,12 @@ namespace GameLogic
 
         #region 红点相关
 
+        /// <summary>
+        /// 异步创建红点项
+        /// </summary>
+        /// <param name="redDotNodeID">红点节点ID</param>
+        /// <param name="parent">父节点</param>
+        /// <returns>红点项实例</returns>
         public async UniTask<RedDotItem> CreateRedDotAsync(int redDotNodeID, Transform parent)
         {
             var item = await CreateWidgetByTypeAsync<RedDotItem>(parent);
@@ -506,6 +636,12 @@ namespace GameLogic
             return item;
         }
 
+        /// <summary>
+        /// 创建红点项
+        /// </summary>
+        /// <param name="redDotNodeID">红点节点ID</param>
+        /// <param name="parent">父节点</param>
+        /// <returns>红点项实例</returns>
         public RedDotItem CreateRedDot(int redDotNodeID, Transform parent)
         {
             var item = CreateWidgetByType<RedDotItem>(parent);

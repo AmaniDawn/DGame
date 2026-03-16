@@ -73,6 +73,10 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 内部更新方法
+        /// </summary>
+        /// <returns>是否需要继续更新</returns>
         public bool InternalUpdate()
         {
             if (!IsPrepared || IsDestroyed || !Visible)
@@ -146,6 +150,14 @@ namespace GameLogic
 
         #region Create
 
+        /// <summary>
+        /// 通过资源路径创建UIWidget
+        /// </summary>
+        /// <param name="resPath">资源路径</param>
+        /// <param name="parentUI">父UI</param>
+        /// <param name="parentTrans">父节点</param>
+        /// <param name="visible">是否可见</param>
+        /// <returns>是否创建成功</returns>
         public bool CreateByPath(string resPath, UIBase parentUI, Transform parentTrans = null, bool visible = true)
         {
             GameObject goInstance = UIModule.ResourceLoader.LoadGameObject(resPath, parentTrans);
@@ -164,11 +176,26 @@ namespace GameLogic
             return true;
         }
 
+        /// <summary>
+        /// 创建UIWidget
+        /// </summary>
+        /// <param name="parentUI">父UI</param>
+        /// <param name="widgetPrefab">组件预制体</param>
+        /// <param name="visible">是否可见</param>
+        /// <returns>是否创建成功</returns>
         public bool Create(UIBase parentUI, GameObject widgetPrefab, bool visible = true)
         {
             return CreateImp(parentUI, widgetPrefab, visible);
         }
 
+        /// <summary>
+        /// 通过预制体创建UIWidget
+        /// </summary>
+        /// <param name="parentUI">父UI</param>
+        /// <param name="goPrefab">预制体对象</param>
+        /// <param name="parentTrans">父节点</param>
+        /// <param name="visible">是否可见</param>
+        /// <returns>是否创建成功</returns>
         public bool CreateByPrefab(UIBase parentUI, GameObject goPrefab, Transform parentTrans, bool visible = true)
         {
             if (parentTrans == null)
@@ -276,6 +303,9 @@ namespace GameLogic
             IsDestroyed = true;
         }
 
+        /// <summary>
+        /// 销毁UIWidget
+        /// </summary>
         public void Destroy()
         {
             if (IsDestroyed)
@@ -289,6 +319,10 @@ namespace GameLogic
 
         #endregion
 
+        /// <summary>
+        /// 显示/隐藏UIWidget
+        /// </summary>
+        /// <param name="visible">是否可见</param>
         public void Show(bool visible)
         {
             Visible = visible;

@@ -29,16 +29,28 @@ namespace GameLogic
         private UIButton m_modelCloseBtn;
         private bool m_isCreated;
 
+        /// <summary>
+        /// Canvas组件
+        /// </summary>
         public Canvas Canvas => m_canvas;
 
+        /// <summary>
+        /// 图形射线检测组件
+        /// </summary>
         public GraphicRaycaster GraphicRaycaster => m_graphicRaycaster;
 
         public override UIType Type => UIType.Window;
 
+        /// <summary>
+        /// 窗口ID
+        /// </summary>
         public uint WindowID { get; set; }
 
         private CanvasGroup m_canvasGroup;
 
+        /// <summary>
+        /// CanvasGroup组件
+        /// </summary>
         public CanvasGroup CanvasGroup
             => m_canvasGroup == null
                 ? m_canvasGroup = DGame.Utility.UnityUtil.AddMonoBehaviour<CanvasGroup>(gameObject)
@@ -100,6 +112,9 @@ namespace GameLogic
         /// </summary>
         public GameTimer HideTimer { get; set; }
 
+        /// <summary>
+        /// 排序层级
+        /// </summary>
         public int SortingOrder
         {
             get=> m_canvas != null ? m_canvas.sortingOrder : 0;
@@ -191,6 +206,9 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 是否可交互
+        /// </summary>
         public bool Interactable
         {
             get => m_graphicRaycaster != null && m_graphicRaycaster.enabled;
@@ -240,6 +258,11 @@ namespace GameLogic
 
         #endregion
 
+        /// <summary>
+        /// 初始化窗口
+        /// </summary>
+        /// <param name="windowName">窗口名称</param>
+        /// <param name="assetLocation">资源位置</param>
         public void Initialize(string windowName, string assetLocation)
         {
             WindowFullName = windowName;
@@ -300,6 +323,9 @@ namespace GameLogic
 
         #endregion
 
+        /// <summary>
+        /// 分配窗口ID
+        /// </summary>
         public void AllocWindowId()
         {
             if (s_nextWindowId == 0)
@@ -310,6 +336,10 @@ namespace GameLogic
             WindowID = s_nextWindowId++;
         }
 
+        /// <summary>
+        /// 手动设置模态背景透明度
+        /// </summary>
+        /// <param name="alpha">透明度值</param>
         public void SetModelAlphaManually(float alpha)
         {
             m_manualAlpha = alpha;
@@ -325,6 +355,10 @@ namespace GameLogic
             return ModelType.NormalType;
         }
 
+        /// <summary>
+        /// 设置ESC键关闭最后一个窗口时的回调
+        /// </summary>
+        /// <param name="callback">回调函数</param>
         public void SetEscCloseLastOneWindowCallback(System.Action callback)
             => OnEscCloseLastOneWindowCallback = callback;
 
@@ -628,21 +662,34 @@ namespace GameLogic
             HideTimer = null;
         }
 
+        /// <summary>
+        /// 显示/隐藏窗口
+        /// </summary>
+        /// <param name="isVisible">是否可见</param>
         public void Show(bool isVisible = true)
         {
             Visible = isVisible;
         }
 
+        /// <summary>
+        /// 标记子Canvas为脏（需要重新排序）
+        /// </summary>
         public void MakeChildCanvasDirty()
         {
             m_isChildCanvasDirty = true;
         }
 
+        /// <summary>
+        /// 隐藏窗口
+        /// </summary>
         public virtual void Hide()
         {
             UIModule.Instance.HideWindow(this);
         }
 
+        /// <summary>
+        /// 关闭窗口
+        /// </summary>
         public virtual void Close()
         {
             UIModule.Instance.CloseWindow(this);
