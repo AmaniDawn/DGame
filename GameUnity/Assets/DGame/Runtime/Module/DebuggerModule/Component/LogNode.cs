@@ -40,13 +40,13 @@ namespace DGame
             }
         }
 
-        public sealed class PrintLogNode
+        public sealed class PrintLogNode : IMemory
         {
-            private readonly DateTime m_logTime = default(DateTime);
-            private readonly int m_logFrameCount;
-            private readonly LogType m_logType = LogType.Error;
-            private readonly string m_logMessage;
-            private readonly string m_stackTrace;
+            private DateTime m_logTime;
+            private int m_logFrameCount;
+            private LogType m_logType;
+            private string m_logMessage;
+            private string m_stackTrace;
 
             public DateTime LogTime => m_logTime;
             public int LogFrameCount => m_logFrameCount;
@@ -54,13 +54,24 @@ namespace DGame
             public string LogMessage => m_logMessage;
             public string StackTrace => m_stackTrace;
 
-            public PrintLogNode(LogType logType, string logMessage, string stackTrace)
+            public static PrintLogNode Create(LogType logType, string logMessage, string stackTrace)
             {
-                m_logTime = DateTime.Now;
-                m_logFrameCount = Time.frameCount;
-                m_logType = logType;
-                m_logMessage = logMessage;
-                m_stackTrace = stackTrace;
+                var node = MemoryPool.Spawn<PrintLogNode>();
+                node.m_logTime = DateTime.Now;
+                node.m_logFrameCount = Time.frameCount;
+                node.m_logType = logType;
+                node.m_logMessage = logMessage;
+                node.m_stackTrace = stackTrace;
+                return node;
+            }
+
+            public void OnRelease()
+            {
+                m_logTime = default;
+                m_logFrameCount = 0;
+                m_logType = LogType.Error;
+                m_logMessage = string.Empty;
+                m_stackTrace = string.Empty;
             }
         }
     }

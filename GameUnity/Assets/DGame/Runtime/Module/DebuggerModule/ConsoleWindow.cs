@@ -87,7 +87,7 @@ namespace DGame
 
                 if (needPrintLog)
                 {
-                    PrintLogNode logNode = new PrintLogNode(type, logMessage, stacktrace);
+                    PrintLogNode logNode = PrintLogNode.Create(type, logMessage, stacktrace);
                     m_logNodes.Add(logNode);
                 }
 
@@ -450,8 +450,12 @@ namespace DGame
 
             private void Clear()
             {
+                foreach (LogNode logNode in m_logNodeQueue)
+                {
+                    MemoryPool.Release(logNode);
+                }
                 m_logNodeQueue.Clear();
-                m_logNodes.Clear();
+                ClearLogNodes();
                 m_selectedLogNode = null;
             }
 
@@ -614,15 +618,34 @@ namespace DGame
                 {
                     return;
                 }
-                string filePath = Application.persistentDataPath + "/game_logs.txt";
+                string timestamp = DateTime.Now.ToString("yyyyMMdd_HHmmss");
+                string filePath = Application.persistentDataPath + $"/game_logs_{timestamp}.txt";
                 List<string> fileContentsList = new List<string>();
                 DLogger.Info("Saving logs to " + filePath);
-                File.Delete(filePath);
+                if (File.Exists(filePath))
+                {
+                    File.Delete(filePath);
+                }
                 for (int i = 0; i < m_logNodes.Count; i++)
                 {
                     fileContentsList.Add(m_logNodes[i].LogType + "\n" + m_logNodes[i].LogMessage + "\n" + m_logNodes[i].StackTrace);
                 }
                 File.WriteAllLines(filePath, fileContentsList.ToArray());
+                ClearLogNodes();
+            }
+
+            private void ClearLogNodes()
+            {
+                if (m_logNodes == null || m_logNodes.Count == 0)
+                {
+                    return;
+                }
+
+                foreach (var node in m_logNodes)
+                {
+                    MemoryPool.Release(node);
+                }
+                m_logNodes.Clear();
             }
         }
     }
