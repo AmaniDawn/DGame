@@ -206,6 +206,27 @@ namespace GameProto
                 m_TbFuncOpenConfig.ResolveRef(this);
             }
         }
+        /// <summary>
+        /// 功能参数配置表
+        /// </summary>
+        private TbFuncParamConfig m_TbFuncParamConfig;
+        public TbFuncParamConfig TbFuncParamConfig 
+        {
+            get
+            {
+                if (m_TbFuncParamConfig == null)
+                {
+                    m_TbFuncParamConfig = new TbFuncParamConfig(m_defaultLoader("tbfuncparamconfig"));
+                    m_TbFuncParamConfig.ResolveRef(this);
+                }
+                return m_TbFuncParamConfig;
+            }
+            set
+            {
+                m_TbFuncParamConfig = value;
+                m_TbFuncParamConfig.ResolveRef(this);
+            }
+        }
 
         #endregion
 
