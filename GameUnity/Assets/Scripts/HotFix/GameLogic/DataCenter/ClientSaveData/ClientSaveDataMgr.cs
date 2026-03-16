@@ -12,6 +12,11 @@ namespace GameLogic
         private readonly Dictionary<Type, ClientSaveDataAttribute> m_cacheAttributeDict
             = new Dictionary<Type, ClientSaveDataAttribute>();
 
+        /// <summary>
+        /// 获取指定类型的保存数据实例
+        /// </summary>
+        /// <typeparam name="T">保存数据类型，必须继承自BaseClientSaveData且有无参构造函数</typeparam>
+        /// <returns>保存数据实例</returns>
         public T GetSaveData<T>() where T : BaseClientSaveData, new()
         {
             string key = GetStorageKey<T>();
@@ -25,6 +30,9 @@ namespace GameLogic
             return saveData as T;
         }
 
+        /// <summary>
+        /// 保存所有客户端数据到本地存储
+        /// </summary>
         public void SaveAllClientData()
         {
             foreach (var saveData in m_saveDataDict.Values)
