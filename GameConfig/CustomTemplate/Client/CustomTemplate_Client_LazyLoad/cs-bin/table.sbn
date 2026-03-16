@@ -182,6 +182,12 @@ public partial class {{__name}}
         {{deserialize '_buf' '_data' value_type}}
     }
 
+    #region 静态访问
+
+    private static {{__name}} m_instance;
+    public static {{__name}} Instance => m_instance == null ? m_instance = ConfigSystem.Instance.Tables.{{__name}} : m_instance;
+
+    #endregion
 
     {{~ for field in value_type.def_bean.hierarchy_export_fields ~}}
 {{~if field.comment != '' ~}}
@@ -189,7 +195,7 @@ public partial class {{__name}}
     /// {{escape_comment field.comment}}
     /// </summary>
 {{~end~}}
-     public {{declaring_type_name field.ctype}} {{format_property_name __code_style field.name}} => _data.{{format_property_name __code_style field.name}};
+     public static {{declaring_type_name field.ctype}} {{format_property_name __code_style field.name}} => Instance._data.{{format_property_name __code_style field.name}};
     {{~end~}}
     
     public void ResolveRef({{__manager_name}} tables)
