@@ -203,6 +203,8 @@ namespace DGame
             config.enableRotation = EditorGUILayout.Toggle(rotationContent, config.enableRotation);
             var tightPackingContent = new GUIContent(" 剔除透明区域", EditorGUIUtility.IconContent("ViewToolOrbit").image);
             config.tightPacking = EditorGUILayout.Toggle(tightPackingContent, config.tightPacking);
+            var alphaDilationContent = new GUIContent(" Alpha扩张", EditorGUIUtility.IconContent("ViewToolOrbit").image);
+            config.alphaDilation = EditorGUILayout.Toggle(alphaDilationContent, config.alphaDilation);
             EditorGUILayout.EndVertical();
             EditorGUILayout.Space();
         }
