@@ -7,6 +7,9 @@ namespace GameLogic
     {
         private static T m_instance;
 
+        /// <summary>
+        /// 获取单例实例
+        /// </summary>
         public static T Instance
         {
             get
@@ -47,6 +50,9 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 单例实例是否有效
+        /// </summary>
         public static bool IsValid => m_instance != null;
 
         private void Awake()

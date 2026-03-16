@@ -6,6 +6,9 @@ namespace GameLogic
     {
         protected static T m_instance = null;
 
+        /// <summary>
+        /// 获取单例实例
+        /// </summary>
         public static T Instance
         {
             get
@@ -20,6 +23,9 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 单例实例是否有效
+        /// </summary>
         public static bool IsValid => m_instance != null;
 
         protected Singleton()
@@ -36,6 +42,9 @@ namespace GameLogic
 #endif
         }
 
+        /// <summary>
+        /// 激活单例
+        /// </summary>
         public virtual void Active()
         {
         }
@@ -44,6 +53,9 @@ namespace GameLogic
         {
         }
 
+        /// <summary>
+        /// 销毁单例
+        /// </summary>
         public virtual void Destroy()
         {
             OnDestroy();
