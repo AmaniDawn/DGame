@@ -46,14 +46,14 @@ namespace GameLogic
                 }
                 catch (System.Exception e)
                 {
-                    Debug.LogError($"[OutlineMaterialCache] Failed to load material from YooAsset (address: {UITextMaterialAddress}): {e.Message}");
+                    DGame.DLogger.Error($"[OutlineMaterialCache] Failed to load material from YooAsset (address: {UITextMaterialAddress}): {e.Message}");
                     return null;
                 }
             }
 
             if (s_baseMaterial == null)
             {
-                Debug.LogError($"[OutlineMaterialCache] Material not found from YooAsset address: {UITextMaterialAddress}");
+                DGame.DLogger.Error($"[OutlineMaterialCache] Material not found from YooAsset address: {UITextMaterialAddress}");
                 return null;
             }
 
@@ -428,10 +428,13 @@ namespace GameLogic
                     Material material = UnityEditor.AssetDatabase.LoadAssetAtPath<Material>("Assets/BundleAssets/Materials/UGUIPro_UIText.mat");
                     if (material == null)
                     {
-                        Debug.LogError("Text Out Line Material Not Find Please Check Material Path!");
+                        DGame.DLogger.Error("Text Out Line Material Not Find Please Check Material Path!");
                     }
-                    m_text.material = material;
-                    m_materialFromCache = false;
+                    else
+                    {
+                        m_text.material = material;
+                        m_materialFromCache = false;
+                    }
                 }
             }
             else
