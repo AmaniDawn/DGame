@@ -227,6 +227,27 @@ namespace GameProto
                 m_TbFuncParamConfig.ResolveRef(this);
             }
         }
+        /// <summary>
+        /// 活动开启配置表
+        /// </summary>
+        private TbActivityOpenConfig m_TbActivityOpenConfig;
+        public TbActivityOpenConfig TbActivityOpenConfig 
+        {
+            get
+            {
+                if (m_TbActivityOpenConfig == null)
+                {
+                    m_TbActivityOpenConfig = new TbActivityOpenConfig(m_defaultLoader("tbactivityopenconfig"));
+                    m_TbActivityOpenConfig.ResolveRef(this);
+                }
+                return m_TbActivityOpenConfig;
+            }
+            set
+            {
+                m_TbActivityOpenConfig = value;
+                m_TbActivityOpenConfig.ResolveRef(this);
+            }
+        }
 
         #endregion
 
