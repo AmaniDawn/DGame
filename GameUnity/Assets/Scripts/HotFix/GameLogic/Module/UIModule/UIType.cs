@@ -1,5 +1,8 @@
 ﻿namespace GameLogic
 {
+    /// <summary>
+    /// UI类型
+    /// </summary>
     public enum UIType : byte
     {
         /// <summary>
