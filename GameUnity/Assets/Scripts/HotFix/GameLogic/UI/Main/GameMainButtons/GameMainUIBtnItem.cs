@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using DGame;
+using Fantasy;
 
 namespace GameLogic
 {
@@ -19,6 +20,7 @@ namespace GameLogic
 		#region 字段
 		
 		public GameMainBtnType MainBtnType { get; private set; }
+		public FuncType FuncType => (FuncType)MainBtnType;
 
 		#endregion
 		
@@ -31,7 +33,7 @@ namespace GameLogic
 		
 		public void RefreshOpenState()
 		{
-			bool isOpen = true;
+			bool isOpen = FuncOpenMgr.Instance.CheckFuncOpen(FuncType);
 			m_goLock.SetActive(!isOpen);
 			m_goUnlock.SetActive(isOpen);
 		}

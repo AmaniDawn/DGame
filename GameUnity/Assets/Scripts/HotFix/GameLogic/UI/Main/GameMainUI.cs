@@ -4,6 +4,7 @@ using Cysharp.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 using DGame;
+using Fantasy;
 
 namespace GameLogic
 {
@@ -179,7 +180,12 @@ namespace GameLogic
 
 		private void CreatePageTabByGameMainBtnType(GameMainBtnType btnType, Action<UIWidget> onSwitchPage = null)
 		{
-			if (CheckPageIsOpen())
+			var funcType = (FuncType)btnType;
+			if (funcType == FuncType.FUNC_TYPE_NONE)
+			{
+				return;
+			}
+			if (CheckPageIsOpen(funcType))
 			{
 				if (m_pageDict.TryGetValue(btnType, out UIWidget page))
 				{
@@ -249,8 +255,12 @@ namespace GameLogic
 			onSwitchPage?.Invoke(page);
 		}
 
-		private bool CheckPageIsOpen()
+		private bool CheckPageIsOpen(FuncType funcType)
 		{
+			if (!FuncOpenMgr.Instance.CheckFuncOpen(funcType))
+			{
+				return false;
+			}
 			return true;
 		}
 
