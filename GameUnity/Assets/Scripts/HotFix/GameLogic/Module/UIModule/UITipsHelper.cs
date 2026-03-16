@@ -36,5 +36,18 @@ namespace GameLogic
                 ShowWindowAsync<TipsUI>(msg);
             }
         }
+
+        /// <summary>
+        /// 显示错误提示UI
+        /// </summary>
+        /// <param name="msg">错误消息内容</param>
+        public void ShowErrorTipsUI(string msg)
+        {
+            if (!string.IsNullOrEmpty(msg))
+            {
+                DLogger.Error(msg);
+                ShowWindowAsync<TipsUI>(msg);
+            }
+        }
     }
 }
