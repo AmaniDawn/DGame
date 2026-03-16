@@ -29,19 +29,25 @@ public partial class TbFuncParamConfig
         _data = global::GameProto.FuncParamConfig.DeserializeFuncParamConfig(_buf);
     }
 
+    #region 静态访问
+
+    private static TbFuncParamConfig m_instance;
+    public static TbFuncParamConfig Instance => m_instance == null ? m_instance = ConfigSystem.Instance.Tables.TbFuncParamConfig : m_instance;
+
+    #endregion
 
     /// <summary>
     /// 账号Token公钥
     /// </summary>
-     public string AccountTokenPublicKeyPem => _data.AccountTokenPublicKeyPem;
+     public static string AccountTokenPublicKeyPem => Instance._data.AccountTokenPublicKeyPem;
     /// <summary>
     /// 账号Token私钥
     /// </summary>
-     public string AccountTokenPrivateKeyPem => _data.AccountTokenPrivateKeyPem;
+     public static string AccountTokenPrivateKeyPem => Instance._data.AccountTokenPrivateKeyPem;
     /// <summary>
     /// 账号Token过期时间(毫秒)
     /// </summary>
-     public int AccountTokenExpireTime => _data.AccountTokenExpireTime;
+     public static int AccountTokenExpireTime => Instance._data.AccountTokenExpireTime;
     
     public void ResolveRef(Tables tables)
     {
