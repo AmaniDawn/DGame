@@ -28,6 +28,7 @@ MonoBehaviour:
   enableRotation: 1
   blockOffset: 1
   tightPacking: 1
+  alphaDilation: 0
   compressionQuality: 50
   autoGenerate: 1
   enableLogging: 1
