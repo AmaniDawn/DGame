@@ -6,6 +6,10 @@ namespace GameLogic
     {
         private string m_saveKey;
 
+        /// <summary>
+        /// 初始化保存数据
+        /// </summary>
+        /// <param name="saveKey">保存数据的键名</param>
         public void Init(string saveKey)
         {
             m_saveKey = saveKey;
@@ -22,6 +26,9 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 保存数据到本地存储
+        /// </summary>
         public void Save()
             => DGame.Utility.PlayerPrefsUtil.SetString(m_saveKey,
                 JsonConvert.SerializeObject(this, Formatting.None));
