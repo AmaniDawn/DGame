@@ -234,7 +234,7 @@ namespace GameLogic
         /// <summary>
         /// 是否可以通过返回关闭
         /// </summary>
-        public virtual bool CanEscClose { get; set; } = true;
+        public virtual bool CanEscClose { get; private set; } = true;
 
         public System.Action OnEscCloseLastOneWindowCallback { get; private set; }
 
