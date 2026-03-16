@@ -51,6 +51,8 @@ namespace GameLogic
 	{
 		#region Override
 
+		public override bool CanEscClose => false;
+
 		protected override ModelType GetModelType() => ModelType.NoneType;
 
 		public override bool FullScreen => true;

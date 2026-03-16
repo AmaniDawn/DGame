@@ -8,6 +8,8 @@ namespace GameLogic
 	{
 		#region Ovrrider
 
+		public override bool CanEscClose => false;
+
 		protected override void BindMemberProperty()
 		{
 			m_goAccountNode.SetActive(false);
