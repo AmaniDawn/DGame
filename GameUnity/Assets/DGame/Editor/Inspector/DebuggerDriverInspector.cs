@@ -8,7 +8,7 @@ namespace DGame
     [CustomEditor(typeof(DebuggerDriver))]
     internal sealed class DebuggerDriverInspector : Editor
     {
-        private SerializedProperty m_imageSettings;
+        private SerializedProperty m_reporterScrollerSkin;
         private SerializedProperty m_activeWindowType;
         private SerializedProperty m_showFullWindow;
         private SerializedProperty m_consoleWindow;
@@ -247,8 +247,8 @@ namespace DGame
                     EditorGUILayout.Space(5);
 
                     // 皮肤设置
-                    EditorGUILayout.LabelField("界面皮肤", EditorStyles.boldLabel);
-                    EditorGUILayout.PropertyField(m_imageSettings,
+                    // EditorGUILayout.LabelField("界面皮肤", EditorStyles.boldLabel);
+                    EditorGUILayout.PropertyField(m_reporterScrollerSkin,
                         new GUIContent("界面皮肤设置", "调试器GUI皮肤配置"));
 
                     EditorGUILayout.Space(5);
@@ -433,7 +433,7 @@ namespace DGame
 
         private void OnEnable()
         {
-            m_imageSettings = serializedObject.FindProperty("imageSettings");
+            m_reporterScrollerSkin = serializedObject.FindProperty("reporterScrollerSkin");
             m_activeWindowType = serializedObject.FindProperty("activeWindowType");
             m_showFullWindow = serializedObject.FindProperty("m_showFullWindow");
             m_consoleWindow = serializedObject.FindProperty("m_consoleWindow");
