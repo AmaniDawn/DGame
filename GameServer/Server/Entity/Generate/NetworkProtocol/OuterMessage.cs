@@ -24,6 +24,76 @@ using Fantasy.Serialize;
 namespace Fantasy
 {
     /// <summary>
+    /// 活动开启配置
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class CSActivityOpenEntry : AMessage, IDisposable
+    {
+        public static CSActivityOpenEntry Create(bool autoReturn = true)
+        {
+            var cSActivityOpenEntry = MessageObjectPool<CSActivityOpenEntry>.Rent();
+            cSActivityOpenEntry.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                cSActivityOpenEntry.SetIsPool(false);
+            }
+            
+            return cSActivityOpenEntry;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            ActivityId = default;
+            ActivityType = default;
+            OpenTime = default;
+            EndTime = default;
+            DelayTime = default;
+            MessageObjectPool<CSActivityOpenEntry>.Return(this);
+        }
+        /// <summary>
+        /// 活动ID
+        /// </summary>
+        [ProtoMember(1)]
+        public int ActivityId { get; set; }
+        /// <summary>
+        /// 活动类型
+        /// </summary>
+        [ProtoMember(2)]
+        public int ActivityType { get; set; }
+        /// <summary>
+        /// 开始时间
+        /// </summary>
+        [ProtoMember(3)]
+        public uint OpenTime { get; set; }
+        /// <summary>
+        /// 结束时间
+        /// </summary>
+        [ProtoMember(4)]
+        public uint EndTime { get; set; }
+        /// <summary>
+        /// 延迟消失时间
+        /// </summary>
+        [ProtoMember(5)]
+        public uint DelayTime { get; set; }
+    }
+    /// <summary>
     /// 客户端同步帧数据
     /// </summary>
     [Serializable]

@@ -4,6 +4,17 @@
 namespace Fantasy
 {
 	/// <summary>
+	/// 活动类型的枚举
+	/// </summary>
+	public enum ActivityType
+	{
+		/// <summary>
+		/// 无
+		/// </summary>
+		ACTIVITY_TYPE_NONE = 0
+	}
+
+	/// <summary>
 	/// 帧命令类型
 	/// </summary>
 	public enum FrameCmdType
