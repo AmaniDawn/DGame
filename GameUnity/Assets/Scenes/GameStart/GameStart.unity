@@ -259,6 +259,11 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!20 &1145363996 stripped
+Camera:
+  m_CorrespondingSourceObject: {fileID: 3662584843330752890, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
+  m_PrefabInstance: {fileID: 3662584843660349293}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &3662584843660349293
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -269,28 +274,32 @@ PrefabInstance:
     m_Modifications:
     - target: {fileID: 1082004401330594309, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: _scale.x._serializedValue
-      value: 4294967296
+      value: 32196160
       objectReference: {fileID: 0}
     - target: {fileID: 1082004401330594309, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: _scale.y._serializedValue
-      value: 4294967296
+      value: 32196160
       objectReference: {fileID: 0}
     - target: {fileID: 1082004401330594309, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: _scale.z._serializedValue
-      value: 4294967296
+      value: 32196160
       objectReference: {fileID: 0}
     - target: {fileID: 1082004401330594309, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: _position.x._serializedValue
-      value: 1610612736000
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1082004401330594309, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: _position.y._serializedValue
-      value: 2864743186432
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1082004401330594309, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: _position.z._serializedValue
-      value: 0
+      value: 429496729600
       objectReference: {fileID: 0}
+    - target: {fileID: 3662584844970858470, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
+      propertyPath: m_Camera
+      value: 
+      objectReference: {fileID: 1145363996}
     - target: {fileID: 3662584845349564628, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: m_RootOrder
       value: 2
@@ -352,6 +361,10 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
+    - target: {fileID: 4103294288059457241, guid: 3375c1da4c80d8e40bca1675c3990457, type: 3}
+      propertyPath: reporterScrollerSkin
+      value: 
+      objectReference: {fileID: 11400000, guid: 80dba04821e0a554eafe33094f3e745e, type: 2}
     - target: {fileID: 8427157544136828061, guid: 3375c1da4c80d8e40bca1675c3990457, type: 3}
       propertyPath: m_RootOrder
       value: 1
