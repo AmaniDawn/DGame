@@ -167,7 +167,7 @@ namespace GameLogic
         {
             if (!IsLeaf)
             {
-                UnityEngine.Debug.LogWarning($"[RedDot] 只有叶子节点可以直接设置数值: {Path}");
+                DGame.DLogger.Warning($"[RedDot] 只有叶子节点可以直接设置数值: {Path}");
                 return;
             }
 

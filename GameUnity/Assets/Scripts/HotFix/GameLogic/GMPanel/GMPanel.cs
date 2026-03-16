@@ -1,4 +1,5 @@
 ﻿using System.Collections.Generic;
+using DGame;
 using GameProto;
 using UnityEngine;
 using UnityEngine.UI;
@@ -71,7 +72,6 @@ namespace GameLogic
 		}
 
 		#endregion
-
 
 		#region 字段
 
@@ -391,7 +391,7 @@ namespace GameLogic
 				var cfg = GetGmCommandConfigByOrder(m_inputGm.text);
 				if (cfg == null)
 				{
-					Debug.LogError("请输入正确的GM命令！");
+					DLogger.Error("请输入正确的GM命令！");
 					return;
 				}
 
