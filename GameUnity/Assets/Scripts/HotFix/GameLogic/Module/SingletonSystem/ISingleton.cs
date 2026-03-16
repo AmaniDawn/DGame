@@ -39,11 +39,17 @@
 
     public interface IDrawGizmos
     {
+        /// <summary>
+        /// 绘制Gizmos
+        /// </summary>
         void OnDrawGizmos();
     }
 
     public interface IDrawGizmosSelected
     {
+        /// <summary>
+        /// 选中时绘制Gizmos
+        /// </summary>
         void OnDrawGizmosSelected();
     }
 }

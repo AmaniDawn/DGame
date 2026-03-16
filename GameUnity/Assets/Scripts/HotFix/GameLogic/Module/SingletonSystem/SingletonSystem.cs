@@ -25,6 +25,10 @@ namespace GameLogic
 
         private static readonly Dictionary<string, GameObject> m_gameObjects = new Dictionary<string, GameObject>();
 
+        /// <summary>
+        /// 注册单例
+        /// </summary>
+        /// <param name="singleton">单例对象</param>
         public static void Register(ISingleton singleton)
         {
             CheckInit();
@@ -32,6 +36,11 @@ namespace GameLogic
             RegisterLifeCycle(singleton);
         }
 
+        /// <summary>
+        /// 注册Mono单例
+        /// </summary>
+        /// <param name="go">GameObject对象</param>
+        /// <param name="singleton">单例对象</param>
         public static void Register(GameObject go, object singleton)
         {
             CheckInit();
@@ -78,6 +87,10 @@ namespace GameLogic
 #endif
         }
 
+        /// <summary>
+        /// 销毁单例
+        /// </summary>
+        /// <param name="singleton">单例对象</param>
         public static void DestroySingleton(ISingleton singleton)
         {
             if (m_singletons != null && m_singletons.Contains(singleton))
@@ -87,6 +100,11 @@ namespace GameLogic
             }
         }
 
+        /// <summary>
+        /// 销毁Mono单例
+        /// </summary>
+        /// <param name="go">GameObject对象</param>
+        /// <param name="singleton">单例对象</param>
         public static void DestroySingleton(GameObject go, object singleton)
         {
             if (m_gameObjects != null && m_gameObjects.ContainsKey(go.name))
@@ -127,6 +145,9 @@ namespace GameLogic
 #endif
         }
 
+        /// <summary>
+        /// 销毁所有单例
+        /// </summary>
         public static void Destroy()
         {
             if (m_gameObjects != null)
@@ -149,6 +170,11 @@ namespace GameLogic
             Resources.UnloadUnusedAssets();
         }
 
+        /// <summary>
+        /// 根据名称获取GameObject
+        /// </summary>
+        /// <param name="name">GameObject名称</param>
+        /// <returns>GameObject对象</returns>
         public static GameObject GetGameObject(string name)
         {
             if (m_gameObjects != null && m_gameObjects.TryGetValue(name, out GameObject go))
@@ -168,6 +194,9 @@ namespace GameLogic
             return false;
         }
 
+        /// <summary>
+        /// 重启游戏
+        /// </summary>
         public static void Restart()
         {
             if (Camera.main != null)
