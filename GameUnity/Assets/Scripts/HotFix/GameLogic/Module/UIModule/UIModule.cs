@@ -676,7 +676,7 @@ namespace GameLogic
             return false;
         }
 
-        private UIWindow GetWindow<T>() where T : UIWindow, new() => GetWindow(typeof(T).FullName);
+        public UIWindow GetWindow<T>() where T : UIWindow, new() => GetWindow(typeof(T).FullName);
 
         private UIWindow GetWindow(string windowName) => m_uiFullNameMap.GetValueOrDefault(windowName);
 
