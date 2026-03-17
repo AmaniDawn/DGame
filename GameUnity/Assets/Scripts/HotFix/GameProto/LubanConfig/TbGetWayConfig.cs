@@ -30,7 +30,7 @@ public partial class TbGetWayConfig
             GetWayConfig _v;
             _v = global::GameProto.GetWayConfig.DeserializeGetWayConfig(_buf);
             _dataList.Add(_v);
-            _dataMap.Add(_v.WayId, _v);
+            _dataMap.Add(_v.WayID, _v);
         }
     }
 

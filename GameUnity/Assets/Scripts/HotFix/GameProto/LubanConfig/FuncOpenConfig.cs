@@ -18,8 +18,8 @@ public sealed partial class FuncOpenConfig : Luban.BeanBase
     
     public FuncOpenConfig(ByteBuf _buf) 
     {
-        FuncId = _buf.ReadInt();
-        FuncNameId = _buf.ReadInt();
+        FuncID = _buf.ReadInt();
+        FuncNameID = _buf.ReadInt();
         FuncIcon = _buf.ReadString();
         FuncSelectIcon = _buf.ReadString();
         FuncNoSelectIcon = _buf.ReadString();
@@ -27,10 +27,10 @@ public sealed partial class FuncOpenConfig : Luban.BeanBase
         OpenLevel = _buf.ReadInt();
         CreateRoleDay = _buf.ReadInt();
         OpenChapter = _buf.ReadInt();
-        ParentFuncId = _buf.ReadInt();
+        ParentFuncID = _buf.ReadInt();
         UseOpenTips = _buf.ReadBool();
-        OpenTipsId = _buf.ReadInt();
-        NoOpenTipsId = _buf.ReadInt();
+        OpenTipsID = _buf.ReadInt();
+        NoOpenTipsID = _buf.ReadInt();
     }
 
     public static FuncOpenConfig DeserializeFuncOpenConfig(ByteBuf _buf)
@@ -41,11 +41,11 @@ public sealed partial class FuncOpenConfig : Luban.BeanBase
     /// <summary>
     /// 系统ID
     /// </summary>
-    public int FuncId;
+    public int FuncID;
     /// <summary>
     /// 系统名称ID
     /// </summary>
-    public int FuncNameId;
+    public int FuncNameID;
     /// <summary>
     /// 系统图标
     /// </summary>
@@ -77,7 +77,7 @@ public sealed partial class FuncOpenConfig : Luban.BeanBase
     /// <summary>
     /// 所属父系统
     /// </summary>
-    public int ParentFuncId;
+    public int ParentFuncID;
     /// <summary>
     /// 开启提示
     /// </summary>
@@ -85,11 +85,11 @@ public sealed partial class FuncOpenConfig : Luban.BeanBase
     /// <summary>
     /// 开启提示文本ID
     /// </summary>
-    public int OpenTipsId;
+    public int OpenTipsID;
     /// <summary>
     /// 未开启提示文本ID
     /// </summary>
-    public int NoOpenTipsId;
+    public int NoOpenTipsID;
 
     public const int __ID__ = 391142448;
     public override int GetTypeId() => __ID__;
@@ -105,8 +105,8 @@ public sealed partial class FuncOpenConfig : Luban.BeanBase
         {
             other = new FuncOpenConfig();
         }
-        other.FuncId = FuncId;
-        other.FuncNameId = FuncNameId;
+        other.FuncID = FuncID;
+        other.FuncNameID = FuncNameID;
         other.FuncIcon = FuncIcon;
         other.FuncSelectIcon = FuncSelectIcon;
         other.FuncNoSelectIcon = FuncNoSelectIcon;
@@ -114,17 +114,17 @@ public sealed partial class FuncOpenConfig : Luban.BeanBase
         other.OpenLevel = OpenLevel;
         other.CreateRoleDay = CreateRoleDay;
         other.OpenChapter = OpenChapter;
-        other.ParentFuncId = ParentFuncId;
+        other.ParentFuncID = ParentFuncID;
         other.UseOpenTips = UseOpenTips;
-        other.OpenTipsId = OpenTipsId;
-        other.NoOpenTipsId = NoOpenTipsId;
+        other.OpenTipsID = OpenTipsID;
+        other.NoOpenTipsID = NoOpenTipsID;
     }
     
     public override string ToString()
     {
         return "{ "
-        + "FuncId:" + FuncId + ","
-        + "FuncNameId:" + FuncNameId + ","
+        + "FuncID:" + FuncID + ","
+        + "FuncNameID:" + FuncNameID + ","
         + "FuncIcon:" + FuncIcon + ","
         + "FuncSelectIcon:" + FuncSelectIcon + ","
         + "FuncNoSelectIcon:" + FuncNoSelectIcon + ","
@@ -132,10 +132,10 @@ public sealed partial class FuncOpenConfig : Luban.BeanBase
         + "OpenLevel:" + OpenLevel + ","
         + "CreateRoleDay:" + CreateRoleDay + ","
         + "OpenChapter:" + OpenChapter + ","
-        + "ParentFuncId:" + ParentFuncId + ","
+        + "ParentFuncID:" + ParentFuncID + ","
         + "UseOpenTips:" + UseOpenTips + ","
-        + "OpenTipsId:" + OpenTipsId + ","
-        + "NoOpenTipsId:" + NoOpenTipsId + ","
+        + "OpenTipsID:" + OpenTipsID + ","
+        + "NoOpenTipsID:" + NoOpenTipsID + ","
         + "}";
     }
 }

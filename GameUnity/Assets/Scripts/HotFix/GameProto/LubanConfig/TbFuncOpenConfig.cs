@@ -30,7 +30,7 @@ public partial class TbFuncOpenConfig
             FuncOpenConfig _v;
             _v = global::GameProto.FuncOpenConfig.DeserializeFuncOpenConfig(_buf);
             _dataList.Add(_v);
-            _dataMap.Add(_v.FuncId, _v);
+            _dataMap.Add(_v.FuncID, _v);
         }
     }
 

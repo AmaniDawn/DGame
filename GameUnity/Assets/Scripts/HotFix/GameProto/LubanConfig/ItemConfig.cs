@@ -19,12 +19,12 @@ public sealed partial class ItemConfig : Luban.BeanBase
     public ItemConfig(ByteBuf _buf) 
     {
         ItemID = _buf.ReadInt();
-        ItemNameId = _buf.ReadString();
+        ItemNameID = _buf.ReadString();
         Quality = (ColorQuality)_buf.ReadInt();
         IconNameMan = _buf.ReadString();
         IconNameWoman = _buf.ReadString();
         ItemType = _buf.ReadInt();
-        FuncDescId = _buf.ReadString();
+        FuncDescID = _buf.ReadString();
         MaxStack = _buf.ReadInt();
         UseLevel = _buf.ReadInt();
         FuncType = _buf.ReadInt();
@@ -33,7 +33,7 @@ public sealed partial class ItemConfig : Luban.BeanBase
         DecomposeMoneyCnt = _buf.ReadInt();
         DecomposeItemID = _buf.ReadInt();
         DecomposeItemCnt = _buf.ReadInt();
-        GetDescId = _buf.ReadString();
+        GetDescID = _buf.ReadString();
         AutoUse = _buf.ReadBool();
         ActiveFashionID = _buf.ReadInt();
         CanSell = _buf.ReadBool();
@@ -54,7 +54,7 @@ public sealed partial class ItemConfig : Luban.BeanBase
     /// <summary>
     /// 道具名称ID
     /// </summary>
-    public string ItemNameId;
+    public string ItemNameID;
     /// <summary>
     /// 道具品质
     /// </summary>
@@ -74,7 +74,7 @@ public sealed partial class ItemConfig : Luban.BeanBase
     /// <summary>
     /// 功能描述ID
     /// </summary>
-    public string FuncDescId;
+    public string FuncDescID;
     /// <summary>
     /// 最大叠加数
     /// </summary>
@@ -110,7 +110,7 @@ public sealed partial class ItemConfig : Luban.BeanBase
     /// <summary>
     /// 获得说明ID
     /// </summary>
-    public string GetDescId;
+    public string GetDescID;
     /// <summary>
     /// 获得是否自动使用
     /// </summary>
@@ -151,12 +151,12 @@ public sealed partial class ItemConfig : Luban.BeanBase
             other = new ItemConfig();
         }
         other.ItemID = ItemID;
-        other.ItemNameId = ItemNameId;
+        other.ItemNameID = ItemNameID;
         other.Quality = Quality;
         other.IconNameMan = IconNameMan;
         other.IconNameWoman = IconNameWoman;
         other.ItemType = ItemType;
-        other.FuncDescId = FuncDescId;
+        other.FuncDescID = FuncDescID;
         other.MaxStack = MaxStack;
         other.UseLevel = UseLevel;
         other.FuncType = FuncType;
@@ -165,7 +165,7 @@ public sealed partial class ItemConfig : Luban.BeanBase
         other.DecomposeMoneyCnt = DecomposeMoneyCnt;
         other.DecomposeItemID = DecomposeItemID;
         other.DecomposeItemCnt = DecomposeItemCnt;
-        other.GetDescId = GetDescId;
+        other.GetDescID = GetDescID;
         other.AutoUse = AutoUse;
         other.ActiveFashionID = ActiveFashionID;
         other.CanSell = CanSell;
@@ -178,12 +178,12 @@ public sealed partial class ItemConfig : Luban.BeanBase
     {
         return "{ "
         + "ItemID:" + ItemID + ","
-        + "ItemNameId:" + ItemNameId + ","
+        + "ItemNameID:" + ItemNameID + ","
         + "Quality:" + Quality + ","
         + "IconNameMan:" + IconNameMan + ","
         + "IconNameWoman:" + IconNameWoman + ","
         + "ItemType:" + ItemType + ","
-        + "FuncDescId:" + FuncDescId + ","
+        + "FuncDescID:" + FuncDescID + ","
         + "MaxStack:" + MaxStack + ","
         + "UseLevel:" + UseLevel + ","
         + "FuncType:" + FuncType + ","
@@ -192,7 +192,7 @@ public sealed partial class ItemConfig : Luban.BeanBase
         + "DecomposeMoneyCnt:" + DecomposeMoneyCnt + ","
         + "DecomposeItemID:" + DecomposeItemID + ","
         + "DecomposeItemCnt:" + DecomposeItemCnt + ","
-        + "GetDescId:" + GetDescId + ","
+        + "GetDescID:" + GetDescID + ","
         + "AutoUse:" + AutoUse + ","
         + "ActiveFashionID:" + ActiveFashionID + ","
         + "CanSell:" + CanSell + ","

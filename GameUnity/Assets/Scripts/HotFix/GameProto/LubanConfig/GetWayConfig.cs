@@ -18,9 +18,9 @@ public sealed partial class GetWayConfig : Luban.BeanBase
     
     public GetWayConfig(ByteBuf _buf) 
     {
-        WayId = _buf.ReadInt();
-        FuncId = _buf.ReadInt();
-        ActivityId = _buf.ReadInt();
+        WayID = _buf.ReadInt();
+        FuncID = _buf.ReadInt();
+        ActivityID = _buf.ReadInt();
         WayName = _buf.ReadString();
         EventType = _buf.ReadByte();
         {int __n0 = _buf.ReadSize(); ParameterList = new int[__n0];for(var __index0 = 0 ; __index0 < __n0 ; __index0++) { int __e0;__e0 = _buf.ReadInt(); ParameterList[__index0] = __e0;}}
@@ -34,15 +34,15 @@ public sealed partial class GetWayConfig : Luban.BeanBase
     /// <summary>
     /// 途径ID
     /// </summary>
-    public int WayId;
+    public int WayID;
     /// <summary>
     /// 系统ID
     /// </summary>
-    public int FuncId;
+    public int FuncID;
     /// <summary>
     /// 活动ID
     /// </summary>
-    public int ActivityId;
+    public int ActivityID;
     /// <summary>
     /// 名称
     /// </summary>
@@ -70,9 +70,9 @@ public sealed partial class GetWayConfig : Luban.BeanBase
         {
             other = new GetWayConfig();
         }
-        other.WayId = WayId;
-        other.FuncId = FuncId;
-        other.ActivityId = ActivityId;
+        other.WayID = WayID;
+        other.FuncID = FuncID;
+        other.ActivityID = ActivityID;
         other.WayName = WayName;
         other.EventType = EventType;
         other.ParameterList = ParameterList;
@@ -81,9 +81,9 @@ public sealed partial class GetWayConfig : Luban.BeanBase
     public override string ToString()
     {
         return "{ "
-        + "WayId:" + WayId + ","
-        + "FuncId:" + FuncId + ","
-        + "ActivityId:" + ActivityId + ","
+        + "WayID:" + WayID + ","
+        + "FuncID:" + FuncID + ","
+        + "ActivityID:" + ActivityID + ","
         + "WayName:" + WayName + ","
         + "EventType:" + EventType + ","
         + "ParameterList:" + Luban.StringUtil.CollectionToString(ParameterList) + ","
