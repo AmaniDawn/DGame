@@ -60,6 +60,27 @@ namespace GameProto
             }
         }
         /// <summary>
+        /// 货币配置表
+        /// </summary>
+        private TbCurrencyConfig m_TbCurrencyConfig;
+        public TbCurrencyConfig TbCurrencyConfig 
+        {
+            get
+            {
+                if (m_TbCurrencyConfig == null)
+                {
+                    m_TbCurrencyConfig = new TbCurrencyConfig(m_defaultLoader("tbcurrencyconfig"));
+                    m_TbCurrencyConfig.ResolveRef(this);
+                }
+                return m_TbCurrencyConfig;
+            }
+            set
+            {
+                m_TbCurrencyConfig = value;
+                m_TbCurrencyConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
         /// 获取途径配置表
         /// </summary>
         private TbGetWayConfig m_TbGetWayConfig;
