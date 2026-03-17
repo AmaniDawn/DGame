@@ -13,12 +13,6 @@ package Fantasy.Network.Message;
 // 通过添加 // using 导出时添加自定义命名空间
 // 例如: // using System.Runtime // using System.Reflection
 
-/// 活动类型的枚举
-enum ActivityType
-{
-  ACTIVITY_TYPE_NONE, /// 无
-}
-
 /// 活动开启配置
 message CSActivityOpenEntry
 {

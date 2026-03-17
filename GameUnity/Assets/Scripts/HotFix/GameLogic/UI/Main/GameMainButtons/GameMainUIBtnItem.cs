@@ -1,7 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using DGame;
-using Fantasy;
+using GameProto;
 
 namespace GameLogic
 {

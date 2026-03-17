@@ -28,16 +28,53 @@ namespace GameLogic
 			AddUIEvent(ILoginUI_Event.OnLoginSuccess, OnLoginSuccess);
 		}
 
+		protected override void OnCreate()
+		{
+			SetUIFit(m_rectContainer);
+			if (!GameClient.Instance.IsStatusEnter)
+			{
+				m_autoLoginTimer = GameModule.GameTimerModule.CreateOnceGameTimer(0.2f, DoAutoLogin);
+			}
+
+			ShowAssetBundleVersion();
+		}
+
+		protected override void OnDestroy()
+		{
+			CancelTimer();
+		}
+
 		#endregion
 
 		#region 字段
 
 		private QuickAuthSaveData m_quickAuthSaveData;
+		private GameTimer m_autoLoginTimer;
 		
 		#endregion
 
 		#region 函数
 
+		private void ShowAssetBundleVersion()
+		{
+			m_textVersion.text = GameModule.ResourceModule.PackageVersion;
+		}
+
+		private void CancelTimer()
+		{
+			GameModule.GameTimerModule.DestroyGameTimer(m_autoLoginTimer);
+			m_autoLoginTimer = null;
+		}
+
+		private void DoAutoLogin(object[] args)
+		{
+			throw new System.NotImplementedException();
+		}
+
+		private void DoLogin(bool isAutoLogin)
+		{
+			CancelTimer();
+		}
 
 		#endregion
 
@@ -65,6 +102,11 @@ namespace GameLogic
 
 		private partial void OnClickStartGameBtn()
 		{
+			if (!m_toggleUserPrivacy.isOn)
+			{
+				UIModule.Instance.ShowTipsUI(G.R("请阅读并同意，服务协议和隐私保护指引"));
+				return;
+			}
 			UIModule.Instance.ShowWindowAsync<GameMainUI>();
 		}
 

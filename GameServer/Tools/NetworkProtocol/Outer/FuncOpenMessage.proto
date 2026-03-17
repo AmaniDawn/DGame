@@ -12,15 +12,3 @@ package Fantasy.Network.Message;
 // 分别代表使用Protobuf序列化或使用MemoryPack序列化
 // 通过添加 // using 导出时添加自定义命名空间
 // 例如: // using System.Runtime // using System.Reflection
-
-/// 系统开放类型
-enum FuncType
-{
-	FUNC_TYPE_NONE, 	/// 异常
-  	FUNC_TYPE_SHOP, 	/// 商城
-  	FUNC_TYPE_ACTOR, 	/// 角色
-  	FUNC_TYPE_MAIN, 	/// 主界面
-  	FUNC_TYPE_LEAGUE, 	/// 公会
-  	FUNC_TYPE_GAMEPLAY, /// 玩法
-  	FUNC_TYPE_HOME, 	/// 家园
-}
