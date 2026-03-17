@@ -11,6 +11,9 @@
 
 namespace GameProto
 { 
+    /// <summary>
+    /// 系统开放类型
+    /// </summary>
     public enum FuncType
     {
         /// <summary>

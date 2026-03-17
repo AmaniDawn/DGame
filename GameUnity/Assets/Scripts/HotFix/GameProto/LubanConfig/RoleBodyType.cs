@@ -11,6 +11,9 @@
 
 namespace GameProto
 { 
+    /// <summary>
+    /// 玩家性别体型
+    /// </summary>
     public enum RoleBodyType
     {
         /// <summary>

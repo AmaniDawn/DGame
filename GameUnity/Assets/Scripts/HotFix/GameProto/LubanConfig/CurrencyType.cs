@@ -11,6 +11,9 @@
 
 namespace GameProto
 { 
+    /// <summary>
+    /// 货币枚举类型
+    /// </summary>
     public enum CurrencyType
     {
         /// <summary>

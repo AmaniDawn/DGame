@@ -11,6 +11,9 @@
 
 namespace GameProto
 { 
+    /// <summary>
+    /// 活动开启类型
+    /// </summary>
     public enum ActivityOpenType
     {
         /// <summary>

@@ -11,6 +11,9 @@
 
 namespace GameProto
 { 
+    /// <summary>
+    /// 音效枚举
+    /// </summary>
     public enum SysSoundID
     {
         /// <summary>

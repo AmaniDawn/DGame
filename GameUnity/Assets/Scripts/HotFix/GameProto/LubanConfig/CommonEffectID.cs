@@ -11,6 +11,9 @@
 
 namespace GameProto
 { 
+    /// <summary>
+    /// 特效枚举
+    /// </summary>
     public enum CommonEffectID
     {
         /// <summary>

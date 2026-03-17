@@ -11,6 +11,9 @@
 
 namespace GameProto
 { 
+    /// <summary>
+    /// 道具品质颜色
+    /// </summary>
     public enum ColorQuality
     {
         /// <summary>
