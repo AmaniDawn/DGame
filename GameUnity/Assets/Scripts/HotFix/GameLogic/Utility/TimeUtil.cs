@@ -101,7 +101,7 @@ namespace GameLogic
             /// <summary>
             /// 上次反馈时间
             /// </summary>
-            public static int LastFeedBackTime = 0;
+            public static long LastFeedBackTime = 0;
 
             /// <summary>
             /// 一小时秒数
@@ -133,8 +133,8 @@ namespace GameLogic
             /// 服务器UTC时间戳 int
             /// </summary>
             /// <returns></returns>
-            public static int GetServerSeconds()
-                => (int)ServerTime + (int)GameTime.RealtimeSinceStartup - (int)LastUpdateServerTime;
+            public static long GetServerSeconds()
+                => ServerTime + (long)GameTime.RealtimeSinceStartup - (long)LastUpdateServerTime;
 
             /// <summary>
             /// 服务器UTC时间戳 double
@@ -147,7 +147,7 @@ namespace GameLogic
             /// 服务器所在时区时间 int
             /// </summary>
             /// <returns></returns>
-            public static int GetSvrLocalSec() => GetServerSeconds() + ServerTimeGreenWich;
+            public static long GetSvrLocalSec() => GetServerSeconds() + ServerTimeGreenWich;
 
             /// <summary>
             /// 服务器所在时区时间 double
@@ -241,10 +241,10 @@ namespace GameLogic
             /// <param name="time2"></param>
             /// <param name="offsetZeroSecond"></param>
             /// <returns></returns>
-            public static uint CalcDiffDay(uint time1, uint time2, uint offsetZeroSecond = 0)
+            public static long CalcDiffDay(long time1, long time2, long offsetZeroSecond = 0)
             {
-                uint min = Math.Min(time1, time2) - offsetZeroSecond;
-                uint max = Math.Max(time1, time2) - offsetZeroSecond;
+                long min = Math.Min(time1, time2) - offsetZeroSecond;
+                long max = Math.Max(time1, time2) - offsetZeroSecond;
                 // min按照 86400 取整
                 min -= min % SecondOfDay;
                 return (max - min) / SecondOfDay;
@@ -256,14 +256,14 @@ namespace GameLogic
             /// <param name="time"></param>
             /// <param name="offsetZeroSecond"></param>
             /// <returns></returns>
-            public static uint GetHowManySecondToNextTime(uint time, uint offsetZeroSecond)
+            public static long GetHowManySecondToNextTime(long time, long offsetZeroSecond)
             {
                 if (time == 0) return 0;
-                uint remainder = time % SecondOfDay;
+                long remainder = time % SecondOfDay;
                 return (SecondOfDay - remainder) % SecondOfDay + offsetZeroSecond;
             }
 
-            public static bool CheckIsSameDay(uint lhs, uint rhs)
+            public static bool CheckIsSameDay(long lhs, long rhs)
                 => lhs / SecondOfDay == rhs / SecondOfDay;
 
             /// <summary>
@@ -339,7 +339,7 @@ namespace GameLogic
             /// <param name="param">格式化参数</param>
             /// <param name="toSvrLocalTime">是否转服务器时区时间</param>
             /// <returns></returns>
-            public static string GetDateTimeFormat(uint time, DateTimeFormatParam param, bool toSvrLocalTime = true)
+            public static string GetDateTimeFormat(long time, DateTimeFormatParam param, bool toSvrLocalTime = true)
             {
                 if (param == null) return string.Empty;
                 DateTime dt = toSvrLocalTime ? Utc2SvrLocalDateTime(time) : InitTime.AddSeconds(time);
@@ -347,9 +347,7 @@ namespace GameLogic
 
                 if ((param.DateMask & DateMask.DATE_MASK_YEAR) != 0)
                 {
-                    m_stringBuilder.Append(param.ToChinese
-                            ? Num2ChineseLikeYear(dt.Year)
-                            : dt.Year.ToString())
+                    m_stringBuilder.Append(param.ToChinese ? Num2ChineseLikeYear(dt.Year) : dt.Year.ToString())
                         .Append(param.YearSeparator);
                 }
 
@@ -393,26 +391,20 @@ namespace GameLogic
 
                 if ((param.DateMask & DateMask.DATE_MASK_HOUR) != 0)
                 {
-                    m_stringBuilder.Append(param.ToChinese
-                        ? m_stringBuilder.Append(Number2Chinese(dt.Hour))
-                        : m_stringBuilder.Append($"{dt.Hour:D2}"));
+                    m_stringBuilder.Append(param.ToChinese ? Number2Chinese(dt.Hour) : $"{dt.Hour:D2}");
                     m_stringBuilder.Append(param.HourSeparator);
                 }
 
                 if ((param.DateMask & DateMask.DATE_MASK_MIN) != 0)
                 {
-                    m_stringBuilder.Append(param.ToChinese
-                        ? m_stringBuilder.Append(Number2Chinese(dt.Minute))
-                        : m_stringBuilder.Append($"{dt.Minute:D2}"));
+                    m_stringBuilder.Append(param.ToChinese ? Number2Chinese(dt.Minute) : $"{dt.Minute:D2}");
                     m_stringBuilder.Append(param.MinSeparator);
                 }
 
 
                 if ((param.DateMask & DateMask.DATE_MASK_SEC) != 0)
                 {
-                    m_stringBuilder.Append(param.ToChinese
-                        ? m_stringBuilder.Append(Number2Chinese(dt.Second))
-                        : m_stringBuilder.Append($"{dt.Second:D2}"));
+                    m_stringBuilder.Append(param.ToChinese ? Number2Chinese(dt.Second) : $"{dt.Second:D2}");
                     m_stringBuilder.Append(param.SecSeparator);
                 }
 
@@ -425,9 +417,9 @@ namespace GameLogic
             /// <param name="time"></param>
             /// <param name="showHourMin"></param>
             /// <returns></returns>
-            public static string GetSpanTimeFormat(uint time, bool showHourMin = true)
+            public static string GetSpanTimeFormat(long time, bool showHourMin = true)
             {
-                uint timeSpan = (uint)GetServerSeconds() - time;
+                long timeSpan = GetServerSeconds() - time;
                 return timeSpan switch
                 {
                     < 60 => G.R(TextDefine.ID_LABEL_TIME_SPAN_SECOND),
@@ -601,7 +593,7 @@ namespace GameLogic
 
             public static void UpdateFeedBackTime() => LastFeedBackTime = GetServerSeconds();
 
-            public static int GetCanFeedBackCoolTime() => LastFeedBackTime + 1 - GetServerSeconds();
+            public static long GetCanFeedBackCoolTime() => LastFeedBackTime + 1 - GetServerSeconds();
 
             #endregion
         }
