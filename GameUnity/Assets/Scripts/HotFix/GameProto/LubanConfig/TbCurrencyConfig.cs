@@ -17,13 +17,13 @@ namespace GameProto
 /// </summary>
 public partial class TbCurrencyConfig
 {
-    private readonly System.Collections.Generic.Dictionary<int, CurrencyConfig> _dataMap;
+    private readonly System.Collections.Generic.Dictionary<CurrencyType, CurrencyConfig> _dataMap;
     private readonly System.Collections.Generic.List<CurrencyConfig> _dataList;
     
     public TbCurrencyConfig(ByteBuf _buf)
     {
         int n = _buf.ReadSize();
-        _dataMap = new System.Collections.Generic.Dictionary<int, CurrencyConfig>(n);
+        _dataMap = new System.Collections.Generic.Dictionary<CurrencyType, CurrencyConfig>(n);
         _dataList = new System.Collections.Generic.List<CurrencyConfig>(n);
         for(int i = n ; i > 0 ; --i)
         {
@@ -38,20 +38,20 @@ public partial class TbCurrencyConfig
 
     private static TbCurrencyConfig m_instance;
     public static TbCurrencyConfig Instance => m_instance == null ? m_instance = ConfigSystem.Instance.Tables.TbCurrencyConfig : m_instance;
-    public static bool ContainsKey(int key) => Instance._dataMap.ContainsKey(key);
-    public static bool TryGetValue(int key, out CurrencyConfig v) => Instance._dataMap.TryGetValue(key, out v);
-    public static CurrencyConfig GetOrDefault(int key) => Instance._dataMap.TryGetValue(key, out var v) ? v : null;
-    public static System.Collections.Generic.Dictionary<int, CurrencyConfig> DataMap => Instance._dataMap;
+    public static bool ContainsKey(CurrencyType key) => Instance._dataMap.ContainsKey(key);
+    public static bool TryGetValue(CurrencyType key, out CurrencyConfig v) => Instance._dataMap.TryGetValue(key, out v);
+    public static CurrencyConfig GetOrDefault(CurrencyType key) => Instance._dataMap.TryGetValue(key, out var v) ? v : null;
+    public static System.Collections.Generic.Dictionary<CurrencyType, CurrencyConfig> DataMap => Instance._dataMap;
     public static System.Collections.Generic.List<CurrencyConfig> DataList => Instance._dataList;
 
     #endregion
 
-    public System.Collections.Generic.Dictionary<int, CurrencyConfig> dataMap => _dataMap;
+    public System.Collections.Generic.Dictionary<CurrencyType, CurrencyConfig> dataMap => _dataMap;
     public System.Collections.Generic.List<CurrencyConfig> dataList => _dataList;
 
-    public CurrencyConfig GetOrDefaultNoStatic(int key) => _dataMap.TryGetValue(key, out var v) ? v : default;
-    public CurrencyConfig Get(int key) => _dataMap[key];
-    public CurrencyConfig this[int key] => _dataMap[key];
+    public CurrencyConfig GetOrDefaultNoStatic(CurrencyType key) => _dataMap.TryGetValue(key, out var v) ? v : default;
+    public CurrencyConfig Get(CurrencyType key) => _dataMap[key];
+    public CurrencyConfig this[CurrencyType key] => _dataMap[key];
 
     public void ResolveRef(Tables tables)
     {

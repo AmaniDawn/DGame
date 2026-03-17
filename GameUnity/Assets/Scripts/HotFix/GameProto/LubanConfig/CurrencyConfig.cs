@@ -18,7 +18,7 @@ public sealed partial class CurrencyConfig : Luban.BeanBase
     
     public CurrencyConfig(ByteBuf _buf) 
     {
-        CurrencyType = _buf.ReadInt();
+        CurrencyType = (CurrencyType)_buf.ReadInt();
         BootyType = _buf.ReadInt();
         ItemNameID = _buf.ReadInt();
         Quality = (ColorQuality)_buf.ReadInt();
@@ -36,7 +36,7 @@ public sealed partial class CurrencyConfig : Luban.BeanBase
     /// <summary>
     /// 货币类型
     /// </summary>
-    public int CurrencyType;
+    public CurrencyType CurrencyType;
     /// <summary>
     /// 掉落类型
     /// </summary>

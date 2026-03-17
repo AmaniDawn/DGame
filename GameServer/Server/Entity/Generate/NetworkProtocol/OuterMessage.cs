@@ -1298,4 +1298,158 @@ namespace Fantasy
         [ProtoMember(2)]
         public string Tag { get; set; }
     }
+    /// <summary>
+    /// 玩家角色基础数据
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class CSPlayerData : AMessage, IDisposable
+    {
+        public static CSPlayerData Create(bool autoReturn = true)
+        {
+            var cSPlayerData = MessageObjectPool<CSPlayerData>.Rent();
+            cSPlayerData.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                cSPlayerData.SetIsPool(false);
+            }
+            
+            return cSPlayerData;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            RoleID = default;
+            RoleNo = default;
+            RoleName = default;
+            HeadID = default;
+            Sex = default;
+            Level = default;
+            Exp = default;
+            FightValue = default;
+            Diamond = default;
+            Gold = default;
+            Stam = default;
+            LastLoginTime = default;
+            CreateTime = default;
+            IsFinGuide = default;
+            Sign = default;
+            WorldID = default;
+            TotalRmb = default;
+            LastAddStamTime = default;
+            DailyBuyStamCount = default;
+            MessageObjectPool<CSPlayerData>.Return(this);
+        }
+        /// <summary>
+        /// RoleID
+        /// </summary>
+        [ProtoMember(1)]
+        public ulong RoleID { get; set; }
+        /// <summary>
+        /// RoleNO
+        /// </summary>
+        [ProtoMember(2)]
+        public ulong RoleNo { get; set; }
+        /// <summary>
+        /// 角色名称
+        /// </summary>
+        [ProtoMember(3)]
+        public string RoleName { get; set; }
+        /// <summary>
+        /// 头像ID
+        /// </summary>
+        [ProtoMember(4)]
+        public int HeadID { get; set; }
+        /// <summary>
+        /// 性别
+        /// </summary>
+        [ProtoMember(5)]
+        public byte Sex { get; set; }
+        /// <summary>
+        /// 等级
+        /// </summary>
+        [ProtoMember(6)]
+        public uint Level { get; set; }
+        /// <summary>
+        /// 经验
+        /// </summary>
+        [ProtoMember(7)]
+        public uint Exp { get; set; }
+        /// <summary>
+        /// 战斗力
+        /// </summary>
+        [ProtoMember(8)]
+        public uint FightValue { get; set; }
+        /// <summary>
+        /// 钻石
+        /// </summary>
+        [ProtoMember(9)]
+        public uint Diamond { get; set; }
+        /// <summary>
+        /// 金币
+        /// </summary>
+        [ProtoMember(10)]
+        public uint Gold { get; set; }
+        /// <summary>
+        /// 体力
+        /// </summary>
+        [ProtoMember(11)]
+        public uint Stam { get; set; }
+        /// <summary>
+        /// 上次登录时间
+        /// </summary>
+        [ProtoMember(12)]
+        public long LastLoginTime { get; set; }
+        /// <summary>
+        /// 创角时间
+        /// </summary>
+        [ProtoMember(13)]
+        public long CreateTime { get; set; }
+        /// <summary>
+        /// 是否完成新手引导
+        /// </summary>
+        [ProtoMember(14)]
+        public byte IsFinGuide { get; set; }
+        /// <summary>
+        /// 个性签名
+        /// </summary>
+        [ProtoMember(15)]
+        public string Sign { get; set; }
+        /// <summary>
+        /// 所在主服
+        /// </summary>
+        [ProtoMember(16)]
+        public int WorldID { get; set; }
+        /// <summary>
+        /// 累计充值金额
+        /// </summary>
+        [ProtoMember(17)]
+        public uint TotalRmb { get; set; }
+        /// <summary>
+        /// 上次增加体力时间
+        /// </summary>
+        [ProtoMember(18)]
+        public long LastAddStamTime { get; set; }
+        /// <summary>
+        /// 每日购买体力次数
+        /// </summary>
+        [ProtoMember(19)]
+        public int DailyBuyStamCount { get; set; }
+    }
 }

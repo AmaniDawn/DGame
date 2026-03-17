@@ -29,7 +29,7 @@ namespace GameLogic
 
             if (!isOpen && showTips && TbFuncOpenConfig.TryGetValue(funcType, out var cfg))
             {
-                UIModule.Instance.ShowTipsUI((uint)cfg.NoOpenTipsId);
+                UIModule.Instance.ShowTipsUI((uint)cfg.NoOpenTipsID);
             }
             return isOpen;
         }

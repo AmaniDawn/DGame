@@ -43,7 +43,15 @@ namespace GameLogic
 
 		#endregion
 
-		ID_LABEL_START_GAME = 10000024,
+		#region 单位
+
+		ID_LABEL_COMM_THOUSAND = 10000024, // {0}千
+		ID_LABEL_COMM_MYRIAD, // {0}万
+		ID_LABEL_COMM_BILLION, // {0}亿
+
+		#endregion
+
+		ID_LABEL_START_GAME = 10000027,
 		ID_LABEL_QUIT_GAME,
 
 		#region G.R自动生成
