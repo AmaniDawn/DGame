@@ -80,13 +80,13 @@ namespace GameLogic
         public static IGameTimerModule GameTimerModule => m_gameTimerModule == null
             ? m_gameTimerModule = GetModule<IGameTimerModule>() : m_gameTimerModule;
 
-        private static IInputModule m_inputModule;
+        private static DGame.IInputModule m_inputModule;
 
         /// <summary>
         /// 输入模块
         /// </summary>
-        public static IInputModule InputModule => m_inputModule == null
-            ? m_inputModule = GetModule<IInputModule>() : m_inputModule;
+        public static DGame.IInputModule InputModule => m_inputModule == null
+            ? m_inputModule = GetModule<DGame.IInputModule>() : m_inputModule;
 
         private static ILocalizationModule m_localizationModule;
 
