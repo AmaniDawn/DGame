@@ -88,6 +88,14 @@ namespace GameLogic
         public static DGame.IInputModule InputModule => m_inputModule == null
             ? m_inputModule = GetModule<DGame.IInputModule>() : m_inputModule;
 
+        private static GameLogic.IInputModule m_input;
+
+        /// <summary>
+        /// 输入模块
+        /// </summary>
+        public static GameLogic.IInputModule Input => m_input == null
+            ? m_input = GetModule<GameLogic.IInputModule>() : m_input;
+
         private static ILocalizationModule m_localizationModule;
 
         /// <summary>
