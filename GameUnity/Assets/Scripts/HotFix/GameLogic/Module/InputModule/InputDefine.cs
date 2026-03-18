@@ -1,4 +1,6 @@
-﻿namespace GameLogic
+﻿using UnityEngine;
+
+namespace GameLogic
 {
     /// <summary>
     /// 轴输入状态枚举
@@ -102,13 +104,13 @@
         /// <summary>
         /// 输入发生时间
         /// </summary>
-        public double Time;
+        public double EventTime;
 
-        public InputEvent(InputEventType actionType, InputState inputState, double time)
+        public InputEvent(InputEventType actionType, InputState inputState, double eventTime)
         {
             ActionType = actionType;
             InputState = inputState;
-            Time = time;
+            EventTime = eventTime;
         }
     }
 
@@ -128,7 +130,7 @@
         /// </summary>
         public int IntValue;
 
-        public GameplayCommand(InputCommandType commandType, int intValue)
+        public GameplayCommand(InputCommandType commandType, int intValue = 0)
         {
             CommandType = commandType;
             IntValue = intValue;
@@ -152,9 +154,9 @@
         public InputState InputState;
 
         /// <summary>
-        /// 输入时间
+        /// 原始输入时间
         /// </summary>
-        public double Time;
+        public double EventTime;
 
         /// <summary>
         /// 原始输入命令
@@ -166,11 +168,11 @@
         /// </summary>
         public int Index;
 
-        public InputContextCommand(InputEventType actionType, InputState inputState, double time, GameplayCommand command, int index)
+        public InputContextCommand(InputEventType actionType, InputState inputState, GameplayCommand command, double eventTime, int index)
         {
             ActionType = actionType;
             InputState = inputState;
-            Time = time;
+            EventTime = eventTime;
             Command = command;
             Index = index;
         }
@@ -182,6 +184,15 @@
     /// </summary>
     public struct InputCache
     {
+        public InputCache(InputEventType actionType, InputState inputState, double eventTime, double createTime, double accumulatedTime)
+        {
+            ActionType = actionType;
+            InputState = inputState;
+            EventTime = eventTime;
+            CreateTime = createTime;
+            AccumulatedTime = accumulatedTime;
+        }
+
         /// <summary>
         /// 缓存的动作类型
         /// </summary>
@@ -200,12 +211,31 @@
         /// <summary>
         /// 缓存创建时间
         /// </summary>
-        public double Time;
+        public double CreateTime;
 
         /// <summary>
         /// 缓存累计时间
         /// </summary>
         public double AccumulatedTime;
+    }
+
+    public struct AxisCache
+    {
+        /// <summary>
+        /// 最后非零值
+        /// </summary>
+        public float LasNonZeroValue;
+        
+        /// <summary>
+        /// 累计时间
+        /// </summary>
+        public float AccumulateTime;
+
+        public AxisCache(float lasNonZeroValue, float accumulateTime)
+        {
+            LasNonZeroValue = lasNonZeroValue;
+            AccumulateTime = accumulateTime;
+        }
     }
 
     public sealed partial class InputDefine
@@ -223,11 +253,13 @@
 
             m_inputActions.GamePlay.Move.performed += ctx =>
             {
-
+                GameModule.Input.ReceiveInputAxis(InputAxisType.MoveForward, ctx.ReadValue<Vector2>().y);
+                GameModule.Input.ReceiveInputAxis(InputAxisType.MoveRight, ctx.ReadValue<Vector2>().x);
             };
-            m_inputActions.GamePlay.Move.canceled += ctx =>
+            m_inputActions.GamePlay.Move.canceled += _ =>
             {
-
+                GameModule.Input.ReceiveInputAxis(InputAxisType.MoveForward, 0);
+                GameModule.Input.ReceiveInputAxis(InputAxisType.MoveRight, 0);
             };
 
             #endregion
@@ -236,11 +268,13 @@
 
             m_inputActions.GamePlay.Look.performed += ctx =>
             {
-
+                GameModule.Input.ReceiveInputAxis(InputAxisType.LookUp, ctx.ReadValue<Vector2>().y);
+                GameModule.Input.ReceiveInputAxis(InputAxisType.LookRight, ctx.ReadValue<Vector2>().x);
             };
-            m_inputActions.GamePlay.Look.canceled += ctx =>
+            m_inputActions.GamePlay.Look.canceled += _ =>
             {
-
+                GameModule.Input.ReceiveInputAxis(InputAxisType.LookUp, 0);
+                GameModule.Input.ReceiveInputAxis(InputAxisType.LookRight, 0);
             };
 
             #endregion
@@ -249,11 +283,13 @@
 
             m_inputActions.GamePlay.Zoom.performed += ctx =>
             {
-
+                GameModule.Input.ReceiveInputAxis(InputAxisType.ZoomUp, ctx.ReadValue<Vector2>().y);
+                GameModule.Input.ReceiveInputAxis(InputAxisType.ZoomDown, ctx.ReadValue<Vector2>().x);
             };
-            m_inputActions.GamePlay.Zoom.canceled += ctx =>
+            m_inputActions.GamePlay.Zoom.canceled += _ =>
             {
-
+                GameModule.Input.ReceiveInputAxis(InputAxisType.ZoomUp, 0);
+                GameModule.Input.ReceiveInputAxis(InputAxisType.ZoomDown, 0);
             };
 
             #endregion
