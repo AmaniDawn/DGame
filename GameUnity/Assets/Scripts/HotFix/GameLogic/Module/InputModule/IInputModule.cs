@@ -38,7 +38,7 @@ namespace GameLogic
         /// <param name="actionType">输入动作类型</param>
         /// <param name="inputState">输入状态</param>
         /// <param name="time">事件发生时间</param>
-        void ReceiveInputAction(InputActionType actionType, InputState inputState, double time);
+        void ReceiveInputAction(InputEventType actionType, InputState inputState, double time);
 
         /// <summary>
         /// 接收来自引擎或者UI的轴输入

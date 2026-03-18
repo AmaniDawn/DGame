@@ -92,7 +92,7 @@
         /// <summary>
         /// 输入动作类型
         /// </summary>
-        public InputActionType ActionType;
+        public InputEventType ActionType;
 
         /// <summary>
         /// 输入按键状态
@@ -104,7 +104,7 @@
         /// </summary>
         public double Time;
 
-        public InputEvent(InputActionType actionType, InputState inputState, double time)
+        public InputEvent(InputEventType actionType, InputState inputState, double time)
         {
             ActionType = actionType;
             InputState = inputState;
@@ -144,7 +144,7 @@
         /// <summary>
         /// 原始输入动作类型
         /// </summary>
-        public InputActionType ActionType;
+        public InputEventType ActionType;
 
         /// <summary>
         /// 原始输入状态
@@ -166,7 +166,7 @@
         /// </summary>
         public int Index;
 
-        public InputContextCommand(InputActionType actionType, InputState inputState, double time, GameplayCommand command, int index)
+        public InputContextCommand(InputEventType actionType, InputState inputState, double time, GameplayCommand command, int index)
         {
             ActionType = actionType;
             InputState = inputState;
@@ -185,7 +185,7 @@
         /// <summary>
         /// 缓存的动作类型
         /// </summary>
-        public InputActionType ActionType;
+        public InputEventType ActionType;
 
         /// <summary>
         /// 缓存的状态
@@ -217,7 +217,7 @@
             m_inputActions = new GameInputActions();
             Enable();
 
-            // RegisterInputActions();
+            RegisterInputActions();
 
             #region 移动输入处理
 

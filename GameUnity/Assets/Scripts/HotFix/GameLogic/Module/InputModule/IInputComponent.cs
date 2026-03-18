@@ -10,7 +10,7 @@ namespace GameLogic
         /// <param name="actionType">输入动作类型</param>
         /// <param name="state">输入阶段</param>
         /// <param name="time">事件发生时间</param>
-        void ReceiveInputEvent(InputActionType actionType, InputState state, double time);
+        void ReceiveInputEvent(InputEventType actionType, InputState state, double time);
 
         /// <summary>
         /// 接收输入轴变化

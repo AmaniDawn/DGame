@@ -116,7 +116,7 @@ namespace GameLogic
             }
         }
 
-        public void ReceiveInputAction(InputActionType actionType, InputState inputState, double time)
+        public void ReceiveInputAction(InputEventType actionType, InputState inputState, double time)
         {
             foreach (var component in m_inputComponents)
             {
