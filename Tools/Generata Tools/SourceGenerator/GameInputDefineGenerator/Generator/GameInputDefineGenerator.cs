@@ -322,10 +322,11 @@ public class GameInputDefineGenerator : ISourceGenerator
         builder.AppendLine("{");
         builder.AppendLine($"\tpublic enum {Definition.TargetEnumName}");
         builder.AppendLine("\t{");
-
+        
+        builder.AppendLine($"\t\tNone = 0,");
         for (var i = 0; i < inputActions.Count; i++)
         {
-            builder.AppendLine($"\t\t{inputActions[i].EnumMemberName} = {i},");
+            builder.AppendLine($"\t\t{inputActions[i].EnumMemberName} = {i + 1},");
         }
 
         builder.AppendLine("\t}");
