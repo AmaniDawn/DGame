@@ -45,6 +45,11 @@ namespace GameLogic
         {
             m_inputEvents.Add(new InputEvent(actionType, state, time));
             var layers = GameModule.Input.GetInputContextLayers(EntityID);
+            if (layers == null || layers.Count == 0)
+            {
+                return;
+            }
+
             switch (state)
             {
                 case InputState.Started:
@@ -120,7 +125,13 @@ namespace GameLogic
                     m_inputContextCommands.Add(command);
                 }
             }
-            
+
+            if (m_inputContextCommands.Count == 0)
+            {
+                m_inputEvents.Clear();
+                return;
+            }
+
             var bestCommand = GetMaxPriorityCommand(m_inputContextCommands);
             m_inputContextCommands.Remove(bestCommand);
             m_inputEvents.Clear();
@@ -140,6 +151,11 @@ namespace GameLogic
         private InputContextCommand GetCommand(InputEventType eventType, InputState state, double time)
         {
             var layers = GameModule.Input.GetInputContextLayers(EntityID);
+            if (layers == null || layers.Count == 0)
+            {
+                return new InputContextCommand(eventType, state,
+                    new GameplayCommand(InputCommandType.None), time, 0);
+            }
 
             switch (state)
             {
@@ -199,6 +215,12 @@ namespace GameLogic
 
         private InputContextCommand GetMaxPriorityCommand(List<InputContextCommand> commands)
         {
+            if (commands == null || commands.Count == 0)
+            {
+                return new InputContextCommand(InputEventType.None, InputState.Started, 
+                    new GameplayCommand(InputCommandType.None), 0, 0);
+            }
+
             var maxPriorityCmd = commands[0];
             for (int i = 1; i < commands.Count; i++)
             {
