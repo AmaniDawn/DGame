@@ -16,17 +16,17 @@ namespace GameLogic
         /// <summary>
         /// 根据按下输入解析命令
         /// </summary>
-        void ResolveStarted();
+        GameplayCommand ResolveStarted();
 
         /// <summary>
         /// 根据持续按住输入解析命令
         /// </summary>
-        void ResolvePerformed();
+        GameplayCommand ResolvePerformed();
 
         /// <summary>
         /// 根据释放输入解析命令
         /// </summary>
-        void ResolveCanceled();
+        GameplayCommand ResolveCanceled();
 
         /// <summary>
         /// 按下事件通知

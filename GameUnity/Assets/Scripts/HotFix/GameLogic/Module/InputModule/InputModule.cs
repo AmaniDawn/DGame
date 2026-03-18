@@ -81,16 +81,29 @@ namespace GameLogic
         public T AddInputContextLayer<T>(int entityID) where T : class, IInputContextLayer, new()
         {
             var contextLayer = MemoryPool.Spawn<T>();
-
             if (m_inputContextLayerDict.TryGetValue(entityID, out var contextLayers))
             {
-                contextLayers.Add(contextLayer);
+                InsertContextLayer(contextLayers, contextLayer);
             }
             else
             {
                 m_inputContextLayerDict[entityID] = new List<IInputContextLayer>() { contextLayer };
             }
             return contextLayer;
+        }
+
+        private void InsertContextLayer(List<IInputContextLayer> layers, IInputContextLayer contextLayer)
+        {
+            for (var i = 0; i < layers.Count; i++)
+            {
+                var layer = layers[i];
+                if (layer.Priority < contextLayer.Priority)
+                {
+                    layers.Insert(i, contextLayer);
+                    return;
+                }
+            }
+            layers.Add(contextLayer);
         }
 
         public void RemoveInputContextLayer<T>(int entityID) where T : class, IInputContextLayer, new()
@@ -134,12 +147,10 @@ namespace GameLogic
             }
         }
 
-        public float GetInputAxis(InputAxisType axisType)
-            => m_inputAxisDict.TryGetValue(axisType, out var value) ? value : 0f;
+        public float GetInputAxis(InputAxisType axisType) => m_inputAxisDict.GetValueOrDefault(axisType, 0f);
 
         public List<IInputContextLayer> GetInputContextLayers(int entityID)
-            => m_inputContextLayerDict.TryGetValue(entityID, out var contextLayers)
-                ? contextLayers : null;
+            => m_inputContextLayerDict.GetValueOrDefault(entityID, null);
 
         public void Enable() => InputDefine.Enable();
 
