@@ -1,5 +1,4 @@
-﻿
-Microsoft Visual Studio Solution File, Format Version 12.00
+﻿Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.13.35913.81
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -8,6 +7,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameEventAnalyzer", "GameEventAnalyzer\GameEventAnalyzer.csproj", "{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FrameSpritePoolGenerator", "FrameSpritePoolGenerator\FrameSpritePoolGenerator.csproj", "{E52D775F-C012-4377-B25C-7D9A88BE16EE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameInputDefineGenerator", "GameInputDefineGenerator\GameInputDefineGenerator.csproj", "{B79F3B8E-2E8B-4D07-9E70-2A81C089A6F2}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,8 +28,13 @@ Global
 		{E52D775F-C012-4377-B25C-7D9A88BE16EE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{E52D775F-C012-4377-B25C-7D9A88BE16EE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{E52D775F-C012-4377-B25C-7D9A88BE16EE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B79F3B8E-2E8B-4D07-9E70-2A81C089A6F2}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B79F3B8E-2E8B-4D07-9E70-2A81C089A6F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B79F3B8E-2E8B-4D07-9E70-2A81C089A6F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B79F3B8E-2E8B-4D07-9E70-2A81C089A6F2}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 EndGlobal
+
