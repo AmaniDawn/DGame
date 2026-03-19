@@ -14,7 +14,7 @@ public static class AccountManagerComponentSystem
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
         {
             // 代表注册账号参数不完整或不合法
-            return ErrorCodeDefine.REGISTER_ACCOUNT_EXISTS;
+            return ErrorCodeDefine.REGISTER_INVALID_PARAMETER;
         }
 
         try
@@ -24,7 +24,7 @@ public static class AccountManagerComponentSystem
             if (await worldDataBase.Exist<Account>(d => d.Username == username))
             {
                 // 账号已经存在
-                return 1002;
+                return ErrorCodeDefine.REGISTER_ACCOUNT_EXISTS;
             }
 
             // 创角新账号 并持久化到数据库
@@ -42,7 +42,7 @@ public static class AccountManagerComponentSystem
         {
             Log.Error(e);
             // 执行注册的时候发生的未知错误
-            return ErrorCodeDefine.REGISTER_INVALID_PARAMETER;
+            return ErrorCodeDefine.REGISTER_UNKNOW_EORROR;
         }
     }
 }
