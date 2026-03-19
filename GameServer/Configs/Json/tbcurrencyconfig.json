@@ -1,0 +1,42 @@
+[
+  {
+    "CurrencyType": 1,
+    "BootyType": 0,
+    "ItemNameID": 40000001,
+    "Quality": 3,
+    "ItemID": 1001,
+    "Icon": "",
+    "NotEnoughTextID": 11000002,
+    "DescTextID": 41000001
+  },
+  {
+    "CurrencyType": 2,
+    "BootyType": 0,
+    "ItemNameID": 40000002,
+    "Quality": 5,
+    "ItemID": 1002,
+    "Icon": "",
+    "NotEnoughTextID": 11000002,
+    "DescTextID": 41000002
+  },
+  {
+    "CurrencyType": 3,
+    "BootyType": 0,
+    "ItemNameID": 40000003,
+    "Quality": 3,
+    "ItemID": 1003,
+    "Icon": "",
+    "NotEnoughTextID": 11000002,
+    "DescTextID": 41000003
+  },
+  {
+    "CurrencyType": 4,
+    "BootyType": 0,
+    "ItemNameID": 40000004,
+    "Quality": 4,
+    "ItemID": 1004,
+    "Icon": "",
+    "NotEnoughTextID": 11000002,
+    "DescTextID": 41000004
+  }
+]

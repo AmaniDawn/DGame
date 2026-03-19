@@ -19,12 +19,27 @@ public sealed partial class ItemConfig : Luban.BeanBase
     public ItemConfig(ByteBuf _buf) 
     {
         ItemID = _buf.ReadInt();
-        ItemName = _buf.ReadString();
+        ItemNameID = _buf.ReadString();
         Quality = (ColorQuality)_buf.ReadInt();
         IconNameMan = _buf.ReadString();
         IconNameWoman = _buf.ReadString();
-        Price = _buf.ReadInt();
-        if(_buf.ReadBool()){ ExpireTime = _buf.ReadLong(); } else { ExpireTime = null; }
+        ItemType = _buf.ReadInt();
+        FuncDescID = _buf.ReadString();
+        MaxStack = _buf.ReadInt();
+        UseLevel = _buf.ReadInt();
+        FuncType = _buf.ReadInt();
+        {int n0 = _buf.ReadSize(); FuncValue = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); FuncValue.Add(_e0);}}
+        DecomposeMoneyType = _buf.ReadInt();
+        DecomposeMoneyCnt = _buf.ReadInt();
+        DecomposeItemID = _buf.ReadInt();
+        DecomposeItemCnt = _buf.ReadInt();
+        GetDescID = _buf.ReadString();
+        AutoUse = _buf.ReadBool();
+        ActiveFashionID = _buf.ReadInt();
+        CanSell = _buf.ReadBool();
+        CanCompose = _buf.ReadBool();
+        {int n0 = _buf.ReadSize(); GetWayID = new System.Collections.Generic.List<int>(n0);for(var i0 = 0 ; i0 < n0 ; i0++) { int _e0;  _e0 = _buf.ReadInt(); GetWayID.Add(_e0);}}
+        JumpWayID = _buf.ReadInt();
     }
 
     public static ItemConfig DeserializeItemConfig(ByteBuf _buf)
@@ -37,29 +52,89 @@ public sealed partial class ItemConfig : Luban.BeanBase
     /// </summary>
     public int ItemID;
     /// <summary>
-    /// 道具名字
+    /// 道具名称ID
     /// </summary>
-    public string ItemName;
+    public string ItemNameID;
     /// <summary>
     /// 道具品质
     /// </summary>
     public ColorQuality Quality;
     /// <summary>
-    /// 图标资源名_男
+    /// 图标资源名称_男性
     /// </summary>
     public string IconNameMan;
     /// <summary>
-    /// 图标资源名_女
+    /// 图标资源名称_女性
     /// </summary>
     public string IconNameWoman;
     /// <summary>
-    /// 价格
+    /// 道具类型
     /// </summary>
-    public int Price;
+    public int ItemType;
     /// <summary>
-    /// 过期时间
+    /// 功能描述ID
     /// </summary>
-    public long? ExpireTime;
+    public string FuncDescID;
+    /// <summary>
+    /// 最大叠加数
+    /// </summary>
+    public int MaxStack;
+    /// <summary>
+    /// 使用等级
+    /// </summary>
+    public int UseLevel;
+    /// <summary>
+    /// 功能值_类型
+    /// </summary>
+    public int FuncType;
+    /// <summary>
+    /// 功能值_参数
+    /// </summary>
+    public System.Collections.Generic.List<int> FuncValue;
+    /// <summary>
+    /// 分解获得货币类型
+    /// </summary>
+    public int DecomposeMoneyType;
+    /// <summary>
+    /// 分解获得货币数量
+    /// </summary>
+    public int DecomposeMoneyCnt;
+    /// <summary>
+    /// 分解获得道具
+    /// </summary>
+    public int DecomposeItemID;
+    /// <summary>
+    /// 分解获得道具数量
+    /// </summary>
+    public int DecomposeItemCnt;
+    /// <summary>
+    /// 获得说明ID
+    /// </summary>
+    public string GetDescID;
+    /// <summary>
+    /// 获得是否自动使用
+    /// </summary>
+    public bool AutoUse;
+    /// <summary>
+    /// 可激活的时装ID
+    /// </summary>
+    public int ActiveFashionID;
+    /// <summary>
+    /// 可否出售
+    /// </summary>
+    public bool CanSell;
+    /// <summary>
+    /// 可否合成
+    /// </summary>
+    public bool CanCompose;
+    /// <summary>
+    /// 获取途径
+    /// </summary>
+    public System.Collections.Generic.List<int> GetWayID;
+    /// <summary>
+    /// 使用跳转
+    /// </summary>
+    public int JumpWayID;
 
     public const int __ID__ = -764023723;
     public override int GetTypeId() => __ID__;
@@ -76,24 +151,54 @@ public sealed partial class ItemConfig : Luban.BeanBase
             other = new ItemConfig();
         }
         other.ItemID = ItemID;
-        other.ItemName = ItemName;
+        other.ItemNameID = ItemNameID;
         other.Quality = Quality;
         other.IconNameMan = IconNameMan;
         other.IconNameWoman = IconNameWoman;
-        other.Price = Price;
-        other.ExpireTime = ExpireTime;
+        other.ItemType = ItemType;
+        other.FuncDescID = FuncDescID;
+        other.MaxStack = MaxStack;
+        other.UseLevel = UseLevel;
+        other.FuncType = FuncType;
+        other.FuncValue = FuncValue;
+        other.DecomposeMoneyType = DecomposeMoneyType;
+        other.DecomposeMoneyCnt = DecomposeMoneyCnt;
+        other.DecomposeItemID = DecomposeItemID;
+        other.DecomposeItemCnt = DecomposeItemCnt;
+        other.GetDescID = GetDescID;
+        other.AutoUse = AutoUse;
+        other.ActiveFashionID = ActiveFashionID;
+        other.CanSell = CanSell;
+        other.CanCompose = CanCompose;
+        other.GetWayID = GetWayID;
+        other.JumpWayID = JumpWayID;
     }
     
     public override string ToString()
     {
         return "{ "
         + "ItemID:" + ItemID + ","
-        + "ItemName:" + ItemName + ","
+        + "ItemNameID:" + ItemNameID + ","
         + "Quality:" + Quality + ","
         + "IconNameMan:" + IconNameMan + ","
         + "IconNameWoman:" + IconNameWoman + ","
-        + "price:" + Price + ","
-        + "expireTime:" + ExpireTime + ","
+        + "ItemType:" + ItemType + ","
+        + "FuncDescID:" + FuncDescID + ","
+        + "MaxStack:" + MaxStack + ","
+        + "UseLevel:" + UseLevel + ","
+        + "FuncType:" + FuncType + ","
+        + "FuncValue:" + Luban.StringUtil.CollectionToString(FuncValue) + ","
+        + "DecomposeMoneyType:" + DecomposeMoneyType + ","
+        + "DecomposeMoneyCnt:" + DecomposeMoneyCnt + ","
+        + "DecomposeItemID:" + DecomposeItemID + ","
+        + "DecomposeItemCnt:" + DecomposeItemCnt + ","
+        + "GetDescID:" + GetDescID + ","
+        + "AutoUse:" + AutoUse + ","
+        + "ActiveFashionID:" + ActiveFashionID + ","
+        + "CanSell:" + CanSell + ","
+        + "CanCompose:" + CanCompose + ","
+        + "GetWayID:" + Luban.StringUtil.CollectionToString(GetWayID) + ","
+        + "JumpWayID:" + JumpWayID + ","
         + "}";
     }
 }

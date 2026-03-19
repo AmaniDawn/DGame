@@ -1,0 +1,16 @@
+[
+  {
+    "ActivityID": 1001,
+    "ActivityNameID": 0,
+    "ActivityType": 0,
+    "OpenType": 1,
+    "OpenParamList": [
+      1
+    ],
+    "OpenLevel": 0,
+    "CreateRoleDays": 0,
+    "CreateTimeStart": 0,
+    "CreateTimeEnd": 0,
+    "SortID": 0
+  }
+]

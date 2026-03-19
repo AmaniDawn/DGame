@@ -2,7 +2,7 @@
 using Fantasy.Async;
 using Fantasy.Event;
 
-namespace System.Authentication;
+namespace Hotfix;
 
 public sealed class OnSceneCreate_Init : AsyncEventSystem<OnCreateScene>
 {

@@ -60,6 +60,48 @@ namespace GameProto
             }
         }
         /// <summary>
+        /// 货币配置表
+        /// </summary>
+        private TbCurrencyConfig m_TbCurrencyConfig;
+        public TbCurrencyConfig TbCurrencyConfig 
+        {
+            get
+            {
+                if (m_TbCurrencyConfig == null)
+                {
+                    m_TbCurrencyConfig = new TbCurrencyConfig(m_defaultLoader("tbcurrencyconfig"));
+                    m_TbCurrencyConfig.ResolveRef(this);
+                }
+                return m_TbCurrencyConfig;
+            }
+            set
+            {
+                m_TbCurrencyConfig = value;
+                m_TbCurrencyConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
+        /// 获取途径配置表
+        /// </summary>
+        private TbGetWayConfig m_TbGetWayConfig;
+        public TbGetWayConfig TbGetWayConfig 
+        {
+            get
+            {
+                if (m_TbGetWayConfig == null)
+                {
+                    m_TbGetWayConfig = new TbGetWayConfig(m_defaultLoader("tbgetwayconfig"));
+                    m_TbGetWayConfig.ResolveRef(this);
+                }
+                return m_TbGetWayConfig;
+            }
+            set
+            {
+                m_TbGetWayConfig = value;
+                m_TbGetWayConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
         /// 音效配置表
         /// </summary>
         private TbSoundConfig m_TbSoundConfig;
@@ -141,6 +183,90 @@ namespace GameProto
             {
                 m_TbGmConfig = value;
                 m_TbGmConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
+        /// 服务器状态配置表
+        /// </summary>
+        private TbServerStateConfig m_TbServerStateConfig;
+        public TbServerStateConfig TbServerStateConfig 
+        {
+            get
+            {
+                if (m_TbServerStateConfig == null)
+                {
+                    m_TbServerStateConfig = new TbServerStateConfig(m_defaultLoader("tbserverstateconfig"));
+                    m_TbServerStateConfig.ResolveRef(this);
+                }
+                return m_TbServerStateConfig;
+            }
+            set
+            {
+                m_TbServerStateConfig = value;
+                m_TbServerStateConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
+        /// 系统开放配置表
+        /// </summary>
+        private TbFuncOpenConfig m_TbFuncOpenConfig;
+        public TbFuncOpenConfig TbFuncOpenConfig 
+        {
+            get
+            {
+                if (m_TbFuncOpenConfig == null)
+                {
+                    m_TbFuncOpenConfig = new TbFuncOpenConfig(m_defaultLoader("tbfuncopenconfig"));
+                    m_TbFuncOpenConfig.ResolveRef(this);
+                }
+                return m_TbFuncOpenConfig;
+            }
+            set
+            {
+                m_TbFuncOpenConfig = value;
+                m_TbFuncOpenConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
+        /// 功能参数配置表
+        /// </summary>
+        private TbFuncParamConfig m_TbFuncParamConfig;
+        public TbFuncParamConfig TbFuncParamConfig 
+        {
+            get
+            {
+                if (m_TbFuncParamConfig == null)
+                {
+                    m_TbFuncParamConfig = new TbFuncParamConfig(m_defaultLoader("tbfuncparamconfig"));
+                    m_TbFuncParamConfig.ResolveRef(this);
+                }
+                return m_TbFuncParamConfig;
+            }
+            set
+            {
+                m_TbFuncParamConfig = value;
+                m_TbFuncParamConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
+        /// 活动开启配置表
+        /// </summary>
+        private TbActivityOpenConfig m_TbActivityOpenConfig;
+        public TbActivityOpenConfig TbActivityOpenConfig 
+        {
+            get
+            {
+                if (m_TbActivityOpenConfig == null)
+                {
+                    m_TbActivityOpenConfig = new TbActivityOpenConfig(m_defaultLoader("tbactivityopenconfig"));
+                    m_TbActivityOpenConfig.ResolveRef(this);
+                }
+                return m_TbActivityOpenConfig;
+            }
+            set
+            {
+                m_TbActivityOpenConfig = value;
+                m_TbActivityOpenConfig.ResolveRef(this);
             }
         }
 

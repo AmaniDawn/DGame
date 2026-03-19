@@ -1,0 +1,20 @@
+[
+  {
+    "ID": 1,
+    "StateName": "新服",
+    "Location": "",
+    "Color": "28FF00"
+  },
+  {
+    "ID": 2,
+    "StateName": "维护",
+    "Location": "",
+    "Color": "747674"
+  },
+  {
+    "ID": 3,
+    "StateName": "火爆",
+    "Location": "",
+    "Color": "FF1400"
+  }
+]

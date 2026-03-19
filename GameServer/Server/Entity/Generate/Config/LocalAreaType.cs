@@ -11,6 +11,9 @@
 
 namespace GameProto
 { 
+    /// <summary>
+    /// 语言地区枚举
+    /// </summary>
     public enum LocalAreaType
     {
         /// <summary>
