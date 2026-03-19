@@ -1,6 +1,9 @@
 ﻿namespace Fantasy;
 
-public static class ErrorCodeDefine
+/// <summary>
+/// 服务器错误码常量表
+/// </summary>
+public static class ErrorCode
 {
     public const uint SUCCESS = 0; // 响应处理成功
     public const uint REGISTER_ACCOUNT_EXISTS = 1001; // 账号已存在
