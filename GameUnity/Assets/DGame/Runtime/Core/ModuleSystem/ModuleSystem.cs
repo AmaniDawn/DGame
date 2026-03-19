@@ -68,7 +68,8 @@ namespace DGame
             }
 
             // 获取模块名 命名空间.模块 因为传进来的必须是一个接口类型 所以裁剪掉开头的I字母
-            string moduleName = Utility.StringUtil.Format("{0}.{1}", type.Namespace, type.Name.Substring(1));
+            string moduleName = $"{type.Namespace}.{type.Name.Substring(1)}, {type.Assembly.GetName().Name}";
+            // string moduleName = Utility.StringUtil.Format("{0}.{1}", type.Namespace, type.Name.Substring(1));
             Type moduleType = Type.GetType(moduleName);
             if (moduleType == null)
             {
