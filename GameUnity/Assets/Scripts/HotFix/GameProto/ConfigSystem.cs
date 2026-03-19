@@ -37,7 +37,10 @@ namespace GameProto
         /// </summary>
         public void Reload()
         {
-            m_tables?.Reload();
+            if (m_init)
+            {
+                m_tables.Reload();
+            }
         }
 
         /// <summary>
