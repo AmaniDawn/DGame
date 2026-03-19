@@ -17,4 +17,4 @@ dotnet %LUBAN_DLL% ^
     -x outputSaver.bin.cleanUpOutputDir=1 ^
     -x outputSaver.json.cleanUpOutputDir=1 ^
     -x outputSaver.cs-bin.cleanUpOutputDir=1
-pause
+if not defined AUTO_CONTINUE pause
