@@ -47,6 +47,13 @@ using Luban;
             m_defaultLoader = loader;
         }
 
+        public void Reload()
+        {
+            {{~for table int __tables ~}}
+            m_{{table.name}} = null;
+            {{~end~}}
+        }
+
         public void Init(){}
     }
 {{namespace_with_grace_end __namespace}}
