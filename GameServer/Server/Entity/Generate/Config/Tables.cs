@@ -284,6 +284,22 @@ namespace GameProto
             m_defaultLoader = loader;
         }
 
+        public void Reload()
+        {
+            m_TbTextConfig = null;
+            m_TbItemConfig = null;
+            m_TbCurrencyConfig = null;
+            m_TbGetWayConfig = null;
+            m_TbSoundConfig = null;
+            m_TbModelConfig = null;
+            m_TbEffectConfig = null;
+            m_TbGmConfig = null;
+            m_TbServerStateConfig = null;
+            m_TbFuncOpenConfig = null;
+            m_TbFuncParamConfig = null;
+            m_TbActivityOpenConfig = null;
+        }
+
         public void Init(){}
     }
 }
