@@ -49,7 +49,7 @@ using Luban;
 
         public void Reload()
         {
-            {{~for table int __tables ~}}
+            {{~for table in __tables ~}}
             m_{{table.name}} = null;
             {{~end~}}
         }
