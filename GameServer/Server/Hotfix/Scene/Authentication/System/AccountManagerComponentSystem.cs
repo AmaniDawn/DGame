@@ -21,22 +21,27 @@ public static class AccountManagerComponentSystem
         {
             var scene = self.Scene;
             var worldDataBase = scene.World.Database;
-            if (await worldDataBase.Exist<Account>(d => d.Username == username))
+
+            // 异步锁
+            using (await scene.CoroutineLockComponent.Wait(1, 1, "AccountManagerComponentSystem.Register", 10000))
             {
-                // 账号已经存在
-                return ErrorCodeDefine.REGISTER_ACCOUNT_EXISTS;
+                if (await worldDataBase.Exist<Account>(d => d.Username == username))
+                {
+                    // 账号已经存在
+                    return ErrorCodeDefine.REGISTER_ACCOUNT_EXISTS;
+                }
+
+                // 创角新账号 并持久化到数据库
+                using var account = Entity.Create<Account>(scene, true, true);
+
+                account.Username = username;
+                account.Password = password;
+                account.CreateTime = TimeHelper.Now;
+                // 插入数据库 如果存在则不插入
+                await worldDataBase.Insert(account);
+
+                return ErrorCodeDefine.SUCCESS;
             }
-
-            // 创角新账号 并持久化到数据库
-            using var account = Entity.Create<Account>(scene, true, true);
-
-            account.Username = username;
-            account.Password = password;
-            account.CreateTime = TimeHelper.Now;
-            // 插入数据库 如果存在则不插入
-            await worldDataBase.Insert(account);
-
-            return ErrorCodeDefine.SUCCESS;
         }
         catch (Exception e)
         {
