@@ -787,7 +787,7 @@ namespace Fantasy
         public uint ErrorCode { get; set; }
     }
     /// <summary>
-    /// 登录协议
+    /// 登录账号协议
     /// </summary>
     [Serializable]
     [ProtoContract]
@@ -839,7 +839,7 @@ namespace Fantasy
         public uint LoginType { get; set; }
     }
     /// <summary>
-    /// 登录协议返回
+    /// 登录账号协议返回
     /// </summary>
     [Serializable]
     [ProtoContract]
@@ -876,14 +876,155 @@ namespace Fantasy
         {
             if (!IsPool()) return; 
             ErrorCode = 0;
+            RoleID = default;
             Token = default;
+            ServerInfoList = null;
+            RecentServerList = null;
             MessageObjectPool<A2C_LoginResponse>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.A2C_LoginResponse; } 
         [ProtoMember(1)]
         public uint ErrorCode { get; set; }
         [ProtoMember(2)]
+        public long RoleID { get; set; }
+        [ProtoMember(3)]
         public string Token { get; set; }
+        [ProtoMember(4)]
+        public List<ServerInfo> ServerInfoList { get; set; }
+        [ProtoMember(5)]
+        public List<int> RecentServerList { get; set; }
+    }
+    /// <summary>
+    /// 服务器信息
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class ServerInfo : AMessage, IDisposable
+    {
+        public static ServerInfo Create(bool autoReturn = true)
+        {
+            var serverInfo = MessageObjectPool<ServerInfo>.Rent();
+            serverInfo.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                serverInfo.SetIsPool(false);
+            }
+            
+            return serverInfo;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            ServerID = default;
+            Name = default;
+            Group = default;
+            Address = default;
+            Port = default;
+            Recommend = default;
+            State = default;
+            MessageObjectPool<ServerInfo>.Return(this);
+        }
+        /// <summary>
+        /// 服务器ID
+        /// </summary>
+        [ProtoMember(1)]
+        public int ServerID { get; set; }
+        /// <summary>
+        /// 服务器名字
+        /// </summary>
+        [ProtoMember(2)]
+        public string Name { get; set; }
+        /// <summary>
+        /// 服务器分组
+        /// </summary>
+        [ProtoMember(3)]
+        public int Group { get; set; }
+        /// <summary>
+        /// 服务器地址
+        /// </summary>
+        [ProtoMember(4)]
+        public string Address { get; set; }
+        /// <summary>
+        /// 服务器端口号
+        /// </summary>
+        [ProtoMember(5)]
+        public string Port { get; set; }
+        /// <summary>
+        /// 是否是推荐服务器
+        /// </summary>
+        [ProtoMember(6)]
+        public bool Recommend { get; set; }
+        /// <summary>
+        /// 服务器状态
+        /// </summary>
+        [ProtoMember(7)]
+        public byte State { get; set; }
+    }
+    /// <summary>
+    /// 同步当前选择的服务器
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class C2A_RecordRecentServer : AMessage, IMessage
+    {
+        public static C2A_RecordRecentServer Create(bool autoReturn = true)
+        {
+            var c2A_RecordRecentServer = MessageObjectPool<C2A_RecordRecentServer>.Rent();
+            c2A_RecordRecentServer.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                c2A_RecordRecentServer.SetIsPool(false);
+            }
+            
+            return c2A_RecordRecentServer;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            RoleID = default;
+            ServerID = default;
+            MessageObjectPool<C2A_RecordRecentServer>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.C2A_RecordRecentServer; } 
+        [ProtoMember(1)]
+        public long RoleID { get; set; }
+        /// <summary>
+        /// 服务器ID
+        /// </summary>
+        [ProtoMember(2)]
+        public int ServerID { get; set; }
     }
     /// <summary>
     /// 客户端登录到Gate服务器

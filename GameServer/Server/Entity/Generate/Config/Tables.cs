@@ -269,6 +269,27 @@ namespace GameProto
                 m_TbActivityOpenConfig.ResolveRef(this);
             }
         }
+        /// <summary>
+        /// 服务器配置表
+        /// </summary>
+        private TbServerConfig m_TbServerConfig;
+        public TbServerConfig TbServerConfig 
+        {
+            get
+            {
+                if (m_TbServerConfig == null)
+                {
+                    m_TbServerConfig = new TbServerConfig(m_defaultLoader("tbserverconfig"));
+                    m_TbServerConfig.ResolveRef(this);
+                }
+                return m_TbServerConfig;
+            }
+            set
+            {
+                m_TbServerConfig = value;
+                m_TbServerConfig.ResolveRef(this);
+            }
+        }
 
         #endregion
 
@@ -298,6 +319,7 @@ namespace GameProto
             m_TbFuncOpenConfig = null;
             m_TbFuncParamConfig = null;
             m_TbActivityOpenConfig = null;
+            m_TbServerConfig = null;
         }
 
         public void Init(){}

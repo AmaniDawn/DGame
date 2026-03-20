@@ -21,6 +21,10 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         AccountTokenPublicKeyPem = _buf.ReadString();
         AccountTokenPrivateKeyPem = _buf.ReadString();
         AccountTokenExpireTime = _buf.ReadInt();
+        AccountValidIssuer = _buf.ReadString();
+        AccountValidAudience = _buf.ReadString();
+        AccountRegisterSessionLifeTime = _buf.ReadInt();
+        RecentServerMaxCount = _buf.ReadInt();
     }
 
     public static FuncParamConfig DeserializeFuncParamConfig(ByteBuf _buf)
@@ -40,6 +44,22 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
     /// 账号Token过期时间(毫秒)
     /// </summary>
     public int AccountTokenExpireTime;
+    /// <summary>
+    /// 发证者
+    /// </summary>
+    public string AccountValidIssuer;
+    /// <summary>
+    /// 受众
+    /// </summary>
+    public string AccountValidAudience;
+    /// <summary>
+    /// 注册Session的延迟销毁时间(毫秒)(短链接)
+    /// </summary>
+    public int AccountRegisterSessionLifeTime;
+    /// <summary>
+    /// 记录服务器最近登录最大个数
+    /// </summary>
+    public int RecentServerMaxCount;
 
     public const int __ID__ = -1155611477;
     public override int GetTypeId() => __ID__;
@@ -58,6 +78,10 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         other.AccountTokenPublicKeyPem = AccountTokenPublicKeyPem;
         other.AccountTokenPrivateKeyPem = AccountTokenPrivateKeyPem;
         other.AccountTokenExpireTime = AccountTokenExpireTime;
+        other.AccountValidIssuer = AccountValidIssuer;
+        other.AccountValidAudience = AccountValidAudience;
+        other.AccountRegisterSessionLifeTime = AccountRegisterSessionLifeTime;
+        other.RecentServerMaxCount = RecentServerMaxCount;
     }
     
     public override string ToString()
@@ -66,6 +90,10 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         + "AccountTokenPublicKeyPem:" + AccountTokenPublicKeyPem + ","
         + "AccountTokenPrivateKeyPem:" + AccountTokenPrivateKeyPem + ","
         + "AccountTokenExpireTime:" + AccountTokenExpireTime + ","
+        + "AccountValidIssuer:" + AccountValidIssuer + ","
+        + "AccountValidAudience:" + AccountValidAudience + ","
+        + "AccountRegisterSessionLifeTime:" + AccountRegisterSessionLifeTime + ","
+        + "RecentServerMaxCount:" + RecentServerMaxCount + ","
         + "}";
     }
 }

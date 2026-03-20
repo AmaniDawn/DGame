@@ -5,6 +5,7 @@ using Fantasy.Async;
 using Fantasy.Entitas;
 using Fantasy.Helper;
 using GameProto;
+// ReSharper disable ConditionIsAlwaysTrueOrFalseAccordingToNullableAPIContract
 
 namespace Hotfix;
 
@@ -72,13 +73,14 @@ public static class AccountManagerComponentSystem
     /// <param name="username">用户名</param>
     /// <param name="password">密码</param>
     /// <returns></returns>
-    public static async FTask<uint> Login(this AccountManagerComponent self, string username, string password)
+    public static async FTask<AccountLoginResult> Login(this AccountManagerComponent self, string username,
+        string password)
     {
         // 校验账号密码
         if (string.IsNullOrWhiteSpace(username) || string.IsNullOrWhiteSpace(password))
         {
             // 代表注册账号参数不完整或不合法
-            return ErrorCode.LOGIN_INVALID_PARAMETER;
+            return new AccountLoginResult(ErrorCode.LOGIN_INVALID_PARAMETER);
         }
 
         try
@@ -92,29 +94,70 @@ public static class AccountManagerComponentSystem
             if (account == null)
             {
                 // 账号不存在
-                return ErrorCode.LOGIN_ACCOUNT_NOT_EXIST;
+                return new AccountLoginResult(ErrorCode.LOGIN_ACCOUNT_NOT_EXIST);
             }
-            
+
             // 校验密码 MD5加密密码 转为全小写
             var hashPassword = Md5Format(password);
 
             if (hashPassword != account.Password)
             {
                 // 密码错误
-                return ErrorCode.LOGIN_ACCOUNT_EXISTS_PASSWORD_ERROR;
+                return new AccountLoginResult(ErrorCode.LOGIN_ACCOUNT_EXISTS_PASSWORD_ERROR);
             }
+
             // 更新登录时间
             account.LastLoginTime = TimeHelper.Now;
             // 更新数据库
             await worldDataBase.Save(account);
+            // 生成登录的Jwt Token
+            var token = scene.GenerateJwtToken(account.Id, account.Username);
 
-            return ErrorCode.SUCCESS;
+            return new AccountLoginResult(account.Id, token, ErrorCode.SUCCESS, account.RecentServerList);
         }
         catch (Exception e)
         {
             Log.Error(e);
-            return ErrorCode.LOGIN_UNKNOW_EORROR;
+            return new AccountLoginResult(ErrorCode.LOGIN_UNKNOW_EORROR);
         }
+    }
+
+    /// <summary>
+    /// 记录最近登录的服务器列表
+    /// </summary>
+    /// <param name="self"></param>
+    /// <param name="roleId">账户ID</param>
+    /// <param name="serverId">服务器ID</param>
+    public static async FTask RecordRecentServer(this AccountManagerComponent self, long roleId, int serverId)
+    {
+        if (roleId == 0 || serverId == 0)
+        {
+            return;
+        }
+
+        if (!TbServerConfig.IsExist(serverId))
+        {
+            return;
+        }
+        
+        var scene = self.Scene;
+        var worldDataBase = scene.World.Database;
+        var account = await worldDataBase.Query<Account>(roleId);
+
+        if (account == null)
+        {
+            return;
+        }
+
+        if (account.RecentServerList.Count >= TbFuncParamConfig.RecentServerMaxCount)
+        {
+            account.RecentServerList.RemoveAt(TbFuncParamConfig.RecentServerMaxCount - 1);
+        }
+
+        account.RecentServerList.Remove(serverId);
+        account.RecentServerList.Insert(0, serverId);
+        
+        await worldDataBase.Save(account);
     }
 
     private static string Md5Format(string password)

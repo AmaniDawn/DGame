@@ -24,18 +24,41 @@ message A2C_RegisterResponse // IResponse
 {
 }
 
-/// 登录协议
+/// 登录账号协议
 message C2A_LoginRequest // IRequest,A2C_LoginResponse
 {
 	string UserName = 1;
 	string Password = 2;
 	uint32 LoginType = 3;
 }
-/// 登录协议返回
+/// 登录账号协议返回
 message A2C_LoginResponse // IResponse
 {
-	string Token = 1;
+  long RoleID = 1;
+  string Token = 2;
+  repeatedList ServerInfo ServerInfoList = 3; // 服务器信息列表
+  repeatedList int RecentServerList = 4; // 最近登录服务器列表ID
 }
+
+/// 服务器信息
+message ServerInfo
+{
+  int ServerID = 1; /// 服务器ID
+  string Name = 2; /// 服务器名字
+  int Group = 3; /// 服务器分组
+  string Address = 4; /// 服务器地址
+  string Port = 5; /// 服务器端口号
+  bool Recommend = 6; /// 是否是推荐服务器
+  byte State = 7; /// 服务器状态
+}
+
+/// 同步当前选择的服务器
+message C2A_RecordRecentServer // IMessage
+{
+  long RoleID = 1;
+  int ServerID = 2; /// 服务器ID
+}
+
 /// 客户端登录到Gate服务器
 message C2G_LoginRequest // IRequest,G2C_LoginResponse
 {

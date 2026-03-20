@@ -1,0 +1,38 @@
+[
+  {
+    "ID": 1,
+    "Name": "黑神话1服",
+    "Address": "127.0.0.1",
+    "Port": "20051",
+    "Recommend": false,
+    "Group": 1,
+    "State": 1
+  },
+  {
+    "ID": 2,
+    "Name": "黑神话2服",
+    "Address": "127.0.0.1",
+    "Port": "20052",
+    "Recommend": false,
+    "Group": 1,
+    "State": 1
+  },
+  {
+    "ID": 3,
+    "Name": "黑神话3服",
+    "Address": "127.0.0.1",
+    "Port": "20053",
+    "Recommend": true,
+    "Group": 2,
+    "State": 2
+  },
+  {
+    "ID": 4,
+    "Name": "黑神话4服",
+    "Address": "127.0.0.1",
+    "Port": "20054",
+    "Recommend": true,
+    "Group": 2,
+    "State": 3
+  }
+]

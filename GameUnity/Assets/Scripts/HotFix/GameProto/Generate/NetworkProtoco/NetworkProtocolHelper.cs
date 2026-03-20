@@ -101,6 +101,19 @@ namespace Fantasy
 			return (A2C_LoginResponse)await session.Call(C2A_LoginRequest_request);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void C2A_RecordRecentServer(this Session session, C2A_RecordRecentServer C2A_RecordRecentServer_message)
+		{
+			session.Send(C2A_RecordRecentServer_message);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void C2A_RecordRecentServer(this Session session, long roleID, int serverID)
+		{
+			using var C2A_RecordRecentServer_message = Fantasy.C2A_RecordRecentServer.Create();
+			C2A_RecordRecentServer_message.RoleID = roleID;
+			C2A_RecordRecentServer_message.ServerID = serverID;
+			session.Send(C2A_RecordRecentServer_message);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static async FTask<G2C_LoginResponse> C2G_LoginRequest(this Session session, C2G_LoginRequest C2G_LoginRequest_request)
 		{
 			return (G2C_LoginResponse)await session.Call(C2G_LoginRequest_request);

@@ -27,4 +27,9 @@ public sealed class Account : Entity
     /// 账号上次登陆时间
     /// </summary>
     public long LastLoginTime { get; set; }
+
+    /// <summary>
+    /// 最近登录的服务器列表ID
+    /// </summary>
+    public List<int> RecentServerList { get; set; } = new List<int>();
 }

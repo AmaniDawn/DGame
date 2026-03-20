@@ -48,6 +48,22 @@ public partial class TbFuncParamConfig
     /// 账号Token过期时间(毫秒)
     /// </summary>
      public static int AccountTokenExpireTime => Instance._data.AccountTokenExpireTime;
+    /// <summary>
+    /// 发证者
+    /// </summary>
+     public static string AccountValidIssuer => Instance._data.AccountValidIssuer;
+    /// <summary>
+    /// 受众
+    /// </summary>
+     public static string AccountValidAudience => Instance._data.AccountValidAudience;
+    /// <summary>
+    /// 注册Session的延迟销毁时间(毫秒)(短链接)
+    /// </summary>
+     public static int AccountRegisterSessionLifeTime => Instance._data.AccountRegisterSessionLifeTime;
+    /// <summary>
+    /// 记录服务器最近登录最大个数
+    /// </summary>
+     public static int RecentServerMaxCount => Instance._data.RecentServerMaxCount;
     
     public void ResolveRef(Tables tables)
     {
