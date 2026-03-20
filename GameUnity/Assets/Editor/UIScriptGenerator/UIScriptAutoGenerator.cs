@@ -599,6 +599,11 @@ namespace DGame
             }
 
             var com = child.GetComponent(componentType);
+            if (com == null)
+            {
+                Debug.LogError($"{child.name}上未找到组件: {componentType.FullName}", child);
+                return;
+            }
             uiBindComponent.AddComponent(com);
         }
 
