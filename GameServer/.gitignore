@@ -13,8 +13,4 @@ global.json
 .vscode
 *.DS_Store
 *.meta
-
-Tools/协议可视化工具/Fantasy Protocol Editor (Windows x64)/
-Tools/协议可视化工具/Fantasy Protocol Editor (Windows ARM64)/
-Tools/协议可视化工具/Fantasy Protocol Editor MacOS (Apple Silicon (ARM64))/
-Tools/协议可视化工具/Fantasy Protocol Editor MacOS(Intel (x64))/
+*.user
