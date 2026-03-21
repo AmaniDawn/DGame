@@ -120,12 +120,15 @@ namespace GameLogic
         /// <returns></returns>
         public TItem CreateItem(GameObject prefab)
         {
-            if (prefab == null)
+            TItem widget = null;
+            LoopListViewItem2 item = LoopRectView.NewListViewItem(prefab);
+
+            if (item != null)
             {
-                return null;
+                widget = CreateItem(item);
             }
 
-            return CreateItem(prefab.name);
+            return widget;
         }
 
         /// <summary>
