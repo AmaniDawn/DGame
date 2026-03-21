@@ -75,8 +75,8 @@ namespace GameLogic
         /// </summary>
         public virtual void SetSelected(bool v)
         {
-            UpdateSelectState();
             m_isSelected = v;
+            UpdateSelectState();
         }
 
         /// <summary>
