@@ -1,3 +1,11 @@
+# GitHub MCP Server (remote, hosted by GitHub)
+[mcp_servers.github]
+enabled = true
+url = "https://api.githubcopilot.com/mcp/"
+# Environment variable name (not the token value itself)
+bearer_token_env_var = "GITHUB_PAT_TOKEN"
+
+# Unity MCP Server (local)
 [mcp_servers.ai-game-developer]
 enabled = true
 startup_timeout_sec = 30
