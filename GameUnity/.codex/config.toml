@@ -3,3 +3,6 @@ enabled = true
 startup_timeout_sec = 30
 tool_timeout_sec = 300
 url = "http://localhost:22512"
+
+[mcp_servers.rider]
+url = "http://localhost:64342/sse"
