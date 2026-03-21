@@ -21,6 +21,7 @@ public sealed class C2A_LoginRequestHandler : MessageRPC<C2A_LoginRequest, A2C_L
             response.ServerInfoList = TbServerConfig.ServerInfoList;
             response.RecentServerList = new List<int>();
             response.RecentServerList.AddRange(result.RecentServerList); 
+            response.RecentServerRoleInfoList = await scene.GetComponent<AccountManagerComponent>().GetRecentServerRoleInfos(result.RoleId, result.RecentServerList);
         }
         response.ErrorCode = result.ErrorCode;
         session.SetLifeTime(TbFuncParamConfig.AccountRegisterSessionLifeTime);

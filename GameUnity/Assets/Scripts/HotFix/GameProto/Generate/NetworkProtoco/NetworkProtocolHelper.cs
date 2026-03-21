@@ -119,10 +119,11 @@ namespace Fantasy
 			return (G2C_LoginResponse)await session.Call(C2G_LoginRequest_request);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static async FTask<G2C_LoginResponse> C2G_LoginRequest(this Session session, string token)
+		public static async FTask<G2C_LoginResponse> C2G_LoginRequest(this Session session, string token, int serverID)
 		{
 			using var C2G_LoginRequest_request = Fantasy.C2G_LoginRequest.Create();
 			C2G_LoginRequest_request.Token = token;
+			C2G_LoginRequest_request.ServerID = serverID;
 			return (G2C_LoginResponse)await session.Call(C2G_LoginRequest_request);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]

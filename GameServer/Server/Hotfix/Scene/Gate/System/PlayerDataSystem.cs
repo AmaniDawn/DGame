@@ -12,6 +12,7 @@ public sealed class PlayerDataDestroySystem : DestroySystem<PlayerData>
     {
         self.SessionRuntimeId = 0;
         self.AccountID = 0;
+        self.ServerID = 0;
         self.RoleName = string.Empty;
         self.HeadID = 0;
         self.Sex = 0;
@@ -61,12 +62,11 @@ public static class PlayerDataSystem
     public static async FTask Offline(this PlayerData self, int timeOut = 0)
     {
         var scene = self.Scene;
-        var roleId = self.Id;
         var playerManagerComponent = scene.GetComponent<PlayerManagerComponent>();
-        if (!playerManagerComponent.TryGet(roleId, out var playerData))
+        if (!playerManagerComponent.TryGet(self.AccountID, self.ServerID, out var playerData))
         {
             // 如果缓存中没有 表示已经下线或根本不存在账号
-            Log.Warning($"PlayerDataSystem Offline fail roleID: {roleId} not found");
+            Log.Warning($"PlayerDataSystem Offline fail accountID: {self.AccountID} serverID: {self.ServerID} not found");
             return;
         }
 
@@ -95,6 +95,6 @@ public static class PlayerDataSystem
         // 保存当前账号数据到数据库
         await self.Scene.World.Database.Save(self);
         // 在缓存中移除自己 并执行自己的Dispose销毁方法
-        self.Scene.GetComponent<PlayerManagerComponent>().Remove(self.Id);
+        self.Scene.GetComponent<PlayerManagerComponent>().Remove(self);
     }
 }

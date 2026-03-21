@@ -19,6 +19,11 @@ public sealed class PlayerData : Entity
     public long AccountID { get; set; }
 
     /// <summary>
+    /// ServerID
+    /// </summary>
+    public int ServerID { get; set; }
+
+    /// <summary>
     /// 角色名称
     /// </summary>
     public string RoleName { get; set; }

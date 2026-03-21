@@ -160,6 +160,45 @@ public static class AccountManagerComponentSystem
         await worldDataBase.Save(account);
     }
 
+    /// <summary>
+    /// 获取最近登录服务器对应的角色等级摘要
+    /// </summary>
+    /// <param name="self"></param>
+    /// <param name="accountId">账号ID</param>
+    /// <param name="recentServerList">最近登录服务器列表</param>
+    public static async FTask<List<RecentServerRoleInfo>> GetRecentServerRoleInfos(this AccountManagerComponent self, long accountId, IReadOnlyList<int> recentServerList)
+    {
+        var result = new List<RecentServerRoleInfo>();
+
+        if (accountId == 0 || recentServerList == null || recentServerList.Count == 0)
+        {
+            return result;
+        }
+
+        var worldDataBase = self.Scene.World.Database;
+        foreach (var serverId in recentServerList)
+        {
+            if (serverId == 0)
+            {
+                continue;
+            }
+
+            var playerData = await worldDataBase.First<PlayerData>(d => d.AccountID == accountId && d.ServerID == serverId);
+            if (playerData == null)
+            {
+                continue;
+            }
+
+            result.Add(new RecentServerRoleInfo
+            {
+                ServerID = serverId,
+                Level = playerData.Level,
+            });
+        }
+
+        return result;
+    }
+
     private static string Md5Format(string password)
         => Convert.ToHexString(MD5.HashData(Encoding.UTF8.GetBytes(password))).ToLower();
 }

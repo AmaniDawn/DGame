@@ -1,4 +1,4 @@
-syntax = "proto3";
+﻿syntax = "proto3";
 package Fantasy.Network.Message;
 
 // 协议分为:
@@ -10,7 +10,7 @@ package Fantasy.Network.Message;
 // 例如: // Protocol ProtoBuf 或 // Protocol MemoryPack
 
 // 分别代表使用Protobuf序列化或使用MemoryPack序列化
-// 通过添加 // using 导出时添加自定义命名空间
+// 通过添加 // using 导出时增加自定义命名空间
 // 例如: // using System.Runtime // using System.Reflection
 
 // 鉴权服务器
@@ -40,6 +40,7 @@ message A2C_LoginResponse // IResponse
   string Token = 2;
   repeatedList ServerInfo ServerInfoList = 3; // 服务器信息列表
   repeatedList int RecentServerList = 4; // 最近登录服务器列表ID
+  repeatedList RecentServerRoleInfo RecentServerRoleInfoList = 5; // 最近登录服务器对应的角色摘要
 }
 
 /// 服务器信息
@@ -52,6 +53,13 @@ message ServerInfo
   string Port = 5; /// 服务器端口号
   bool Recommend = 6; /// 是否是推荐服务器
   byte State = 7; /// 服务器状态
+}
+
+/// 最近登录服务器的角色摘要
+message RecentServerRoleInfo
+{
+  int ServerID = 1; /// 服务器ID
+  uint Level = 2; /// 角色等级
 }
 
 /// 同步当前选择的服务器
@@ -67,6 +75,7 @@ message C2A_RecordRecentServer // IMessage
 message C2G_LoginRequest // IRequest,G2C_LoginResponse
 {
 	string Token = 1;
+	int ServerID = 2;
 }
 /// 登录协议返回
 message G2C_LoginResponse // IResponse

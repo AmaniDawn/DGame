@@ -5,7 +5,7 @@ namespace Fantasy;
 public class PlayerManagerComponent : Entity
 {
     /// <summary>
-    /// 玩家数据缓存字典 RoleID => key
+    /// 玩家数据缓存字典 (AccountID, ServerID) => PlayerData
     /// </summary>
-    public readonly Dictionary<long, PlayerData> PlayerDataDict = new Dictionary<long, PlayerData>();
+    public readonly Dictionary<(long AccountID, int ServerID), PlayerData> PlayerDataDict = new Dictionary<(long AccountID, int ServerID), PlayerData>();
 }

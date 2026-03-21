@@ -15,7 +15,7 @@ public sealed class C2G_LoginRequestHandler : MessageRPC<C2G_LoginRequest, G2C_L
 {
     protected override async FTask Run(Session session, C2G_LoginRequest request, G2C_LoginResponse response, Action reply)
     {
-        if (string.IsNullOrWhiteSpace(request.Token))
+        if (string.IsNullOrWhiteSpace(request.Token) || request.ServerID == 0)
         {
             // 1.客户端逻辑问题
             // 2.恶意攻击
@@ -24,7 +24,13 @@ public sealed class C2G_LoginRequestHandler : MessageRPC<C2G_LoginRequest, G2C_L
         }
         var scene = session.Scene;
 
-        if (!scene.ValidationToken(request.Token, out var roleId, out var roleName))
+        if (!TbServerConfig.IsExist(request.ServerID))
+        {
+            session.Dispose();
+            return;
+        }
+
+        if (!scene.ValidationToken(request.Token, out var accountId, out var accountName))
         {
             // Token验证不通过
             session.Dispose();
@@ -33,7 +39,7 @@ public sealed class C2G_LoginRequestHandler : MessageRPC<C2G_LoginRequest, G2C_L
 
         var playerManagerComponent = scene.GetComponent<PlayerManagerComponent>();
 
-        if (playerManagerComponent.TryGet(roleId, out var playerData))
+        if (playerManagerComponent.TryGet(accountId, request.ServerID, out var playerData))
         {
             // 只要发送了登录协议 就取消账号实体的延迟下线操作
             playerData.CancelDestroyTimeout();
@@ -61,7 +67,7 @@ public sealed class C2G_LoginRequestHandler : MessageRPC<C2G_LoginRequest, G2C_L
             // 如果缓存中不存在
             // 首先先到数据库查询是否存在
             // 没有就要创建并保存到数据库
-            playerData = await playerManagerComponent.Create(roleId);
+            playerData = await playerManagerComponent.Create(accountId, request.ServerID);
             // 执行上线操作
             await playerData.Online();
         }

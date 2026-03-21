@@ -14,3 +14,4 @@ global.json
 *.DS_Store
 *.meta
 *.user
+*.dotnet_cli

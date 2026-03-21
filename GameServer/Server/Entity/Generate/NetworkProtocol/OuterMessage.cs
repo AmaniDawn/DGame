@@ -880,6 +880,7 @@ namespace Fantasy
             Token = default;
             ServerInfoList = null;
             RecentServerList = null;
+            RecentServerRoleInfoList = null;
             MessageObjectPool<A2C_LoginResponse>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.A2C_LoginResponse; } 
@@ -893,6 +894,8 @@ namespace Fantasy
         public List<ServerInfo> ServerInfoList { get; set; }
         [ProtoMember(5)]
         public List<int> RecentServerList { get; set; }
+        [ProtoMember(6)]
+        public List<RecentServerRoleInfo> RecentServerRoleInfoList { get; set; }
     }
     /// <summary>
     /// 服务器信息
@@ -975,6 +978,58 @@ namespace Fantasy
         /// </summary>
         [ProtoMember(7)]
         public byte State { get; set; }
+    }
+    /// <summary>
+    /// 最近登录服务器的角色摘要
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class RecentServerRoleInfo : AMessage, IDisposable
+    {
+        public static RecentServerRoleInfo Create(bool autoReturn = true)
+        {
+            var recentServerRoleInfo = MessageObjectPool<RecentServerRoleInfo>.Rent();
+            recentServerRoleInfo.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                recentServerRoleInfo.SetIsPool(false);
+            }
+            
+            return recentServerRoleInfo;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            ServerID = default;
+            Level = default;
+            MessageObjectPool<RecentServerRoleInfo>.Return(this);
+        }
+        /// <summary>
+        /// 服务器ID
+        /// </summary>
+        [ProtoMember(1)]
+        public int ServerID { get; set; }
+        /// <summary>
+        /// 角色等级
+        /// </summary>
+        [ProtoMember(2)]
+        public uint Level { get; set; }
     }
     /// <summary>
     /// 同步当前选择的服务器
@@ -1064,6 +1119,7 @@ namespace Fantasy
         {
             if (!IsPool()) return; 
             Token = default;
+            ServerID = default;
             MessageObjectPool<C2G_LoginRequest>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.C2G_LoginRequest; } 
@@ -1071,6 +1127,8 @@ namespace Fantasy
         public G2C_LoginResponse ResponseType { get; set; }
         [ProtoMember(1)]
         public string Token { get; set; }
+        [ProtoMember(2)]
+        public int ServerID { get; set; }
     }
     /// <summary>
     /// 登录协议返回
