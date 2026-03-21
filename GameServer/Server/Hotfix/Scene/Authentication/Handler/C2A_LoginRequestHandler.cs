@@ -19,6 +19,7 @@ public sealed class C2A_LoginRequestHandler : MessageRPC<C2A_LoginRequest, A2C_L
             response.Token = result.Token;
             response.RoleID = result.RoleId;
             response.ServerInfoList = TbServerConfig.ServerInfoList;
+            response.RecentServerList = new List<int>();
             response.RecentServerList.AddRange(result.RecentServerList); 
         }
         response.ErrorCode = result.ErrorCode;

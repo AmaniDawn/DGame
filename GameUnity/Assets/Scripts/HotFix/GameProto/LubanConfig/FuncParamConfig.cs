@@ -27,6 +27,7 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         RecentServerMaxCount = _buf.ReadInt();
         OldSessionLifeTime = _buf.ReadInt();
         DelayOfflineTime = _buf.ReadInt();
+        PlayerInitConfigID = _buf.ReadInt();
     }
 
     public static FuncParamConfig DeserializeFuncParamConfig(ByteBuf _buf)
@@ -70,6 +71,10 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
     /// 延迟下线时间(毫秒)
     /// </summary>
     public int DelayOfflineTime;
+    /// <summary>
+    /// 玩家创建账号的初始角色配置ID
+    /// </summary>
+    public int PlayerInitConfigID;
 
     public const int __ID__ = -1155611477;
     public override int GetTypeId() => __ID__;
@@ -94,6 +99,7 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         other.RecentServerMaxCount = RecentServerMaxCount;
         other.OldSessionLifeTime = OldSessionLifeTime;
         other.DelayOfflineTime = DelayOfflineTime;
+        other.PlayerInitConfigID = PlayerInitConfigID;
     }
     
     public override string ToString()
@@ -108,6 +114,7 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         + "RecentServerMaxCount:" + RecentServerMaxCount + ","
         + "OldSessionLifeTime:" + OldSessionLifeTime + ","
         + "DelayOfflineTime:" + DelayOfflineTime + ","
+        + "PlayerInitConfigID:" + PlayerInitConfigID + ","
         + "}";
     }
 }

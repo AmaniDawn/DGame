@@ -60,25 +60,35 @@ public static class PlayerManagerComponentSystem
         {
             return playerData;
         }
-        
-        // 尝试从数据库查询
+
         var scene = self.Scene;
-        var worldDataBase = scene.World.Database;
-        // true 让服务器框架知道有PlayerData
-        playerData = await worldDataBase.Query<PlayerData>(roleID, true);
-        
-        // 数据库不存在 则创建账号
-        if (playerData == null)
+
+        using (await scene.CoroutineLockComponent.Wait(CoroutineLockType.PlayerDataCreateLock, roleID, "PlayerManagerComponentSystem.Create", 10000))
         {
-            playerData = Entity.Create<PlayerData>(scene, roleID, true, true);
-            playerData.CreateTime = TimeHelper.Now;
-            // 新账号插入到数据库
-            await worldDataBase.Insert(playerData);
+            if (self.TryGet(roleID, out playerData))
+            {
+                return playerData;
+            }
+
+            // 尝试从数据库查询
+            var worldDataBase = scene.World.Database;
+            // true 让服务器框架知道有PlayerData
+            playerData = await worldDataBase.Query<PlayerData>(roleID, true);
+
+            // 数据库不存在 则创建账号
+            if (playerData == null)
+            {
+                playerData = Entity.Create<PlayerData>(scene,true, true);
+                playerData.AccountID = roleID;
+                playerData.CreateTime = TimeHelper.Now;
+                // 新账号插入到数据库
+                await worldDataBase.Insert(playerData);
+            }
+
+            // 加入到账号缓存中
+            self.Add(playerData);
+            return playerData;
         }
-        
-        // 加入到账号缓存中
-        self.Add(playerData);
-        return playerData;
     }
 
     /// <summary>

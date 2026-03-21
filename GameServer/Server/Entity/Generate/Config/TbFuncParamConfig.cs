@@ -72,6 +72,10 @@ public partial class TbFuncParamConfig
     /// 延迟下线时间(毫秒)
     /// </summary>
      public static int DelayOfflineTime => Instance._data.DelayOfflineTime;
+    /// <summary>
+    /// 玩家创建账号的初始角色配置ID
+    /// </summary>
+     public static int PlayerInitConfigID => Instance._data.PlayerInitConfigID;
     
     public void ResolveRef(Tables tables)
     {

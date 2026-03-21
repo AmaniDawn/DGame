@@ -11,8 +11,7 @@ public sealed class PlayerDataDestroySystem : DestroySystem<PlayerData>
     protected override void Destroy(PlayerData self)
     {
         self.SessionRuntimeId = 0;
-        self.RoleID = 0;
-        self.RoleNo = 0;
+        self.AccountID = 0;
         self.RoleName = string.Empty;
         self.HeadID = 0;
         self.Sex = 0;
@@ -51,7 +50,6 @@ public static class PlayerDataSystem
     /// <param name="self"></param>
     public static async FTask Online(this PlayerData self)
     {
-        self.LastLoginTime = TimeHelper.Now;
         await FTask.CompletedTask;
     }
     

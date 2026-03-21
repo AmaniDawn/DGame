@@ -9,4 +9,9 @@ public static class CoroutineLockType
     /// 注册账号协程锁类型
     /// </summary>
     public const long AccountRegisterLock = 1;
+
+    /// <summary>
+    /// 玩家数据加载/创建协程锁类型
+    /// </summary>
+    public const long PlayerDataCreateLock = 2;
 }

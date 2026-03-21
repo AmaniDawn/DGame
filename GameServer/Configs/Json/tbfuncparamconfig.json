@@ -8,6 +8,7 @@
     "AccountRegisterSessionLifeTime": 2000,
     "RecentServerMaxCount": 4,
     "OldSessionLifeTime": 3000,
-    "DelayOfflineTime": 5000
+    "DelayOfflineTime": 5000,
+    "PlayerInitConfigID": 1
   }
 ]

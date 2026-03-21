@@ -1,5 +1,6 @@
 ﻿using Fantasy;
 using Fantasy.Async;
+using Fantasy.Helper;
 using Fantasy.Network;
 using Fantasy.Network.Interface;
 using GameProto;
@@ -64,6 +65,8 @@ public sealed class C2G_LoginRequestHandler : MessageRPC<C2G_LoginRequest, G2C_L
             // 执行上线操作
             await playerData.Online();
         }
+        // 记录玩家上线时间
+        playerData.LastLoginTime = TimeHelper.Now;
         // 记录客户端的Session
         playerData.RecordSession(session.RuntimeId);
         // 给当前客户端的Session添加一个组件 当Session异常断开的时候 进行玩家账号数据下线逻辑

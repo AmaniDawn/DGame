@@ -14,14 +14,9 @@ public sealed class PlayerData : Entity
     public long SessionRuntimeId { get; set; }
 
     /// <summary>
-    /// RoleID
+    /// AccountID
     /// </summary>
-    public ulong RoleID { get; set; }
-
-    /// <summary>
-    /// RoleNO
-    /// </summary>
-    public ulong RoleNo { get; set; }
+    public long AccountID { get; set; }
 
     /// <summary>
     /// 角色名称
