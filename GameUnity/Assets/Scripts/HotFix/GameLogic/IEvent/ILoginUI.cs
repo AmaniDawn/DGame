@@ -12,6 +12,6 @@ namespace GameLogic
 
         void ShowLoginUI();
 
-        void GetAccountInfo(GameAccountInfo accountInfo);
+        void GetAccountInfo();
     }
 }

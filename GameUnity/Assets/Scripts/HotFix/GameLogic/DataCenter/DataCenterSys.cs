@@ -102,7 +102,7 @@ namespace GameLogic
                 }
                 GameClient.Instance.Status = GameClientStatus.StatusEnter;
                 DLogger.Info($"Login Gate Successfully.");
-                DLogger.Info($"CreateTime: {loginResponse.GameAccountInfo.CreateTime} LoginTime: {loginResponse.GameAccountInfo.LoginTime}");
+                // DLogger.Info($"CreateTime: {loginResponse.GameAccountInfo.CreateTime} LoginTime: {loginResponse.GameAccountInfo.LoginTime}");
             }
         }
 
