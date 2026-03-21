@@ -1,0 +1,18 @@
+[
+  {
+    "ID": 1,
+    "Sex": 1,
+    "Level": 1,
+    "Exp": 0,
+    "HeadID": 0,
+    "FightValue": 0,
+    "Diamond": 0,
+    "Gold": 100,
+    "Stam": 60,
+    "IsFinGuide": 0,
+    "Sign": "",
+    "TotalRmb": 0,
+    "LastAddStamTime": 0,
+    "DailyBuyStamCount": 0
+  }
+]

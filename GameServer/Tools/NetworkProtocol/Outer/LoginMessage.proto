@@ -13,6 +13,8 @@ package Fantasy.Network.Message;
 // 通过添加 // using 导出时添加自定义命名空间
 // 例如: // using System.Runtime // using System.Reflection
 
+// 鉴权服务器
+
 /// 注册账号协议
 message C2A_RegisterRequest // IRequest,A2C_RegisterResponse
 {
@@ -59,6 +61,8 @@ message C2A_RecordRecentServer // IMessage
   int ServerID = 2; /// 服务器ID
 }
 
+// Gate服务器
+
 /// 客户端登录到Gate服务器
 message C2G_LoginRequest // IRequest,G2C_LoginResponse
 {
@@ -67,38 +71,9 @@ message C2G_LoginRequest // IRequest,G2C_LoginResponse
 /// 登录协议返回
 message G2C_LoginResponse // IResponse
 {
-	GameAccountInfo GameAccountInfo = 1;
+  CSPlayerData PlayerData = 1;
 }
 /// 通知客户端重复登录
 message G2C_RepeatLogin // IMessage
 {
-}
-/// GameAccount 实体类
-message GameAccountInfo
-{
-	int64 CreateTime = 1;
-	int64 LoginTime = 2;
-}
-/// 拿到当前账号的信息
-message C2G_GetAccountInfoRequest // IRequest,G2C_GetAccountInfoResponse
-{
-	GameAccountInfo GameAccountInfo = 1;
-}
-/// 拿到当前账号的信息返回
-message G2C_GetAccountInfoResponse // IResponse
-{
-	GameAccountInfo GameAccountInfo = 1;
-}
-
-message C2G_TestMessage // IMessage
-{
-	string Tag = 1;
-}
-message C2G_TestRequest // IRequest,G2C_TestResponse
-{
-	string Tag = 1;
-}
-message G2C_TestResponse // IResponse
-{
-	string Tag = 1;
 }

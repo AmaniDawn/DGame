@@ -290,6 +290,27 @@ namespace GameProto
                 m_TbActivityOpenConfig.ResolveRef(this);
             }
         }
+        /// <summary>
+        /// 角色初始配置表
+        /// </summary>
+        private TbPlayerInitConfig m_TbPlayerInitConfig;
+        public TbPlayerInitConfig TbPlayerInitConfig 
+        {
+            get
+            {
+                if (m_TbPlayerInitConfig == null)
+                {
+                    m_TbPlayerInitConfig = new TbPlayerInitConfig(m_defaultLoader("tbplayerinitconfig"));
+                    m_TbPlayerInitConfig.ResolveRef(this);
+                }
+                return m_TbPlayerInitConfig;
+            }
+            set
+            {
+                m_TbPlayerInitConfig = value;
+                m_TbPlayerInitConfig.ResolveRef(this);
+            }
+        }
 
         #endregion
 
@@ -320,6 +341,7 @@ namespace GameProto
             m_TbServerConfig = null;
             m_TbServerStateConfig = null;
             m_TbActivityOpenConfig = null;
+            m_TbPlayerInitConfig = null;
         }
 
         public void Init(){}

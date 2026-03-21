@@ -25,6 +25,8 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         AccountValidAudience = _buf.ReadString();
         AccountRegisterSessionLifeTime = _buf.ReadInt();
         RecentServerMaxCount = _buf.ReadInt();
+        OldSessionLifeTime = _buf.ReadInt();
+        DelayOfflineTime = _buf.ReadInt();
     }
 
     public static FuncParamConfig DeserializeFuncParamConfig(ByteBuf _buf)
@@ -60,6 +62,14 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
     /// 记录服务器最近登录最大个数
     /// </summary>
     public int RecentServerMaxCount;
+    /// <summary>
+    /// 断线重连时旧的Session生命周期(毫秒)
+    /// </summary>
+    public int OldSessionLifeTime;
+    /// <summary>
+    /// 延迟下线时间(毫秒)
+    /// </summary>
+    public int DelayOfflineTime;
 
     public const int __ID__ = -1155611477;
     public override int GetTypeId() => __ID__;
@@ -82,6 +92,8 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         other.AccountValidAudience = AccountValidAudience;
         other.AccountRegisterSessionLifeTime = AccountRegisterSessionLifeTime;
         other.RecentServerMaxCount = RecentServerMaxCount;
+        other.OldSessionLifeTime = OldSessionLifeTime;
+        other.DelayOfflineTime = DelayOfflineTime;
     }
     
     public override string ToString()
@@ -94,6 +106,8 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         + "AccountValidAudience:" + AccountValidAudience + ","
         + "AccountRegisterSessionLifeTime:" + AccountRegisterSessionLifeTime + ","
         + "RecentServerMaxCount:" + RecentServerMaxCount + ","
+        + "OldSessionLifeTime:" + OldSessionLifeTime + ","
+        + "DelayOfflineTime:" + DelayOfflineTime + ","
         + "}";
     }
 }

@@ -18,10 +18,5 @@ namespace Fantasy
         public const uint C2G_LoginRequest = 268445459;
         public const uint G2C_LoginResponse = 402663187;
         public const uint G2C_RepeatLogin = 134227734;
-        public const uint C2G_GetAccountInfoRequest = 268445460;
-        public const uint G2C_GetAccountInfoResponse = 402663188;
-        public const uint C2G_TestMessage = 134227735;
-        public const uint C2G_TestRequest = 268445461;
-        public const uint G2C_TestResponse = 402663189;
     }
 }

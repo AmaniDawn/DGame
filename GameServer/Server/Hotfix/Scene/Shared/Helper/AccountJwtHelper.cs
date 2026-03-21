@@ -10,10 +10,10 @@ public static class AccountJwtHelper
     /// </summary>
     /// <param name="scene"></param>
     /// <param name="roleId">账号ID</param>
-    /// <param name="accountName">账号名称</param>
+    /// <param name="roleName">账号名称</param>
     /// <returns>签名后的JWT Token</returns>
-    public static string GenerateJwtToken(this Scene scene, long roleId, string accountName)
-        => scene.GetComponent<AccountJwtComponent>().GenerateJwtToken(roleId, accountName);
+    public static string GenerateJwtToken(this Scene scene, long roleId, string roleName)
+        => scene.GetComponent<AccountJwtComponent>().GenerateJwtToken(roleId, roleName);
 
     /// <summary>
     /// 验证 Jwt Token 的合法性
@@ -22,8 +22,8 @@ public static class AccountJwtHelper
     /// <param name="scene"></param>
     /// <param name="jwtToken">待验证的Token</param>
     /// <param name="roleId">验证成功的账号ID</param>
-    /// <param name="accountName">验证成功的账号名</param>
+    /// <param name="roleName">验证成功的账号名</param>
     /// <returns></returns>
-    public static bool ValidationToken(this Scene scene, string jwtToken, out long roleId, out string accountName)
-        => scene.GetComponent<AccountJwtComponent>().ValidationToken(jwtToken, out roleId, out accountName);
+    public static bool ValidationToken(this Scene scene, string jwtToken, out long roleId, out string roleName)
+        => scene.GetComponent<AccountJwtComponent>().ValidationToken(jwtToken, out roleId, out roleName);
 }

@@ -61,9 +61,9 @@ public static class AccountJwtComponentSystem
     /// </summary>
     /// <param name="self"></param>
     /// <param name="roleId">账号ID</param>
-    /// <param name="accountName">账号名称</param>
+    /// <param name="roleName">账号名称</param>
     /// <returns>签名后的JWT Token</returns>
-    public static string GenerateJwtToken(this AccountJwtComponent self, long roleId, string accountName)
+    public static string GenerateJwtToken(this AccountJwtComponent self, long roleId, string roleName)
     {
         var now = DateTime.UtcNow;
         var jwtPayload = new JwtPayload()
@@ -73,7 +73,7 @@ public static class AccountJwtComponentSystem
             ["nbf"] = EpochTime.GetIntDate(now),                                                                        // 生效时间
             ["exp"] = EpochTime.GetIntDate(now.AddMilliseconds(TbFuncParamConfig.AccountTokenExpireTime)),      // 过期时间
             ["aid"] = roleId,                                        
-            ["aName"] = accountName,
+            ["aName"] = roleName,
         };
         var jwtSecurityToken = new JwtSecurityToken(new JwtHeader(self.SigningCredentials), jwtPayload);
         return new JwtSecurityTokenHandler().WriteToken(jwtSecurityToken);
@@ -86,12 +86,12 @@ public static class AccountJwtComponentSystem
     /// <param name="self"></param>
     /// <param name="jwtToken">待验证的Token</param>
     /// <param name="roleId">验证成功的账号ID</param>
-    /// <param name="accountName">验证成功的账号名</param>
+    /// <param name="roleName">验证成功的账号名</param>
     /// <returns></returns>
-    public static bool ValidationToken(this AccountJwtComponent self, string jwtToken, out long roleId, out string accountName)
+    public static bool ValidationToken(this AccountJwtComponent self, string jwtToken, out long roleId, out string roleName)
     {
         roleId = 0;
-        accountName = string.Empty;
+        roleName = string.Empty;
 
         try
         {
@@ -104,7 +104,7 @@ public static class AccountJwtComponentSystem
                 return false;
             }
             roleId = long.Parse(accountIdClaim.Value);
-            accountName = accountNameClaim.Value;
+            roleName = accountNameClaim.Value;
             return true;
         }
         catch (Exception e)

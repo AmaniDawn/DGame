@@ -6,6 +6,8 @@
     "AccountValidIssuer": "Fantasy",
     "AccountValidAudience": "Fantasy",
     "AccountRegisterSessionLifeTime": 2000,
-    "RecentServerMaxCount": 4
+    "RecentServerMaxCount": 4,
+    "OldSessionLifeTime": 3000,
+    "DelayOfflineTime": 5000
   }
 ]

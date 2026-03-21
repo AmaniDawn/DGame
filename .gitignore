@@ -7,6 +7,9 @@ GameConfig/Tools/LubanTools/
 
 *.vs
 *.idea
+*.DotSettings
+#快捷方式
+*.lnk
 
 
 #Generata Tools

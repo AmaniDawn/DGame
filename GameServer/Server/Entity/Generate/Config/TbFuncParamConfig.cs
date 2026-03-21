@@ -64,6 +64,14 @@ public partial class TbFuncParamConfig
     /// 记录服务器最近登录最大个数
     /// </summary>
      public static int RecentServerMaxCount => Instance._data.RecentServerMaxCount;
+    /// <summary>
+    /// 断线重连时旧的Session生命周期(毫秒)
+    /// </summary>
+     public static int OldSessionLifeTime => Instance._data.OldSessionLifeTime;
+    /// <summary>
+    /// 延迟下线时间(毫秒)
+    /// </summary>
+     public static int DelayOfflineTime => Instance._data.DelayOfflineTime;
     
     public void ResolveRef(Tables tables)
     {

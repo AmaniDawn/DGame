@@ -19,6 +19,7 @@ public sealed partial class ServerConfig : Luban.BeanBase
     public ServerConfig(ByteBuf _buf) 
     {
         ID = _buf.ReadInt();
+        WorldID = _buf.ReadInt();
         Name = _buf.ReadString();
         Address = _buf.ReadString();
         Port = _buf.ReadString();
@@ -36,6 +37,10 @@ public sealed partial class ServerConfig : Luban.BeanBase
     /// 服务器ID
     /// </summary>
     public int ID;
+    /// <summary>
+    /// 世界ID
+    /// </summary>
+    public int WorldID;
     /// <summary>
     /// 服务器名字
     /// </summary>
@@ -76,6 +81,7 @@ public sealed partial class ServerConfig : Luban.BeanBase
             other = new ServerConfig();
         }
         other.ID = ID;
+        other.WorldID = WorldID;
         other.Name = Name;
         other.Address = Address;
         other.Port = Port;
@@ -88,6 +94,7 @@ public sealed partial class ServerConfig : Luban.BeanBase
     {
         return "{ "
         + "ID:" + ID + ","
+        + "WorldID:" + WorldID + ","
         + "Name:" + Name + ","
         + "Address:" + Address + ","
         + "Port:" + Port + ","
