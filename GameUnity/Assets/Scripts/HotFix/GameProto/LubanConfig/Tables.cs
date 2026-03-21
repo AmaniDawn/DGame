@@ -186,27 +186,6 @@ namespace GameProto
             }
         }
         /// <summary>
-        /// 服务器状态配置表
-        /// </summary>
-        private TbServerStateConfig m_TbServerStateConfig;
-        public TbServerStateConfig TbServerStateConfig 
-        {
-            get
-            {
-                if (m_TbServerStateConfig == null)
-                {
-                    m_TbServerStateConfig = new TbServerStateConfig(m_defaultLoader("tbserverstateconfig"));
-                    m_TbServerStateConfig.ResolveRef(this);
-                }
-                return m_TbServerStateConfig;
-            }
-            set
-            {
-                m_TbServerStateConfig = value;
-                m_TbServerStateConfig.ResolveRef(this);
-            }
-        }
-        /// <summary>
         /// 系统开放配置表
         /// </summary>
         private TbFuncOpenConfig m_TbFuncOpenConfig;
@@ -248,6 +227,27 @@ namespace GameProto
                 m_TbFuncParamConfig.ResolveRef(this);
             }
         }
+        /// <summary>
+        /// 服务器状态配置表
+        /// </summary>
+        private TbServerStateConfig m_TbServerStateConfig;
+        public TbServerStateConfig TbServerStateConfig 
+        {
+            get
+            {
+                if (m_TbServerStateConfig == null)
+                {
+                    m_TbServerStateConfig = new TbServerStateConfig(m_defaultLoader("tbserverstateconfig"));
+                    m_TbServerStateConfig.ResolveRef(this);
+                }
+                return m_TbServerStateConfig;
+            }
+            set
+            {
+                m_TbServerStateConfig = value;
+                m_TbServerStateConfig.ResolveRef(this);
+            }
+        }
 
         #endregion
 
@@ -273,9 +273,9 @@ namespace GameProto
             m_TbModelConfig = null;
             m_TbEffectConfig = null;
             m_TbGmConfig = null;
-            m_TbServerStateConfig = null;
             m_TbFuncOpenConfig = null;
             m_TbFuncParamConfig = null;
+            m_TbServerStateConfig = null;
         }
 
         public void Init(){}

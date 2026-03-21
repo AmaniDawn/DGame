@@ -1,38 +1,74 @@
 [
   {
-    "ID": 1,
+    "ID": 1051,
     "Name": "黑神话1服",
     "Address": "127.0.0.1",
     "Port": "20051",
-    "Recommend": false,
+    "Recommend": true,
     "Group": 1,
     "State": 1
   },
   {
-    "ID": 2,
+    "ID": 1052,
     "Name": "黑神话2服",
     "Address": "127.0.0.1",
     "Port": "20052",
-    "Recommend": false,
+    "Recommend": true,
     "Group": 1,
     "State": 1
   },
   {
-    "ID": 3,
+    "ID": 1053,
     "Name": "黑神话3服",
     "Address": "127.0.0.1",
     "Port": "20053",
-    "Recommend": true,
+    "Recommend": false,
     "Group": 2,
     "State": 2
   },
   {
-    "ID": 4,
+    "ID": 1054,
     "Name": "黑神话4服",
     "Address": "127.0.0.1",
     "Port": "20054",
-    "Recommend": true,
+    "Recommend": false,
     "Group": 2,
+    "State": 2
+  },
+  {
+    "ID": 1055,
+    "Name": "黑钟馗1服",
+    "Address": "127.0.0.1",
+    "Port": "20055",
+    "Recommend": false,
+    "Group": 3,
+    "State": 2
+  },
+  {
+    "ID": 1056,
+    "Name": "黑钟馗2服",
+    "Address": "127.0.0.1",
+    "Port": "20056",
+    "Recommend": false,
+    "Group": 3,
+    "State": 3
+  },
+  {
+    "ID": 1057,
+    "Name": "黑钟馗3服",
+    "Address": "127.0.0.1",
+    "Port": "20057",
+    "Recommend": false,
+    "Group": 4,
+    "State": 3
+  },
+  {
+    "ID": 1058,
+    "Name": "黑钟馗4服",
+    "Address": "127.0.0.1",
+    "Port": "20058",
+    "Recommend": false,
+    "Group": 4,
     "State": 3
   }
 ]
