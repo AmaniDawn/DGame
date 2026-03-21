@@ -1,0 +1,4 @@
+interface:
+  display_name: "Skill Creator"
+  short_description: "Create and maintain Codex skills."
+  default_prompt: "Use $skill-creator to create or update a Codex skill with the official structure and validation flow."
