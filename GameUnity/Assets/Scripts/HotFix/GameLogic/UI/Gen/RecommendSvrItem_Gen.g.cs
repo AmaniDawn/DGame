@@ -11,7 +11,7 @@ using DGame;
 
 namespace GameLogic
 {
-	public partial class RecommendSvrItem : UIEventItem<RecommendSvrItem>
+	public partial class RecommendSvrItem : UILoopItemWidget
 	{
 		#region 脚本工具生成的代码
 

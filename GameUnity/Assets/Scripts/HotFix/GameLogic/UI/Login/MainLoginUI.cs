@@ -1,6 +1,7 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using DGame;
+using GameProto;
 
 namespace GameLogic
 {
@@ -13,7 +14,7 @@ namespace GameLogic
 		protected override void BindMemberProperty()
 		{
 			m_goAccountNode.SetActive(false);
-			m_toggleUserPrivacy.isOn = LoginMgr.Instance.IsAgreeUserPrivacy;
+			m_toggleUserPrivacy.isOn = LoginDataMgr.Instance.IsAgreeUserPrivacy;
 			
 			m_quickAuthSaveData = ClientSaveDataMgr.Instance.GetSaveData<QuickAuthSaveData>();
 			if (m_quickAuthSaveData != null)
@@ -25,7 +26,7 @@ namespace GameLogic
 
 		protected override void RegisterEvent()
 		{
-			AddUIEvent(ILoginUI_Event.OnLoginSuccess, OnLoginSuccess);
+			AddUIEvent(ILoginUI_Event.OnLoginAuthSuccess, OnLoginAuthSuccess);
 		}
 
 		protected override void OnCreate()
@@ -68,12 +69,28 @@ namespace GameLogic
 
 		private void DoAutoLogin(object[] args)
 		{
-			throw new System.NotImplementedException();
+			
 		}
 
 		private void DoLogin(bool isAutoLogin)
 		{
 			CancelTimer();
+		}
+
+		private void RefreshServerInfo()
+		{
+			var curServerInfo = LoginDataMgr.Instance.CurServerInfo;
+
+			if (curServerInfo == null)
+			{
+				return;
+			}
+
+			if (TbServerStateConfig.TryGetValue(curServerInfo.State, out var stateConfig))
+			{
+				m_imgServer.color = stateConfig.Color.ParseColor();
+			}
+			m_textServer.text = curServerInfo.Name;
 		}
 
 		#endregion
@@ -87,7 +104,7 @@ namespace GameLogic
 
 		private partial void OnToggleUserPrivacyChange(bool isOn)
 		{
-			LoginMgr.Instance.SetAgreeUserPrivacy(isOn);
+			LoginDataMgr.Instance.SetAgreeUserPrivacy(isOn);
 		}
 
 		private partial void OnClickUserAgreementBtn()
@@ -142,10 +159,16 @@ namespace GameLogic
 
 			// DataCenterSys.Instance.AuthMgr.RequestAuth(m_user.text, m_pwd.text);
 		}
+
+		private partial void OnClickRegisterBtn()
+		{
+			
+		}
 		
-		private void OnLoginSuccess()
+		private void OnLoginAuthSuccess()
 		{
 			m_goAccountNode.SetActive(false);
+			RefreshServerInfo();
 		}
 
 		#endregion

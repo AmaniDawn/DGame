@@ -967,7 +967,7 @@ namespace Fantasy
         /// 服务器端口号
         /// </summary>
         [ProtoMember(5)]
-        public string Port { get; set; }
+        public int Port { get; set; }
         /// <summary>
         /// 是否是推荐服务器
         /// </summary>

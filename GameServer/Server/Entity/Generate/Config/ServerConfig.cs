@@ -22,7 +22,7 @@ public sealed partial class ServerConfig : Luban.BeanBase
         WorldID = _buf.ReadInt();
         Name = _buf.ReadString();
         Address = _buf.ReadString();
-        Port = _buf.ReadString();
+        Port = _buf.ReadInt();
         Recommend = _buf.ReadBool();
         Group = _buf.ReadInt();
         State = _buf.ReadByte();
@@ -52,7 +52,7 @@ public sealed partial class ServerConfig : Luban.BeanBase
     /// <summary>
     /// 服务器端口号
     /// </summary>
-    public string Port;
+    public int Port;
     /// <summary>
     /// 推荐服务器
     /// </summary>

@@ -4,7 +4,7 @@
     "WorldID": 1,
     "Name": "黑神话1服",
     "Address": "127.0.0.1",
-    "Port": "20051",
+    "Port": 20051,
     "Recommend": true,
     "Group": 1,
     "State": 1
@@ -14,7 +14,7 @@
     "WorldID": 2,
     "Name": "黑神话2服",
     "Address": "127.0.0.1",
-    "Port": "20052",
+    "Port": 20052,
     "Recommend": true,
     "Group": 1,
     "State": 1
@@ -24,7 +24,7 @@
     "WorldID": 3,
     "Name": "黑神话3服",
     "Address": "127.0.0.1",
-    "Port": "20053",
+    "Port": 20053,
     "Recommend": false,
     "Group": 2,
     "State": 2
@@ -34,7 +34,7 @@
     "WorldID": 4,
     "Name": "黑神话4服",
     "Address": "127.0.0.1",
-    "Port": "20054",
+    "Port": 20054,
     "Recommend": false,
     "Group": 2,
     "State": 2
@@ -44,7 +44,7 @@
     "WorldID": 5,
     "Name": "黑钟馗1服",
     "Address": "127.0.0.1",
-    "Port": "20055",
+    "Port": 20055,
     "Recommend": false,
     "Group": 3,
     "State": 2
@@ -54,7 +54,7 @@
     "WorldID": 6,
     "Name": "黑钟馗2服",
     "Address": "127.0.0.1",
-    "Port": "20056",
+    "Port": 20056,
     "Recommend": false,
     "Group": 3,
     "State": 3
@@ -64,7 +64,7 @@
     "WorldID": 7,
     "Name": "黑钟馗3服",
     "Address": "127.0.0.1",
-    "Port": "20057",
+    "Port": 20057,
     "Recommend": false,
     "Group": 4,
     "State": 3
@@ -74,7 +74,7 @@
     "WorldID": 8,
     "Name": "黑钟馗4服",
     "Address": "127.0.0.1",
-    "Port": "20058",
+    "Port": 20058,
     "Recommend": false,
     "Group": 4,
     "State": 3

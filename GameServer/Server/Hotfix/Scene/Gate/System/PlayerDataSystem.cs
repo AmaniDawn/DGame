@@ -141,6 +141,11 @@ public static class PlayerDataSystem
         {
             return;
         }
+
+        if (TbServerConfig.TryGetValue(self.ServerID, out var serverCfg))
+        {
+            self.WorldID = serverCfg.WorldID;
+        }
         self.Sex = cfg.Sex;
         self.Diamond = (uint)cfg.Diamond;
         self.Level = (uint)cfg.Level;

@@ -41,7 +41,7 @@ namespace GameLogic
 		{
 			if (m_isUserPrivacy)
 			{
-				LoginMgr.Instance.SetFirstOpenUserPrivacy(false);
+				LoginDataMgr.Instance.SetFirstOpenUserPrivacy(false);
 			}
 			Close();
 		}

@@ -8,7 +8,9 @@ namespace GameLogic
     {
         void OnRegisterSuccess();
 
-        void OnLoginSuccess();
+        void OnLoginGateSuccess();
+        
+        void OnLoginAuthSuccess();
 
         void ShowLoginUI();
 

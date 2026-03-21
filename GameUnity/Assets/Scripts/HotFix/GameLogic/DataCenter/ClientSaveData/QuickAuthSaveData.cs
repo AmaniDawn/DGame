@@ -5,5 +5,6 @@
     {
         public string Uid;
         public string Pwd;
+        public string Token;
     }
 }

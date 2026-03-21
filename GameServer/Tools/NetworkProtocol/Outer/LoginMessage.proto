@@ -50,7 +50,7 @@ message CSServerInfo
   string Name = 2; /// 服务器名字
   int Group = 3; /// 服务器分组
   string Address = 4; /// 服务器地址
-  string Port = 5; /// 服务器端口号
+  int Port = 5; /// 服务器端口号
   bool Recommend = 6; /// 是否是推荐服务器
   byte State = 7; /// 服务器状态
 }

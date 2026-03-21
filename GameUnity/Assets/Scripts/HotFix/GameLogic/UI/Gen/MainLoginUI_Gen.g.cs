@@ -26,12 +26,14 @@ namespace GameLogic
 		private Button m_btnStartGame;
 		private Button m_btnSelectServer;
 		private Image m_imgServer;
+		private Text m_textServer;
 		private Button m_btnUser;
 		private Button m_btnNotify;
 		private GameObject m_goAccountNode;
 		private InputField m_inputAccount;
 		private InputField m_inputPassword;
 		private Button m_btnCloseAccount;
+		private Button m_btnRegister;
 		private Button m_btnLogin;
 
 		protected override void ScriptGenerator()
@@ -47,13 +49,15 @@ namespace GameLogic
 			m_btnStartGame = m_bindComponent.GetComponent<Button>(7);
 			m_btnSelectServer = m_bindComponent.GetComponent<Button>(8);
 			m_imgServer = m_bindComponent.GetComponent<Image>(9);
-			m_btnUser = m_bindComponent.GetComponent<Button>(10);
-			m_btnNotify = m_bindComponent.GetComponent<Button>(11);
-			m_goAccountNode = m_bindComponent.GetComponent<RectTransform>(12).gameObject;
-			m_inputAccount = m_bindComponent.GetComponent<InputField>(13);
-			m_inputPassword = m_bindComponent.GetComponent<InputField>(14);
-			m_btnCloseAccount = m_bindComponent.GetComponent<Button>(15);
-			m_btnLogin = m_bindComponent.GetComponent<Button>(16);
+			m_textServer = m_bindComponent.GetComponent<Text>(10);
+			m_btnUser = m_bindComponent.GetComponent<Button>(11);
+			m_btnNotify = m_bindComponent.GetComponent<Button>(12);
+			m_goAccountNode = m_bindComponent.GetComponent<RectTransform>(13).gameObject;
+			m_inputAccount = m_bindComponent.GetComponent<InputField>(14);
+			m_inputPassword = m_bindComponent.GetComponent<InputField>(15);
+			m_btnCloseAccount = m_bindComponent.GetComponent<Button>(16);
+			m_btnRegister = m_bindComponent.GetComponent<Button>(17);
+			m_btnLogin = m_bindComponent.GetComponent<Button>(18);
 			m_btnAgeTips.onClick.AddListener(OnClickAgeTipsBtn);
 			m_toggleUserPrivacy.onValueChanged.AddListener(OnToggleUserPrivacyChange);
 			m_btnUserAgreement.onClick.AddListener(OnClickUserAgreementBtn);
@@ -63,6 +67,7 @@ namespace GameLogic
 			m_btnUser.onClick.AddListener(OnClickUserBtn);
 			m_btnNotify.onClick.AddListener(OnClickNotifyBtn);
 			m_btnCloseAccount.onClick.AddListener(OnClickCloseAccountBtn);
+			m_btnRegister.onClick.AddListener(OnClickRegisterBtn);
 			m_btnLogin.onClick.AddListener(OnClickLoginBtn);
 		}
 
@@ -87,6 +92,8 @@ namespace GameLogic
 		private partial void OnClickNotifyBtn();
 
 		private partial void OnClickCloseAccountBtn();
+
+		private partial void OnClickRegisterBtn();
 
 		private partial void OnClickLoginBtn();
 

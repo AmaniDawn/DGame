@@ -59,13 +59,13 @@ namespace GameLogic
 		private void CreateSwitch()
 		{
 			m_switchPageMgr = new SwitchPageMgr(m_tfTabNode, m_tfPageNode, this);
-
+			bool showRecommendSvr = LoginDataMgr.Instance.RecentServerRoleInfoList.Count > 0;
 			// 推荐服务器
 			m_switchPageMgr.BindChildPage<RecommendServerPage>((int)ServerTabType.RecommendSvr, switchTabNames[0]);
-			m_switchPageMgr.CreateTab<SwitchTabItem>((int)ServerTabType.RecommendSvr, m_itemSwitch);
+			m_switchPageMgr.CreateTab<SwitchTabItem>((int)ServerTabType.RecommendSvr, m_itemSwitch, showRecommendSvr);
 			// 所有服务器
 			m_switchPageMgr.BindChildPage<AllServerPage>((int)ServerTabType.AllSvr, switchTabNames[1]);
-			m_switchPageMgr.CreateTab<SwitchTabItem>((int)ServerTabType.AllSvr, m_itemSwitch, false);
+			m_switchPageMgr.CreateTab<SwitchTabItem>((int)ServerTabType.AllSvr, m_itemSwitch, !showRecommendSvr);
 		}
 
 		private void RefreshUI()

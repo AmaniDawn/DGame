@@ -646,7 +646,7 @@ MonoBehaviour:
   className: RecommendSvrItem
   impCodePath: Assets/Scripts/HotFix/GameLogic/UI/Login
   isGenImpClass: 1
-  uiType: UIEventItem
+  uiType: UILoopItemWidget
 --- !u!114 &8259681320519582194
 MonoBehaviour:
   m_ObjectHideFlags: 0

@@ -108,6 +108,14 @@ public partial class TbFuncParamConfig
     /// 纯数字模式下最多字符数
     /// </summary>
      public static int RoleNameDigitMaxCount => Instance._data.RoleNameDigitMaxCount;
+    /// <summary>
+    /// 鉴权服务器地址
+    /// </summary>
+     public static string AuthenticationAddress => Instance._data.AuthenticationAddress;
+    /// <summary>
+    /// 鉴权服务器端口号
+    /// </summary>
+     public static int AuthenticationPort => Instance._data.AuthenticationPort;
     
     public void ResolveRef(Tables tables)
     {

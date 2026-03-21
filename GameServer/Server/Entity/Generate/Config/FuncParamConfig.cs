@@ -36,6 +36,8 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         RoleNameMixedMaxCount = _buf.ReadInt();
         RoleNameDigitMinCount = _buf.ReadInt();
         RoleNameDigitMaxCount = _buf.ReadInt();
+        AuthenticationAddress = _buf.ReadString();
+        AuthenticationPort = _buf.ReadInt();
     }
 
     public static FuncParamConfig DeserializeFuncParamConfig(ByteBuf _buf)
@@ -115,6 +117,14 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
     /// 纯数字模式下最多字符数
     /// </summary>
     public int RoleNameDigitMaxCount;
+    /// <summary>
+    /// 鉴权服务器地址
+    /// </summary>
+    public string AuthenticationAddress;
+    /// <summary>
+    /// 鉴权服务器端口号
+    /// </summary>
+    public int AuthenticationPort;
 
     public const int __ID__ = -1155611477;
     public override int GetTypeId() => __ID__;
@@ -148,6 +158,8 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         other.RoleNameMixedMaxCount = RoleNameMixedMaxCount;
         other.RoleNameDigitMinCount = RoleNameDigitMinCount;
         other.RoleNameDigitMaxCount = RoleNameDigitMaxCount;
+        other.AuthenticationAddress = AuthenticationAddress;
+        other.AuthenticationPort = AuthenticationPort;
     }
     
     public override string ToString()
@@ -171,6 +183,8 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         + "RoleNameMixedMaxCount:" + RoleNameMixedMaxCount + ","
         + "RoleNameDigitMinCount:" + RoleNameDigitMinCount + ","
         + "RoleNameDigitMaxCount:" + RoleNameDigitMaxCount + ","
+        + "AuthenticationAddress:" + AuthenticationAddress + ","
+        + "AuthenticationPort:" + AuthenticationPort + ","
         + "}";
     }
 }
