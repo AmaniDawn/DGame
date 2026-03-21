@@ -730,6 +730,34 @@ namespace SuperScrollView
             return item;
         }
         
+        public LoopListViewItem2 NewListViewItem(GameObject prefabGo)
+        {
+            ItemPool pool = null;
+
+            if (prefabGo == null)
+            {
+                return null;
+            }
+            
+            if (mItemPoolDict.TryGetValue(prefabGo.name, out pool) == false)
+            {
+                pool = TryCreateItemPool(prefabGo);
+                if (pool == null)
+                {
+                    return null;
+                }
+            }
+                
+            LoopListViewItem2 item = pool.GetItem(mCurCreatingItemIndex);
+            RectTransform rf = item.GetComponent<RectTransform>();
+            rf.SetParent(mContainerTrans);
+            rf.localScale = Vector3.one;
+            rf.anchoredPosition3D = Vector3.zero;
+            rf.localEulerAngles = Vector3.zero;
+            item.ParentListView = this;
+            return item;
+        }
+        
         #region TryCreateItemPool
 
         private ItemPool TryCreateItemPool(string itemPrefabName)
