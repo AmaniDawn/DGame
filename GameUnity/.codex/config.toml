@@ -1,0 +1,5 @@
+[mcp_servers.ai-game-developer]
+enabled = true
+startup_timeout_sec = 30
+tool_timeout_sec = 300
+url = "http://localhost:22512"
