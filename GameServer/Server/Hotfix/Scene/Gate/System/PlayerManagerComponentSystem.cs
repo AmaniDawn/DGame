@@ -3,6 +3,8 @@ using Fantasy.Async;
 using Fantasy.Entitas;
 using Fantasy.Entitas.Interface;
 using Fantasy.Helper;
+using GameProto;
+
 #pragma warning disable CS8600 // 将 null 字面量或可能为 null 的值转换为非 null 类型。
 
 // ReSharper disable InconsistentNaming
@@ -27,6 +29,28 @@ public static class PlayerManagerComponentSystem
 
     private static long GetCreateLockKey(long accountID, int serverID)
         => HashCodeHelper.ComputeHash64($"{accountID}_{serverID}");
+
+    private static async FTask<string> GenerateUniqueRoleName(Scene scene)
+    {
+        var randomNameList = TbRandomNameConfig.DataList;
+        if (randomNameList.Count == 0)
+        {
+            return $"Player{TimeHelper.Now}";
+        }
+
+        var worldDataBase = scene.World.Database;
+        var baseName = randomNameList[Random.Shared.Next(randomNameList.Count)].Name;
+        var roleName = baseName;
+        var suffix = 0;
+
+        while (await worldDataBase.Exist<PlayerData>(d => d.RoleName == roleName))
+        {
+            suffix++;
+            roleName = $"{baseName}{suffix}";
+        }
+
+        return roleName;
+    }
 
     /// <summary>
     /// 将玩家账号数据手动添加到管理器组件缓存中
@@ -88,12 +112,17 @@ public static class PlayerManagerComponentSystem
             // 数据库不存在 则创建账号
             if (playerData == null)
             {
-                playerData = Entity.Create<PlayerData>(scene, true, true);
-                playerData.AccountID = accountID;
-                playerData.ServerID = serverID;
-                playerData.CreateTime = TimeHelper.Now;
-                // 新账号插入到数据库
-                await worldDataBase.Insert(playerData);
+                // 角色名唯一性在全局维度保证，生成名字和插库需要串行化
+                using (await scene.CoroutineLockComponent.Wait(CoroutineLockType.PlayerRoleNameLock, 0, "PlayerManagerComponentSystem.CreateRoleName", 10000))
+                {
+                    playerData = Entity.Create<PlayerData>(scene, true, true);
+                    playerData.AccountID = accountID;
+                    playerData.ServerID = serverID;
+                    playerData.Initialize();
+                    playerData.RoleName = await GenerateUniqueRoleName(scene);
+                    // 新账号插入到数据库
+                    await worldDataBase.Insert(playerData);
+                }
             }
 
             // 加入到账号缓存中

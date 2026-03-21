@@ -27,11 +27,8 @@ public sealed partial class PlayerInitConfig : Luban.BeanBase
         Diamond = _buf.ReadInt();
         Gold = _buf.ReadInt();
         Stam = _buf.ReadInt();
-        IsFinGuide = _buf.ReadInt();
+        IsFinGuide = _buf.ReadByte();
         Sign = _buf.ReadString();
-        TotalRmb = _buf.ReadInt();
-        LastAddStamTime = _buf.ReadLong();
-        DailyBuyStamCount = _buf.ReadInt();
     }
 
     public static PlayerInitConfig DeserializePlayerInitConfig(ByteBuf _buf)
@@ -78,23 +75,11 @@ public sealed partial class PlayerInitConfig : Luban.BeanBase
     /// <summary>
     /// 是否完成新手引导
     /// </summary>
-    public int IsFinGuide;
+    public byte IsFinGuide;
     /// <summary>
     /// 初始签名
     /// </summary>
     public string Sign;
-    /// <summary>
-    /// 初始累计充值金额
-    /// </summary>
-    public int TotalRmb;
-    /// <summary>
-    /// 初始上次加体力时间
-    /// </summary>
-    public long LastAddStamTime;
-    /// <summary>
-    /// 初始每日购买体力次数
-    /// </summary>
-    public int DailyBuyStamCount;
 
     public const int __ID__ = 2025266771;
     public override int GetTypeId() => __ID__;
@@ -121,9 +106,6 @@ public sealed partial class PlayerInitConfig : Luban.BeanBase
         other.Stam = Stam;
         other.IsFinGuide = IsFinGuide;
         other.Sign = Sign;
-        other.TotalRmb = TotalRmb;
-        other.LastAddStamTime = LastAddStamTime;
-        other.DailyBuyStamCount = DailyBuyStamCount;
     }
     
     public override string ToString()
@@ -140,9 +122,6 @@ public sealed partial class PlayerInitConfig : Luban.BeanBase
         + "Stam:" + Stam + ","
         + "IsFinGuide:" + IsFinGuide + ","
         + "Sign:" + Sign + ","
-        + "TotalRmb:" + TotalRmb + ","
-        + "LastAddStamTime:" + LastAddStamTime + ","
-        + "DailyBuyStamCount:" + DailyBuyStamCount + ","
         + "}";
     }
 }

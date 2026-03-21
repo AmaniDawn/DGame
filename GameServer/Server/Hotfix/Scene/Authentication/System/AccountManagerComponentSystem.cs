@@ -166,9 +166,9 @@ public static class AccountManagerComponentSystem
     /// <param name="self"></param>
     /// <param name="accountId">账号ID</param>
     /// <param name="recentServerList">最近登录服务器列表</param>
-    public static async FTask<List<RecentServerRoleInfo>> GetRecentServerRoleInfos(this AccountManagerComponent self, long accountId, IReadOnlyList<int> recentServerList)
+    public static async FTask<List<CSRecentServerRoleInfo>> GetRecentServerRoleInfos(this AccountManagerComponent self, long accountId, IReadOnlyList<int> recentServerList)
     {
-        var result = new List<RecentServerRoleInfo>();
+        var result = new List<CSRecentServerRoleInfo>();
 
         if (accountId == 0 || recentServerList == null || recentServerList.Count == 0)
         {
@@ -189,7 +189,7 @@ public static class AccountManagerComponentSystem
                 continue;
             }
 
-            result.Add(new RecentServerRoleInfo
+            result.Add(new CSRecentServerRoleInfo
             {
                 ServerID = serverId,
                 Level = playerData.Level,

@@ -9,6 +9,14 @@
     "RecentServerMaxCount": 4,
     "OldSessionLifeTime": 3000,
     "DelayOfflineTime": 5000,
-    "PlayerInitConfigID": 1
+    "PlayerInitConfigID": 1,
+    "RoleNameChineseMinCount": 2,
+    "RoleNameChineseMaxCount": 6,
+    "RoleNameLatinMinCount": 4,
+    "RoleNameLatinMaxCount": 12,
+    "RoleNameMixedMinCount": 4,
+    "RoleNameMixedMaxCount": 12,
+    "RoleNameDigitMinCount": 4,
+    "RoleNameDigitMaxCount": 12
   }
 ]

@@ -20,6 +20,8 @@ public sealed class OnSceneCreate_Init : AsyncEventSystem<OnCreateScene>
                 break;
 
             case SceneType.Gate:
+                // 添加账号数据管理组件
+                scene.AddComponent<PlayerManagerComponent>();
                 break;
         }
 

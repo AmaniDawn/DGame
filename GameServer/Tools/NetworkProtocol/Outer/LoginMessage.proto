@@ -38,13 +38,13 @@ message A2C_LoginResponse // IResponse
 {
   long RoleID = 1;
   string Token = 2;
-  repeatedList ServerInfo ServerInfoList = 3; // 服务器信息列表
+  repeatedList CSServerInfo ServerInfoList = 3; // 服务器信息列表
   repeatedList int RecentServerList = 4; // 最近登录服务器列表ID
-  repeatedList RecentServerRoleInfo RecentServerRoleInfoList = 5; // 最近登录服务器对应的角色摘要
+  repeatedList CSRecentServerRoleInfo RecentServerRoleInfoList = 5; // 最近登录服务器对应的角色摘要
 }
 
 /// 服务器信息
-message ServerInfo
+message CSServerInfo
 {
   int ServerID = 1; /// 服务器ID
   string Name = 2; /// 服务器名字
@@ -56,7 +56,7 @@ message ServerInfo
 }
 
 /// 最近登录服务器的角色摘要
-message RecentServerRoleInfo
+message CSRecentServerRoleInfo
 {
   int ServerID = 1; /// 服务器ID
   uint Level = 2; /// 角色等级

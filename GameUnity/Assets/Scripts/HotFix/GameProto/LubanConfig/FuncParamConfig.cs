@@ -28,6 +28,14 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         OldSessionLifeTime = _buf.ReadInt();
         DelayOfflineTime = _buf.ReadInt();
         PlayerInitConfigID = _buf.ReadInt();
+        RoleNameChineseMinCount = _buf.ReadInt();
+        RoleNameChineseMaxCount = _buf.ReadInt();
+        RoleNameLatinMinCount = _buf.ReadInt();
+        RoleNameLatinMaxCount = _buf.ReadInt();
+        RoleNameMixedMinCount = _buf.ReadInt();
+        RoleNameMixedMaxCount = _buf.ReadInt();
+        RoleNameDigitMinCount = _buf.ReadInt();
+        RoleNameDigitMaxCount = _buf.ReadInt();
     }
 
     public static FuncParamConfig DeserializeFuncParamConfig(ByteBuf _buf)
@@ -75,6 +83,38 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
     /// 玩家创建账号的初始角色配置ID
     /// </summary>
     public int PlayerInitConfigID;
+    /// <summary>
+    /// 纯中文模式下最少字符数
+    /// </summary>
+    public int RoleNameChineseMinCount;
+    /// <summary>
+    /// 纯中文模式下最多字符数
+    /// </summary>
+    public int RoleNameChineseMaxCount;
+    /// <summary>
+    /// 纯英文模式下最少字符数
+    /// </summary>
+    public int RoleNameLatinMinCount;
+    /// <summary>
+    /// 纯英文模式下最多字符数
+    /// </summary>
+    public int RoleNameLatinMaxCount;
+    /// <summary>
+    /// 混排模式下最少字符数
+    /// </summary>
+    public int RoleNameMixedMinCount;
+    /// <summary>
+    /// 混排模式下最多字符数
+    /// </summary>
+    public int RoleNameMixedMaxCount;
+    /// <summary>
+    /// 纯数字模式下最少字符数
+    /// </summary>
+    public int RoleNameDigitMinCount;
+    /// <summary>
+    /// 纯数字模式下最多字符数
+    /// </summary>
+    public int RoleNameDigitMaxCount;
 
     public const int __ID__ = -1155611477;
     public override int GetTypeId() => __ID__;
@@ -100,6 +140,14 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         other.OldSessionLifeTime = OldSessionLifeTime;
         other.DelayOfflineTime = DelayOfflineTime;
         other.PlayerInitConfigID = PlayerInitConfigID;
+        other.RoleNameChineseMinCount = RoleNameChineseMinCount;
+        other.RoleNameChineseMaxCount = RoleNameChineseMaxCount;
+        other.RoleNameLatinMinCount = RoleNameLatinMinCount;
+        other.RoleNameLatinMaxCount = RoleNameLatinMaxCount;
+        other.RoleNameMixedMinCount = RoleNameMixedMinCount;
+        other.RoleNameMixedMaxCount = RoleNameMixedMaxCount;
+        other.RoleNameDigitMinCount = RoleNameDigitMinCount;
+        other.RoleNameDigitMaxCount = RoleNameDigitMaxCount;
     }
     
     public override string ToString()
@@ -115,6 +163,14 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         + "OldSessionLifeTime:" + OldSessionLifeTime + ","
         + "DelayOfflineTime:" + DelayOfflineTime + ","
         + "PlayerInitConfigID:" + PlayerInitConfigID + ","
+        + "RoleNameChineseMinCount:" + RoleNameChineseMinCount + ","
+        + "RoleNameChineseMaxCount:" + RoleNameChineseMaxCount + ","
+        + "RoleNameLatinMinCount:" + RoleNameLatinMinCount + ","
+        + "RoleNameLatinMaxCount:" + RoleNameLatinMaxCount + ","
+        + "RoleNameMixedMinCount:" + RoleNameMixedMinCount + ","
+        + "RoleNameMixedMaxCount:" + RoleNameMixedMaxCount + ","
+        + "RoleNameDigitMinCount:" + RoleNameDigitMinCount + ","
+        + "RoleNameDigitMaxCount:" + RoleNameDigitMaxCount + ","
         + "}";
     }
 }

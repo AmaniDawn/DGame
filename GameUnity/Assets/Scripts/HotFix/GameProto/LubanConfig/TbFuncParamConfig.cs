@@ -76,6 +76,38 @@ public partial class TbFuncParamConfig
     /// 玩家创建账号的初始角色配置ID
     /// </summary>
      public static int PlayerInitConfigID => Instance._data.PlayerInitConfigID;
+    /// <summary>
+    /// 纯中文模式下最少字符数
+    /// </summary>
+     public static int RoleNameChineseMinCount => Instance._data.RoleNameChineseMinCount;
+    /// <summary>
+    /// 纯中文模式下最多字符数
+    /// </summary>
+     public static int RoleNameChineseMaxCount => Instance._data.RoleNameChineseMaxCount;
+    /// <summary>
+    /// 纯英文模式下最少字符数
+    /// </summary>
+     public static int RoleNameLatinMinCount => Instance._data.RoleNameLatinMinCount;
+    /// <summary>
+    /// 纯英文模式下最多字符数
+    /// </summary>
+     public static int RoleNameLatinMaxCount => Instance._data.RoleNameLatinMaxCount;
+    /// <summary>
+    /// 混排模式下最少字符数
+    /// </summary>
+     public static int RoleNameMixedMinCount => Instance._data.RoleNameMixedMinCount;
+    /// <summary>
+    /// 混排模式下最多字符数
+    /// </summary>
+     public static int RoleNameMixedMaxCount => Instance._data.RoleNameMixedMaxCount;
+    /// <summary>
+    /// 纯数字模式下最少字符数
+    /// </summary>
+     public static int RoleNameDigitMinCount => Instance._data.RoleNameDigitMinCount;
+    /// <summary>
+    /// 纯数字模式下最多字符数
+    /// </summary>
+     public static int RoleNameDigitMaxCount => Instance._data.RoleNameDigitMaxCount;
     
     public void ResolveRef(Tables tables)
     {

@@ -14,4 +14,9 @@ public static class CoroutineLockType
     /// 玩家数据加载/创建协程锁类型
     /// </summary>
     public const long PlayerDataCreateLock = 2;
+
+    /// <summary>
+    /// 角色名生成/创建协程锁类型
+    /// </summary>
+    public const long PlayerRoleNameLock = 3;
 }

@@ -17,11 +17,11 @@ public sealed class C2A_LoginRequestHandler : MessageRPC<C2A_LoginRequest, A2C_L
         if (result.ErrorCode == ErrorCode.SUCCESS)
         {
             response.Token = result.Token;
-            response.RoleID = result.RoleId;
+            response.RoleID = result.AccountId;
             response.ServerInfoList = TbServerConfig.ServerInfoList;
             response.RecentServerList = new List<int>();
             response.RecentServerList.AddRange(result.RecentServerList); 
-            response.RecentServerRoleInfoList = await scene.GetComponent<AccountManagerComponent>().GetRecentServerRoleInfos(result.RoleId, result.RecentServerList);
+            response.RecentServerRoleInfoList = await scene.GetComponent<AccountManagerComponent>().GetRecentServerRoleInfos(result.AccountId, result.RecentServerList);
         }
         response.ErrorCode = result.ErrorCode;
         session.SetLifeTime(TbFuncParamConfig.AccountRegisterSessionLifeTime);

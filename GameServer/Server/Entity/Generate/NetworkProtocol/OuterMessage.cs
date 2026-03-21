@@ -891,30 +891,30 @@ namespace Fantasy
         [ProtoMember(3)]
         public string Token { get; set; }
         [ProtoMember(4)]
-        public List<ServerInfo> ServerInfoList { get; set; }
+        public List<CSServerInfo> ServerInfoList { get; set; }
         [ProtoMember(5)]
         public List<int> RecentServerList { get; set; }
         [ProtoMember(6)]
-        public List<RecentServerRoleInfo> RecentServerRoleInfoList { get; set; }
+        public List<CSRecentServerRoleInfo> RecentServerRoleInfoList { get; set; }
     }
     /// <summary>
     /// 服务器信息
     /// </summary>
     [Serializable]
     [ProtoContract]
-    public partial class ServerInfo : AMessage, IDisposable
+    public partial class CSServerInfo : AMessage, IDisposable
     {
-        public static ServerInfo Create(bool autoReturn = true)
+        public static CSServerInfo Create(bool autoReturn = true)
         {
-            var serverInfo = MessageObjectPool<ServerInfo>.Rent();
-            serverInfo.AutoReturn = autoReturn;
+            var cSServerInfo = MessageObjectPool<CSServerInfo>.Rent();
+            cSServerInfo.AutoReturn = autoReturn;
             
             if (!autoReturn)
             {
-                serverInfo.SetIsPool(false);
+                cSServerInfo.SetIsPool(false);
             }
             
-            return serverInfo;
+            return cSServerInfo;
         }
         
         public void Return()
@@ -941,7 +941,7 @@ namespace Fantasy
             Port = default;
             Recommend = default;
             State = default;
-            MessageObjectPool<ServerInfo>.Return(this);
+            MessageObjectPool<CSServerInfo>.Return(this);
         }
         /// <summary>
         /// 服务器ID
@@ -984,19 +984,19 @@ namespace Fantasy
     /// </summary>
     [Serializable]
     [ProtoContract]
-    public partial class RecentServerRoleInfo : AMessage, IDisposable
+    public partial class CSRecentServerRoleInfo : AMessage, IDisposable
     {
-        public static RecentServerRoleInfo Create(bool autoReturn = true)
+        public static CSRecentServerRoleInfo Create(bool autoReturn = true)
         {
-            var recentServerRoleInfo = MessageObjectPool<RecentServerRoleInfo>.Rent();
-            recentServerRoleInfo.AutoReturn = autoReturn;
+            var cSRecentServerRoleInfo = MessageObjectPool<CSRecentServerRoleInfo>.Rent();
+            cSRecentServerRoleInfo.AutoReturn = autoReturn;
             
             if (!autoReturn)
             {
-                recentServerRoleInfo.SetIsPool(false);
+                cSRecentServerRoleInfo.SetIsPool(false);
             }
             
-            return recentServerRoleInfo;
+            return cSRecentServerRoleInfo;
         }
         
         public void Return()
@@ -1018,7 +1018,7 @@ namespace Fantasy
             if (!IsPool()) return; 
             ServerID = default;
             Level = default;
-            MessageObjectPool<RecentServerRoleInfo>.Return(this);
+            MessageObjectPool<CSRecentServerRoleInfo>.Return(this);
         }
         /// <summary>
         /// 服务器ID

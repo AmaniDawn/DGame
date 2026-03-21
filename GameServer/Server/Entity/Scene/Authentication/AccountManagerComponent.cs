@@ -10,7 +10,7 @@ public struct AccountLoginResult
     /// <summary>
     /// 角色 ID。
     /// </summary>
-    public long RoleId;
+    public long AccountId;
 
     /// <summary>
     /// 登录令牌。
@@ -39,13 +39,13 @@ public struct AccountLoginResult
     /// <summary>
     /// 使用完整信息初始化登录结果。
     /// </summary>
-    /// <param name="roleId">角色 ID。</param>
+    /// <param name="accountId">角色 ID。</param>
     /// <param name="token">登录令牌。</param>
     /// <param name="errorCode">错误码。</param>
     /// <param name="recentServerList">最近登录的服务器列表。</param>
-    public AccountLoginResult(long roleId, string token, uint errorCode, IReadOnlyList<int> recentServerList)
+    public AccountLoginResult(long accountId, string token, uint errorCode, IReadOnlyList<int> recentServerList)
     {
-        RoleId = roleId;
+        AccountId = accountId;
         Token = token;
         ErrorCode  = errorCode;
         RecentServerList = recentServerList;

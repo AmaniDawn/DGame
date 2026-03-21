@@ -34,6 +34,7 @@ public sealed class C2G_LoginRequestHandler : MessageRPC<C2G_LoginRequest, G2C_L
         {
             // Token验证不通过
             session.Dispose();
+            response.ErrorCode = ErrorCode.RLOGIN_TOKEN_ERROR;
             return;
         }
 
@@ -48,6 +49,7 @@ public sealed class C2G_LoginRequestHandler : MessageRPC<C2G_LoginRequest, G2C_L
             if (session.RuntimeId == playerData.SessionRuntimeId)
             {
                 // 1.同一个客户端发送重复登录请求
+                response.ErrorCode = ErrorCode.LOGIN_ACCOUNT_ALREADY_ONLINE;
                 return;
             }
 
@@ -71,6 +73,9 @@ public sealed class C2G_LoginRequestHandler : MessageRPC<C2G_LoginRequest, G2C_L
             // 执行上线操作
             await playerData.Online();
         }
+
+        response.ErrorCode = ErrorCode.SUCCESS;
+        response.PlayerData = playerData.ToCSPlayerData();
         // 记录玩家上线时间
         playerData.LastLoginTime = TimeHelper.Now;
         // 记录客户端的Session

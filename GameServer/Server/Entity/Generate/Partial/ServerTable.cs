@@ -7,21 +7,21 @@ namespace GameProto;
 /// </summary>
 public partial class TbServerConfig
 {
-    private List<ServerInfo>? m_serverInfoList;
+    private List<CSServerInfo>? m_serverInfoList;
 
     /// <summary>
     /// 获取由配置表转换后的服务器信息缓存列表。
     /// </summary>
-    public static List<ServerInfo> ServerInfoList => m_instance.GetServerInfoList();
+    public static List<CSServerInfo> ServerInfoList => m_instance.GetServerInfoList();
 
-    private List<ServerInfo> GetServerInfoList()
+    private List<CSServerInfo> GetServerInfoList()
     {
         if (m_serverInfoList != null)
         {
             return m_serverInfoList;
         }
 
-        m_serverInfoList = new List<ServerInfo>();
+        m_serverInfoList = new List<CSServerInfo>();
         foreach (var cfg in dataList)
         {
             m_serverInfoList.Add(ToServerInfo(cfg));
@@ -30,11 +30,11 @@ public partial class TbServerConfig
     }
 
     /// <summary>
-    /// 将服务器配置记录转换为 <see cref="ServerInfo"/> 实例。
+    /// 将服务器配置记录转换为 <see cref="CSServerInfo"/> 实例。
     /// </summary>
     /// <param name="serverConfig">源服务器配置记录。</param>
     /// <returns>转换后的服务器信息。</returns>
-    public ServerInfo ToServerInfo(ServerConfig serverConfig)
+    public CSServerInfo ToServerInfo(ServerConfig serverConfig)
         => new()
         {
             ServerID = serverConfig.ID,

@@ -20,6 +20,7 @@ public static class ErrorCode
     public const uint LOGIN_REGISTER_PASSWORD_LESS_LIMIT = 1012; // 密码长度至少需8位
     public const uint REGISTER_TOW_PASSWORD_INCONSISTENT = 1013; // 两次输入的密码不一致
     public const uint REGISTER_SUCCESS = 1014; // 注册成功
+    public const uint RLOGIN_TOKEN_ERROR = 1015; // 登录Token验证失败
 
     public const uint ROLE_CREATE_SUCCESS = 2001; // 创建角色成功
     public const uint ROLE_CONFIG_NOT_FOUND = 2002; // 创角色配置不存在

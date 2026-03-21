@@ -311,6 +311,27 @@ namespace GameProto
                 m_TbPlayerInitConfig.ResolveRef(this);
             }
         }
+        /// <summary>
+        /// 随机名配置表
+        /// </summary>
+        private TbRandomNameConfig m_TbRandomNameConfig;
+        public TbRandomNameConfig TbRandomNameConfig 
+        {
+            get
+            {
+                if (m_TbRandomNameConfig == null)
+                {
+                    m_TbRandomNameConfig = new TbRandomNameConfig(m_defaultLoader("tbrandomnameconfig"));
+                    m_TbRandomNameConfig.ResolveRef(this);
+                }
+                return m_TbRandomNameConfig;
+            }
+            set
+            {
+                m_TbRandomNameConfig = value;
+                m_TbRandomNameConfig.ResolveRef(this);
+            }
+        }
 
         #endregion
 
@@ -342,6 +363,7 @@ namespace GameProto
             m_TbServerStateConfig = null;
             m_TbActivityOpenConfig = null;
             m_TbPlayerInitConfig = null;
+            m_TbRandomNameConfig = null;
         }
 
         public void Init(){}
