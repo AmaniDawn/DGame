@@ -202,6 +202,7 @@ namespace GameLogic
                     m_dataCenterModuleList[i].OnRoleLogout();
                 }
             }
+            LoginDataMgr.Instance.OnRoleLogout();
         }
     }
 }

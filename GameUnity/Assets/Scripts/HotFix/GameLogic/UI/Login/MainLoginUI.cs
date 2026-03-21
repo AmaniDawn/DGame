@@ -22,11 +22,13 @@ namespace GameLogic
 				m_inputAccount.text = m_quickAuthSaveData.Uid;
 				m_inputPassword.text = m_quickAuthSaveData.Pwd;
 			}
+			m_goAccountNode.SetActive(true);
 		}
 
 		protected override void RegisterEvent()
 		{
 			AddUIEvent(ILoginUI_Event.OnLoginAuthSuccess, OnLoginAuthSuccess);
+			AddUIEvent(ILoginUI_Event.OnLoginGateSuccess, Close);
 		}
 
 		protected override void OnCreate()
@@ -124,7 +126,21 @@ namespace GameLogic
 				UIModule.Instance.ShowTipsUI(G.R("请阅读并同意，服务协议和隐私保护指引"));
 				return;
 			}
-			UIModule.Instance.ShowWindowAsync<GameMainUI>();
+
+			if (string.IsNullOrWhiteSpace(m_quickAuthSaveData.Token))
+			{
+				m_goAccountNode.SetActive(true);
+				return;
+			}
+
+			if (LoginDataMgr.Instance.CurServerInfo == null 
+			    || LoginDataMgr.Instance.CurServerInfo.ServerID <= 0)
+			{
+				UIModule.Instance.ShowWindowAsync<SelectServerUI>();
+				return;
+			}
+
+			LoginNetMgr.Instance.Login().Coroutine();
 		}
 
 		private partial void OnClickSelectServerBtn()
@@ -153,16 +169,22 @@ namespace GameLogic
 			{
 				m_quickAuthSaveData = ClientSaveDataMgr.Instance.GetSaveData<QuickAuthSaveData>();
 			}
+
+			if (string.IsNullOrWhiteSpace(m_inputAccount.text) || string.IsNullOrWhiteSpace(m_inputPassword.text))
+			{
+				UIModule.Instance.ShowTipsUI(G.R("请输入帐号和密码"));
+				return;
+			}
 			m_quickAuthSaveData.Uid = m_inputAccount.text;
 			m_quickAuthSaveData.Pwd = m_inputPassword.text;
 			m_quickAuthSaveData.Save();
 
-			// DataCenterSys.Instance.AuthMgr.RequestAuth(m_user.text, m_pwd.text);
+			LoginNetMgr.Instance.LoginRequest(m_inputAccount.text, m_inputPassword.text).Coroutine();
 		}
 
 		private partial void OnClickRegisterBtn()
 		{
-			
+			LoginNetMgr.Instance.RegisterRequest(m_inputAccount.text, m_inputPassword.text).Coroutine();
 		}
 		
 		private void OnLoginAuthSuccess()

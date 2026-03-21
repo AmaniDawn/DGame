@@ -12,7 +12,7 @@ public partial class TbServerConfig
     /// <summary>
     /// 获取由配置表转换后的服务器信息缓存列表。
     /// </summary>
-    public static List<CSServerInfo> ServerInfoList => m_instance.GetServerInfoList();
+    public static List<CSServerInfo> ServerInfoList => Instance.GetServerInfoList();
 
     private List<CSServerInfo> GetServerInfoList()
     {
@@ -50,5 +50,5 @@ public partial class TbServerConfig
     /// </summary>
     /// <param name="serverId">要检查的服务器 ID。</param>
     /// <returns>如果存在返回 <see langword="true"/>；否则返回 <see langword="false"/>。</returns>
-    public static bool IsExist(int serverId) => m_instance._dataMap.ContainsKey(serverId);
+    public static bool IsExist(int serverId) => Instance._dataMap.ContainsKey(serverId);
 }

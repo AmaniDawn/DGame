@@ -221,7 +221,8 @@ namespace GameLogic
                 return;
             }
 
-            var heartbeatComponent = Scene.GetComponent<SessionHeartbeatComponent>();
+            var session = Scene.Session;
+            var heartbeatComponent = session.GetComponent<SessionHeartbeatComponent>();
             if (heartbeatComponent != null)
             {
                 // 组件已存在，先停止再启动（重连场景）
@@ -231,7 +232,7 @@ namespace GameLogic
             else
             {
                 // 组件不存在，添加新组件（首次登录场景）
-                Scene.AddComponent<SessionHeartbeatComponent>().Start(m_heartBeatInterval, m_heartBeatTimeOut,
+                session.AddComponent<SessionHeartbeatComponent>().Start(m_heartBeatInterval, m_heartBeatTimeOut,
                     m_heartBeatIntervalTimeOut);
             }
         }
@@ -320,7 +321,12 @@ namespace GameLogic
         {
             m_connectTask?.SetResult(false);
             m_connectTask = null;
-            UIModule.Instance.ShowTipsUI(G.R("连接已断开"));
+
+            if (Status == GameClientStatus.StatusEnter)
+            {
+                UIModule.Instance.ShowTipsUI(G.R("连接已断开"));
+            }
+            
             GameEvent.Get<ICommonUI>().FinishWaiting();
             Status = GameClientStatus.StatusClose;
             DLogger.Info("[GameClient] Disconnected to server");
@@ -399,8 +405,7 @@ namespace GameLogic
 
             if (IsStatusCanSendMsg(request.OpCode()))
             {
-                var requestCallback = await Scene.Session.Call(request, routeId);
-                return requestCallback;
+                return await Scene.Session.Call(request, routeId);
             }
 
             return null;

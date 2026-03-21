@@ -35,7 +35,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -0.000015258789, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2740852586706472545
@@ -107,7 +107,7 @@ MonoBehaviour:
   parent: {fileID: 1588551192285345702}
   _position:
     x:
-      _serializedValue: -65536
+      _serializedValue: 0
     y:
       _serializedValue: 0
     z:
@@ -269,9 +269,9 @@ MonoBehaviour:
   parent: {fileID: 724569882723799743}
   _position:
     x:
-      _serializedValue: 246960619520
+      _serializedValue: 300647710720
     y:
-      _serializedValue: 0
+      _serializedValue: -204010946560
     z:
       _serializedValue: 0
   _euler:
@@ -332,8 +332,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -0.000015258789, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: -40, y: -20}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &1588551192285345702
 MonoBehaviour:
@@ -350,9 +350,9 @@ MonoBehaviour:
   parent: {fileID: 6770108451624081983}
   _position:
     x:
-      _serializedValue: -65536
-    y:
       _serializedValue: 0
+    y:
+      _serializedValue: -210453397504
     z:
       _serializedValue: 0
   _euler:
@@ -485,9 +485,9 @@ MonoBehaviour:
   parent: {fileID: 724569882723799743}
   _position:
     x:
-      _serializedValue: -633507676160
+      _serializedValue: -687194767360
     y:
-      _serializedValue: 0
+      _serializedValue: -204010946560
     z:
       _serializedValue: 0
   _euler:
@@ -653,7 +653,7 @@ RectTransform:
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 300}
-  m_Pivot: {x: 0, y: 1}
+  m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &557743625558481988
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -669,7 +669,7 @@ MonoBehaviour:
   parent: {fileID: 912780866755593493}
   _position:
     x:
-      _serializedValue: 0
+      _serializedValue: 858993459200
     y:
       _serializedValue: 0
     z:
@@ -1017,9 +1017,9 @@ MonoBehaviour:
   parent: {fileID: 724569882723799743}
   _position:
     x:
-      _serializedValue: -75161927680
+      _serializedValue: -128849018880
     y:
-      _serializedValue: 0
+      _serializedValue: -204010946560
     z:
       _serializedValue: 0
   _euler:
@@ -1346,7 +1346,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -0.000015258789, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 0}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &9126407181497432067
@@ -1418,7 +1418,7 @@ MonoBehaviour:
   parent: {fileID: 7551380158828137214}
   _position:
     x:
-      _serializedValue: -65536
+      _serializedValue: 0
     y:
       _serializedValue: 0
     z:
@@ -1553,9 +1553,9 @@ MonoBehaviour:
   parent: {fileID: 724569882723799743}
   _position:
     x:
-      _serializedValue: -767510708224
+      _serializedValue: -821197799424
     y:
-      _serializedValue: 186401587200
+      _serializedValue: -17609359360
     z:
       _serializedValue: 0
   _euler:
@@ -1599,7 +1599,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &891966970407487012
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1616,11 +1616,11 @@ RectTransform:
   - {fileID: 7138078155508803021}
   m_Father: {fileID: 4772674606876153392}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 216, y: 98}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: -101}
+  m_SizeDelta: {x: 0, y: 98}
+  m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &6770108451624081983
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1636,9 +1636,9 @@ MonoBehaviour:
   parent: {fileID: 3010449562655471053}
   _position:
     x:
-      _serializedValue: 536870912000
+      _serializedValue: 0
     y:
-      _serializedValue: -644245094400
+      _serializedValue: -433791696896
     z:
       _serializedValue: 0
   _euler:
@@ -1685,7 +1685,7 @@ MonoBehaviour:
   className: AllSvrLeftItem
   impCodePath: Assets/Scripts/HotFix/GameLogic/UI/Login
   isGenImpClass: 1
-  uiType: UIEventItem
+  uiType: UILoopItemWidget
 --- !u!114 &1211579416619758731
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1716,7 +1716,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &7871161775289107186
 RectTransform:
   m_ObjectHideFlags: 0
@@ -1737,11 +1737,11 @@ RectTransform:
   - {fileID: 1740263695877954684}
   m_Father: {fileID: 95842833729348765}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 375, y: 95}
-  m_Pivot: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0, y: 1}
+  m_AnchorMax: {x: 1, y: 1}
+  m_AnchoredPosition: {x: 0, y: -102.5}
+  m_SizeDelta: {x: 0, y: 95}
+  m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &724569882723799743
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1757,9 +1757,9 @@ MonoBehaviour:
   parent: {fileID: 557743625558481988}
   _position:
     x:
-      _serializedValue: 858993459200
+      _serializedValue: 0
     y:
-      _serializedValue: -644245094400
+      _serializedValue: -440234147840
     z:
       _serializedValue: 0
   _euler:
@@ -1808,7 +1808,7 @@ MonoBehaviour:
   className: AllSvrRightItem
   impCodePath: Assets/Scripts/HotFix/GameLogic/UI/Login
   isGenImpClass: 1
-  uiType: UIEventItem
+  uiType: UILoopItemWidget
 --- !u!114 &109262478767979523
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1883,7 +1883,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   m_Content: {fileID: 95842833729348765}
-  m_Horizontal: 1
+  m_Horizontal: 0
   m_Vertical: 1
   m_MovementType: 1
   m_Elasticity: 0.1
@@ -2042,8 +2042,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: -0.000015258789, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_AnchoredPosition: {x: 0, y: 0}
+  m_SizeDelta: {x: -40, y: -20}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &7551380158828137214
 MonoBehaviour:
@@ -2060,9 +2060,9 @@ MonoBehaviour:
   parent: {fileID: 6770108451624081983}
   _position:
     x:
-      _serializedValue: -65536
-    y:
       _serializedValue: 0
+    y:
+      _serializedValue: -210453397504
     z:
       _serializedValue: 0
   _euler:
@@ -2124,7 +2124,7 @@ RectTransform:
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
   m_SizeDelta: {x: 0, y: 300}
-  m_Pivot: {x: 0, y: 1}
+  m_Pivot: {x: 0.5, y: 1}
 --- !u!114 &3010449562655471053
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2140,7 +2140,7 @@ MonoBehaviour:
   parent: {fileID: 1484539415731955005}
   _position:
     x:
-      _serializedValue: 0
+      _serializedValue: 536870912000
     y:
       _serializedValue: 0
     z:
@@ -2204,7 +2204,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: -20, y: -10}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &1994715026698529205
 CanvasRenderer:
@@ -2277,7 +2277,7 @@ MonoBehaviour:
     x:
       _serializedValue: 0
     y:
-      _serializedValue: 0
+      _serializedValue: -204010946560
     z:
       _serializedValue: 0
   _euler:
@@ -2445,7 +2445,7 @@ RectTransform:
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 0, y: 0}
-  m_SizeDelta: {x: 0, y: 0}
+  m_SizeDelta: {x: -20, y: -10}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &4653715968545730610
 CanvasRenderer:
@@ -2518,7 +2518,7 @@ MonoBehaviour:
     x:
       _serializedValue: 0
     y:
-      _serializedValue: 0
+      _serializedValue: -204010946560
     z:
       _serializedValue: 0
   _euler:

@@ -11,7 +11,7 @@ using DGame;
 
 namespace GameLogic
 {
-	public partial class AllSvrLeftItem : UIEventItem<AllSvrLeftItem>
+	public partial class AllSvrLeftItem : UILoopItemWidget
 	{
 		#region 脚本工具生成的代码
 

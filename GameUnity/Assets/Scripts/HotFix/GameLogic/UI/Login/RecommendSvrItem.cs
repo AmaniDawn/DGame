@@ -27,7 +27,7 @@ namespace GameLogic
 				return;
 			}
 
-			m_textLevel.text = recommendSvr.Level.ToString();
+			m_textLevel.text = $"<color=#46981D>{recommendSvr.Level}</color>级";
 			m_serverInfo = LoginDataMgr.Instance.GetServerInfo(recommendSvr.ServerID);
 			if (m_serverInfo == null)
 			{

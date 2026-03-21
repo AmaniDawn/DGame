@@ -18,7 +18,7 @@ public sealed class PlayerDataFlagComponentDestroySystem: DestroySystem<PlayerDa
         }
         // 执行下线操作 延迟5秒下线
         playerData.Offline(TbFuncParamConfig.DelayOfflineTime).Coroutine();
-        self.playerData = null;
+        // self.playerData = null;
     }
 }
 

@@ -107,7 +107,7 @@ public static class PlayerManagerComponentSystem
 
             // 尝试从数据库查询
             var worldDataBase = scene.World.Database;
-            playerData = await worldDataBase.First<PlayerData>(d => d.AccountID == accountID && d.ServerID == serverID);
+            playerData = await worldDataBase.First<PlayerData>(d => d.AccountID == accountID && d.ServerID == serverID, true);
 
             // 数据库不存在 则创建账号
             if (playerData == null)

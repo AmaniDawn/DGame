@@ -57,11 +57,14 @@ namespace GameLogic
         /// <param name="prefab">预制体</param>
         public T CreateItem(GameObject prefab)
         {
-            if (prefab == null)
+            T widget = null;
+            var item = LoopRectView.NewListViewItem(prefab);
+            if (item != null)
             {
-                return null;
+                widget = CreateItem(item);
             }
-            return CreateItem(prefab.name);
+
+            return widget;
         }
 
         private T CreateItem(LoopListViewItem2 item)

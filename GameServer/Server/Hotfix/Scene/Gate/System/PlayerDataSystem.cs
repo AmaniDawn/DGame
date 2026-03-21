@@ -67,6 +67,7 @@ public static class PlayerDataSystem
     {
         var scene = self.Scene;
         var playerManagerComponent = scene.GetComponent<PlayerManagerComponent>();
+
         if (!playerManagerComponent.TryGet(self.AccountID, self.ServerID, out var playerData))
         {
             // 如果缓存中没有 表示已经下线或根本不存在账号
@@ -84,10 +85,10 @@ public static class PlayerDataSystem
         {
             // 直接执行下线操作
             await self.InternalOffline();
+            return;
         }
         // 延迟下线
         playerData.SetDestroyTimeout(timeOut, self.InternalOffline);
-        await FTask.CompletedTask;
     }
     
     /// <summary>

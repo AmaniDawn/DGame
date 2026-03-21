@@ -11,8 +11,18 @@ namespace GameLogic
             GameEvent.AddEventListener<uint, string, System.Action>(ICommonUI_Event.ShowWaitingUI, OnShowWaitingUI);
             GameEvent.AddEventListener<uint>(ICommonUI_Event.FinishWaiting, OnFinishWaiting);
             GameEvent.AddEventListener<string, string, bool>(ICommonUI_Event.ShowComTipsUI, OnShowComTipsUI);
+            GameEvent.AddEventListener(ILoginUI_Event.OnLoginGateSuccess, OnLoginGateSuccess);
         }
 
+        #region OnLoginGateSuccess
+
+        private void OnLoginGateSuccess()
+        {
+            UIModule.Instance.ShowWindowAsync<GameMainUI>();
+        }
+
+        #endregion
+        
         #region FinishWaitingUI
 
         private void OnFinishWaiting(uint waitFuncID)

@@ -3,7 +3,7 @@ using Fantasy;
 
 namespace GameLogic
 {
-    public class LoginDataMgr : DataCenterModule<LoginDataMgr>
+    public class LoginDataMgr : Singleton<LoginDataMgr>
     {
         public List<CSServerInfo> ServerInfoList { get; private set; } = new List<CSServerInfo>();
         public List<CSRecentServerRoleInfo> RecentServerRoleInfoList { get; private set; } = new List<CSRecentServerRoleInfo>();
@@ -35,13 +35,13 @@ namespace GameLogic
             }
         }
         
-        public override void OnInit()
+        protected override void OnInit()
         {
             m_loginSaveData = ClientSaveDataMgr.Instance.GetSaveData<LoginSaveData>();
             m_quickAuthSaveData = ClientSaveDataMgr.Instance.GetSaveData<QuickAuthSaveData>();
         }
 
-        public override void OnRoleLogout()
+        public void OnRoleLogout()
         {
             ServerInfoList.Clear();
             RecentServerRoleInfoList.Clear();
@@ -56,7 +56,12 @@ namespace GameLogic
                 return;
             }
             ServerInfoList.AddRange(response.ServerInfoList);
-            RecentServerRoleInfoList.AddRange(response.RecentServerRoleInfoList);
+
+            if (response.RecentServerRoleInfoList != null)
+            {
+                RecentServerRoleInfoList.AddRange(response.RecentServerRoleInfoList);
+            }
+            
             if (m_quickAuthSaveData != null)
             {
                 m_quickAuthSaveData.Token = response.Token;
