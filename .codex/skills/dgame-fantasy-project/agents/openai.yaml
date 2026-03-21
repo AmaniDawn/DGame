@@ -1,0 +1,7 @@
+interface:
+  display_name: "DGame Fantasy Project"
+  short_description: "DGame Fantasy Unity 项目开发与编辑器工作流"
+  default_prompt: "Use $dgame-fantasy-project to modify or review code in this DGame Fantasy Unity repository."
+
+policy:
+  allow_implicit_invocation: true
