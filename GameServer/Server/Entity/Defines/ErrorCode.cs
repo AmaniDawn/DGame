@@ -31,4 +31,6 @@ public static class ErrorCode
     public const uint ROLE_NOT_BELONG_TO_ACCOUNT = 2007; // 角色不属于该账号
     public const uint ROLE_NAME_LENGTH_OUT_RANGE = 2008; // 角色名长度不符，请使用中文2-6字，英文4-12字符
     public const uint ROLE_NAME_CHAR_INVALID = 2009; // 角色名字含有非法字符
+    
+    public const uint FUNC_QUERY_ERROR = 3001; // 系统开放查询错误
 }

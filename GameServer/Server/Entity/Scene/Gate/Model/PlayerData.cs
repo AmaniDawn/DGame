@@ -107,4 +107,9 @@ public sealed class PlayerData : Entity
     /// 账号上次登陆时间
     /// </summary>
     public long LastLoginTime { get; set; }
+
+    /// <summary>
+    /// 已开放功能列表（持久化）。
+    /// </summary>
+    public List<int> OpenFuncList { get; set; } = new List<int>();
 }

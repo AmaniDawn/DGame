@@ -10,5 +10,24 @@ package Fantasy.Network.Message;
 // 例如: // Protocol ProtoBuf 或 // Protocol MemoryPack
 
 // 分别代表使用Protobuf序列化或使用MemoryPack序列化
-// 通过添加 // using 导出时添加自定义命名空间
+// 通过添加 // using 导出时增加自定义命名空间
 // 例如: // using System.Runtime // using System.Reflection
+
+// Gate服务器
+
+/// 查询功能开放列表
+message C2G_QueryFuncOpenListRequest // IRequest,G2C_QueryFuncOpenListResponse
+{
+}
+
+/// 功能开放列表返回
+message G2C_QueryFuncOpenListResponse // IResponse
+{
+  repeatedList int OpenFuncList = 1; /// 已开放功能ID列表
+}
+
+/// 新增功能开放通知
+message G2C_FuncOpenNotify // IMessage
+{
+  repeatedList int NewOpenFuncList = 1; /// 新增开放的功能ID列表
+}

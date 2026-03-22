@@ -38,6 +38,11 @@ namespace GameLogic
 			m_goUnlock.SetActive(isOpen);
 		}
 
+		public void RegisterFuncTarget()
+		{
+			FuncOpenMgr.Instance.RegisterTargetTransform(FuncType, transform);
+		}
+
 		public void SetSelectState(GameMainBtnType btnType)
 		{
 			bool isSelect = MainBtnType == btnType;

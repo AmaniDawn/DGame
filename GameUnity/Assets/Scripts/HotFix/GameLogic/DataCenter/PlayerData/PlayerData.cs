@@ -142,7 +142,7 @@ namespace GameLogic
                 }
             }
 
-            if(!Sign.Equals(playerData.Sign))
+            if(!string.IsNullOrWhiteSpace(playerData.Sign) && !Sign.Equals(playerData.Sign))
             {
                 Sign = playerData.Sign;
                 GameEvent.Get<IPlayerLogicEvent>().OnMainPlayerSignDataChange();

@@ -116,6 +116,8 @@ namespace GameLogic
         private void InitModule()
         {
             RegisterModule(LoginNetMgr.Instance);
+            RegisterModule(FuncOpenMgr.Instance);
+            RegisterModule(FuncOpenNetMgr.Instance);
         }
 
         /// <summary>
@@ -202,7 +204,24 @@ namespace GameLogic
                     m_dataCenterModuleList[i].OnRoleLogout();
                 }
             }
+            CurPlayerData = null;
             LoginDataMgr.Instance.OnRoleLogout();
+        }
+
+        public void SetCurPlayerData(CSPlayerData playerData, bool isDirty = false)
+        {
+            if (playerData == null)
+            {
+                return;
+            }
+
+            CurPlayerData ??= new PlayerData();
+            CurPlayerData.UpdatePlayerData(playerData, isDirty);
+
+            for (int i = 0; i < m_dataCenterModuleList.Count; i++)
+            {
+                m_dataCenterModuleList[i].OnRoleLogin();
+            }
         }
     }
 }

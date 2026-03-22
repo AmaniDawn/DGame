@@ -10,7 +10,7 @@ GameConfig/Tools/LubanTools/
 *.DotSettings
 #快捷方式
 *.lnk
-
+openspec
 
 #Generata Tools
 Tools/Generata Tools/SourceGenerator/*.idea

@@ -34,6 +34,7 @@ public sealed class PlayerDataDestroySystem : DestroySystem<PlayerData>
         self.DailyBuyStamCount = 0;
         self.CreateTime = 0;
         self.LastLoginTime = 0;
+        self.OpenFuncList.Clear();
     }
 }
 
@@ -161,6 +162,7 @@ public static class PlayerDataSystem
         self.TotalRmb = 0;
         self.LastAddStamTime = 0;
         self.DailyBuyStamCount = 0;
+        self.OpenFuncList.Clear();
     }
 
     /// <summary>

@@ -98,7 +98,7 @@ namespace GameLogic
             GameClient.Instance.Disconnect();
             await GameClient.Instance.ConnectAsync(curSveInfo.Address, curSveInfo.Port);
             GameClient.Instance.Status = GameClientStatus.StatusLogin;
-            var response = await GameClient.Instance.Call(new C2G_LoginRequest
+            var response = (G2C_LoginResponse)await GameClient.Instance.Call(new C2G_LoginRequest
             {
                 Token = quickAuthSaveData.Token,
                 ServerID = curSveInfo.ServerID
@@ -118,6 +118,7 @@ namespace GameLogic
 
             GameClient.Instance.StartHeartbeat();
             GameClient.Instance.Status = GameClientStatus.StatusEnter;
+            DataCenterSys.Instance.SetCurPlayerData(response.PlayerData);
             GameEvent.Get<ILoginUI>().OnLoginGateSuccess();
         }
     }

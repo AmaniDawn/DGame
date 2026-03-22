@@ -106,6 +106,16 @@ namespace GameLogic
 			foreach (var item in m_mainBtnList)
 			{
 				item.RefreshOpenState();
+				item.RegisterFuncTarget();
+			}
+		}
+
+		public void RefreshFuncOpenState()
+		{
+			foreach (var item in m_mainBtnList)
+			{
+				item.RefreshOpenState();
+				item.RegisterFuncTarget();
 			}
 		}
 
@@ -257,7 +267,7 @@ namespace GameLogic
 
 		private bool CheckPageIsOpen(FuncType funcType)
 		{
-			if (!FuncOpenMgr.Instance.CheckFuncOpen(funcType))
+			if (!FuncOpenMgr.Instance.CheckFuncOpen(funcType, true))
 			{
 				return false;
 			}

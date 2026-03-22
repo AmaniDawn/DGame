@@ -34,6 +34,7 @@ namespace GameLogic
         private void RegisterAllController()
         {
             AddUIController<CommonUIController>();
+            AddUIController<FuncOpenUIController>();
         }
 
         private void AddUIController<T>() where T : IUIController, new()

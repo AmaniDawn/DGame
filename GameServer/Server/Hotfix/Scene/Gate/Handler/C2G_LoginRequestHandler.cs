@@ -75,6 +75,11 @@ public sealed class C2G_LoginRequestHandler : MessageRPC<C2G_LoginRequest, G2C_L
         }
 
         response.ErrorCode = ErrorCode.SUCCESS;
+        var newOpenFuncList = playerData.RefreshOpenFuncState();
+        if (newOpenFuncList.Count > 0)
+        {
+            await playerData.SaveDatabase();
+        }
         response.PlayerData = playerData.ToCSPlayerData();
         // 记录玩家上线时间
         playerData.LastLoginTime = TimeHelper.Now;

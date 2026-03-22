@@ -74,6 +74,29 @@ namespace Fantasy
 			session.Send(S2C_BroadcastFrameData_message);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static async FTask<G2C_QueryFuncOpenListResponse> C2G_QueryFuncOpenListRequest(this Session session, C2G_QueryFuncOpenListRequest C2G_QueryFuncOpenListRequest_request)
+		{
+			return (G2C_QueryFuncOpenListResponse)await session.Call(C2G_QueryFuncOpenListRequest_request);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static async FTask<G2C_QueryFuncOpenListResponse> C2G_QueryFuncOpenListRequest(this Session session)
+		{
+			using var C2G_QueryFuncOpenListRequest_request = Fantasy.C2G_QueryFuncOpenListRequest.Create();
+			return (G2C_QueryFuncOpenListResponse)await session.Call(C2G_QueryFuncOpenListRequest_request);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void G2C_FuncOpenNotify(this Session session, G2C_FuncOpenNotify G2C_FuncOpenNotify_message)
+		{
+			session.Send(G2C_FuncOpenNotify_message);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void G2C_FuncOpenNotify(this Session session, List<int> newOpenFuncList)
+		{
+			using var G2C_FuncOpenNotify_message = Fantasy.G2C_FuncOpenNotify.Create();
+			G2C_FuncOpenNotify_message.NewOpenFuncList = newOpenFuncList;
+			session.Send(G2C_FuncOpenNotify_message);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static async FTask<A2C_RegisterResponse> C2A_RegisterRequest(this Session session, C2A_RegisterRequest C2A_RegisterRequest_request)
 		{
 			return (A2C_RegisterResponse)await session.Call(C2A_RegisterRequest_request);

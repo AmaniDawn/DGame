@@ -694,6 +694,146 @@ namespace Fantasy
         public string GmString { get; set; }
     }
     /// <summary>
+    /// 查询功能开放列表
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class C2G_QueryFuncOpenListRequest : AMessage, IRequest
+    {
+        public static C2G_QueryFuncOpenListRequest Create(bool autoReturn = true)
+        {
+            var c2G_QueryFuncOpenListRequest = MessageObjectPool<C2G_QueryFuncOpenListRequest>.Rent();
+            c2G_QueryFuncOpenListRequest.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                c2G_QueryFuncOpenListRequest.SetIsPool(false);
+            }
+            
+            return c2G_QueryFuncOpenListRequest;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            MessageObjectPool<C2G_QueryFuncOpenListRequest>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.C2G_QueryFuncOpenListRequest; } 
+        [ProtoIgnore]
+        public G2C_QueryFuncOpenListResponse ResponseType { get; set; }
+    }
+    /// <summary>
+    /// 功能开放列表返回
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class G2C_QueryFuncOpenListResponse : AMessage, IResponse
+    {
+        public static G2C_QueryFuncOpenListResponse Create(bool autoReturn = true)
+        {
+            var g2C_QueryFuncOpenListResponse = MessageObjectPool<G2C_QueryFuncOpenListResponse>.Rent();
+            g2C_QueryFuncOpenListResponse.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                g2C_QueryFuncOpenListResponse.SetIsPool(false);
+            }
+            
+            return g2C_QueryFuncOpenListResponse;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            ErrorCode = 0;
+            OpenFuncList = null;
+            MessageObjectPool<G2C_QueryFuncOpenListResponse>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.G2C_QueryFuncOpenListResponse; } 
+        [ProtoMember(1)]
+        public uint ErrorCode { get; set; }
+        /// <summary>
+        /// 已开放功能ID列表
+        /// </summary>
+        [ProtoMember(2)]
+        public List<int> OpenFuncList { get; set; }
+    }
+    /// <summary>
+    /// 新增功能开放通知
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class G2C_FuncOpenNotify : AMessage, IMessage
+    {
+        public static G2C_FuncOpenNotify Create(bool autoReturn = true)
+        {
+            var g2C_FuncOpenNotify = MessageObjectPool<G2C_FuncOpenNotify>.Rent();
+            g2C_FuncOpenNotify.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                g2C_FuncOpenNotify.SetIsPool(false);
+            }
+            
+            return g2C_FuncOpenNotify;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            NewOpenFuncList = null;
+            MessageObjectPool<G2C_FuncOpenNotify>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.G2C_FuncOpenNotify; } 
+        /// <summary>
+        /// 新增开放的功能ID列表
+        /// </summary>
+        [ProtoMember(1)]
+        public List<int> NewOpenFuncList { get; set; }
+    }
+    /// <summary>
     /// 注册账号协议
     /// </summary>
     [Serializable]
