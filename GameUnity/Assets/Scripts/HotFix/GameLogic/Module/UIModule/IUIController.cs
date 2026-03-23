@@ -1,4 +1,5 @@
-﻿namespace GameLogic
+﻿// ReSharper disable InconsistentNaming
+namespace GameLogic
 {
     /// <summary>
     /// UI 控制器接口，用于定义 UI 消息注册行为。
