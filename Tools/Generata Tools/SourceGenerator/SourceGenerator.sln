@@ -1,4 +1,4 @@
-﻿Microsoft Visual Studio Solution File, Format Version 12.00
+Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.13.35913.81
 MinimumVisualStudioVersion = 10.0.40219.1
@@ -9,6 +9,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "FrameSpritePoolGenerator", "FrameSpritePoolGenerator\FrameSpritePoolGenerator.csproj", "{E52D775F-C012-4377-B25C-7D9A88BE16EE}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "GameInputDefineGenerator", "GameInputDefineGenerator\GameInputDefineGenerator.csproj", "{B79F3B8E-2E8B-4D07-9E70-2A81C089A6F2}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "UIControllerGenerator", "UIControllerGenerator\UIControllerGenerator.csproj", "{C8D4E3F1-7A6B-4C9D-8E2F-1B4A5C6D7E8F}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -32,6 +34,10 @@ Global
 		{B79F3B8E-2E8B-4D07-9E70-2A81C089A6F2}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{B79F3B8E-2E8B-4D07-9E70-2A81C089A6F2}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{B79F3B8E-2E8B-4D07-9E70-2A81C089A6F2}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C8D4E3F1-7A6B-4C9D-8E2F-1B4A5C6D7E8F}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C8D4E3F1-7A6B-4C9D-8E2F-1B4A5C6D7E8F}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C8D4E3F1-7A6B-4C9D-8E2F-1B4A5C6D7E8F}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C8D4E3F1-7A6B-4C9D-8E2F-1B4A5C6D7E8F}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
