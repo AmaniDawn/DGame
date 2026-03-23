@@ -29,31 +29,7 @@ namespace GameLogic
 
         #region UIController
 
-        private List<IUIController> m_uiControllers = new List<IUIController>();
-
-        private void RegisterAllController()
-        {
-            AddUIController<CommonUIController>();
-            AddUIController<FuncOpenUIController>();
-        }
-
-        private void AddUIController<T>() where T : IUIController, new()
-        {
-            for (int i = 0; i < m_uiControllers.Count; i++)
-            {
-                var type = m_uiControllers[i].GetType();
-                if (type == typeof(T))
-                {
-                    DLogger.Fatal("repeat controller type: {0}", typeof(T).Name);
-                    return;
-                }
-            }
-
-            var controller = new T();
-            m_uiControllers.Add(controller);
-
-            controller.RegUIMessage();
-        }
+        partial void RegisterAllController();
 
         #endregion
 
@@ -96,7 +72,6 @@ namespace GameLogic
             }
 
             RegisterAllController();
-            RedDotModule.Instance.Initialize();
 
             if (DebuggerDriver.Instance != null)
             {

@@ -11,6 +11,8 @@ GameConfig/Tools/LubanTools/
 #快捷方式
 *.lnk
 openspec
+*.dotnet
+
 
 #Generata Tools
 Tools/Generata Tools/SourceGenerator/*.idea
