@@ -19,7 +19,7 @@ namespace GameLogic
 
         private async UniTaskVoid OnShowWaitingUIAsync(uint waitFuncID, uint textID, System.Action callback)
         {
-            var ui = await UIModule.Instance.ShowWindowAsyncAwait<WaitingUI>();
+            var ui = await GameModule.UIModule.ShowWindowAsyncAwait<WaitingUI>();
             ui?.Init(waitFuncID, textID, callback);
         }
 
