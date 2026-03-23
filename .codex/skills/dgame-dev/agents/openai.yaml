@@ -1,0 +1,4 @@
+interface:
+  display_name: "DGame 开发"
+  short_description: "处理 DGame Unity 项目开发与维护任务"
+  default_prompt: "使用 $dgame-dev 在 DGame 仓库中实现或修改功能。"
