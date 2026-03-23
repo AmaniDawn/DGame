@@ -123,7 +123,7 @@ namespace GameLogic
             }
             if (Input.GetKeyDown(KeyCode.F1))
             {
-                UIModule.Instance.ShowWindowAsync<GMPanel>();
+                GameModule.UIModule.ShowWindowAsync<GMPanel>();
             }
         }
     }
