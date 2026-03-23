@@ -46,7 +46,7 @@ namespace GameLogic
             });
             if (response.ErrorCode != 0)
             {
-                UIModule.Instance.ShowTipsUI(response.ErrorCode);
+                GameModule.UIModule.ShowTipsUI(response.ErrorCode);
                 DLogger.Warning($"Error: {response.ErrorCode}");
                 return;
             }
@@ -74,7 +74,7 @@ namespace GameLogic
 
             if (response.ErrorCode != 0)
             {
-                UIModule.Instance.ShowTipsUI(response.ErrorCode);
+                GameModule.UIModule.ShowTipsUI(response.ErrorCode);
                 DLogger.Warning($"Error: {response.ErrorCode}");
                 return;
             }

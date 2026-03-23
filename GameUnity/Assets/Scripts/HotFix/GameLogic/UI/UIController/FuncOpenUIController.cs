@@ -13,7 +13,7 @@ namespace GameLogic
 
         private void OnFuncOpenDataChange()
         {
-            UIModule.Instance.GetWindowAsync<GameMainUI>(ui =>
+            GameModule.UIModule.GetWindowAsync<GameMainUI>(ui =>
             {
                 ui?.RefreshFuncOpenState();
             });
@@ -23,10 +23,10 @@ namespace GameLogic
         {
             if (FuncOpenConfigMgr.Instance.TryGetValue((int)funcType, out var cfg) && cfg.UseOpenTips && cfg.OpenTipsID > 0)
             {
-                UIModule.Instance.ShowTipsUI((uint)cfg.OpenTipsID);
+                GameModule.UIModule.ShowTipsUI((uint)cfg.OpenTipsID);
             }
 
-            UIModule.Instance.GetWindowAsync<GameMainUI>(ui =>
+            GameModule.UIModule.GetWindowAsync<GameMainUI>(ui =>
             {
                 ui?.RefreshFuncOpenState();
             });

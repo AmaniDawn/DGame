@@ -123,7 +123,7 @@ namespace GameLogic
 		{
 			if (!m_toggleUserPrivacy.isOn)
 			{
-				UIModule.Instance.ShowTipsUI(G.R("请阅读并同意，服务协议和隐私保护指引"));
+				GameModule.UIModule.ShowTipsUI(G.R("请阅读并同意，服务协议和隐私保护指引"));
 				return;
 			}
 
@@ -136,7 +136,7 @@ namespace GameLogic
 			if (LoginDataMgr.Instance.CurServerInfo == null 
 			    || LoginDataMgr.Instance.CurServerInfo.ServerID <= 0)
 			{
-				UIModule.Instance.ShowWindowAsync<SelectServerUI>();
+				GameModule.UIModule.ShowWindowAsync<SelectServerUI>();
 				return;
 			}
 
@@ -145,7 +145,7 @@ namespace GameLogic
 
 		private partial void OnClickSelectServerBtn()
 		{
-			UIModule.Instance.ShowWindowAsync<SelectServerUI>();
+			GameModule.UIModule.ShowWindowAsync<SelectServerUI>();
 		}
 
 		private partial void OnClickUserBtn()
@@ -172,7 +172,7 @@ namespace GameLogic
 
 			if (string.IsNullOrWhiteSpace(m_inputAccount.text) || string.IsNullOrWhiteSpace(m_inputPassword.text))
 			{
-				UIModule.Instance.ShowTipsUI(G.R("请输入帐号和密码"));
+				GameModule.UIModule.ShowTipsUI(G.R("请输入帐号和密码"));
 				return;
 			}
 			m_quickAuthSaveData.Uid = m_inputAccount.text;

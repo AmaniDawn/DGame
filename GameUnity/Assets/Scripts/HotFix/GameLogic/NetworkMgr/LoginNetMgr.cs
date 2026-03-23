@@ -20,10 +20,10 @@ namespace GameLogic
                 return;
             }
 
-            UIModule.Instance.ShowErrorTipsUI(G.R("账号在别处登录"));
+            GameModule.UIModule.ShowErrorTipsUI(G.R("账号在别处登录"));
             // GameClient.Instance.Disconnect();
-            UIModule.Instance.CloseAllWindows();
-            UIModule.Instance.ShowWindowAsync<MainLoginUI>();
+            GameModule.UIModule.CloseAllWindows();
+            GameModule.UIModule.ShowWindowAsync<MainLoginUI>();
         }
 
         public async FTask RegisterRequest(string username, string password)
@@ -39,11 +39,11 @@ namespace GameLogic
 
             if (response.ErrorCode != 0)
             {
-                UIModule.Instance.ShowTipsUI(response.ErrorCode);
+                GameModule.UIModule.ShowTipsUI(response.ErrorCode);
                 return;
             }
 
-            UIModule.Instance.ShowTipsUI(G.R("注册成功"));
+            GameModule.UIModule.ShowTipsUI(G.R("注册成功"));
 
             var quickAuthSaveData = ClientSaveDataMgr.Instance.GetSaveData<QuickAuthSaveData>();
             if (quickAuthSaveData != null)
@@ -66,7 +66,7 @@ namespace GameLogic
 
             if (response.ErrorCode != 0)
             {
-                UIModule.Instance.ShowTipsUI(response.ErrorCode);
+                GameModule.UIModule.ShowTipsUI(response.ErrorCode);
                 return;
             }
 
@@ -84,14 +84,14 @@ namespace GameLogic
 
             if (quickAuthSaveData.Token == null)
             {
-                UIModule.Instance.ShowTipsUI(G.R("登录异常，请重新登录"));
+                GameModule.UIModule.ShowTipsUI(G.R("登录异常，请重新登录"));
                 return;
             }
 
             var curSveInfo = LoginDataMgr.Instance.CurServerInfo;
             if (curSveInfo == null)
             {
-                UIModule.Instance.ShowTipsUI(G.R("请先选择服务器"));
+                GameModule.UIModule.ShowTipsUI(G.R("请先选择服务器"));
                 return;
             }
 
@@ -106,13 +106,13 @@ namespace GameLogic
 
             if (response == null)
             {
-                UIModule.Instance.ShowTipsUI(G.R("连接服务器失败"));
+                GameModule.UIModule.ShowTipsUI(G.R("连接服务器失败"));
                 return;
             }
 
             if (response.ErrorCode != 0)
             {
-                UIModule.Instance.ShowTipsUI(response.ErrorCode);
+                GameModule.UIModule.ShowTipsUI(response.ErrorCode);
                 return;
             }
 

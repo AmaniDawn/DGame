@@ -135,7 +135,7 @@ namespace GameLogic
 
                 if (isDirty || oldValue != FightValue)
                 {
-                    if (UIModule.Instance.GetWindow<GameMainUI>() != null)
+                    if (GameModule.UIModule.GetWindow<GameMainUI>() != null)
                     {
                         GameEvent.Get<IPlayerLogicEvent>().OnMainPlayerFightValueChange(oldValue, FightValue);
                     }
@@ -252,7 +252,7 @@ namespace GameLogic
         {
             if (CurrencyConfigMgr.Instance.TryGetValue(currencyType, out var currencyCfg))
             {
-                UIModule.Instance.ShowTipsUI(TextConfigMgr.Instance.GetText(currencyCfg.NotEnoughTextID));
+                GameModule.UIModule.ShowTipsUI(TextConfigMgr.Instance.GetText(currencyCfg.NotEnoughTextID));
             }
         }
 

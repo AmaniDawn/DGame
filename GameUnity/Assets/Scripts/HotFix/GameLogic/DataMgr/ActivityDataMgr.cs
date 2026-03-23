@@ -48,7 +48,7 @@ namespace GameLogic
             }
             if (!isOpen && showTips)
             {
-                UIModule.Instance.ShowTipsUI(G.R("活动尚未开启"));
+                GameModule.UIModule.ShowTipsUI(G.R("活动尚未开启"));
             }
             return isOpen;
         }
@@ -87,7 +87,7 @@ namespace GameLogic
             }
             if (!isOpen && showTips)
             {
-                UIModule.Instance.ShowTipsUI(G.R("活动尚未开启"));
+                GameModule.UIModule.ShowTipsUI(G.R("活动尚未开启"));
             }
             return isOpen;
         }

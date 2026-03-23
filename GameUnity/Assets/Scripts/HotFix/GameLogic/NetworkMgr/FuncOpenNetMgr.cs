@@ -56,7 +56,7 @@ namespace GameLogic
 
             if (funcOpenResponse.ErrorCode != 0)
             {
-                UIModule.Instance.ShowTipsUI(funcOpenResponse.ErrorCode);
+                GameModule.UIModule.ShowTipsUI(funcOpenResponse.ErrorCode);
                 return;
             }
 

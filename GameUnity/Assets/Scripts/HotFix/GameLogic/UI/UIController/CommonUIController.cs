@@ -18,7 +18,7 @@ namespace GameLogic
 
         private void OnLoginGateSuccess()
         {
-            UIModule.Instance.ShowWindowAsync<GameMainUI>();
+            GameModule.UIModule.ShowWindowAsync<GameMainUI>();
         }
 
         #endregion
@@ -27,7 +27,7 @@ namespace GameLogic
 
         private void OnFinishWaiting(uint waitFuncID)
         {
-            UIModule.Instance.GetWindowAsync<WaitingUI>(ui =>
+            GameModule.UIModule.GetWindowAsync<WaitingUI>(ui =>
             {
                 if (ui != null && ui.FinishWaiting(waitFuncID))
                 {
@@ -47,7 +47,7 @@ namespace GameLogic
 
         private async UniTaskVoid OnShowWaitingUIAsync(uint waitFuncID, string tips, System.Action callback)
         {
-            var ui = await UIModule.Instance.ShowWindowAsyncAwait<WaitingUI>();
+            var ui = await GameModule.UIModule.ShowWindowAsyncAwait<WaitingUI>();
             ui?.Init(waitFuncID, tips, callback);
         }
 
@@ -62,7 +62,7 @@ namespace GameLogic
 
         private async UniTaskVoid OnOnShowComTipsUIAsync(string title, string content, bool isUserPrivacy)
         {
-            var ui = await UIModule.Instance.ShowWindowAsyncAwait<ComTipsUI>();
+            var ui = await GameModule.UIModule.ShowWindowAsyncAwait<ComTipsUI>();
             ui?.Init(title, content, isUserPrivacy);
         }
 

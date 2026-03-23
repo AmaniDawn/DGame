@@ -258,7 +258,7 @@ namespace GameLogic
         {
             if (string.IsNullOrEmpty(m_lastAddress) || m_lastPort <= 0)
             {
-                UIModule.Instance.ShowTipsUI("Invalid reconnect param");
+                GameModule.UIModule.ShowTipsUI("Invalid reconnect param");
                 return;
             }
 
@@ -311,7 +311,7 @@ namespace GameLogic
         {
             m_connectTask?.SetResult(false);
             m_connectTask = null;
-            UIModule.Instance.ShowTipsUI(G.R("进入服务器失败，请重试"));
+            GameModule.UIModule.ShowTipsUI(G.R("进入服务器失败，请重试"));
             GameEvent.Get<ICommonUI>().FinishWaiting(WaitingUISeq.LOGINWORLD_SEQID);
             Status = GameClientStatus.StatusClose;
             DLogger.Info("[GameClient] Connected to server fail");
@@ -324,7 +324,7 @@ namespace GameLogic
 
             if (Status == GameClientStatus.StatusEnter)
             {
-                UIModule.Instance.ShowTipsUI(G.R("连接已断开"));
+                GameModule.UIModule.ShowTipsUI(G.R("连接已断开"));
             }
             
             GameEvent.Get<ICommonUI>().FinishWaiting();

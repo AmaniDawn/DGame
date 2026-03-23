@@ -101,7 +101,7 @@ public partial class GameStart
         {
             // 初始化 Fantasy 网络模块
             await GameClient.Instance.InitAsync(m_hotfixAssembly);
-            UIModule.Instance.ShowWindowAsync<MainLoginUI>();
+            GameModule.UIModule.ShowWindowAsync<MainLoginUI>();
         }
     }
 
