@@ -30,6 +30,17 @@ namespace GameProto
         }
 
         /// <summary>
+        /// 重载配置。
+        /// </summary>
+        public void Reload()
+        {
+            if (m_init)
+            {
+                m_tables.Reload();
+            }
+        }
+
+        /// <summary>
         /// 加载配置。
         /// </summary>
         public void Load()
