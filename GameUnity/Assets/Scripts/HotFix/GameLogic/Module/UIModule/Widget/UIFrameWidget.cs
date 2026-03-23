@@ -62,7 +62,7 @@ namespace GameLogic
 
             m_clickAction = clickAction;
             m_btnSprite.interactable = clickAction != null;
-            m_modelCfg = TbModelConfig.GetOrDefault(modelID);
+            m_modelCfg = ModelConfigMgr.Instance.GetOrDefault(modelID);
             await m_animatorAgent.Init(m_modelCfg);
             m_animatorAgent?.BindDisplayRender(m_btnSprite.image);
             m_animatorAgent?.StartAnim();

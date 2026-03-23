@@ -1,42 +1,75 @@
 ---
 name: dgame-dev
-description: DGame-Fantasy 商业级 Unity 客户端 + C# 服务器框架全栈开发指导。在该框架中编写或修改任何代码时触发，包括：(1) 模块系统使用（**Module），(2) 事件中心系统（事件、接口事件、UIEvent、GameEvent），(3) 资源管理（YooAsset 加载、释放、热更），(4) 热更代码开发（HybridCLR 程序集划分、GameStart 入口），(5) Luban 配置表集成与访问，(6) 异步编程规范（UniTask），(7) 代码规范与框架设计审查，(8) 通过 Unity-MCP（AI Game Developer-MCP / Ivan Murzak）操作 Unity Editor（拼 UI Prefab、操作场景、创建脚本、材质、动画、测试自动化等），(9) UI 开发（UIWindow、UIWidget、UIModule、RitchTextItem、Super Scroll View、无限滚动列表、UILoopGridWidget、UILoopItemWidget、UISpineWidget、UIEventItem、UIParticleWidget、UILoopListWidget、SetUISafeFitHelper、窗口模态、SwitchPageMgr、SwitchTabItem、BaseChildPage、UIButton、UIImage、UIText）。关键词：DGame、Fantasy、Luban、unity-mcp、HybridCLR、UniTask、YooAsset、ResoueceModule、GameModule、GameEvent、EventInterface、ProcedureBase、ModuleSystem、GameStart、InputModule、UIWindow、UIWidget、UIModule、RitchTextItem、Super Scroll View、无限滚动列表、UILoopGridWidget、UILoopItemWidget、UISpineWidget、UIEventItem、UIParticleWidget、UILoopListWidget、SetUISafeFitHelper、窗口模态、SwitchPageMgr、SwitchTabItem、BaseChildPage、UIButton、UIImage、UIText。
+description: 开发和维护 DGame 的 Unity 框架与游戏代码。在本仓库中处理 DGame 架构、Unity 运行时或编辑器代码、HotFix/GameLogic 功能、模块集成、UI 系统、Luban 配置流程、发布工具链、项目内调试与重构时使用。
 ---
 
-# DGame 开发导航
+# DGame 开发
 
-将这个 skill 作为 DGame-Fantasy 仓库内的默认开发导航层使用。只要任务涉及该框架中的代码编写、代码修改、目录落点判断、架构审查、Unity Editor 自动化操作或 UI 业务实现，就先按本 skill 的约束判断落点、依赖和实现方式，不要退回泛化的 Unity/C# 项目习惯。
+按照仓库内已经存在的分层和约定开发 DGame，不要把它当成普通 Unity 项目随意落代码。
 
-## 快速入口
-
-优先按任务类型选择参考文件：
-
-| 任务方向 | 优先查看 |
-| --- | --- |
-| 项目整体结构、模块边界、程序集归属、代码落点 | [architecture.md](references/architecture.md) |
-| Unity 客户端热更、模块访问、UI、资源消费、程序集依赖 | [client-dev.md](references/client-dev.md) |
-| 服务端启动、Entity/Hotfix 分层、Handler 落点、配置消费 | [server-dev.md](references/server-dev.md) |
-| 配置表源头、Luban 生成链路、共享协议定义、导出工具 | [protocol-config.md](references/protocol-config.md) |
+当需求涉及文件应该放在哪里、由哪一层负责、应该修改哪个程序集时，先读取 `references/project-map.md`。
+当需求涉及配置表、Luban、Excel 源表、生成脚本或配置产物链路时，先读取 `references/luban-game-config.md`。
 
 ## 工作规则
 
-1. 先判断任务属于客户端、服务端、共享协议、配置表源头、生成结果，还是 Unity Editor 操作，不要一上来直接改结果文件。
-2. 先找源头目录，再确认是否需要同步修改生成产物、程序集引用或注册入口。
-3. 涉及客户端业务层时，优先沿用既有 `**Module`、`GameModule`、`UIModule`、`InputModule` 等访问路径，不随意新增绕过模块系统的入口。
-4. 涉及事件交互时，优先确认应该落在普通事件、接口事件、`UIEvent` 还是 `GameEvent`，不要混用同一语义的多套派发方式。
-5. 涉及资源管理时，明确资源由谁加载、谁持有、谁释放，确认是否属于 YooAsset 热更资源链路的一部分。
-6. 涉及热更代码时，明确代码所属程序集、是否进入 HybridCLR 热更域、是否需要接入 `GameStart` 或相关启动链路。
-7. 涉及配置表时，优先确认 Luban 源文件、生成目标、访问入口和缓存方式，避免直接手改生成代码。
-8. 涉及异步逻辑时，优先遵循现有 UniTask 写法、生命周期约束和取消时机，不混入风格不一致的异步模式。
-9. 涉及 UI 开发时，优先复用框架既有基类和组件，包括 `UIWindow`、`UIWidget`、`UILoopGridWidget`、`UILoopItemWidget`、`UILoopListWidget`、`UISpineWidget`、`UIParticleWidget`、`UIEventItem`、`SwitchPageMgr`、`SwitchTabItem`、`BaseChildPage` 等。
-10. 需要通过 Unity-MCP 操作 Unity Editor 时，优先使用 AI Game Developer-MCP / Ivan Murzak 提供的能力处理 Prefab、Scene、脚本、材质、动画与自动化测试，避免先假设手工编辑。
-11. 涉及程序集时，明确说明代码应该落在哪个 asmdef 下，以及是否会引入新的依赖关系或破坏现有分层。
-12. 涉及框架设计或代码审查时，优先指出是否偏离模块系统、事件中心、资源链路、热更边界、异步规范和 UI 框架约束。
+编辑前先检查目标区域。若现有 DGame 模块或 HotFix 程序集已经负责该行为，不要额外发明新层级。
+
+优先做符合现有分层的最小改动：
+
+- 框架能力和运行时代码放到 `GameUnity/Assets/DGame/Runtime`。
+- Unity 编辑器工具代码放到 `GameUnity/Assets/DGame/Editor`。
+- 热更业务和玩法功能代码放到 `GameUnity/Assets/Scripts/HotFix/GameLogic`。
+- 可复用的 HotFix 基础代码放到 `GameUnity/Assets/Scripts/HotFix/GameBase`。
+- 配置、协议、生成数据相关修改根据性质放到 `GameUnity/Assets/Scripts/HotFix/GameProto` 或 `GameConfig`。
+
+始终考虑 TEngine 继承关系。新增服务或系统前，先确认 DGame 是否已经对原有能力做了二次封装或替换，例如 `GameTimer`、`ILocalizationModule`、`MemoryCollector`、`InputModule`、`AnimModule`、对象池或事件相关封装。
+
+## 执行流程
+
+1. 修改前先判断归属层级和程序集。
+2. 先阅读同模块附近实现和已有模式。
+3. 实现最小但完整的改动。
+4. 在当前环境允许的范围内验证编译或资源生成影响。
+5. 明确说明哪些校验仍然需要在 Unity 编辑器或生成工具里完成。
+
+## 常见任务
+
+### 运行时或框架层开发
+
+在 `GameUnity/Assets/DGame/Runtime` 中处理。新增底层能力前，优先复用 `Core` 和 `Module` 里已有模块。
+
+### 编辑器工具开发
+
+在 `GameUnity/Assets/DGame/Editor` 中处理。优先沿用现有工具分组，例如工具栏、发布、HybridCLR、Luban、Spine、设置辅助等，不要新建无关的编辑器目录。
+
+### HotFix 玩法与 UI 开发
+
+在 `GameUnity/Assets/Scripts/HotFix/GameLogic` 中处理。玩法功能、UI、数据中心、红点系统、GM、序列帧和工具类都尽量落在现有 `GameLogic` 子目录中。
+
+### 配置、数据与代码生成
+
+先检查 `GameConfig` 和 `Tools`。若需求涉及生成内容，要区分源表、生成工具和生成后的 C# 消费端；除非任务明确要求，否则不要手改生成产物。
+
+涉及 `GameConfig` 时，先确认本次修改属于以下哪一类：
+
+- 修改 Excel 数据表内容。
+- 修改 `__tables__`、`__beans__`、`__enums__` 等 schema 定义。
+- 修改 Luban 配置、模板或生成脚本。
+- 修改生成后的消费代码或加载链路。
+
+## 校验方式
+
+优先选择成本最低但有效的检查方式：
+
+- 纯文件修改时，先检查邻近代码和引用是否一致。
+- 涉及 C# 逻辑时，如果环境允许，运行本地构建或定向编译。
+- 涉及编辑器流程时，明确说明最终验证需要使用 Unity 2021.3.30f1c1 打开工程并走对应菜单、场景或 Inspector 流程。
+- 涉及启动流程时，注意主启动场景位于 `GameUnity/Assets/Scenes/GameStart`。
 
 ## 输出要求
 
-输出结论时优先包含以下信息：
+在这个仓库里完成任务时：
 
-1. 应该改哪里。
-2. 为什么放在那里。
-3. 是否影响模块系统、事件系统、资源链路、热更入口、Luban 生成链路、程序集依赖或 Unity Editor 自动化流程。
+- 说明本次修改属于哪一层。
+- 说明对生成文件、HybridCLR、Luban 或 Unity 专属校验的假设。
+- 若运行时改动同时影响 HotFix、配置或编辑器侧，要明确标出跨层影响。

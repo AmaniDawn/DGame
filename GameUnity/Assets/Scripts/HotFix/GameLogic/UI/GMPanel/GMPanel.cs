@@ -68,6 +68,7 @@ namespace GameLogic
 		protected override void BindMemberProperty()
 		{
 			m_dropDownSelect.onValueChanged.AddListener(OnDropdownSelect);
+			m_gmConfigs = TbGmConfig.DataList;
 			CreateQuickGmButtons();
 		}
 
