@@ -34,7 +34,7 @@ namespace GameLogic
 				return;
 			}
 			m_textName.text = m_serverInfo.Name;
-			if (TbServerStateConfig.TryGetValue(recommendSvr.ServerID, out var stateCfg))
+			if (ServerStateConfigMgr.Instance.TryGetValue(recommendSvr.ServerID, out var stateCfg))
 			{
 				m_imgState.color = stateCfg.Color.ParseColor();
 			}

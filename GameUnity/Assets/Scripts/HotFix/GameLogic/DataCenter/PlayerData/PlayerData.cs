@@ -250,7 +250,7 @@ namespace GameLogic
 
         private void ShowNotEnoughCurrencyTips(CurrencyType currencyType)
         {
-            if (TbCurrencyConfig.TryGetValue(currencyType, out var currencyCfg))
+            if (CurrencyConfigMgr.Instance.TryGetValue(currencyType, out var currencyCfg))
             {
                 UIModule.Instance.ShowTipsUI(TextConfigMgr.Instance.GetText(currencyCfg.NotEnoughTextID));
             }

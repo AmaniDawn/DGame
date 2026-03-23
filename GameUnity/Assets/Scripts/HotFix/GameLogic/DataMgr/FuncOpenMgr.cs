@@ -102,7 +102,7 @@ namespace GameLogic
         {
             bool isOpen = m_openFuncSet.Contains(funcType);
 
-            if (!isOpen && showTips && TbFuncOpenConfig.TryGetValue(funcType, out var cfg))
+            if (!isOpen && showTips && FuncOpenConfigMgr.Instance.TryGetValue(funcType, out var cfg))
             {
                 UIModule.Instance.ShowTipsUI((uint)cfg.NoOpenTipsID);
             }

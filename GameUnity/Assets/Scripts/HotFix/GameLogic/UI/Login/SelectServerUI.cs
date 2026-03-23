@@ -75,7 +75,7 @@ namespace GameLogic
 
 		private void RefreshSvrStateGroup()
 		{
-			m_serverStates = TbServerStateConfig.DataList;
+			m_serverStates = ServerStateConfigMgr.Instance.DataList;
 
 			if (m_serverStates == null)
 			{

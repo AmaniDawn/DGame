@@ -31,7 +31,7 @@ namespace GameLogic
 			m_goNew.SetActive(m_serverInfo.Recommend);
 			m_onClickAction = onClickAction;
 
-			if (TbServerStateConfig.TryGetValue(m_serverInfo.State, out var stateCfg))
+			if (ServerStateConfigMgr.Instance.TryGetValue(m_serverInfo.State, out var stateCfg))
 			{
 				m_imgState.color = stateCfg.Color.ParseColor();
 			}

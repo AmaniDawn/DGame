@@ -21,7 +21,7 @@ namespace GameLogic
 
         private void OnFuncOpen(FuncType funcType)
         {
-            if (TbFuncOpenConfig.TryGetValue((int)funcType, out var cfg) && cfg.UseOpenTips && cfg.OpenTipsID > 0)
+            if (FuncOpenConfigMgr.Instance.TryGetValue((int)funcType, out var cfg) && cfg.UseOpenTips && cfg.OpenTipsID > 0)
             {
                 UIModule.Instance.ShowTipsUI((uint)cfg.OpenTipsID);
             }

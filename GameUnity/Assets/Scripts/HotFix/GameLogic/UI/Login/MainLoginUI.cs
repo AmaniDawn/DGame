@@ -88,7 +88,7 @@ namespace GameLogic
 				return;
 			}
 
-			if (TbServerStateConfig.TryGetValue(curServerInfo.State, out var stateConfig))
+			if (ServerStateConfigMgr.Instance.TryGetValue(curServerInfo.State, out var stateConfig))
 			{
 				m_imgServer.color = stateConfig.Color.ParseColor();
 			}
