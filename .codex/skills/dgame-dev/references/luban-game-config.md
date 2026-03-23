@@ -151,7 +151,7 @@ GameConfig/
 | --- | --- |
 | `c` | client，表示该字段或数据会参与客户端配置导出。 |
 | `s` | server，表示该字段或数据会参与服务端配置导出。 |
-| `e` | enum/editor 扩展分组，当前仓库 `luban.conf` 中存在该分组，具体使用范围后续可继续补充。 |
+| `e` | 扩展分组，当前仓库 `luban.conf` 中存在该分组，具体使用范围以项目实际约定为准。 |
 
 ### 示例
 
@@ -238,7 +238,9 @@ Bean名：RewardItem
 
 ### `tags` 中 `group_by` 的作用
 
-当 `builtin.xml` 中定义 `group_by:xxx`，并且配置表中存在 `xxx` 这个字段时，生成的代码会自动根据组 ID 生成 `Dictionary<GroupID, List<xxx>>` 这样的分组数据结构，可以通过组 ID 快速访问到该分组下的所有数据。
+当表定义中配置 `group_by:xxx`，并且配置表中存在 `xxx` 这个字段时，生成的代码会自动根据组 ID 生成 `Dictionary<GroupID, List<xxx>>` 这样的分组数据结构，可以通过组 ID 快速访问到该分组下的所有数据。
+
+如果某张表需要支持按组 ID 分组访问，应在 `GameConfig/Datas/__tables__.xlsx` 的表定义中配置 `tags=group_by:xxx`，而不是去普通业务表或生成代码中手动补数据结构。分组访问所需的数据结构由表定义和模板自动生成。
 
 说明：
 
@@ -347,7 +349,7 @@ GameUnity/Assets/BundleAssets/Configs/Binary/
 
 `LoadByteBuf(string file)` 的当前实现逻辑如下：
 
-- 首次使用时，通过 `ModuleSystem.GetModule<IResourceModule>()` 获取资源模块通过YooAsset资源管理系统。
+- 首次使用时，通过 `ModuleSystem.GetModule<IResourceModule>()` 获取资源模块。
 - 调用 `m_resourceModule.LoadAsset<TextAsset>(file)` 加载对应配置资源。
 - 取出 `TextAsset.bytes`。
 - 使用 `new ByteBuf(bytes)` 包装成 Luban 读取所需的二进制缓冲对象。
@@ -417,12 +419,11 @@ if (groupList != null)
 using GameProto;
 
 // 假设 TbGameConfig 是一个 mode=one 的单例表
-var gameConfig = TbGameConfig.Data;
+// 推荐直接通过模板生成的静态属性访问字段
+DGameLog.Info($"默认区域ID: {TbGameConfig.DefaultAreaId}");
 
-if (gameConfig != null)
-{
-    DGameLog.Info($"默认区域ID: {gameConfig.DefaultAreaId}");
-}
+// 如果需要整份数据对象，则通过 Instance.Data 访问
+var gameConfig = TbGameConfig.Instance.Data;
 ```
 
 说明：

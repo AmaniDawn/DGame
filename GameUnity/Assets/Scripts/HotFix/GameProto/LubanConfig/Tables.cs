@@ -158,6 +158,16 @@ namespace GameProto
             m_defaultLoader = loader;
         }
 
+        public void Reload()
+        {
+            m_TbTextConfig = null;
+            m_TbItemConfig = null;
+            m_TbSoundConfig = null;
+            m_TbModelConfig = null;
+            m_TbEffectConfig = null;
+            m_TbGmConfig = null;
+        }
+
         public void Init(){}
     }
 }
