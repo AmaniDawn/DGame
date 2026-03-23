@@ -269,13 +269,14 @@ RootModule
 | HotFix 业务门面 | `GameModule` | `GameLogic` | HotFix 业务层统一访问入口，聚合主工程模块并缓存常用模块引用。 |
 | 输入模块 | `GameLogic.IInputModule` | `GameLogic` | 业务输入层，在主工程输入基础上封装业务输入上下文与组件能力。 |
 | UI 模块 | `UIModule` | `GameLogic` | HotFix UI 总模块，负责窗口栈、窗口生命周期、异步显示和 UI 根节点管理。 |
+| 红点模块 | `RedDotModule` | `GameLogic` | HotFix 红点系统总模块，负责红点树节点管理、数值更新、聚合通知，以及与红点 UI 组件的协作入口。 |
 
 说明：
 
 - 上表按 `GameModule.cs` 当前实际暴露的属性分类整理。
 - `GameModule` 当前实际聚合的属性包括：
   `RootModule`、`FsmModule`、`SensitiveWordModule`、`AnimModule`、`ResourceModule`、`AudioModule`、`SceneModule`、`GameTimerModule`、`InputModule`、`Input`、`LocalizationModule`、`GameObjectPool`、`UIModule`。
-- `ConfigSystem`、`RedDotModule`、`TextConfigMgr`、`SingletonSystem` 等属于 HotFix 侧高层能力，但不属于 `GameModule` 当前这组属性本身。
+- `ConfigSystem`、`TextConfigMgr`、`SingletonSystem` 等属于 HotFix 侧高层能力；其中 `RedDotModule` 当前已经作为常用入口被 `GameModule` 聚合暴露。
 
 ## 运行时模块系统
 
@@ -360,6 +361,7 @@ RootModule
 - 业务层存在自己的单例体系，例如 `Singleton<T>`、`SingletonSystem`。
 - UI 不是简单的 MonoBehaviour 面板集合，而是有独立窗口栈、层级和异步加载流程。
 - 文本、多语言、红点、输入扩展都已经有自己的模块目录，不建议把类似逻辑散落到任意窗口脚本里。
+- 红点系统当前采用树状节点组织方式，节点定义、编辑器配置和生成代码集中放在 `GameLogic/Module/RedDotModule/`，业务层优先复用现有入口与节点定义。
 
 ## 配置与数据访问协作
 

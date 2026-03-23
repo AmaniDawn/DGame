@@ -39,10 +39,10 @@ namespace GameLogic
         protected override void OnInit()
         {
             // 先把所有节点注册进系统中管理
-            RedDotPathDefine_Gen.RegisterAll();
             Root = new RedDotNode(ROOT_ID, ROOT_PATH, ROOT_PATH);
             m_nodeDict.Add(ROOT_ID, Root);
             m_pathToIdMap.Add(ROOT_PATH, ROOT_ID);
+            RedDotPathDefine_Gen.RegisterAll();
         }
 
         public void Reset()
