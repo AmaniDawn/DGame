@@ -30,6 +30,7 @@
     - [当前加载流程](#当前加载流程)
     - [初始化时机](#初始化时机)
     - [二进制加载方式](#二进制加载方式)
+    - [运行时重载](#运行时重载)
     - [当前职责理解](#当前职责理解)
   - [配置表数据访问示例](#配置表数据访问示例)
     - [常规配置表访问](#常规配置表访问)
@@ -353,6 +354,22 @@ GameUnity/Assets/BundleAssets/Configs/Binary/
 - 调用 `m_resourceModule.LoadAsset<TextAsset>(file)` 加载对应配置资源。
 - 取出 `TextAsset.bytes`。
 - 使用 `new ByteBuf(bytes)` 包装成 Luban 读取所需的二进制缓冲对象。
+
+### 运行时重载
+
+当前项目中，如果需要在运行时重载配置表数据，可以通过 `ConfigSystem.Instance.Reload()` 触发。
+
+当前实现已确认：
+
+- `ConfigSystem` 提供 `Reload()` 方法。
+- 当配置系统已经初始化后，`Reload()` 会继续调用 `m_tables.Reload()`。
+- 这意味着运行时可以通过 `ConfigSystem` 统一触发配置表重载，而不需要逐张表手动处理。
+
+示例：
+
+```csharp
+ConfigSystem.Instance.Reload();
+```
 
 ### 当前职责理解
 
