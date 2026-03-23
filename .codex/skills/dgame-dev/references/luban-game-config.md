@@ -276,6 +276,10 @@ Bean名：RewardItem
 
 当前项目的配置代码生成，主要由 `GenerateTool_Binary` 和 `GenerateTool_Json` 目录下的脚本驱动完成。
 
+默认约定：
+
+- 如果无特殊说明，优先使用二进制转表和懒加载转表。
+
 客户端二进制代码生成链路当前已确认如下：
 
 1. 读取 `GameConfig/luban.conf`，加载 `Defines`、`__tables__.xlsx`、`__beans__.xlsx`、`__enums__.xlsx`。
@@ -572,6 +576,7 @@ int itemPrice = ItemConfigMgr.Instance.GetItemPrice(1001);
 8. 执行对应生成脚本，生成配置代码和数据：
    - 二进制流程使用 `GenerateTool_Binary`
    - Json 流程使用 `GenerateTool_Json`
+   - 如果无特殊说明，优先使用二进制转表和带 `lazyload` 的转表工具
 9. 确认生成结果已输出到正确目录：
    - 代码输出到 `GameUnity/Assets/Scripts/HotFix/GameProto/LubanConfig/`
    - 数据输出到 `GameUnity/Assets/BundleAssets/Configs/Binary/`
