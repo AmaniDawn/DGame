@@ -112,6 +112,14 @@ namespace GameLogic
         public static IGameObjectPoolModule GameObjectPool => m_gameObjectPool == null
             ? m_gameObjectPool = GetModule<IGameObjectPoolModule>() : m_gameObjectPool;
 
+
+        private static UIModule m_uiModule;
+
+        /// <summary>
+        /// 游戏对象 对象池模块
+        /// </summary>
+        public static UIModule UIModule => m_uiModule == null ? m_uiModule = UIModule.Instance : m_uiModule;
+
         #endregion
 
         /// <summary>
@@ -140,6 +148,7 @@ namespace GameLogic
             m_localizationModule = null;
             m_gameObjectPool = null;
             m_sensitiveWordModule = null;
+            m_uiModule = null;
         }
     }
 }

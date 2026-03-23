@@ -109,7 +109,7 @@ namespace GameLogic
         {
             if (CurPlayerData != null)
             {
-                UIModule.Instance.CloseAllWindows();
+                GameModule.UIModule.CloseAllWindows();
                 for (int i = 0; i < m_dataCenterModuleList.Count; i++)
                 {
                     m_dataCenterModuleList[i].OnRoleLogout();
