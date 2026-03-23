@@ -140,7 +140,9 @@ namespace GameLogic
 
         /// <summary>
         /// 注册所有节点到红点管理器
+        /// <remarks>不使用这个注册 使用RedDotPathDefine_Gen.RegisterAll</remarks>
         /// </summary>
+        [Obsolete("不使用这个注册 使用RedDotPathDefine_Gen.RegisterAll")]
         public void RegisterAll()
         {
             RefreshPaths();

@@ -94,7 +94,6 @@ namespace GameLogic
             }
 
             RegisterAllController();
-            RedDotModule.Instance.Initialize();
 
             if (DebuggerDriver.Instance != null)
             {

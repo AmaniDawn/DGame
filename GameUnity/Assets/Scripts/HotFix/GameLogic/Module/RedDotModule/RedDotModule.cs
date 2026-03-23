@@ -30,30 +30,19 @@ namespace GameLogic
 
         public RedDotNode Root { get; private set; }
 
-        public bool IsInitialized { get; private set; }
-
         public int NodeCount => m_nodeDict.Count;
 
         #endregion
 
         #region Initialization
 
-        public void Initialize()
-        {
-            RedDotPathDefine_Gen.RegisterAll();
-        }
-
         protected override void OnInit()
         {
-            if (IsInitialized)
-                return;
-
+            // 先把所有节点注册进系统中管理
+            RedDotPathDefine_Gen.RegisterAll();
             Root = new RedDotNode(ROOT_ID, ROOT_PATH, ROOT_PATH);
             m_nodeDict.Add(ROOT_ID, Root);
             m_pathToIdMap.Add(ROOT_PATH, ROOT_ID);
-            IsInitialized = true;
-
-            // DLogger.Info("[RedDotModule] Initialized");
         }
 
         public void Reset()
@@ -64,14 +53,11 @@ namespace GameLogic
             Root = new RedDotNode(ROOT_ID, ROOT_PATH, ROOT_PATH);
             m_nodeDict.Add(ROOT_ID, Root);
             m_pathToIdMap.Add(ROOT_PATH, ROOT_ID);
-
-            // DLogger.Info("[RedDotModule] Reset");
         }
 
         protected override void OnDestroy()
         {
             Reset();
-            IsInitialized = false;
         }
 
         #endregion

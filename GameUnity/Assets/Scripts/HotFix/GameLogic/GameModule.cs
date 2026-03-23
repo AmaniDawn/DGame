@@ -91,7 +91,7 @@ namespace GameLogic
         private static GameLogic.IInputModule m_input;
 
         /// <summary>
-        /// 输入模块
+        /// 新输入模块
         /// </summary>
         public static GameLogic.IInputModule Input => m_input == null
             ? m_input = GetModule<GameLogic.IInputModule>() : m_input;
@@ -111,14 +111,21 @@ namespace GameLogic
         /// </summary>
         public static IGameObjectPoolModule GameObjectPool => m_gameObjectPool == null
             ? m_gameObjectPool = GetModule<IGameObjectPoolModule>() : m_gameObjectPool;
-
-
+        
         private static UIModule m_uiModule;
 
         /// <summary>
-        /// 游戏对象 对象池模块
+        /// UI模块
         /// </summary>
         public static UIModule UIModule => m_uiModule == null ? m_uiModule = UIModule.Instance : m_uiModule;
+        
+        private static RedDotModule m_redDotModule;
+
+        /// <summary>
+        /// 红点模块
+        /// </summary>
+        public static RedDotModule RedDotModule => m_redDotModule == null 
+            ? m_redDotModule = RedDotModule.Instance : m_redDotModule;
 
         #endregion
 
@@ -149,6 +156,7 @@ namespace GameLogic
             m_gameObjectPool = null;
             m_sensitiveWordModule = null;
             m_uiModule = null;
+            m_redDotModule = null;
         }
     }
 }
