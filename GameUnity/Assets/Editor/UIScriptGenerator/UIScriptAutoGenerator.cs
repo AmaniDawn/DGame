@@ -84,11 +84,6 @@ namespace DGame
 
             if (uiGenType.bothGeneric)
             {
-                if (string.IsNullOrWhiteSpace(itemName) || string.IsNullOrWhiteSpace(dataTypeName))
-                {
-                    UnityEngine.Debug.LogError($"如果选择UI类型为: {uiGenTypeName} 则Widget的类型或者Data的数据类型不能为空。请检查{fileName}的UIBindComponent的设置！");
-                    return !uiGenType.isGeneric ? uiGenType.uiTypeName : $"{uiGenType.uiTypeName}<{fileName}>";
-                }
                 return $"{uiGenType.uiTypeName}<{itemName}, {dataTypeName}>";
             }
             return !uiGenType.isGeneric ? uiGenType.uiTypeName : $"{uiGenType.uiTypeName}<{fileName}>";
