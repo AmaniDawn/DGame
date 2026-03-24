@@ -21,6 +21,8 @@ namespace GameLogic
         private SerializedProperty m_impCodePath;
         private SerializedProperty m_className;
         private SerializedProperty m_uiType;
+        private SerializedProperty m_dataTypeName;
+        private SerializedProperty m_widgetTypeName;
 
         private List<UIGenType> m_uiGenTypes = new List<UIGenType>();
         private string[] m_uiTypeOptions;
@@ -35,6 +37,8 @@ namespace GameLogic
             m_impCodePath = serializedObject.FindProperty("impCodePath");
             m_className = serializedObject.FindProperty("className");
             m_uiType = serializedObject.FindProperty("uiType");
+            m_dataTypeName = serializedObject.FindProperty("dataTypeName");
+            m_widgetTypeName = serializedObject.FindProperty("widgetTypeName");
 
             serializedObject.Update();
             // m_className.stringValue = target.name;
@@ -154,17 +158,34 @@ namespace GameLogic
                 {
                     RebindComponents();
                 }
+                var bothGeneric = UIScriptGeneratorSettings.GetUIGenType(m_uiType.stringValue)?.bothGeneric ?? false;
                 if (GUILayout.Button("自动生成脚本", GUILayout.Height(25)))
                 {
+                    if (bothGeneric)
+                    {
+                        if (string.IsNullOrWhiteSpace(m_widgetTypeName.stringValue) || string.IsNullOrWhiteSpace(m_dataTypeName.stringValue))
+                        {
+                            UnityEngine.Debug.LogError($"如果选择UI类型为: {m_uiType.stringValue} 则Widget的类型或者Data的数据类型不能为空。请检查{target.name}的UIBindComponent的设置！");
+                            return;
+                        }
+                    }
                     // RemoveNullComponents();
                     UIScriptGenerator.GenerateCSharpScript(true, false, true, m_genCodePath.stringValue,
-                        m_className.stringValue, m_uiTypeOptions[m_selectedIndex], m_isGenImpClass.boolValue, m_impCodePath.stringValue);
+                        m_className.stringValue, m_uiTypeOptions[m_selectedIndex], m_isGenImpClass.boolValue, m_impCodePath.stringValue, m_widgetTypeName.stringValue, m_dataTypeName.stringValue);
                 }
                 if (GUILayout.Button("自动生成UniTask脚本", GUILayout.Height(25)))
                 {
+                    if (bothGeneric)
+                    {
+                        if (string.IsNullOrWhiteSpace(m_widgetTypeName.stringValue) || string.IsNullOrWhiteSpace(m_dataTypeName.stringValue))
+                        {
+                            UnityEngine.Debug.LogError($"如果选择UI类型为: {m_uiType.stringValue} 则Widget的类型或者Data的数据类型不能为空。请检查{target.name}的UIBindComponent的设置！");
+                            return;
+                        }
+                    }
                     // RemoveNullComponents();
                     UIScriptGenerator.GenerateCSharpScript(true, true, true, m_genCodePath.stringValue,
-                        m_className.stringValue, m_uiTypeOptions[m_selectedIndex], m_isGenImpClass.boolValue, m_impCodePath.stringValue);
+                        m_className.stringValue, m_uiTypeOptions[m_selectedIndex], m_isGenImpClass.boolValue, m_impCodePath.stringValue, m_widgetTypeName.stringValue, m_dataTypeName.stringValue);
                 }
             }
             EditorGUILayout.EndHorizontal();
@@ -190,6 +211,7 @@ namespace GameLogic
                 // 绘制序列化属性字段
                 EditorGUILayout.LabelField("代码生成设置", EditorStyles.boldLabel);
 
+                bool isBothGeneric = false;
                 m_uiGenTypes = UIScriptGeneratorSettings.Instance.UIGenTypes;
                 // 获取所有的 uiTypeName
                 m_uiTypeOptions = m_uiGenTypes.Select(t => t.uiTypeName).ToArray();
@@ -223,6 +245,7 @@ namespace GameLogic
                         {
                             m_uiType.stringValue = selectedTypeName;
                         }
+                        isBothGeneric = UIScriptGeneratorSettings.GetUIGenType(selectedTypeName)?.bothGeneric ?? false;
                     }
                 }
                 else
@@ -237,6 +260,12 @@ namespace GameLogic
                     m_className.stringValue = target.name;
                 }
                 EditorGUILayout.EndHorizontal();
+
+                if (isBothGeneric)
+                {
+                    EditorGUILayout.PropertyField(m_widgetTypeName, new GUIContent("Widget类型"));
+                    EditorGUILayout.PropertyField(m_dataTypeName, new GUIContent("数据类型"));
+                }
 
                 DrawFolderField("生成组件代码路径", string.Empty, m_genCodePath);
 
