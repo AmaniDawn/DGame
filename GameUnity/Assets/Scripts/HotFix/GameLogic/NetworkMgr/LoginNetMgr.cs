@@ -36,7 +36,7 @@ namespace GameLogic
                 UserName = username,
                 Password = password
             });
-
+            GameClient.Instance.Disconnect();
             if (response.ErrorCode != 0)
             {
                 GameModule.UIModule.ShowTipsUI(response.ErrorCode);
@@ -55,7 +55,6 @@ namespace GameLogic
 
         public async FTask LoginRequest(string username, string password)
         {
-            GameClient.Instance.Disconnect();
             await GameClient.Instance.ConnectAsync(TbFuncParamConfig.AuthenticationAddress, TbFuncParamConfig.AuthenticationPort);
             GameClient.Instance.Status = GameClientStatus.StatusLogin;
             var response = (A2C_LoginResponse)await GameClient.Instance.Call(new C2A_LoginRequest
@@ -63,7 +62,8 @@ namespace GameLogic
                 UserName = username,
                 Password = password
             });
-
+            
+            GameClient.Instance.Disconnect();
             if (response.ErrorCode != 0)
             {
                 GameModule.UIModule.ShowTipsUI(response.ErrorCode);
@@ -95,7 +95,6 @@ namespace GameLogic
                 return;
             }
 
-            GameClient.Instance.Disconnect();
             await GameClient.Instance.ConnectAsync(curSveInfo.Address, curSveInfo.Port);
             GameClient.Instance.Status = GameClientStatus.StatusLogin;
             var response = (G2C_LoginResponse)await GameClient.Instance.Call(new C2G_LoginRequest
