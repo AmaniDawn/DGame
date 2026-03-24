@@ -73,7 +73,7 @@ namespace DGame
 
         #region GenerateGenCSharp
 
-        private static string GetUITypeName(string uiGenTypeName, string fileName)
+        private static string GetUITypeName(string uiGenTypeName, string fileName, string itemName = null, string dataTypeName = null)
         {
             var uiGenType = UIScriptGeneratorSettings.GetUIGenType(uiGenTypeName);
 
@@ -81,13 +81,23 @@ namespace DGame
             {
                 return "UIWindow";
             }
+
+            if (uiGenType.bothGeneric)
+            {
+                if (string.IsNullOrWhiteSpace(itemName) || string.IsNullOrWhiteSpace(dataTypeName))
+                {
+                    UnityEngine.Debug.LogError($"如果选择UI类型为: {uiGenTypeName} 则Widget的类型或者Data的数据类型不能为空。请检查{fileName}的UIBindComponent的设置！");
+                    return !uiGenType.isGeneric ? uiGenType.uiTypeName : $"{uiGenType.uiTypeName}<{fileName}>";
+                }
+                return $"{uiGenType.uiTypeName}<{itemName}, {dataTypeName}>";
+            }
             return !uiGenType.isGeneric ? uiGenType.uiTypeName : $"{uiGenType.uiTypeName}<{fileName}>";
         }
 
         public static bool GenerateCSharpScript(bool includeListener, bool isUniTask = false,
             bool isAutoGenerate = false, string savePath = null, string className = null,
             string uiGenTypeName = null, bool isGenImp = false,
-            string impSavePath = null)
+            string impSavePath = null, string widgetTypeName = null, string dataTypeName = null)
         {
             var root = Selection.activeTransform;
             if (root == null)
@@ -106,7 +116,7 @@ namespace DGame
             {
                 fileName = $"{className}.cs";
             }
-            string uiTypeName = GetUITypeName(uiGenTypeName, className);
+            string uiTypeName = GetUITypeName(uiGenTypeName, className, widgetTypeName, dataTypeName);
             if (!isAutoGenerate)
             {
                 uiTypeName = "UIWindow";
@@ -143,6 +153,8 @@ namespace DGame
 
                 strFile.AppendLine("using UnityEngine;");
                 strFile.AppendLine("using UnityEngine.UI;");
+                strFile.AppendLine("using GameProto;");
+                strFile.AppendLine("using GameBattle;");
                 strFile.AppendLine("using DGame;");
                 strFile.AppendLine();
                 strFile.AppendLine($"namespace {UIScriptGeneratorSettings.GetUINameSpace()}");

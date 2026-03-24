@@ -8,6 +8,8 @@ namespace GameLogic
     {
         [SerializeField, HideInInspector] private string genCodePath;
         [SerializeField, HideInInspector] private string className;
+        [SerializeField, HideInInspector] private string widgetTypeName;
+        [SerializeField, HideInInspector] private string dataTypeName;
         [SerializeField, HideInInspector] private string impCodePath;
         [SerializeField, HideInInspector] private bool isGenImpClass;
         [SerializeField, HideInInspector] private string uiType;
