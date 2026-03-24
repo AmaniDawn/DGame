@@ -211,7 +211,8 @@ public static class DGameUIGeneratorSettingsProvider
                     // 规则说明
                     EditorGUILayout.HelpBox(
                         "• 非泛型: public class TestWindow : UIWindow\n" +
-                        "• 泛型: public class TestEventItem : UIEventItem<TestEventItem>",
+                        "• 泛型: public class TestEventItem : UIEventItem<TestEventItem>\n" +
+                        "• 双泛型: public class TestLoopListWidget : UILoopListWidget<TestEventItem, TestConfig>",
                         MessageType.Info);
 
                     EditorGUILayout.Space(5);
