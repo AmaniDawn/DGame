@@ -18,30 +18,30 @@ MonoBehaviour:
     type: 0
     strategy: 1
     children:
-    - rid: 7239240842736304180
-    - rid: 7239240842736304181
-    - rid: 7239240842736304182
-    - rid: 7239240842736304183
+    - rid: 7362320511267242102
+    - rid: 7362320511267242103
+    - rid: 7362320511267242104
+    - rid: 7362320511267242105
     foldout: 1
     generatedPath: Main
-    generatedId: 1
+    generatedId: 0
   - name: Social
     description: "\u793E\u4EA4\u7CFB\u7EDF"
     type: 0
     strategy: 1
     children:
-    - rid: 7239240842736304184
-    - rid: 7239240842736304185
+    - rid: 7362320511267242106
+    - rid: 7362320511267242107
     foldout: 1
     generatedPath: Social
-    generatedId: 21
+    generatedId: 0
   m_outputPath: Scripts/HotFix/GameLogic/Module/RedDotModule/Gen/RedDotPathDefine_Gen.g.cs
   m_namespace: GameLogic
-  m_className: RedDotPathDefine_Gen
+  m_className: RedDotPathDefine
   references:
     version: 2
     RefIds:
-    - rid: 7239240842736304180
+    - rid: 7362320511267242102
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Mail
@@ -49,13 +49,13 @@ MonoBehaviour:
         type: 0
         strategy: 1
         children:
-        - rid: 7239240842736304186
-        - rid: 7239240842736304187
-        - rid: 7239240842736304188
+        - rid: 7362320511267242108
+        - rid: 7362320511267242109
+        - rid: 7362320511267242110
         foldout: 1
         generatedPath: Main/Mail
-        generatedId: 2
-    - rid: 7239240842736304181
+        generatedId: 0
+    - rid: 7362320511267242103
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Bag
@@ -63,13 +63,13 @@ MonoBehaviour:
         type: 0
         strategy: 1
         children:
-        - rid: 7239240842736304189
-        - rid: 7239240842736304190
-        - rid: 7239240842736304191
+        - rid: 7362320511267242111
+        - rid: 7362320511267242112
+        - rid: 7362320511267242113
         foldout: 1
         generatedPath: Main/Bag
-        generatedId: 6
-    - rid: 7239240842736304182
+        generatedId: 0
+    - rid: 7362320511267242104
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Quest
@@ -77,13 +77,13 @@ MonoBehaviour:
         type: 0
         strategy: 1
         children:
-        - rid: 7239240842736304192
-        - rid: 7239240842736304193
-        - rid: 7239240842736304194
+        - rid: 7362320511267242114
+        - rid: 7362320511267242115
+        - rid: 7362320511267242116
         foldout: 1
         generatedPath: Main/Quest
-        generatedId: 10
-    - rid: 7239240842736304183
+        generatedId: 0
+    - rid: 7362320511267242105
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Activity
@@ -91,12 +91,12 @@ MonoBehaviour:
         type: 0
         strategy: 1
         children:
-        - rid: 7239240842736304195
-        - rid: 7239240842736304196
+        - rid: 7362320511267242117
+        - rid: 7362320511267242118
         foldout: 1
         generatedPath: Main/Activity
-        generatedId: 14
-    - rid: 7239240842736304184
+        generatedId: 0
+    - rid: 7362320511267242106
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Friends
@@ -104,12 +104,12 @@ MonoBehaviour:
         type: 0
         strategy: 1
         children:
-        - rid: 7239240842736304197
-        - rid: 7239240842736304198
+        - rid: 7362320511267242119
+        - rid: 7362320511267242120
         foldout: 1
         generatedPath: Social/Friends
-        generatedId: 22
-    - rid: 7239240842736304185
+        generatedId: 0
+    - rid: 7362320511267242107
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Chat
@@ -117,13 +117,13 @@ MonoBehaviour:
         type: 0
         strategy: 1
         children:
-        - rid: 7239240842736304199
-        - rid: 7239240842736304200
-        - rid: 7239240842736304201
+        - rid: 7362320511267242121
+        - rid: 7362320511267242122
+        - rid: 7362320511267242123
         foldout: 1
         generatedPath: Social/Chat
-        generatedId: 25
-    - rid: 7239240842736304186
+        generatedId: 0
+    - rid: 7362320511267242108
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: System
@@ -133,8 +133,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Main/Mail/System
-        generatedId: 3
-    - rid: 7239240842736304187
+        generatedId: 0
+    - rid: 7362320511267242109
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Player
@@ -144,8 +144,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Main/Mail/Player
-        generatedId: 4
-    - rid: 7239240842736304188
+        generatedId: 0
+    - rid: 7362320511267242110
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Guild
@@ -155,8 +155,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Main/Mail/Guild
-        generatedId: 5
-    - rid: 7239240842736304189
+        generatedId: 0
+    - rid: 7362320511267242111
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Equipment
@@ -166,8 +166,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Main/Bag/Equipment
-        generatedId: 7
-    - rid: 7239240842736304190
+        generatedId: 0
+    - rid: 7362320511267242112
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Item
@@ -177,8 +177,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Main/Bag/Item
-        generatedId: 8
-    - rid: 7239240842736304191
+        generatedId: 0
+    - rid: 7362320511267242113
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Material
@@ -188,8 +188,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Main/Bag/Material
-        generatedId: 9
-    - rid: 7239240842736304192
+        generatedId: 0
+    - rid: 7362320511267242114
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Main
@@ -199,8 +199,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Main/Quest/Main
-        generatedId: 11
-    - rid: 7239240842736304193
+        generatedId: 0
+    - rid: 7362320511267242115
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Daily
@@ -210,8 +210,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Main/Quest/Daily
-        generatedId: 12
-    - rid: 7239240842736304194
+        generatedId: 0
+    - rid: 7362320511267242116
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Weekly
@@ -221,8 +221,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Main/Quest/Weekly
-        generatedId: 13
-    - rid: 7239240842736304195
+        generatedId: 0
+    - rid: 7362320511267242117
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: SevenDay
@@ -230,12 +230,12 @@ MonoBehaviour:
         type: 0
         strategy: 1
         children:
-        - rid: 7239240842736304202
-        - rid: 7239240842736304203
+        - rid: 7362320511267242124
+        - rid: 7362320511267242125
         foldout: 1
         generatedPath: Main/Activity/SevenDay
-        generatedId: 15
-    - rid: 7239240842736304196
+        generatedId: 0
+    - rid: 7362320511267242118
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: SignIn
@@ -243,12 +243,12 @@ MonoBehaviour:
         type: 0
         strategy: 1
         children:
-        - rid: 7239240842736304204
-        - rid: 7239240842736304205
+        - rid: 7362320511267242126
+        - rid: 7362320511267242127
         foldout: 1
         generatedPath: Main/Activity/SignIn
-        generatedId: 18
-    - rid: 7239240842736304197
+        generatedId: 0
+    - rid: 7362320511267242119
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Request
@@ -258,8 +258,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Social/Friends/Request
-        generatedId: 23
-    - rid: 7239240842736304198
+        generatedId: 0
+    - rid: 7362320511267242120
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Recommend
@@ -269,8 +269,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Social/Friends/Recommend
-        generatedId: 24
-    - rid: 7239240842736304199
+        generatedId: 0
+    - rid: 7362320511267242121
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: World
@@ -280,8 +280,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Social/Chat/World
-        generatedId: 26
-    - rid: 7239240842736304200
+        generatedId: 0
+    - rid: 7362320511267242122
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Guild
@@ -291,8 +291,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Social/Chat/Guild
-        generatedId: 27
-    - rid: 7239240842736304201
+        generatedId: 0
+    - rid: 7362320511267242123
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Private
@@ -302,8 +302,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Social/Chat/Private
-        generatedId: 28
-    - rid: 7239240842736304202
+        generatedId: 0
+    - rid: 7362320511267242124
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Task
@@ -313,8 +313,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Main/Activity/SevenDay/Task
-        generatedId: 16
-    - rid: 7239240842736304203
+        generatedId: 0
+    - rid: 7362320511267242125
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Reward
@@ -324,8 +324,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Main/Activity/SevenDay/Reward
-        generatedId: 17
-    - rid: 7239240842736304204
+        generatedId: 0
+    - rid: 7362320511267242126
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Daily
@@ -335,8 +335,8 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Main/Activity/SignIn/Daily
-        generatedId: 19
-    - rid: 7239240842736304205
+        generatedId: 0
+    - rid: 7362320511267242127
       type: {class: RedDotNodeConfig, ns: GameLogic, asm: GameLogic}
       data:
         name: Cumulative
@@ -346,4 +346,4 @@ MonoBehaviour:
         children: []
         foldout: 1
         generatedPath: Main/Activity/SignIn/Cumulative
-        generatedId: 20
+        generatedId: 0

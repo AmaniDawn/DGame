@@ -1,8 +1,6 @@
 ﻿#if UNITY_EDITOR
 
 using System.Collections.Generic;
-using System.IO;
-using System.Text;
 using UnityEditor;
 using UnityEngine;
 
@@ -91,6 +89,14 @@ namespace GameLogic
         private void OnEnable()
         {
             LoadConfig();
+        }
+
+        private void OnDisable()
+        {
+            if (m_config != null)
+            {
+                RedDotTreeCodeGenerator.GenerateCode(m_config, false);
+            }
         }
 
         private void LoadConfig()
@@ -787,253 +793,9 @@ namespace GameLogic
 
         #region Code Generation
 
-        private int m_nextId;
-
         private void GenerateCode()
         {
-            if (m_config == null) return;
-
-            m_config.RefreshPaths();
-            AssignIds();
-
-            StringBuilder sb = new StringBuilder();
-
-            // 文件头
-            sb.AppendLine("// =============================================================================");
-            sb.AppendLine("// AUTO-GENERATED FILE - DO NOT EDIT MANUALLY");
-            sb.AppendLine($"// Generated from: {AssetDatabase.GetAssetPath(m_config)}");
-            sb.AppendLine($"// Generated at: {System.DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            sb.AppendLine("// =============================================================================");
-            sb.AppendLine();
-
-            sb.AppendLine($"namespace {m_config.Namespace}");
-            sb.AppendLine("{");
-            sb.AppendLine($"\tpublic static class {m_config.ClassName}");
-            sb.AppendLine("\t{");
-
-            // 生成嵌套类结构
-            foreach (var root in m_config.RootNodes)
-            {
-                GenerateNodeCode(sb, root, 2);
-            }
-
-            // 生成 RegisterAll 方法
-            sb.AppendLine();
-            GenerateRegisterAllMethod(sb);
-
-            sb.AppendLine("\t}");
-            sb.AppendLine("}");
-
-            // 写入文件
-            string fullPath = Path.Combine(Application.dataPath, m_config.OutputPath);
-            string directory = Path.GetDirectoryName(fullPath);
-
-            if (!Directory.Exists(directory))
-            {
-                Directory.CreateDirectory(directory);
-            }
-
-            // 如果文件已存在且为只读，先移除只读属性
-            if (File.Exists(fullPath))
-            {
-                var attributes = File.GetAttributes(fullPath);
-                if ((attributes & FileAttributes.ReadOnly) == FileAttributes.ReadOnly)
-                {
-                    File.SetAttributes(fullPath, attributes & ~FileAttributes.ReadOnly);
-                }
-            }
-
-            File.WriteAllText(fullPath, sb.ToString(), Encoding.UTF8);
-
-            // 设置文件为只读
-            File.SetAttributes(fullPath, File.GetAttributes(fullPath) | FileAttributes.ReadOnly);
-
-            AssetDatabase.Refresh();
-
-            Debug.Log($"[RedDot] Code generated successfully: Assets/{m_config.OutputPath}");
-            EditorUtility.DisplayDialog("Success", $"Code generated successfully!\n\nPath: Assets/{m_config.OutputPath}", "OK");
-        }
-
-        private void AssignIds()
-        {
-            m_nextId = 1;
-            foreach (var root in m_config.RootNodes)
-            {
-                AssignNodeId(root);
-            }
-        }
-
-        private void AssignNodeId(RedDotNodeConfig node)
-        {
-            node.generatedId = m_nextId++;
-            foreach (var child in node.children)
-            {
-                AssignNodeId(child);
-            }
-        }
-
-        private void GenerateRegisterAllMethod(StringBuilder sb)
-        {
-            string indent = "        ";
-
-            sb.AppendLine($"{indent}/// <summary>");
-            sb.AppendLine($"{indent}/// 注册所有红点节点到 RedDotModule（零 GC）");
-            sb.AppendLine($"{indent}/// </summary>");
-            sb.AppendLine($"{indent}public static void RegisterAll()");
-            sb.AppendLine($"{indent}{{");
-            sb.AppendLine($"{indent}\tvar mgr = RedDotModule.Instance;");
-            sb.AppendLine();
-
-            // 收集所有节点并生成注册代码
-            foreach (var root in m_config.RootNodes)
-            {
-                GenerateRegisterCode(sb, root, indent + "    ", "");
-            }
-
-            sb.AppendLine($"{indent}}}");
-        }
-
-        private void GenerateRegisterCode(StringBuilder sb, RedDotNodeConfig node, string indent, string parentAccessPath)
-        {
-            string nodeName = SanitizeName(node.name);
-            string accessPath;
-
-            if (string.IsNullOrEmpty(parentAccessPath))
-            {
-                accessPath = nodeName;
-            }
-            else
-            {
-                accessPath = $"{parentAccessPath}.{nodeName}";
-            }
-
-            bool hasChildren = node.children.Count > 0;
-
-            // 生成注册代码 - 使用新的 Register(int id, string path, string[] segments) 签名
-            string idExpr = hasChildren ? $"{accessPath}.Id" : $"{accessPath}";
-            string pathExpr = hasChildren ? $"{accessPath}.Path" : $"{accessPath}Path";
-            string segmentsExpr = hasChildren ? $"{accessPath}.Segments" : $"{accessPath}Segments";
-
-            // 添加注释
-            if (!string.IsNullOrEmpty(node.description))
-            {
-                sb.AppendLine($"{indent}// {node.description}");
-            }
-
-            sb.AppendLine($"{indent}mgr.Register({idExpr}, {pathExpr}, {segmentsExpr}, RedDotType.{node.type}, RedDotAggregateStrategy.{node.strategy});");
-
-            // 递归处理子节点
-            if (hasChildren)
-            {
-                sb.AppendLine();
-                foreach (var child in node.children)
-                {
-                    GenerateRegisterCode(sb, child, indent, accessPath);
-                }
-            }
-        }
-
-        private void GenerateNodeCode(StringBuilder sb, RedDotNodeConfig node, int indentLevel)
-        {
-            string indent = new string('\t', indentLevel);
-            string nodeName = SanitizeName(node.name);
-            string segmentsArray = GenerateSegmentsArray(node.generatedPath);
-
-            if (node.children.Count > 0)
-            {
-                // 有子节点，生成嵌套类
-                sb.AppendLine();
-
-                if (!string.IsNullOrEmpty(node.description))
-                {
-                    sb.AppendLine($"{indent}/// <summary>");
-                    sb.AppendLine($"{indent}/// {node.description}");
-                    sb.AppendLine($"{indent}/// </summary>");
-                }
-
-                sb.AppendLine($"{indent}public static class {nodeName}");
-                sb.AppendLine($"{indent}{{");
-
-                // Id 常量
-                sb.AppendLine($"{indent}\tpublic const int Id = {node.generatedId};");
-                // Path 常量
-                sb.AppendLine($"{indent}\tpublic const string Path = \"{node.generatedPath}\";");
-                // Segments 数组（预计算，零 GC）
-                sb.AppendLine($"{indent}\tpublic static readonly string[] Segments = {segmentsArray};");
-
-                // 子节点
-                foreach (var child in node.children)
-                {
-                    GenerateNodeCode(sb, child, indentLevel + 1);
-                }
-
-                sb.AppendLine($"{indent}}}");
-            }
-            else
-            {
-                // 叶子节点，生成 Id 常量和对应的 Path、Segments
-                if (!string.IsNullOrEmpty(node.description))
-                {
-                    sb.AppendLine();
-                    sb.AppendLine($"{indent}/// <summary>");
-                    sb.AppendLine($"{indent}/// {node.description}");
-                    sb.AppendLine($"{indent}/// </summary>");
-                }
-
-                sb.AppendLine($"{indent}public const int {nodeName} = {node.generatedId};");
-                sb.AppendLine($"{indent}public const string {nodeName}Path = \"{node.generatedPath}\";");
-                sb.AppendLine($"{indent}public static readonly string[] {nodeName}Segments = {segmentsArray};");
-            }
-        }
-
-        private string GenerateSegmentsArray(string path)
-        {
-            if (string.IsNullOrEmpty(path))
-                return "{ }";
-
-            string[] segments = path.Split('/');
-            StringBuilder sb = new StringBuilder();
-            sb.Append("{ ");
-
-            for (int i = 0; i < segments.Length; i++)
-            {
-                if (i > 0) sb.Append(", ");
-                sb.Append($"\"{segments[i]}\"");
-            }
-
-            sb.Append(" }");
-            return sb.ToString();
-        }
-
-        private string SanitizeName(string name)
-        {
-            if (string.IsNullOrEmpty(name)) return "Unknown";
-
-            StringBuilder sb = new StringBuilder();
-            bool capitalizeNext = true;
-
-            foreach (char c in name)
-            {
-                if (char.IsLetterOrDigit(c))
-                {
-                    sb.Append(capitalizeNext ? char.ToUpper(c) : c);
-                    capitalizeNext = false;
-                }
-                else if (c == '_' || c == ' ' || c == '-')
-                {
-                    capitalizeNext = true;
-                }
-            }
-
-            string result = sb.ToString();
-
-            // 确保不以数字开头
-            if (result.Length > 0 && char.IsDigit(result[0]))
-            {
-                result = "_" + result;
-            }
-
-            return result;
+            RedDotTreeCodeGenerator.GenerateCode(m_config, true);
         }
 
         #endregion
