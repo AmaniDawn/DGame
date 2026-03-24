@@ -10,10 +10,8 @@ namespace GameLogic
     /// <summary>
     /// 数据中心模块
     /// </summary>
-    public class DataCenterSys : Singleton<DataCenterSys>, IUpdate
+    public partial class DataCenterSys : Singleton<DataCenterSys>, IUpdate
     {
-        private readonly List<IDataCenterModule> m_dataCenterModuleList = new List<IDataCenterModule>();
-
         protected override void OnInit()
         {
             RegCmdHandle();
@@ -109,31 +107,13 @@ namespace GameLogic
 
         #region Module相关
 
+        private readonly List<IDataCenterModule> m_dataCenterModuleList = new List<IDataCenterModule>();
+
         private void InitOtherModule()
         {
         }
 
-        private void InitModule()
-        {
-            RegisterModule(LoginNetMgr.Instance);
-            RegisterModule(FuncOpenMgr.Instance);
-            RegisterModule(FuncOpenNetMgr.Instance);
-        }
-
-        /// <summary>
-        /// 注册数据中心模块。
-        /// </summary>
-        /// <param name="module">要注册的模块</param>
-        public void RegisterModule(IDataCenterModule module)
-        {
-            if (m_dataCenterModuleList.Contains(module))
-            {
-                return;
-            }
-
-            module.OnInit();
-            m_dataCenterModuleList.Add(module);
-        }
+        partial void InitModule();
 
         #endregion
 
