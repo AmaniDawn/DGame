@@ -42,7 +42,8 @@ namespace GameLogic
             Root = new RedDotNode(ROOT_ID, ROOT_PATH, ROOT_PATH);
             m_nodeDict.Add(ROOT_ID, Root);
             m_pathToIdMap.Add(ROOT_PATH, ROOT_ID);
-            RedDotPathDefine_Gen.RegisterAll();
+            RedDotPathDefine.RegisterAll();
+
         }
 
         public void Reset()
