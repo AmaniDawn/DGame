@@ -1,12 +1,11 @@
 ﻿// =============================================================================
 // AUTO-GENERATED FILE - DO NOT EDIT MANUALLY
 // Generated from: Assets/Scripts/HotFix/GameLogic/Module/RedDotModule/Config/RedDotTreeConfig.asset
-// Generated at: 2026-01-09 15:40:55
 // =============================================================================
 
 namespace GameLogic
 {
-	public static class RedDotPathDefine_Gen
+	public static class RedDotPathDefine
 	{
 
 		/// <summary>
