@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using GameLogic;
+﻿using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using UnityEngine.EventSystems;
@@ -733,12 +731,6 @@ namespace SuperScrollView
         public LoopListViewItem2 NewListViewItem(GameObject prefabGo)
         {
             ItemPool pool = null;
-
-            if (prefabGo == null)
-            {
-                return null;
-            }
-            
             if (mItemPoolDict.TryGetValue(prefabGo.name, out pool) == false)
             {
                 pool = TryCreateItemPool(prefabGo);
@@ -763,7 +755,7 @@ namespace SuperScrollView
         private ItemPool TryCreateItemPool(string itemPrefabName)
         {
             string resPath = itemPrefabName;
-            GameObject go = GameModule.ResourceModule.LoadGameObject(resPath, parent: mContainerTrans);
+            GameObject go = GameLogic.GameModule.ResourceModule.LoadGameObject(resPath, parent: mContainerTrans);
             if (go != null)
             {
                 go.SetActive(false);
