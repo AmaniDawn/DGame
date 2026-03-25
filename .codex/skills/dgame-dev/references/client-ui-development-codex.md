@@ -155,15 +155,19 @@ public partial class MailLoopItem : UILoopItemWidget, IListDataItem<MailData>
 
 public partial class MailLoopList : UILoopListWidget<MailLoopItem, MailData>
 {
+    public void Refresh(List<MailData> mailList)
+    {
+        AdjustItemNum(mailList?.Count ?? 0, mailList);
+    }
 }
 
 private void RefreshMailList(List<MailData> mailList)
 {
-    m_mailLoopList.SetDatas(mailList);
+    m_mailLoopList.Refresh(mailList);
 }
 ```
 
-这类封装更适合“列表自己持有数据刷新逻辑，业务层只管传 `List<TData>`”的场景。
+这类封装更适合“列表子类内部直接调用 `AdjustItemNum(...)`，业务层只管调用列表的封装刷新入口”的场景。
 
 选择规则：
 

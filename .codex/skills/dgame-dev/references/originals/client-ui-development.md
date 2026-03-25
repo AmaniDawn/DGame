@@ -543,6 +543,10 @@ public partial class MailLoopItem : UILoopItemWidget, IListDataItem<MailData>
 
 public partial class MailLoopList : UILoopListWidget<MailLoopItem, MailData>
 {
+    public void Refresh(List<MailData> mailList)
+    {
+        AdjustItemNum(mailList?.Count ?? 0, mailList);
+    }
 }
 
 public partial class MailWindow
@@ -558,7 +562,7 @@ public partial class MailWindow
 
     private void RefreshMailList(List<MailData> mailList)
     {
-        m_mailLoopList.SetDatas(mailList);
+        m_mailLoopList.Refresh(mailList);
     }
 }
 ```
@@ -566,9 +570,10 @@ public partial class MailWindow
 这套写法里：
 
 - 列表 Widget 自己负责 `OnGetItemByIndex(...)`、Item 复用和 `UpdateListItem(...)`
-- 业务层只需要准备好 `List<TData>` 并调用 `SetDatas(...)`
+- 业务层只调用列表子类自己封装的 `Refresh(...)`
+- 列表子类内部直接调用 `AdjustItemNum(...)` 更新数量和数据
 - Item 如果实现了 `IListDataItem<TData>`，默认会在 `UpdateListItem(...)` 里收到 `GetData(index)` 返回的数据
-- 如果除了数据绑定还要补充选中态、额外点击回调等，可以改用 `SetDataNum(...)` / `SetDatas(...)` 时传 `funcItem`
+- 如果除了数据绑定还要补充选中态、额外点击回调等，可以在派生类里继续封装刷新入口，最终仍然落到 `AdjustItemNum(...)`
 
 ## `UISpineWidget`
 
