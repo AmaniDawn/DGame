@@ -95,6 +95,13 @@ namespace GameLogic
 			m_textServer.text = curServerInfo.Name;
 		}
 
+		private void SaveQuickAuthData()
+		{
+			m_quickAuthSaveData.Uid = m_inputAccount.text;
+			m_quickAuthSaveData.Pwd = m_inputPassword.text;
+			m_quickAuthSaveData.Save();
+		}
+
 		#endregion
 
 		#region 事件
@@ -140,7 +147,7 @@ namespace GameLogic
 				return;
 			}
 
-			LoginNetMgr.Instance.Login().Coroutine();
+			LoginNetMgr.Instance.LoginGateRequest().Coroutine();
 		}
 
 		private partial void OnClickSelectServerBtn()
@@ -175,18 +182,17 @@ namespace GameLogic
 				GameModule.UIModule.ShowTipsUI(G.R("请输入帐号和密码"));
 				return;
 			}
-			m_quickAuthSaveData.Uid = m_inputAccount.text;
-			m_quickAuthSaveData.Pwd = m_inputPassword.text;
-			m_quickAuthSaveData.Save();
 
-			LoginNetMgr.Instance.LoginRequest(m_inputAccount.text, m_inputPassword.text).Coroutine();
+			SaveQuickAuthData();
+			LoginNetMgr.Instance.LoginAuthRequest(m_inputAccount.text, m_inputPassword.text).Coroutine();
 		}
 
 		private partial void OnClickRegisterBtn()
 		{
+			SaveQuickAuthData();
 			LoginNetMgr.Instance.RegisterRequest(m_inputAccount.text, m_inputPassword.text).Coroutine();
 		}
-		
+
 		private void OnLoginAuthSuccess()
 		{
 			m_goAccountNode.SetActive(false);

@@ -13,6 +13,8 @@ namespace GameLogic
             GameClient.Instance.RegisterMsgHandler(OuterOpcode.G2C_RepeatLogin, OnRepeatLoginNotify);
         }
 
+        #region 服务器下发消息
+
         private void OnRepeatLoginNotify(IMessage obj)
         {
             if (obj is not G2C_RepeatLogin)
@@ -26,16 +28,30 @@ namespace GameLogic
             GameModule.UIModule.ShowWindowAsync<MainLoginUI>();
         }
 
+        #endregion
+
+        #region RegisterRequest
+
         public async FTask RegisterRequest(string username, string password)
         {
             GameClient.Instance.Disconnect();
             await GameClient.Instance.ConnectAsync(TbFuncParamConfig.AuthenticationAddress, TbFuncParamConfig.AuthenticationPort);
             GameClient.Instance.Status = GameClientStatus.StatusRegister;
-            var response = (A2C_RegisterResponse)await GameClient.Instance.Call(new C2A_RegisterRequest
+            var response = await GameClient.Instance.Call(new C2A_RegisterRequest
             {
                 UserName = username,
                 Password = password
             });
+            OnRegisterResponse(response);
+        }
+
+        private void OnRegisterResponse(IMessage message)
+        {
+            if (message is not A2C_RegisterResponse response)
+            {
+                return;
+            }
+
             GameClient.Instance.Disconnect();
             if (response.ErrorCode != 0)
             {
@@ -44,25 +60,32 @@ namespace GameLogic
             }
 
             GameModule.UIModule.ShowTipsUI(G.R("注册成功"));
-
-            var quickAuthSaveData = ClientSaveDataMgr.Instance.GetSaveData<QuickAuthSaveData>();
-            if (quickAuthSaveData != null)
-            {
-                quickAuthSaveData.Uid = username;
-                quickAuthSaveData.Pwd = password;
-            }
         }
 
-        public async FTask LoginRequest(string username, string password)
+        #endregion
+
+        #region LoginAuthRequest
+
+        public async FTask LoginAuthRequest(string username, string password)
         {
             await GameClient.Instance.ConnectAsync(TbFuncParamConfig.AuthenticationAddress, TbFuncParamConfig.AuthenticationPort);
             GameClient.Instance.Status = GameClientStatus.StatusLogin;
-            var response = (A2C_LoginResponse)await GameClient.Instance.Call(new C2A_LoginRequest
+            var response = await GameClient.Instance.Call(new C2A_LoginRequest
             {
                 UserName = username,
                 Password = password
             });
-            
+
+            OnLoginAuthResponse(response);
+        }
+
+        private void OnLoginAuthResponse(IMessage message)
+        {
+            if (message is not A2C_LoginResponse response)
+            {
+                return;
+            }
+
             GameClient.Instance.Disconnect();
             if (response.ErrorCode != 0)
             {
@@ -74,7 +97,11 @@ namespace GameLogic
             GameEvent.Get<ILoginUI>().OnLoginAuthSuccess();
         }
 
-        public async FTask Login()
+        #endregion
+
+        #region LoginGateRequest
+
+        public async FTask LoginGateRequest()
         {
             var quickAuthSaveData = ClientSaveDataMgr.Instance.GetSaveData<QuickAuthSaveData>();
             if (quickAuthSaveData == null)
@@ -102,10 +129,13 @@ namespace GameLogic
                 Token = quickAuthSaveData.Token,
                 ServerID = curSveInfo.ServerID
             });
+            OnLoginGateResponse(response);
+        }
 
-            if (response == null)
+        private void OnLoginGateResponse(IMessage message)
+        {
+            if (message is not G2C_LoginResponse response)
             {
-                GameModule.UIModule.ShowTipsUI(G.R("连接服务器失败"));
                 return;
             }
 
@@ -120,5 +150,7 @@ namespace GameLogic
             DataCenterSys.Instance.SetCurPlayerData(response.PlayerData);
             GameEvent.Get<ILoginUI>().OnLoginGateSuccess();
         }
+
+        #endregion
     }
 }
