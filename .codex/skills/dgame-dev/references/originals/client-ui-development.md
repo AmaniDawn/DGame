@@ -438,6 +438,138 @@ Destroy()
 
 若需求只是小量固定项列表，优先普通 `UIListBase`。若需求是大数据、滚动复用，优先 `UILoopListWidget` / `UILoopGridWidget`。
 
+### 使用例子
+
+参考 `DGame_Fantasy/GameUnity/Assets/Scripts/HotFix/GameLogic/UI/Login/AllServerPage.cs`
+和 `RecommendServerPage.cs`，实际项目里更常见的写法是直接使用
+`UILoopListViewWidget<TItem>`，然后在页面里自己持有数据，并把 Item 创建回调传给
+`InitListView(...)`。
+
+- 页面自己持有数据源
+- 通过 `CreateWidget<UILoopListViewWidget<TItem>>(scroll.gameObject)` 创建循环列表 Widget
+- 通过 `LoopRectView.InitListView(0, CreateItem)` 注册回调
+- 数据变化后调用 `SetListItemCount(...)` 和 `RefreshAllShownItem()`
+- Item 在回调里用 `CreateItem(...)` 创建或复用，再手动 `Init(...)`
+
+```csharp
+using System.Collections.Generic;
+using GameLogic;
+using SuperScrollView;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class MailItemData
+{
+    public string Title;
+}
+
+public partial class MailItem : UILoopItemWidget
+{
+    [SerializeField] private Text m_txtTitle;
+
+    public void Init(MailItemData data, bool isSelected)
+    {
+        m_txtTitle.text = data?.Title ?? string.Empty;
+        SetSelected(isSelected);
+    }
+}
+
+public partial class MailPage
+{
+    private UILoopListViewWidget<MailItem> m_mailLoopListView;
+    private readonly List<MailItemData> m_mailList = new();
+
+    protected override void BindMemberProperty()
+    {
+        m_itemMail.SetActive(false);
+        m_mailLoopListView = CreateWidget<UILoopListViewWidget<MailItem>>(m_scrollMail.gameObject);
+        m_mailLoopListView.LoopRectView.InitListView(0, CreateMailItem);
+    }
+
+    private void RefreshMailList()
+    {
+        m_mailLoopListView.LoopRectView.SetListItemCount(m_mailList.Count);
+        m_mailLoopListView.LoopRectView.RefreshAllShownItem();
+    }
+
+    private LoopListViewItem2 CreateMailItem(LoopListView2 listView, int index)
+    {
+        if (index < 0 || index >= m_mailList.Count)
+        {
+            return null;
+        }
+
+        var item = m_mailLoopListView.CreateItem(m_itemMail);
+        if (item == null)
+        {
+            return null;
+        }
+
+        item.Init(m_mailList[index], false);
+        return item.LoopItem;
+    }
+}
+```
+
+如果使用 `UILoopListWidget<TItem, TData>` / `UILoopGridWidget<TItem, TData>` 这类二次封装，也仍然要遵守同一个原则：Item 会被复用，刷新逻辑必须能在同一个对象上反复绑定不同索引或不同数据。
+
+如果 Item 需要额外状态，例如选中、高亮、红点或按钮事件，也要在每次 `Init(...)` / 刷新时完整重置，不能把旧状态残留在复用出来的 Item 上。
+
+如果业务侧更适合“列表自己持有数据并统一调用 `SetDatas(...)`”，可以使用双泛型封装。常见写法如下：
+
+```csharp
+using System.Collections.Generic;
+using GameLogic;
+using UnityEngine;
+using UnityEngine.UI;
+
+public class MailData
+{
+    public string Title;
+    public bool IsRead;
+}
+
+public partial class MailLoopItem : UILoopItemWidget, IListDataItem<MailData>
+{
+    [SerializeField] private Text m_txtTitle;
+    [SerializeField] private GameObject m_goUnread;
+
+    public void SetItemData(MailData data)
+    {
+        m_txtTitle.text = data?.Title ?? string.Empty;
+        m_goUnread.SetActive(data != null && !data.IsRead);
+    }
+}
+
+public partial class MailLoopList : UILoopListWidget<MailLoopItem, MailData>
+{
+}
+
+public partial class MailWindow
+{
+    private MailLoopList m_mailLoopList;
+
+    protected override void BindMemberProperty()
+    {
+        m_mailLoopList = CreateWidget<MailLoopList>(m_scrollMail.gameObject);
+        m_mailLoopList.BaseItemPrefab = m_itemMail;
+        m_itemMail.SetActive(false);
+    }
+
+    private void RefreshMailList(List<MailData> mailList)
+    {
+        m_mailLoopList.SetDatas(mailList);
+    }
+}
+```
+
+这套写法里：
+
+- 列表 Widget 自己负责 `OnGetItemByIndex(...)`、Item 复用和 `UpdateListItem(...)`
+- 业务层只需要准备好 `List<TData>` 并调用 `SetDatas(...)`
+- Item 如果实现了 `IListDataItem<TData>`，默认会在 `UpdateListItem(...)` 里收到 `GetData(index)` 返回的数据
+- 如果除了数据绑定还要补充选中态、额外点击回调等，可以改用 `SetDataNum(...)` / `SetDatas(...)` 时传 `funcItem`
+
 ## `UISpineWidget`
 
 当前 `UISpineWidget` 受编译宏控制：

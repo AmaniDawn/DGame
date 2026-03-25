@@ -120,6 +120,51 @@ ScriptGenerator()
 - Item 默认复用
 - Item 刷新必须支持“同一对象重复绑定不同索引”
 
+实际项目常见写法更接近 `UILoopListViewWidget<T>`，例如登录服列表页面：
+
+```csharp
+private UILoopListViewWidget<MailItem> m_mailLoopListView;
+private readonly List<MailItemData> m_mailList = new();
+
+protected override void BindMemberProperty()
+{
+    m_itemMail.SetActive(false);
+    m_mailLoopListView = CreateWidget<UILoopListViewWidget<MailItem>>(m_scrollMail.gameObject);
+    m_mailLoopListView.LoopRectView.InitListView(0, CreateMailItem);
+}
+
+private void RefreshMailList()
+{
+    m_mailLoopListView.LoopRectView.SetListItemCount(m_mailList.Count);
+    m_mailLoopListView.LoopRectView.RefreshAllShownItem();
+}
+```
+
+创建回调里通过 `CreateItem(...)` 取复用 Item，再手动 `Init(...)` 当前数据。不要把旧状态留在复用出来的 Item 上。
+
+双泛型封装的常见写法：
+
+```csharp
+public partial class MailLoopItem : UILoopItemWidget, IListDataItem<MailData>
+{
+    public void SetItemData(MailData data)
+    {
+        // 用 data 刷新全部显示状态
+    }
+}
+
+public partial class MailLoopList : UILoopListWidget<MailLoopItem, MailData>
+{
+}
+
+private void RefreshMailList(List<MailData> mailList)
+{
+    m_mailLoopList.SetDatas(mailList);
+}
+```
+
+这类封装更适合“列表自己持有数据刷新逻辑，业务层只管传 `List<TData>`”的场景。
+
 选择规则：
 
 - 小量固定项：普通列表
