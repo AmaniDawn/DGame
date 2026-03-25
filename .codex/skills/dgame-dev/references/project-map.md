@@ -2,7 +2,7 @@
 
 当需求不明确该把代码、资源或工具修改放在哪一层、哪个目录时，先阅读本文件。
 
-本文件主要回答“东西在哪、应该先去哪个目录找”；如果需求涉及架构边界、启动链路、程序集依赖、资源运行时约束，应继续读取 `references/client-architecture.md`。
+本文件主要回答“东西在哪、应该先去哪个目录找”；如果需求涉及架构边界、启动链路、程序集依赖、资源运行时约束，应继续读取 `references/client-architecture-codex.md`。
 
 本文档先记录当前已确认的仓库事实，后续再逐步补充更多目录职责、资产组织约定、程序集边界和常见落位样例。
 
@@ -139,9 +139,9 @@ GameUnity/Assets/Scripts/HotFix/GameLogic/
 | `GameConfig/GenerateTool_Json/` | Json 转表脚本目录。 |
 | `GameConfig/Tools/` | Luban 工具本体与辅助资源目录。 |
 
-如果需求涉及配置表、Luban、源数据、模板、生成脚本或配置消费链路，应继续读取 `references/luban-game-config.md`。
+如果需求涉及配置表、Luban、源数据、模板、生成脚本或配置消费链路，应继续读取 `references/luban-game-config-codex.md`。
 
-如果需求涉及运行时资源组织、BundleAssets、AssetArt、预加载标签或资源加载约束，应继续读取 `references/client-architecture.md`。
+如果需求涉及运行时资源组织、BundleAssets、AssetArt、预加载标签或资源加载约束，应继续读取 `references/client-architecture-codex.md`。
 
 ## 场景与启动入口
 
@@ -155,7 +155,7 @@ GameUnity/Assets/Scripts/HotFix/GameLogic/
 - 主工程启动代码位于 `DGame.AOT/`
 - HotFix 主入口位于 `Scripts/HotFix/GameLogic/GameStart.cs`
 
-如果需求涉及启动流程、AOT、Procedure、热更装配、GameStart、模块边界或调用链，应继续读取 `references/client-architecture.md`。
+如果需求涉及启动流程、AOT、Procedure、热更装配、GameStart、模块边界或调用链，应继续读取 `references/client-architecture-codex.md`。
 
 ## 落位判断规则
 
@@ -176,6 +176,6 @@ GameUnity/Assets/Scripts/HotFix/GameLogic/
 处理 DGame 项目结构与落位问题时，优先遵循以下原则：
 
 1. 先判断需求属于主工程 Runtime、主工程 AOT、Editor、HotFix、资源目录还是配置生成链路。
-2. 本文件优先解决“落在哪个目录”；若和架构规则冲突，以 `references/client-architecture.md` 中的架构约束为准。
-3. 如果仍然无法判断落位，先结合 `references/client-architecture.md` 的程序集边界和启动链路，再决定具体目录。
-4. 如果需求涉及配置表、Luban、模板、生成脚本或配置消费链路，转到 `references/luban-game-config.md`。
+2. 本文件优先解决“落在哪个目录”；若和架构规则冲突，以 `references/client-architecture-codex.md` 中的架构约束为准。
+3. 如果仍然无法判断落位，先结合 `references/client-architecture-codex.md` 的程序集边界和启动链路，再决定具体目录。
+4. 如果需求涉及配置表、Luban、模板、生成脚本或配置消费链路，转到 `references/luban-game-config-codex.md`。
