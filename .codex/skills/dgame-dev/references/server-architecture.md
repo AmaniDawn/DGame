@@ -143,6 +143,109 @@ Entity 数据与共享层
 - `Shared/`
   共享组件，例如 `AccountJwtComponent`、`SensitiveWordComponent`
 
+### 服务器配置文件 `Fantasy.config`
+
+服务端核心启动配置文件位于：
+
+- `GameServer/Server/Entity/Fantasy.config`
+
+该文件属于服务端运行时配置源，主要用于描述：
+
+- 网络基础配置，例如服内通信协议、消息大小限制
+- Session 心跳与超时配置
+- 机器列表与机器绑定 IP
+- 进程列表与启动分组
+- 世界配置与数据库连接
+- Scene 配置，包括 `sceneTypeString`、运行模式、端口与进程归属
+
+可以这样理解它的归属：
+
+- 文件路径位于 `Entity/`，说明它属于服务端共享配置资源的一部分
+- 它不是 `Generate/` 下的自动生成文件
+- 它也不是 `Hotfix` 业务逻辑代码，不应放到 `Hotfix` 维护
+- 宿主启动、进程编排、Scene 拓扑相关调整，优先回到 `Fantasy.config`
+
+使用约束：
+
+- 修改服务器数量、端口、世界、数据库连接、进程分组或 Scene 拓扑时，优先修改 `Fantasy.config`
+- 不要把这些宿主级配置硬编码到 `Main`、`Hotfix` 或 Scene Handler 中
+- 修改 `Fantasy.config` 时，需要同时核对 `sceneTypeString` 是否和 `Hotfix/Scene/`、`Entity/Scene/` 中的场景归属一致
+- 涉及多人协作时，必须确认端口、进程 ID、Scene ID、World ID 不与现有配置冲突
+
+示例配置：
+
+```xml
+<network inner="TCP" maxMessageSize="1048560" />
+<session idleTimeout="8000" idleInterval="5000" />
+
+<server>
+  <machines>
+    <machine id="1" outerIP="127.0.0.1" outerBindIP="127.0.0.1" innerBindIP="127.0.0.1" />
+  </machines>
+
+  <processes>
+    <process id="1" machineId="1" startupGroup="0" />
+    <process id="2000" machineId="1" startupGroup="0" />
+    <process id="2001" machineId="1" startupGroup="0" />
+    <process id="3001" machineId="1" startupGroup="0" />
+  </processes>
+
+  <worlds>
+    <world id="1" worldName="AuthWorld">
+      <database dbType="MongoDB" dbName="fantasy_auth" dbConnection="mongodb://127.0.0.1"/>
+    </world>
+    <world id="2" worldName="GameWorld">
+      <database dbType="MongoDB" dbName="fantasy_game" dbConnection="mongodb://127.0.0.1"/>
+    </world>
+  </worlds>
+
+  <scenes>
+    <scene id="1001" processConfigId="1" worldConfigId="1"
+           sceneRuntimeMode="MultiThread" sceneTypeString="Authentication"
+           networkProtocol="KCP" outerPort="20001" innerPort="11001" />
+
+    <scene id="1050" processConfigId="2000" worldConfigId="2"
+           sceneRuntimeMode="MultiThread" sceneTypeString="Address"
+           networkProtocol="KCP" outerPort="20100" innerPort="11100" />
+
+    <scene id="1051" processConfigId="2001" worldConfigId="2"
+           sceneRuntimeMode="MultiThread" sceneTypeString="Gate"
+           networkProtocol="KCP" outerPort="20051" innerPort="11051" />
+
+    <scene id="1101" processConfigId="3001" worldConfigId="2"
+           sceneRuntimeMode="MultiThread" sceneTypeString="Game"
+           innerPort="12001" />
+  </scenes>
+</server>
+```
+
+可按下面方式理解这个示例：
+
+- `machines` 定义机器与绑定 IP
+- `processes` 定义进程编号、所属机器和启动分组
+- `worlds` 定义逻辑世界与数据库连接
+- `scenes` 把具体 Scene 绑定到某个进程和世界，并声明端口、协议与 `sceneTypeString`
+
+实操建议：
+
+- 新增 `Authentication` 或 `Gate` 时，通常需要同时补 `outerPort` 和 `innerPort`
+- 新增纯服内逻辑场景时，通常只需要 `innerPort`
+- `sceneTypeString` 必须和服务端实际场景实现保持一致，例如 `Authentication`、`Gate`、`Address`、`Game`
+
+`sceneRuntimeMode` 有三种常见配置，使用时可按下面理解：
+
+| 配置值 | 说明 | 适用场景 |
+| --- | --- | --- |
+| `MainThread` | Scene 逻辑在主线程执行，行为最直接，排查问题也最简单 | 逻辑简单、并发要求不高的场景 |
+| `MultiThread` | Scene 逻辑在多线程环境下执行，吞吐更高，但要注意线程安全 | 网关、鉴权、游戏逻辑等有明显并发压力的场景 |
+| `ThreadPool` | Scene 任务调度到线程池执行，适合轻量、离散的异步工作负载 | 轻量任务较多、希望复用线程池调度能力的场景 |
+
+选择建议：
+
+- 不确定时，优先参考当前仓库已有同类 Scene 的配置。
+- 涉及网络入口、玩家在线态或高并发消息处理时，通常优先考虑 `MultiThread`。
+- 如果业务依赖强顺序执行，且更关注稳定性与排障成本，可优先考虑 `MainThread`。
+
 ### Entity Scene 目录规则
 
 `Entity/Scene/` 的目录划分规则应与 `Hotfix/Scene/` 保持一致，统一按功能域先划分主目录。

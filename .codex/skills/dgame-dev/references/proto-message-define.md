@@ -16,6 +16,7 @@
     - [RoamingType.Config 与 OpCode.Cache](#roamingtypeconfig-与-opcodecache)
   - [协议定义规则](#协议定义规则)
     - [基础 proto 约定](#基础-proto-约定)
+    - [字段类型与集合关键字](#字段类型与集合关键字)
     - [enum 定义示例](#enum-定义示例)
     - [消息类型标记](#消息类型标记)
     - [命名规则](#命名规则)
@@ -154,6 +155,35 @@ GameServer/Tools/NetworkProtocol/
 
 - 序列化类型由协议定义源文件控制，而不是在生成目录中额外配置。
 - 导出时附加命名空间也应通过协议定义源文件声明，而不是通过手改生成代码解决。
+
+### 字段类型与集合关键字
+
+协议定义支持 C# 的所有基本类型。日常定义字段时，按正常类型名声明即可，例如 `bool`、`byte`、`short`、`int`、`long`、`float`、`double`、`string`、`uint`、`ulong` 等。
+
+集合类型不要自行约定生成结果，统一通过字段关键字表达，由导出工具决定最终生成类型和 `Dispose` 行为。
+
+集合字段关键字对照如下：
+
+| 关键字 | 生成类型 | 初始化行为 | Dispose 行为 | 适用场景 |
+| --- | --- | --- | --- | --- |
+| `repeated` | `List<T>` | ✅ 自动初始化 | `Clear()` | 默认选择，适合大多数场景 |
+| `repeatedList` | `List<T>` | ❌ 不初始化 | `= null` | 节省内存，允许 `null` 值 |
+| `repeatedArray` | `T[]` | ❌ 不初始化 | `= null` | 需要固定大小数组时使用 |
+
+使用建议：
+
+- 大多数列表字段优先使用 `repeated`。
+- 只有在明确需要延迟分配、允许空列表语义或减少初始化开销时，再使用 `repeatedList`。
+- 明确需要数组语义时，才使用 `repeatedArray`。
+
+`map<TKey, TValue>` 字段会生成 `Dictionary<TKey, TValue>`，其行为约定如下：
+
+| 项目 | 说明 |
+| --- | --- |
+| 生成字段 | 自动初始化为 `new Dictionary<TKey, TValue>()` |
+| Dispose 行为 | 调用 `Clear()` 清空所有元素，`Dictionary` 对象可复用 |
+| Key 唯一性 | `Dictionary` 的 Key 必须唯一，重复 Key 会覆盖值 |
+| 性能 | 查找性能为 `O(1)`，适合频繁查询的场景 |
 
 ### enum 定义示例
 
