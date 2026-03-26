@@ -25,6 +25,8 @@
 > 新增功能均在多个商业化游戏及百万DAU项目经过验证。
 >
 > Fantasy线和TE同步接入服务器框架[Fantasy](https://github.com/qq362946/Fantasy)，区别在于TE接入的就更纯净简洁，本项目可能会做更多的项目细节和实用工具方法处理。
+>
+> 本框架已支持 Codex 的基础 skill，其中 `dgame-dev` 可用于辅助理解本仓库的目录结构、客户端架构与常见开发流程。
 
 ### ✨ 核心特性
 
@@ -61,6 +63,7 @@
 - [🆕 新增功能一览](#-新增功能一览)
 - [⚡ 优化改进一览](#-优化改进一览)
 - [快速开始](#-快速开始)
+- [🤖 AI 协作开发（Codex + OpenSpec）](#-ai-协作开发codex--openspec)
 - [新增功能详解](#-新增功能详解)
 - [优化改进详解](#-优化改进详解)
 - [核心模块](#-核心模块)
@@ -152,6 +155,148 @@
    - 运行菜单 `HybridCLR/Install...` 安装 HybridCLR
    - 运行菜单 `HybridCLR/Generate/All` 生成必要的代码
    - 构建热更新 DLL 和资源包
+
+---
+
+## 🤖 AI 协作开发（Codex + OpenSpec）
+
+本仓库已经完成了基础的 `codex skills` 支持，相关能力位于项目根目录的 `.codex/skills/`，可用于辅助理解 DGame 的目录结构、客户端架构、热更开发流程，以及基于 OpenSpec 的变更提案、实现与归档工作流。
+
+### 推荐使用方式
+
+推荐优先使用 **Codex CLI**，并结合 **OpenSpec** 进行规格驱动开发：
+
+1. 使用 `Codex CLI` 在仓库内完成代码阅读、修改、调试与文档维护
+2. 使用 `OpenSpec` 先沉淀需求、设计和任务拆解
+3. 再通过 `Codex + OpenSpec` 按任务逐步实现、验证与归档
+
+适合本仓库的典型流程如下：
+
+```bash
+# 1. 进入仓库
+cd DGame
+
+# 2. 初始化或更新 OpenSpec 结构
+openspec init
+# 初始化时推荐选择 Codex 作为 AI 工具
+
+# 3. 启动 Codex CLI
+codex
+
+# 4. 在 Codex 中按 OpenSpec 工作流推进
+# 例如：先提 proposal，再实现，再 archive
+```
+
+### Codex CLI 安装
+
+#### 1. 安装 Node.js
+
+- 建议使用 Node.js 20+，并确保 `npm` 可用
+
+#### 2. 全局安装 Codex CLI
+
+```bash
+npm install -g @openai/codex
+```
+
+#### 3. 登录 Codex
+
+可任选一种方式：
+
+```bash
+# 使用 ChatGPT 账号登录
+codex --login
+```
+
+如果需要通过 API Key 使用，推荐优先使用 `ccswitch` 管理不同 Provider、模型配置与密钥，再切换到 Codex 使用。
+
+`ccswitch` 仓库：
+
+- https://github.com/farion1231/cc-switch
+
+或手动配置 OpenAI API Key：
+
+```bash
+# macOS / Linux
+export OPENAI_API_KEY="<YOUR_OPENAI_API_KEY>"
+
+# Windows PowerShell
+$env:OPENAI_API_KEY="<YOUR_OPENAI_API_KEY>"
+```
+
+#### 4. 在仓库根目录启动
+
+```bash
+codex
+```
+
+常用模式示例：
+
+```bash
+codex --auto-edit
+codex --full-auto
+```
+
+> 提示：`Codex CLI` 官方对 macOS / Linux 支持更完整；如在 Windows 环境下遇到兼容性问题，建议优先使用 WSL。
+
+### OpenSpec 安装与初始化
+
+#### 1. 全局安装 OpenSpec CLI
+
+```bash
+npm install -g @fission-ai/openspec@latest
+```
+
+#### 2. 验证安装
+
+```bash
+openspec --version
+```
+
+#### 3. 在仓库根目录初始化
+
+```bash
+openspec init # 初始化时推荐选择 Codex 作为 AI 工具
+```
+
+初始化过程中，当 CLI 询问要集成的 AI 工具时，**推荐优先选择 `Codex`**。
+
+初始化后通常会生成或更新以下内容：
+
+- `openspec/`：用于存放当前变更、规范与归档
+- `AGENTS.md`：提供给 AI 助手的统一协作说明
+- 针对所选 AI 工具的辅助命令或集成配置
+
+#### 4. 常用 OpenSpec 命令
+
+```bash
+# 查看当前变更
+openspec list
+
+# 查看某个变更状态
+openspec status --change "<change-name>"
+
+# 校验某个变更
+openspec validate "<change-name>" --strict
+
+# 归档已完成变更
+openspec archive "<change-name>" --yes
+```
+
+### 本仓库中的建议工作流
+
+1. 先运行 `openspec init`，保证仓库具备标准化规格目录与 AI 协作入口
+2. 使用 `codex` 进入仓库，在需求较明确时优先走 OpenSpec 流程
+3. 先产出 proposal / design / tasks，再进入实现阶段
+4. 实现过程中优先复用本仓库已有的 `.codex/skills/` 与 `AGENTS.md`
+5. 开发完成后执行验证，并归档对应 OpenSpec change
+
+### 参考文档
+
+- Codex CLI: https://help.openai.com/en/articles/11096431-openai-codex-ci-getting-started
+- Codex CLI 登录: https://help.openai.com/en/articles/11381614
+- OpenSpec 安装: https://thedocs.io/openspec/installation/
+- OpenSpec 快速开始: https://thedocs.io/openspec/quick_start/
 
 ---
 
