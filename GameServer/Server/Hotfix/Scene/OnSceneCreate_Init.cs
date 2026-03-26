@@ -12,6 +12,10 @@ public sealed class OnSceneCreate_Init : AsyncEventSystem<OnCreateScene>
         var scene = self.Scene;
         switch (scene.SceneType)
         {
+            case SceneType.Operations:
+                // 数据库版本管理组件
+                await scene.AddComponent<DatabaseComponent>().MigrateAsync();
+                break;
             case SceneType.Authentication:
                 // 账号管理组件 用于注册和登录
                 scene.AddComponent<AccountManagerComponent>();
