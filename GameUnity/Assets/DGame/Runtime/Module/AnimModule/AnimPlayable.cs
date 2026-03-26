@@ -81,20 +81,11 @@ namespace DGame
             }
         }
 
-        public void DestroyGraph()
-        {
-            MemoryPool.Release(this);
-        }
+        public void DestroyGraph() => MemoryPool.Release(this);
 
-        public void PlayGraph()
-        {
-            m_graph.Play();
-        }
+        public void PlayGraph() => m_graph.Play();
 
-        public void StopGraph()
-        {
-            m_graph.Stop();
-        }
+        public void StopGraph() => m_graph.Stop();
 
         /// <summary>
         /// 获取动画的信息

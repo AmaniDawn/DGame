@@ -19,9 +19,7 @@ namespace DGame
         }
 
         public override void OnCreate()
-        {
-
-        }
+        { }
 
         public override void OnDestroy()
         {
@@ -58,15 +56,9 @@ namespace DGame
             }
         }
 
-        public bool ContainsAniPlayable(string name)
-        {
-            return m_animPlayables.ContainsKey(name);
-        }
+        public bool ContainsAnimPlayable(string name) => m_animPlayables.ContainsKey(name);
 
-        public IAnimPlayable GetAnimPlayable(string name)
-        {
-            return m_animPlayables.TryGetValue(name, out IAnimPlayable animPlayable) ? animPlayable : null;
-        }
+        public IAnimPlayable GetAnimPlayable(string name) => m_animPlayables.GetValueOrDefault(name, null);
 
         public IAnimPlayable[] GetAllAnimPlayable()
         {

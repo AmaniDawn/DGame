@@ -8,10 +8,7 @@ namespace DGame
 
         private AnimInfo(){ }
 
-        internal AnimInfo(AnimClip animClip)
-        {
-            m_animClip = animClip;
-        }
+        internal AnimInfo(AnimClip animClip) => m_animClip = animClip;
 
         /// <summary>
         /// 动画名字
