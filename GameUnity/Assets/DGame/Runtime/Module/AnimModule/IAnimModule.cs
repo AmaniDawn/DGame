@@ -15,7 +15,7 @@ namespace DGame
         /// </summary>
         /// <param name="name">动画图名称</param>
         /// <returns></returns>
-        bool ContainsAniPlayable(string name);
+        bool ContainsAnimPlayable(string name);
 
         /// <summary>
         /// 获取动画图
