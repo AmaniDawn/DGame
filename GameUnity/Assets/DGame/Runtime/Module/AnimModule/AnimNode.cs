@@ -71,15 +71,9 @@ namespace DGame
             }
         }
 
-        public AnimNode(PlayableGraph graph)
-        {
-            m_graph = graph;
-        }
+        protected AnimNode(PlayableGraph graph) => m_graph = graph;
 
-        protected void SetSourcePlayable(Playable playable)
-        {
-            m_curSourcePlayable = playable;
-        }
+        protected void SetSourcePlayable(Playable playable) => m_curSourcePlayable = playable;
 
         public virtual void Update(float elapsedSeconds)
         {
