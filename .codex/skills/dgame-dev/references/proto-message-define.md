@@ -296,7 +296,7 @@ GameServer/Tools/ProtocolExportTool/
             "Comment": "ProtoBuf生成到服务端的文件夹位置"
         },
         "NetworkProtocolClientDirectory": {
-            "Value": "../../../GameUnity/Assets/Scripts/Hotfix/GameProto/Generate/NetworkProtocol",
+            "Value": "../../../GameUnity/Assets/Scripts/HotFix/GameProto/Generate/NetworkProtocol",
             "Comment": "ProtoBuf生成到客户端的文件夹位置"
         }
     }
