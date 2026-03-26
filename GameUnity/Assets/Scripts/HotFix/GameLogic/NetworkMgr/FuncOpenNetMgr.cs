@@ -43,11 +43,6 @@ namespace GameLogic
 
         public async FTask RequestFuncOpenList()
         {
-            if (!GameClient.Instance.IsStatusEnter)
-            {
-                return;
-            }
-
             var response = await GameClient.Instance.Call(new C2G_QueryFuncOpenListRequest());
             if (response is not G2C_QueryFuncOpenListResponse funcOpenResponse)
             {

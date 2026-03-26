@@ -19,6 +19,7 @@
     - [GameProto](#gameproto)
   - [协议来源与生成边界](#协议来源与生成边界)
   - [推荐交互流程](#推荐交互流程)
+  - [推荐网络层脚本组织](#推荐网络层脚本组织)
   - [消息类型理解](#消息类型理解)
   - [常见改动落点](#常见改动落点)
   - [修改顺序建议](#修改顺序建议)
@@ -285,6 +286,79 @@ UI 页面、控制器和一般业务模块的职责是：
 - 不直接在业务层使用 `Scene.MessageDispatcherComponent.UnRegisterMsgHandler(...)`
 - 而是统一改走 `GameClient.Send<T>(...)`、`GameClient.Call<T>(...)`
 - 监听统一改走 `GameClient.RegisterMsgHandler(...)`、`GameClient.UnRegisterMsgHandler(...)`
+
+## 推荐网络层脚本组织
+
+客户端推荐按系统或功能在下面目录拆分网络管理脚本：
+
+- `GameUnity/Assets/Scripts/HotFix/GameLogic/NetworkMgr`
+
+推荐做法是：是一个业务域对应一个 `XxxNetMgr`，由它统一负责该域的：
+
+- 请求发送
+- 响应处理
+- 服务器推送注册与注销
+- 网络结果到数据中心、事件系统或 UI 的分发
+
+这样做的目标是：
+
+- 避免把多个系统的协议收发揉进同一个大而杂的管理类
+- 避免 UI 页面各自散落一份重复的请求与推送监听逻辑
+- 让协议排障时能先快速定位到对应业务域的 `XxxNetMgr`
+
+```csharp
+public class XxxNetMgr : DataCenterModule<XxxNetMgr>
+{
+    public override void OnInit()
+    {
+        GameClient.Instance.RegisterMsgHandler(OuterOpcode.G2C_XxxNotify, OnXxxNotify);
+    }
+
+    #region 服务器下发消息
+
+    private void OnXxxNotify(IMessage message)
+    {
+        if (message is not G2C_XxxNotify notify)
+        {
+            return;
+        }
+        // 处理服务器推送
+        // 例如：更新 派发 GameEvent 事件、刷新 UI、写入 XxxDataMgr
+    }
+
+    #endregion
+
+    #region XxxRequest
+
+    public async FTask XxxRequest(int param)
+    {
+        var response = await GameClient.Instance.Call(new C2G_XxxRequest
+        {
+            Param = param
+        });
+        OnXxxResponse(response);
+    }
+
+    private void OnXxxResponse(IMessage message)
+    {
+        if (message is not G2C_XxxResponse response)
+        {
+            return;
+        }
+        if (response.ErrorCode != 0)
+        {
+            GameModule.UIModule.ShowTipsUI(response.ErrorCode);
+            return;
+        }
+        // 处理响应数据
+        // 例如：写入 XxxDataMgr、派发 GameEvent、通知界面刷新
+    }
+
+    #endregion
+}
+```
+- 推送消息统一在 `OnInit()` 注册；如果后续某个域存在明确的反注册时机，再补充对应注销逻辑。
+- `XxxNetMgr` 只负责网络交互相关职责，不直接承接页面节点控制或大段纯表现逻辑。
 
 ## 消息类型理解
 
