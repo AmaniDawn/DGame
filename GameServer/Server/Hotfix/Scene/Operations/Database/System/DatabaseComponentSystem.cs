@@ -1,4 +1,4 @@
-﻿using Fantasy;
+using Fantasy;
 using Fantasy.Async;
 using Fantasy.Database;
 using Fantasy.Entitas;
@@ -44,7 +44,7 @@ public static class DatabaseComponentSystem
         foreach (var dbMigration in dbMigrations)
         {
             Log.Info($"[DatabaseComponent] 开始执行迁移v{dbMigration.Version}");
-            await dbMigration.Upgrade(worldDatabase);
+            await dbMigration.Upgrade(self.Scene, worldDatabase);
             // 每个迁移完成后立即执行持久化
             // 若在此之前服务器异常退出了 下次重启会重跑迁移而不是跳过 保证不漏执行
             dbVersion.Version = dbMigration.Version;

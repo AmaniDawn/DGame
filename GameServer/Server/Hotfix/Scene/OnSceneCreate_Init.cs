@@ -1,4 +1,4 @@
-﻿using Fantasy;
+using Fantasy;
 using Fantasy.Async;
 using Fantasy.Event;
 // ReSharper disable InconsistentNaming
@@ -13,7 +13,11 @@ public sealed class OnSceneCreate_Init : AsyncEventSystem<OnCreateScene>
         switch (scene.SceneType)
         {
             case SceneType.Operations:
-                // 数据库版本管理组件
+                // Operations 场景是 AuthWorld 的单例入口 用于驱动账号库迁移
+                await scene.AddComponent<DatabaseComponent>().MigrateAsync();
+                break;
+            case SceneType.Address:
+                // Address 场景是 GameWorld 的单例入口 用于驱动玩家库迁移
                 await scene.AddComponent<DatabaseComponent>().MigrateAsync();
                 break;
             case SceneType.Authentication:

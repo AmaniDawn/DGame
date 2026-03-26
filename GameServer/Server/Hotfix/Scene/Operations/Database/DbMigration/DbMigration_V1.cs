@@ -1,4 +1,4 @@
-﻿using Fantasy;
+using Fantasy;
 using Fantasy.Async;
 using Fantasy.Database;
 using MongoDB.Driver;
@@ -17,25 +17,34 @@ public sealed class DbMigration_V1 : IDbMigration
     /// <summary>
     /// 执行迁移逻辑
     /// </summary>
+    /// <param name="scene"></param>
     /// <param name="database"></param>
     /// <returns></returns>
     /// <exception cref="NotImplementedException"></exception>
-    public async FTask Upgrade(IDatabase database)
+    public async FTask Upgrade(Scene scene, IDatabase database)
     {
-        // Account.Username 升序唯一索引
-        // 用途：注册和登录均通过 Username 字段查询 唯一约束防止重名注册 提升查询效率
-        await database.CreateIndex<Account>
-        (
-            [Builders<Account>.IndexKeys.Ascending(d=>d.Username)],
-            [new CreateIndexOptions(){ Unique = true, Name = "idx_account_name"}]
-        );
-        
-        // PlayerData.RoleName 升序唯一索引
-        // 用途：注册和登录均通过 RoleName 字段查询 唯一约束防止重名注册 提升查询效率
-        await database.CreateIndex<PlayerData>
-        (
-            [Builders<PlayerData>.IndexKeys.Ascending(d=>d.RoleName)],
-            [new CreateIndexOptions(){ Unique = true, Name = "idx_player_data_role_name"}]
-        );
+        switch (scene.SceneType)
+        {
+            case SceneType.Operations:
+                // Operations 场景绑定 AuthWorld，只迁移账号库。
+                // Account.Username 升序唯一索引
+                // 用途：注册和登录均通过 Username 字段查询 唯一约束防止重名注册 提升查询效率
+                await database.CreateIndex<Account>
+                (
+                    [Builders<Account>.IndexKeys.Ascending(d => d.Username)],
+                    [new CreateIndexOptions { Unique = true, Name = "idx_account_name" }]
+                );
+                break;
+            case SceneType.Address:
+                // Address 场景绑定 GameWorld，只迁移玩家库。
+                // PlayerData.RoleName 升序唯一索引
+                // 用途：创角和登录均通过 RoleName 字段查询 唯一约束防止重名注册 提升查询效率
+                await database.CreateIndex<PlayerData>
+                (
+                    [Builders<PlayerData>.IndexKeys.Ascending(d => d.RoleName)],
+                    [new CreateIndexOptions { Unique = true, Name = "idx_player_data_role_name" }]
+                );
+                break;
+        }
     }
 }
