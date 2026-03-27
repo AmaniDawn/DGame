@@ -9,7 +9,7 @@ namespace GameBattle
     {
         protected override void Destroy(LogicUnit self)
         {
-            self.RenderUnit = null;
+            self.Destroy();
         }
     }
     

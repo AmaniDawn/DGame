@@ -1,4 +1,5 @@
 ﻿using Fantasy.Entitas.Interface;
+using GameBattle;
 
 namespace GameLogic
 {
@@ -9,10 +10,7 @@ namespace GameLogic
     {
         protected override void Destroy(RenderUnit self)
         {
-            if (self.IsDestroyed)
-            {
-                return;
-            }
+            self.Destroy();
         }
     }
     
