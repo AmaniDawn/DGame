@@ -5,31 +5,55 @@ using Fantasy.Entitas;
 namespace GameBattle
 {
     /// <summary>
-    /// 逻辑层对象
+    /// 逻辑层单位基类。
     /// </summary>
     public abstract class LogicUnit : Entity
     {
+        /// <summary>
+        /// 单位名称。
+        /// </summary>
         public string UnitName { get; protected set; } = string.Empty;
-        
+
         internal FixedPoint64 m_waitDestroyTime = FixedPoint64.Zero;
-        
+
+        /// <summary>
+        /// 单位唯一标识。
+        /// </summary>
         public ulong UnitID { get; internal set; }
-        
+
+        /// <summary>
+        /// 单位类型。
+        /// </summary>
         public UnitType UnitType { get; set; }
 
-        public UnitState State { get; private set; }
-        
-        public abstract uint ConfigID { get; }
-        
         /// <summary>
-        /// 渲染层对象
+        /// 当前单位状态。
+        /// </summary>
+        public UnitState State { get; private set; }
+
+        /// <summary>
+        /// 单位配置 ID。
+        /// </summary>
+        public abstract uint ConfigID { get; }
+
+        /// <summary>
+        /// 绑定的渲染层单位。
         /// </summary>
         public IRenderUnit RenderUnit { get; set; }
 
+        /// <summary>
+        /// 单位使用的定点变换组件。
+        /// </summary>
         public FPTransform transform { get; set; }
-        
+
+        /// <summary>
+        /// 单位当前位置。
+        /// </summary>
         public FixedPointVector3 position { get => transform.position; set => transform.position = value; }
 
+        /// <summary>
+        /// 单位面朝方向。
+        /// </summary>
         public FixedPointVector3 Forward
         {
             get => transform.forward;
@@ -41,17 +65,24 @@ namespace GameBattle
                 {
                     return;
                 }
+
                 transform.rotation = FixedPointQuaternion.LookRotation(dir.normalized);
             }
         }
 
         /// <summary>
-        /// 移动方向
+        /// 当前移动方向。
         /// </summary>
-        public FixedPointVector3 MoveForward { get; internal set; } = FixedPointVector3.zero;
-        
+        public FixedPointVector3 MoveForward { get; internal set; } = FixedPointVector3.forward;
+
+        /// <summary>
+        /// 逻辑位移偏移量。
+        /// </summary>
         public FixedPointVector3 TranslatePos { get; internal set; }
-        
+
+        /// <summary>
+        /// 单位是否已销毁。
+        /// </summary>
         public bool IsDestroyed { get; set; }
 
         internal void SetUnitState(UnitState state)
@@ -60,6 +91,7 @@ namespace GameBattle
             {
                 return;
             }
+
             var curState = State;
             State = state;
             OnUnitStateChange(curState, state);
@@ -67,17 +99,24 @@ namespace GameBattle
 
         private void OnUnitStateChange(UnitState oldState, UnitState newState)
         {
-            
         }
 
-        public void SetScale(FixedPointVector3 scale) => transform.localScale = scale;
-        
-        public void SetScale(FixedPoint64 scale) => transform.localScale = new FixedPointVector3(scale, scale, scale);
-        
         /// <summary>
-        /// 瞬时朝向
+        /// 设置单位本地缩放。
         /// </summary>
-        /// <param name="targetPos">目标位置</param>
+        /// <param name="scale">目标缩放值。</param>
+        public void SetScale(FixedPointVector3 scale) => transform.localScale = scale;
+
+        /// <summary>
+        /// 以统一倍率设置单位本地缩放。
+        /// </summary>
+        /// <param name="scale">统一缩放倍率。</param>
+        public void SetScale(FixedPoint64 scale) => transform.localScale = new FixedPointVector3(scale, scale, scale);
+
+        /// <summary>
+        /// 立即朝向目标位置。
+        /// </summary>
+        /// <param name="targetPos">目标位置。</param>
         public void LookAt(FixedPointVector3 targetPos)
         {
             var dir = targetPos - transform.position;
@@ -91,10 +130,10 @@ namespace GameBattle
         }
 
         /// <summary>
-        /// 平滑转向
+        /// 以固定角速度平滑转向目标位置。
         /// </summary>
-        /// <param name="targetPos">目标位置</param>
-        /// <param name="maxDegreesPerTick">一帧最多旋转多少度</param>
+        /// <param name="targetPos">目标位置。</param>
+        /// <param name="maxDegreesPerTick">每个逻辑帧允许旋转的最大角度。</param>
         public void TurnTowards(FixedPointVector3 targetPos, FixedPoint64 maxDegreesPerTick)
         {
             var dir = targetPos - transform.position;
@@ -112,12 +151,17 @@ namespace GameBattle
                 maxDegreesPerTick
             );
         }
-        
+
+        /// <summary>
+        /// 判断两个逻辑单位是否表示同一个运行时实例。
+        /// </summary>
+        /// <param name="other">待比较的逻辑单位。</param>
+        /// <returns>是同一个有效运行时实例时返回 <see langword="true"/>。</returns>
         public bool IsSameUnit(LogicUnit other)
             => other != null && RuntimeId != 0 && other.RuntimeId != 0 && RuntimeId == other.RuntimeId;
-        
+
         protected virtual void OnDestroy() { }
-        
+
         internal void Destroy()
         {
             if (IsDisposed)

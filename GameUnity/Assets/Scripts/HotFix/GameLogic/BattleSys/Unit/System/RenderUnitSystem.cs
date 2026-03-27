@@ -1,10 +1,9 @@
-﻿using Fantasy.Entitas.Interface;
-using GameBattle;
+using Fantasy.Entitas.Interface;
 
 namespace GameLogic
 {
     /// <summary>
-    /// 渲染层对象销毁触发事件
+    /// 渲染层单位销毁触发系统。
     /// </summary>
     public sealed class RenderUnitDestroySystem : DestroySystem<RenderUnit>
     {
@@ -13,9 +12,11 @@ namespace GameLogic
             self.Destroy();
         }
     }
-    
-    public sealed class RenderUnitSystem
+
+    /// <summary>
+    /// 渲染层单位扩展系统入口。
+    /// </summary>
+    public static class RenderUnitSystem
     {
-        
     }
 }

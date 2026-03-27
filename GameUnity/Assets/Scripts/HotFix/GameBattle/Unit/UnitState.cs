@@ -1,39 +1,42 @@
-﻿namespace GameBattle
+namespace GameBattle
 {
+    /// <summary>
+    /// 单位的通用逻辑状态。
+    /// </summary>
     public enum UnitState
     {
         /// <summary>
-        /// 无状态
+        /// 无状态。
         /// </summary>
         None,
-        
+
         /// <summary>
-        /// 待机
+        /// 待机。
         /// </summary>
         Idle,
-        
+
         /// <summary>
-        /// 移动
+        /// 移动。
         /// </summary>
         Move,
-        
+
         /// <summary>
-        /// 释放技能
+        /// 释放技能。
         /// </summary>
         Skill,
-        
+
         /// <summary>
-        /// 死亡
+        /// 死亡。
         /// </summary>
         Die,
-        
+
         /// <summary>
-        /// 击晕
+        /// 击晕。
         /// </summary>
         Stun,
-        
+
         /// <summary>
-        /// 出现
+        /// 出现。
         /// </summary>
         Appear,
     }
