@@ -134,6 +134,8 @@ MonoBehaviour:
   - {fileID: 1711770994341541060}
   genCodePath: Assets/Scripts/HotFix/GameLogic/UI/Gen
   className: HomePage
+  widgetTypeName: 
+  dataTypeName: 
   impCodePath: Assets/Scripts/HotFix/GameLogic/UI/Main
   isGenImpClass: 1
   uiType: UIWidget
@@ -247,7 +249,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 08f779ead4d1a4648b175a7cb7bb0a8c, type: 3}
     m_FontSize: 30
     m_FontStyle: 0
     m_BestFit: 0

@@ -67,7 +67,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 08f779ead4d1a4648b175a7cb7bb0a8c, type: 3}
     m_FontSize: 36
     m_FontStyle: 0
     m_BestFit: 1
@@ -264,6 +264,8 @@ MonoBehaviour:
   - {fileID: 4840998720500939199}
   genCodePath: Assets/Scripts/HotFix/GameLogic/UI/Gen
   className: SelectServerUI
+  widgetTypeName: 
+  dataTypeName: 
   impCodePath: Assets/Scripts/HotFix/GameLogic/UI/Login
   isGenImpClass: 0
   uiType: UIWindow
@@ -890,7 +892,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 08f779ead4d1a4648b175a7cb7bb0a8c, type: 3}
     m_FontSize: 24
     m_FontStyle: 0
     m_BestFit: 1
@@ -1403,7 +1405,7 @@ MonoBehaviour:
     m_PersistentCalls:
       m_Calls: []
   m_FontData:
-    m_Font: {fileID: 10102, guid: 0000000000000000e000000000000000, type: 0}
+    m_Font: {fileID: 12800000, guid: 08f779ead4d1a4648b175a7cb7bb0a8c, type: 3}
     m_FontSize: 50
     m_FontStyle: 0
     m_BestFit: 0
@@ -1597,6 +1599,8 @@ MonoBehaviour:
   - {fileID: 7749615939539577208}
   genCodePath: Assets/Scripts/HotFix/GameLogic/UI/Gen
   className: StateTipsItem
+  widgetTypeName: 
+  dataTypeName: 
   impCodePath: Assets/Scripts/HotFix/GameLogic/UI/Login
   isGenImpClass: 1
   uiType: UIWidget

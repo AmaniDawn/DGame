@@ -7,26 +7,33 @@
 //----------------------------------------------------------
 using UnityEngine;
 using UnityEngine.UI;
+using GameProto;
+using GameBattle;
 using DGame;
 
 namespace GameLogic
 {
-	public partial class MainPage : UIWidget
+	public partial class MainPage : BaseChildPage
 	{
 		#region 脚本工具生成的代码
 
 		private UIBindComponent m_bindComponent;
 		private RectTransform m_rectContainer;
+		private Button m_btnStart;
 
 		protected override void ScriptGenerator()
 		{
 			m_bindComponent = gameObject.GetComponent<UIBindComponent>();
 			m_rectContainer = m_bindComponent.GetComponent<RectTransform>(0);
+			m_btnStart = m_bindComponent.GetComponent<Button>(1);
+			m_btnStart.onClick.AddListener(OnClickStartBtn);
 		}
 
 		#endregion
 
 		#region 事件
+
+		private partial void OnClickStartBtn();
 
 		#endregion
 	}

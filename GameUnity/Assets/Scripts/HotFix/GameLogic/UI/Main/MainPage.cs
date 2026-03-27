@@ -8,6 +8,11 @@ namespace GameLogic
 	{
 		#region 事件
 
+		private partial void OnClickStartBtn()
+		{
+			
+		}
+
 		#endregion
 	}
 }
