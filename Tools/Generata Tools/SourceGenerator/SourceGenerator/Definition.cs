@@ -7,7 +7,7 @@ public class Definition
     /// <summary>
     /// 指定检测的命名空间
     /// </summary>
-    public static readonly List<string> TargetNameSpaces = ["GameLogic", "GameBattle"]; //"DGame", "GameProto", "GameBattle"
+    public static readonly List<string> TargetNameSpaces = ["GameLogic"]; //"DGame", "GameProto", "GameBattle"
     public static readonly string[] UsingNameSpace = ["UnityEngine", "UnityEngine.UI", "DGame"];//"UnityEngine", "UnityEngine.UI", "DGame"
     public const string DefaultAssemblyName = "GameLogic";
     public const string DefaultFrameworkNameSpace = "DGame";
