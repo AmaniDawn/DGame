@@ -12,6 +12,10 @@ namespace GameBattle
         /// 帧同步管理组件
         /// </summary>
         public FrameSyncComponent FrameSync { get; private set; }
+        
+        public LogicUnitFactoryComponent LogicUnitFactoryComponent { get; private set; }
+        
+        internal IRenderUnitFactory RenderUnitFactory { get; set; }
 
         /// <summary>
         /// 创建战斗实体并挂载到指定子场景
@@ -22,12 +26,15 @@ namespace GameBattle
         {
             var battle = subScene.AddComponent<BattleEntity>();
             battle.FrameSync = battle.AddComponent<FrameSyncComponent>();
+            battle.LogicUnitFactoryComponent = battle.AddComponent<LogicUnitFactoryComponent>();
             return battle;
         }
 
         public void Destroy()
         {
             FrameSync = null;
+            RenderUnitFactory = null;
+            LogicUnitFactoryComponent = null;
         }
     }
 }

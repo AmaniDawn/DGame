@@ -18,7 +18,9 @@ namespace GameLogic
         {
             scene ??= GameClient.Instance.Scene;
             var battleScene = Entity.Create<SubScene>(scene);
-            return GameBattle.BattleManager.CreateBattle(battleScene);
+            var battleEntity = GameBattle.BattleManager.CreateBattle(battleScene);
+            battleEntity.SetRenderUnitFactory(battleEntity.AddComponent<RenderUnitFactoryComponent>());
+            return battleEntity;
         }
 
         /// <summary>

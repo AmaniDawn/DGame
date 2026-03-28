@@ -9,7 +9,7 @@ namespace GameLogic
     /// <summary>
     /// 渲染层单位基类。
     /// </summary>
-    public class RenderUnit : Entity, IRenderUnit
+    public abstract class RenderUnit : Entity, IRenderUnit
     {
         /// <summary>
         /// 单位名称。

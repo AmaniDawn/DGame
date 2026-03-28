@@ -7,8 +7,10 @@ namespace GameBattle
     /// <summary>
     /// 逻辑层单位基类。
     /// </summary>
-    public class LogicUnit : Entity
+    public abstract class LogicUnit : Entity
     {
+        public BattleEntity BattleContext { get; private set; }
+        
         /// <summary>
         /// 单位名称。
         /// </summary>
@@ -71,11 +73,20 @@ namespace GameBattle
         /// </summary>
         public bool IsDestroyed { get; internal set; }
 
-        internal static LogicUnit Create()
+        #region 初始化
+
+        public void Init(BattleEntity battleEntity)
         {
-            var logicUnit = Entity.Create<LogicUnit>(BattleManager.CurScene, true, true);
-            return logicUnit;
+            BattleContext = battleEntity;
+            CreateRenderUnit(this, battleEntity);
         }
+
+        public void CreateRenderUnit(LogicUnit logicUnit, BattleEntity battleEntity)
+        {
+            RenderUnit = battleEntity.CreateRenderUnit(logicUnit);
+        }
+
+        #endregion
 
         internal virtual void OnUnitStateChange(UnitState oldState, UnitState newState)
         {
@@ -103,11 +114,12 @@ namespace GameBattle
             MoveForward = FixedPointVector3.forward;
             TranslatePos = FixedPointVector3.zero;
             m_waitDestroyTime = FixedPoint64.Zero;
+            BattleContext = null;
         }
 
         protected virtual void DestroyRenderUnit()
         {
-            if (RenderUnit is Entity renderEntity && !renderEntity.IsDisposed)
+            if (RenderUnit is Entity { IsDisposed: false } renderEntity)
             {
                 renderEntity.Dispose();
                 RenderUnit = null;
