@@ -19,6 +19,18 @@ namespace GameBattle
     /// </summary>
     public static class LogicUnitSystem
     {
+        public static void SetUnitState(this LogicUnit self, UnitState state)
+        {
+            if (self.UnitState == state)
+            {
+                return;
+            }
+
+            var curState = self.UnitState;
+            self.UnitState = state;
+            self.OnUnitStateChange(curState, state);
+        }
+        
         /// <summary>
         /// 设置单位本地缩放。
         /// </summary>
@@ -34,6 +46,22 @@ namespace GameBattle
         /// <param name="scale">统一缩放倍率。</param>
         public static void SetScale(this LogicUnit self, FixedPoint64 scale) 
             => self.transform.localScale = new FixedPointVector3(scale, scale, scale);
+        
+        /// <summary>
+        /// 设置面朝方向。
+        /// </summary>
+        /// <param name="self"></param>
+        /// <param name="value">目标位置</param>
+        public static void SetForward(this LogicUnit self, FixedPointVector3 value)
+        {
+            var dir = value;
+            dir.y = 0;
+            if (dir.IsNearlyZero())
+            {
+                return;
+            }
+            self.transform.rotation = FixedPointQuaternion.LookRotation(dir.normalized);
+        }
         
         /// <summary>
         /// 立即朝向目标位置。

@@ -12,7 +12,7 @@ namespace GameBattle
         /// <summary>
         /// 单位名称。
         /// </summary>
-        public string UnitName { get; protected set; } = string.Empty;
+        public string UnitName { get; internal set; } = string.Empty;
 
         internal FixedPoint64 m_waitDestroyTime = FixedPoint64.Zero;
 
@@ -24,12 +24,12 @@ namespace GameBattle
         /// <summary>
         /// 单位类型。
         /// </summary>
-        public UnitType UnitType { get; set; }
+        public UnitType UnitType { get; internal set; }
 
         /// <summary>
         /// 当前单位状态。
         /// </summary>
-        public UnitState UnitState { get; private set; }
+        public UnitState UnitState { get; internal set; }
 
         /// <summary>
         /// 单位配置 ID。
@@ -39,36 +39,22 @@ namespace GameBattle
         /// <summary>
         /// 绑定的渲染层单位。
         /// </summary>
-        public IRenderUnit RenderUnit { get; set; }
+        public IRenderUnit RenderUnit { get; internal set; }
 
         /// <summary>
         /// 单位使用的定点变换组件。
         /// </summary>
-        public FPTransform transform { get; set; }
+        public FPTransform transform { get; internal set; }
 
         /// <summary>
         /// 单位当前位置。
         /// </summary>
-        public FixedPointVector3 position { get => transform.position; set => transform.position = value; }
+        public FixedPointVector3 position { get => transform.position; internal set => transform.position = value; }
 
         /// <summary>
         /// 单位面朝方向。
         /// </summary>
-        public FixedPointVector3 Forward
-        {
-            get => transform.forward;
-            set
-            {
-                var dir = value;
-                dir.y = 0;
-                if (dir.IsNearlyZero())
-                {
-                    return;
-                }
-
-                transform.rotation = FixedPointQuaternion.LookRotation(dir.normalized);
-            }
-        }
+        public FixedPointVector3 Forward => transform.forward;
 
         /// <summary>
         /// 当前移动方向。
@@ -83,7 +69,7 @@ namespace GameBattle
         /// <summary>
         /// 单位是否已销毁。
         /// </summary>
-        public bool IsDestroyed { get; set; }
+        public bool IsDestroyed { get; internal set; }
 
         internal static LogicUnit Create()
         {
@@ -91,19 +77,7 @@ namespace GameBattle
             return logicUnit;
         }
 
-        internal void SetUnitState(UnitState state)
-        {
-            if (UnitState == state)
-            {
-                return;
-            }
-
-            var curState = UnitState;
-            UnitState = state;
-            OnUnitStateChange(curState, state);
-        }
-
-        protected virtual void OnUnitStateChange(UnitState oldState, UnitState newState)
+        internal virtual void OnUnitStateChange(UnitState oldState, UnitState newState)
         {
         }
 

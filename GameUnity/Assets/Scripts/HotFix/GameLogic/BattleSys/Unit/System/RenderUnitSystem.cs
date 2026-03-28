@@ -33,20 +33,6 @@ namespace GameLogic
         }
         
         /// <summary>
-        /// 获取在编辑器中展示的游戏对象名称。
-        /// </summary>
-        /// <returns>编辑器下返回包含单位信息的名称，运行时返回通用名称。</returns>
-        public static string GetGameObjectName(this RenderUnit self)
-        {
-            if (DGame.Utility.PlatformUtil.IsEditorPlatform())
-            {
-                return $"[{self.UnitID}][{self.LogicUnit.UnitType}][{self.UnitName}]";
-            }
-
-            return "RenderUnit";
-        }
-        
-        /// <summary>
         /// 判断两个渲染单位是否表示同一个运行时实例。
         /// </summary>
         /// <param name="self">渲染单位。</param>

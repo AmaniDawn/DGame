@@ -96,7 +96,7 @@ namespace GameLogic
         {
             if (gameObject != null)
             {
-                gameObject.name = this.GetGameObjectName();
+                gameObject.name = GetGameObjectName();
             }
 
             return true;
@@ -160,5 +160,19 @@ namespace GameLogic
         /// </summary>
         /// <param name="eventId">事件标识。</param>
         public virtual void OnUnitEvent(int eventId) { }
+        
+        /// <summary>
+        /// 获取在编辑器中展示的游戏对象名称。
+        /// </summary>
+        /// <returns>编辑器下返回包含单位信息的名称，运行时返回通用名称。</returns>
+        public string GetGameObjectName()
+        {
+            if (DGame.Utility.PlatformUtil.IsEditorPlatform())
+            {
+                return $"[{UnitID}][{LogicUnit.UnitType}][{UnitName}]";
+            }
+
+            return "RenderUnit";
+        }
     }
 }
