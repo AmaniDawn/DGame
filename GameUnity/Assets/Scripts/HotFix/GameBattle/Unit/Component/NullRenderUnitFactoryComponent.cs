@@ -7,7 +7,7 @@ namespace GameBattle
     /// 空渲染单位工厂组件，用于不需要渲染的场景（如服务器端或纯逻辑模式）。
     /// 实现空对象模式，返回 <see cref="NullRenderUnit"/> 单例而非 null。
     /// </summary>
-    public class NullRenderUnitFactoryComponent : Entity, IRenderUnitFactory
+    public sealed class NullRenderUnitFactoryComponent : Entity, IRenderUnitFactory
     {
         /// <summary>
         /// 创建空渲染单位实例。

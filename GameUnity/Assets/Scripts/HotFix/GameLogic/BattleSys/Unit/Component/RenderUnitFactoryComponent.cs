@@ -9,7 +9,7 @@ namespace GameLogic
     /// 渲染单位工厂组件，负责管理和创建渲染层单位。
     /// 实现渲染层与逻辑层的解耦，通过 <see cref="IRenderUnitFactory"/> 接口提供服务。
     /// </summary>
-    public class RenderUnitFactoryComponent : Entity, IRenderUnitFactory
+    public sealed class RenderUnitFactoryComponent : Entity, IRenderUnitFactory
     {
         /// <summary>
         /// 获取渲染单位创建器字典，键为逻辑单位类型，值为创建委托。

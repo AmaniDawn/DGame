@@ -8,7 +8,7 @@ namespace GameBattle
     /// 逻辑单位工厂组件，负责管理和创建逻辑层单位。
     /// <remarks>使用注册表模式，支持外部注册新的单位类型。</remarks>
     /// </summary>
-    public class LogicUnitFactoryComponent : Entity
+    public sealed class LogicUnitFactoryComponent : Entity
     {
         /// <summary>
         /// 获取逻辑单位创建器字典。

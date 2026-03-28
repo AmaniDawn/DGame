@@ -20,7 +20,7 @@ namespace GameLogic
             scene ??= GameClient.Instance.Scene;
             var battleScene = Entity.Create<SubScene>(scene);
             var battleContext = GameBattle.BattleManager.CreateBattle(battleScene);
-            battleContext.SetRenderUnitFactory(battleContext.AddComponent<RenderUnitFactoryComponent>());
+            BattleSystem.Instance.Init(battleContext);
             return battleContext;
         }
 
@@ -39,6 +39,10 @@ namespace GameLogic
         /// <summary>
         /// 销毁当前战斗实例，释放所有相关资源。
         /// </summary>
-        public static void DestroyBattle() => GameBattle.BattleManager.DestroyBattle();
+        public static void DestroyBattle()
+        {
+            GameBattle.BattleManager.DestroyBattle();
+            BattleSystem.Instance.Clear();
+        }
     }
 }

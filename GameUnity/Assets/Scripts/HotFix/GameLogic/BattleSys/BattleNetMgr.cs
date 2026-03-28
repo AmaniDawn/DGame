@@ -3,7 +3,7 @@
     /// <summary>
     /// Battle 网络层相关
     /// </summary>
-    public class BattleNetMgr : Singleton<BattleNetMgr>
+    public sealed class BattleNetMgr : Singleton<BattleNetMgr>
     {
         protected override void OnInit()
         {
