@@ -28,6 +28,8 @@ namespace GameBattle
         /// </summary>
         public static readonly NullRenderUnit Instance = new NullRenderUnit();
 
+        private NullRenderUnit() { }
+
         /// <summary>
         /// 接收逻辑层事件通知，空实现不做任何处理。
         /// </summary>

@@ -122,8 +122,8 @@ namespace GameBattle
             if (RenderUnit is Entity { IsDisposed: false } renderEntity)
             {
                 renderEntity.Dispose();
-                RenderUnit = null;
             }
+            RenderUnit = null;
         }
     }
 }
