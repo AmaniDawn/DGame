@@ -9,7 +9,7 @@ namespace GameBattle
     /// </summary>
     public abstract class LogicUnit : Entity
     {
-        public BattleEntity BattleContext { get; private set; }
+        public BattleContextComponent BattleContext { get; private set; }
         
         /// <summary>
         /// 单位名称。
@@ -75,15 +75,15 @@ namespace GameBattle
 
         #region 初始化
 
-        public void Init(BattleEntity battleEntity)
+        public void Init(BattleContextComponent battleContextComponent)
         {
-            BattleContext = battleEntity;
-            CreateRenderUnit(this, battleEntity);
+            BattleContext = battleContextComponent;
+            CreateRenderUnit(this, battleContextComponent);
         }
 
-        public void CreateRenderUnit(LogicUnit logicUnit, BattleEntity battleEntity)
+        public void CreateRenderUnit(LogicUnit logicUnit, BattleContextComponent battleContextComponent)
         {
-            RenderUnit = battleEntity.CreateRenderUnit(logicUnit);
+            RenderUnit = battleContextComponent.CreateRenderUnit(logicUnit);
         }
 
         #endregion
