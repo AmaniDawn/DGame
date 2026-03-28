@@ -9,7 +9,7 @@ namespace GameLogic
     /// <summary>
     /// 渲染层单位基类。
     /// </summary>
-    public abstract class RenderUnit : Entity, IRenderUnit
+    public class RenderUnit : Entity, IRenderUnit
     {
         /// <summary>
         /// 单位名称。
@@ -96,7 +96,7 @@ namespace GameLogic
         {
             if (gameObject != null)
             {
-                gameObject.name = GetGameObjectName();
+                gameObject.name = this.GetGameObjectName();
             }
 
             return true;
@@ -144,38 +144,10 @@ namespace GameLogic
         }
 
         /// <summary>
-        /// 获取当前绑定逻辑单位的标识。
-        /// </summary>
-        /// <returns>逻辑单位存在时返回其标识，否则返回 0。</returns>
-        public ulong GetPlayerID()
-        {
-            if (LogicUnit != null)
-            {
-                return LogicUnit.UnitID;
-            }
-
-            return 0;
-        }
-
-        /// <summary>
         /// 指示当前渲染单位是否需要绑定逻辑层单位。
         /// </summary>
         /// <returns>默认返回 <see langword="true"/>。</returns>
         public virtual bool NeedBindLogicUnit() => true;
-
-        /// <summary>
-        /// 获取在编辑器中展示的游戏对象名称。
-        /// </summary>
-        /// <returns>编辑器下返回包含单位信息的名称，运行时返回通用名称。</returns>
-        public string GetGameObjectName()
-        {
-            if (DGame.Utility.PlatformUtil.IsEditorPlatform())
-            {
-                return $"[{UnitID}][{LogicUnit.UnitType}][{UnitName}]";
-            }
-
-            return "RenderUnit";
-        }
 
         /// <summary>
         /// 指示当前单位是否属于 Boss。
@@ -187,14 +159,6 @@ namespace GameLogic
         /// 处理来自逻辑层的单位事件。
         /// </summary>
         /// <param name="eventId">事件标识。</param>
-        public void OnUnitEvent(int eventId) { }
-
-        /// <summary>
-        /// 判断两个渲染单位是否表示同一个运行时实例。
-        /// </summary>
-        /// <param name="other">待比较的渲染单位。</param>
-        /// <returns>是同一个有效运行时实例时返回 <see langword="true"/>。</returns>
-        public bool IsSameUnit(RenderUnit other)
-            => other != null && RuntimeId != 0 && other.RuntimeId != 0 && RuntimeId == other.RuntimeId;
+        public virtual void OnUnitEvent(int eventId) { }
     }
 }

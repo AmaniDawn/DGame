@@ -1,3 +1,4 @@
+using DGame;
 using Fantasy.Entitas.Interface;
 
 namespace GameBattle
@@ -18,5 +19,70 @@ namespace GameBattle
     /// </summary>
     public static class LogicUnitSystem
     {
+        /// <summary>
+        /// 设置单位本地缩放。
+        /// </summary>
+        /// <param name="self"></param>
+        /// <param name="scale">目标缩放值。</param>
+        public static void SetScale(this LogicUnit self, FixedPointVector3 scale) 
+            => self.transform.localScale = scale;
+
+        /// <summary>
+        /// 以统一倍率设置单位本地缩放。
+        /// </summary>
+        /// <param name="self"></param>
+        /// <param name="scale">统一缩放倍率。</param>
+        public static void SetScale(this LogicUnit self, FixedPoint64 scale) 
+            => self.transform.localScale = new FixedPointVector3(scale, scale, scale);
+        
+        /// <summary>
+        /// 立即朝向目标位置。
+        /// </summary>
+        /// <param name="self"></param>
+        /// <param name="targetPos">目标位置。</param>
+        public static void LookAt(this LogicUnit self, FixedPointVector3 targetPos)
+        {
+            var dir = targetPos - self.transform.position;
+            dir.y = 0;
+            if (dir.IsNearlyZero())
+            {
+                return;
+            }
+
+            self.transform.rotation = FixedPointQuaternion.LookRotation(dir.normalized);
+        }
+
+        /// <summary>
+        /// 以固定角速度平滑转向目标位置。
+        /// </summary>
+        /// <param name="self"></param>
+        /// <param name="targetPos">目标位置。</param>
+        /// <param name="maxDegreesPerTick">每个逻辑帧允许旋转的最大角度。</param>
+        public static void TurnTowards(this LogicUnit self, FixedPointVector3 targetPos, FixedPoint64 maxDegreesPerTick)
+        {
+            var dir = targetPos - self.transform.position;
+            dir.y = 0;
+            if (dir.IsNearlyZero())
+            {
+                return;
+            }
+
+            var targetRotation = FixedPointQuaternion.LookRotation(dir.normalized);
+            self.transform.rotation = FixedPointQuaternion.RotateTowards
+            (
+                self.transform.rotation,
+                targetRotation,
+                maxDegreesPerTick
+            );
+        }
+        
+        /// <summary>
+        /// 判断两个逻辑单位是否表示同一个运行时实例。
+        /// </summary>
+        /// <param name="self"></param>
+        /// <param name="other">待比较的逻辑单位。</param>
+        /// <returns>是同一个有效运行时实例时返回 <see langword="true"/>。</returns>
+        public static bool IsSameUnit(this LogicUnit self, LogicUnit other)
+            => other != null && self.RuntimeId != 0 && other.RuntimeId != 0 && self.RuntimeId == other.RuntimeId;
     }
 }
