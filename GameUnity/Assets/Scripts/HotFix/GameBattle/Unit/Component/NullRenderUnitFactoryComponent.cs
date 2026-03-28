@@ -21,12 +21,12 @@ namespace GameBattle
     /// 空渲染单位，用于不需要渲染的场景（如服务器端）。
     /// 实现空对象模式，提供 <see cref="IRenderUnit"/> 的空实现，避免调用方判空。
     /// </summary>
-    public sealed class NullRenderUnit : Entity, IRenderUnit
+    public sealed class NullRenderUnit : IRenderUnit
     {
         /// <summary>
         /// 获取空渲染单位单例实例。
         /// </summary>
-        public static readonly NullRenderUnit Instance = Entity.Create<NullRenderUnit>(BattleManager.CurScene);
+        public static readonly NullRenderUnit Instance = new NullRenderUnit();
 
         /// <summary>
         /// 接收逻辑层事件通知，空实现不做任何处理。

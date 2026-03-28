@@ -6,7 +6,7 @@ namespace GameBattle
     /// 渲染层单位接口。
     /// <remarks>定义渲染层单位接收逻辑层事件通知的能力</remarks>
     /// </summary>
-    public interface IRenderUnit : IEntity
+    public interface IRenderUnit
     {
         /// <summary>
         /// 接收来自逻辑层单位的事件通知，进行相应的渲染处理。
