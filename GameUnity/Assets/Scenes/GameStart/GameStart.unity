@@ -232,16 +232,16 @@ Camera:
   m_Depth: -1
   m_CullingMask:
     serializedVersion: 2
-    m_Bits: 4294967295
+    m_Bits: 23
   m_RenderingPath: -1
   m_TargetTexture: {fileID: 0}
   m_TargetDisplay: 0
   m_TargetEye: 3
   m_HDR: 1
-  m_AllowMSAA: 1
+  m_AllowMSAA: 0
   m_AllowDynamicResolution: 0
   m_ForceIntoRT: 0
-  m_OcclusionCulling: 1
+  m_OcclusionCulling: 0
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
 --- !u!4 &963194228
@@ -301,10 +301,6 @@ PrefabInstance:
       value: 
       objectReference: {fileID: 1145363996}
     - target: {fileID: 3662584845349564628, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
-      propertyPath: m_RootOrder
-      value: 2
-      objectReference: {fileID: 0}
-    - target: {fileID: 3662584845349564628, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
       objectReference: {fileID: 0}
@@ -361,14 +357,6 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 4103294288059457241, guid: 3375c1da4c80d8e40bca1675c3990457, type: 3}
-      propertyPath: reporterScrollerSkin
-      value: 
-      objectReference: {fileID: 11400000, guid: 80dba04821e0a554eafe33094f3e745e, type: 2}
-    - target: {fileID: 8427157544136828061, guid: 3375c1da4c80d8e40bca1675c3990457, type: 3}
-      propertyPath: m_RootOrder
-      value: 1
-      objectReference: {fileID: 0}
     - target: {fileID: 8427157544136828061, guid: 3375c1da4c80d8e40bca1675c3990457, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
