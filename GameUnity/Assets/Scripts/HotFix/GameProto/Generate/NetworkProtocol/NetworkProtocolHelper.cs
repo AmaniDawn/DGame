@@ -25,17 +25,28 @@ namespace Fantasy
 			session.Send(C2S_SyncFrameDataReq_message);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void S2C_BattleFinClientData(this Session session, S2C_BattleFinClientData S2C_BattleFinClientData_message)
+		public static void S2C_BattleFinClientDataReq(this Session session, S2C_BattleFinClientDataReq S2C_BattleFinClientDataReq_message)
 		{
-			session.Send(S2C_BattleFinClientData_message);
+			session.Send(S2C_BattleFinClientDataReq_message);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void S2C_BattleFinClientData(this Session session, CSBattleStartParam startParam, uint durationTime)
+		public static void S2C_BattleFinClientDataReq(this Session session, CSBattleStartParam startParam, uint durationTime)
 		{
-			using var S2C_BattleFinClientData_message = Fantasy.S2C_BattleFinClientData.Create();
-			S2C_BattleFinClientData_message.StartParam = startParam;
-			S2C_BattleFinClientData_message.DurationTime = durationTime;
-			session.Send(S2C_BattleFinClientData_message);
+			using var S2C_BattleFinClientDataReq_message = Fantasy.S2C_BattleFinClientDataReq.Create();
+			S2C_BattleFinClientDataReq_message.StartParam = startParam;
+			S2C_BattleFinClientDataReq_message.DurationTime = durationTime;
+			session.Send(S2C_BattleFinClientDataReq_message);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static async FTask<S2C_StartBattleResponse> C2S_StartBattleRequest(this Session session, C2S_StartBattleRequest C2S_StartBattleRequest_request)
+		{
+			return (S2C_StartBattleResponse)await session.Call(C2S_StartBattleRequest_request);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static async FTask<S2C_StartBattleResponse> C2S_StartBattleRequest(this Session session)
+		{
+			using var C2S_StartBattleRequest_request = Fantasy.C2S_StartBattleRequest.Create();
+			return (S2C_StartBattleResponse)await session.Call(C2S_StartBattleRequest_request);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void S2C_NotifyEnterBattle(this Session session, S2C_NotifyEnterBattle S2C_NotifyEnterBattle_message)

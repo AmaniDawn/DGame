@@ -162,19 +162,19 @@ namespace Fantasy
     /// </summary>
     [Serializable]
     [ProtoContract]
-    public partial class S2C_BattleFinClientData : AMessage, IMessage
+    public partial class S2C_BattleFinClientDataReq : AMessage, IMessage
     {
-        public static S2C_BattleFinClientData Create(bool autoReturn = true)
+        public static S2C_BattleFinClientDataReq Create(bool autoReturn = true)
         {
-            var s2C_BattleFinClientData = MessageObjectPool<S2C_BattleFinClientData>.Rent();
-            s2C_BattleFinClientData.AutoReturn = autoReturn;
+            var s2C_BattleFinClientDataReq = MessageObjectPool<S2C_BattleFinClientDataReq>.Rent();
+            s2C_BattleFinClientDataReq.AutoReturn = autoReturn;
             
             if (!autoReturn)
             {
-                s2C_BattleFinClientData.SetIsPool(false);
+                s2C_BattleFinClientDataReq.SetIsPool(false);
             }
             
-            return s2C_BattleFinClientData;
+            return s2C_BattleFinClientDataReq;
         }
         
         public void Return()
@@ -200,9 +200,9 @@ namespace Fantasy
                 StartParam = null;
             }
             DurationTime = default;
-            MessageObjectPool<S2C_BattleFinClientData>.Return(this);
+            MessageObjectPool<S2C_BattleFinClientDataReq>.Return(this);
         }
-        public uint OpCode() { return OuterOpcode.S2C_BattleFinClientData; } 
+        public uint OpCode() { return OuterOpcode.S2C_BattleFinClientDataReq; } 
         [ProtoMember(1)]
         public CSBattleStartParam StartParam { get; set; }
         [ProtoMember(2)]
@@ -277,6 +277,93 @@ namespace Fantasy
         public ulong CaptainPlayerId { get; set; }
         [ProtoMember(10)]
         public uint LastOnlyBattleTime { get; set; }
+    }
+    /// <summary>
+    /// 客户端开始战斗请求
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class C2S_StartBattleRequest : AMessage, IRequest
+    {
+        public static C2S_StartBattleRequest Create(bool autoReturn = true)
+        {
+            var c2S_StartBattleRequest = MessageObjectPool<C2S_StartBattleRequest>.Rent();
+            c2S_StartBattleRequest.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                c2S_StartBattleRequest.SetIsPool(false);
+            }
+            
+            return c2S_StartBattleRequest;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            MessageObjectPool<C2S_StartBattleRequest>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.C2S_StartBattleRequest; } 
+        [ProtoIgnore]
+        public S2C_StartBattleResponse ResponseType { get; set; }
+    }
+    /// <summary>
+    /// 客户端开始战斗请求返回
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class S2C_StartBattleResponse : AMessage, IResponse
+    {
+        public static S2C_StartBattleResponse Create(bool autoReturn = true)
+        {
+            var s2C_StartBattleResponse = MessageObjectPool<S2C_StartBattleResponse>.Rent();
+            s2C_StartBattleResponse.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                s2C_StartBattleResponse.SetIsPool(false);
+            }
+            
+            return s2C_StartBattleResponse;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            ErrorCode = 0;
+            MessageObjectPool<S2C_StartBattleResponse>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.S2C_StartBattleResponse; } 
+        [ProtoMember(1)]
+        public uint ErrorCode { get; set; }
     }
     /// <summary>
     /// 服务器通知进入战斗

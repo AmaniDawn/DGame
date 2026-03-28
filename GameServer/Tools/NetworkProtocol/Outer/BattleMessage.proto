@@ -22,56 +22,68 @@ enum FrameCmdType
 /// 客户端同步帧数据
 message C2S_SyncFrameDataReq // IMessage
 {
-	int ForecastFrameId = 1;					// 客户端预测帧ID
-	int RevClientFrameId = 2; 					// 接收到的客户端帧ID
-	CSRoomInfo RoomInfo = 3; 				    // 房间信息
-	int RoomPlayerId = 4;      				    // 房间玩家ID
-	CSOnePlayerFrameCmd FrameData = 5;			// 帧数据
+	int ForecastFrameId = 1; // 客户端预测帧ID
+	int RevClientFrameId = 2; // 接收到的客户端帧ID
+	CSRoomInfo RoomInfo = 3; // 房间信息
+	int RoomPlayerId = 4; // 房间玩家ID
+	CSOnePlayerFrameCmd FrameData = 5; // 帧数据
 }
 
 /// 客户端结束战斗 上报数据
-message S2C_BattleFinClientData // IMessage
+message S2C_BattleFinClientDataReq // IMessage
 {
-	CSBattleStartParam StartParam = 1; 		// 关卡的初始化数据，用于和服务器校验
-	uint DurationTime = 2;					// 持续时间
+	CSBattleStartParam StartParam = 1; // 关卡的初始化数据，用于和服务器校验
+	uint DurationTime = 2; // 持续时间
 }
 
 /// 开始一场战斗的参数
 message CSBattleStartParam
 {
-	int RandSeed = 1; 						// 随机种子
-	int Fps = 2; 							// 模拟帧率
-	int PlayerCount = 3; 					// 玩家个数
-	int BattleStatus = 4; 					// 战斗状态
-	byte IsGuide = 5;						// 是否有新手引导
-	uint StartTime = 6;						// 战斗开始时间
-	ulong BattleGID = 7; 					// 战斗GID
-	byte MultiPlayerBattle = 8;				// 是否多人开始战斗
-	ulong CaptainPlayerId = 9; 				// 队长ID
-	uint LastOnlyBattleTime = 10; 			// 剩余战斗时间
+	int RandSeed = 1; // 随机种子
+	int Fps = 2; // 模拟帧率
+	int PlayerCount = 3; // 玩家个数
+	int BattleStatus = 4; // 战斗状态
+	byte IsGuide = 5; // 是否有新手引导
+	uint StartTime = 6; // 战斗开始时间
+	ulong BattleGID = 7; // 战斗GID
+	byte MultiPlayerBattle = 8; // 是否多人开始战斗
+	ulong CaptainPlayerId = 9; // 队长ID
+	uint LastOnlyBattleTime = 10; // 剩余战斗时间
+}
+
+/// 客户端开始战斗请求
+message C2S_StartBattleRequest // IRequest,S2C_StartBattleResponse
+{
+  
+}
+
+/// 客户端开始战斗请求返回
+message S2C_StartBattleResponse // IResponse
+{
+  
 }
 
 /// 服务器通知进入战斗
 message S2C_NotifyEnterBattle // IMessage
 {
-	int RandSeed = 1; 						// 随机种子
-	int PlayerCount = 2; 					// 玩家个数
-	byte IsHaveRoomInfo = 3;				// 是否有房间信息
-	repeated CSRoomInfo RoomInfoList = 4; 	// 房间数据信息
-	int BattleStatus = 5; 					// 战斗状态
-	byte IsGuide = 6;						// 是否有新手引导
-	uint StartTime = 7;						// 战斗开始时间
-	ulong BattleGID = 8; 					// 战斗GID
-	byte MultiPlayerBattle = 9;				// 是否多人开始战斗
-	ulong CaptainPlayerId = 10; 			// 队长ID
+	int RandSeed = 1; // 随机种子
+	int PlayerCount = 2; // 玩家个数
+	byte IsHaveRoomInfo = 3; // 是否有房间信息
+	repeated CSRoomInfo RoomInfoList = 4; // 房间数据信息
+	int BattleStatus = 5; // 战斗状态
+	byte IsGuide = 6; // 是否有新手引导
+	uint StartTime = 7; // 战斗开始时间
+	ulong BattleGID = 8; // 战斗GID
+	byte MultiPlayerBattle = 9; // 是否多人开始战斗
+	ulong CaptainPlayerId = 10; // 队长ID
 }
 
 /// 服务器同步帧数据
 message S2C_BroadcastFrameData // IMessage
 {
-	CSRoomInfo RoomInfo = 1; 				      // 房间信息
-	int SveFrameId = 2;      				      // 服务器帧ID
-	int FrameCount = 3;							// 帧数量（最多十帧）
+	CSRoomInfo RoomInfo = 1; // 房间信息
+	int SveFrameId = 2; // 服务器帧ID
+	int FrameCount = 3; // 帧数量（最多十帧）
 	repeated CSSyncOneFrameData FrameDataList = 4; //帧数据列表
 }
 
@@ -85,25 +97,25 @@ message CSRoomInfo
 /// 单帧数据
 message CSSyncOneFrameData
 {
-	int FrameId = 1; 				      			// 帧ID
-	int SpeedUp = 2;      				     		// 加速倍率
-	int PlayerCount = 3;     				      	// 玩家数量
-	repeated CSOnePlayerFrameCmd PlayerFrameData = 4;  // 每个玩家的操作数据
+	int FrameId = 1; // 帧ID
+	int SpeedUp = 2; // 加速倍率
+	int PlayerCount = 3; // 玩家数量
+	repeated CSOnePlayerFrameCmd PlayerFrameData = 4; // 每个玩家的操作数据
 }
 
 /// 单玩家帧操作数据
 message CSOnePlayerFrameCmd
 {
-	int PlayerId = 1;					// 玩家ID
-	int FrameCmdCount = 2;      		 // 命令数量
+	int PlayerId = 1; // 玩家ID
+	int FrameCmdCount = 2; // 命令数量
 	repeated CSFrameCmd FrameDataList = 4; // 命令列表
 }
 
 /// 帧命令
 message CSFrameCmd
 {
-	byte Type = 1;		// 命令类型
-	CSFrameData Data = 2;  // 命令数据
+	byte Type = 1; // 命令类型
+	CSFrameData Data = 2; // 命令数据
 }
 
 /// 帧命令
