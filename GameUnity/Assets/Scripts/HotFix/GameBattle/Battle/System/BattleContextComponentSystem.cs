@@ -31,6 +31,15 @@ namespace GameBattle
         /// <returns>创建的渲染层单位。</returns>
         public static IRenderUnit CreateRenderUnit(this BattleContextComponent self, LogicUnit logicUnit)
             => self.GetRenderUnitFactory().Create(logicUnit);
+        
+        /// <summary>
+        /// 创建指定类型的逻辑单位。
+        /// </summary>
+        /// <param name="self">战斗上下文组件。</param>
+        /// <param name="unitType">单位类型枚举。</param>
+        /// <returns>创建的逻辑单位实例。</returns>
+        public static LogicUnit CreateLogicUnit(this BattleContextComponent self, UnitType unitType)
+            => self.LogicUnitFactoryComponent.Create(unitType);
 
         /// <summary>
         /// 设置渲染单位工厂。

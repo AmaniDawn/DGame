@@ -72,6 +72,16 @@ namespace GameBattle
             => self.LogicUnitCreators[unitType] = self.CreateInternal<TUnit>;
 
         /// <summary>
+        /// 注册新的单位类型到工厂。
+        /// </summary>
+        /// <typeparam name="TUnit">单位类型，必须继承自 <see cref="LogicUnit"/> 且有无参构造函数。</typeparam>
+        /// <param name="self">战斗上下文组件。</param>
+        /// <param name="unitType">单位类型枚举。</param>
+        public static void Register<TUnit>(this BattleContextComponent self, UnitType unitType)
+            where TUnit : LogicUnit, new()
+            => self.LogicUnitFactoryComponent.Register<TUnit>(unitType);
+
+        /// <summary>
         /// 创建指定类型的逻辑单位。
         /// </summary>
         /// <param name="self">逻辑单位工厂组件实例。</param>
