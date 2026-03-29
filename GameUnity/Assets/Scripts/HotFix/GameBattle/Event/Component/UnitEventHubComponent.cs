@@ -5,10 +5,10 @@ namespace GameBattle
     public sealed class UnitEventHubComponent : EventHubCoreComponent
     {
         public void Subscribe<T>(object owner, Action<T> handler) where T : struct, IUnitEvent 
-            => SubscribeCore(owner, handler);
+            => InternalSubscribe(owner, handler);
 
-        public void Unsubscribe<T>(Action<T> handler) where T : struct, IUnitEvent => UnsubscribeCore(handler);
+        public void Unsubscribe<T>(Action<T> handler) where T : struct, IUnitEvent => InternalUnsubscribe(handler);
 
-        public void Publish<T>(T eventData) where T : struct, IUnitEvent => PublishCore(eventData);
+        public void Publish<T>(T eventData) where T : struct, IUnitEvent => InternalPublish(eventData);
     }
 }

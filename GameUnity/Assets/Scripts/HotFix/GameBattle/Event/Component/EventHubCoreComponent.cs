@@ -41,7 +41,7 @@ namespace GameBattle
             return false;
         }
 
-        protected void SubscribeCore<T>(object owner, Action<T> handler) where T : struct
+        protected void InternalSubscribe<T>(object owner, Action<T> handler) where T : struct
         {
             if (m_disposed || handler == null || owner == null)
             {
@@ -64,7 +64,7 @@ namespace GameBattle
             subscriptions.Add(new EventSubscription(owner, handler));
         }
 
-        protected void UnsubscribeCore<T>(Action<T> handler) where T : struct
+        protected void InternalUnsubscribe<T>(Action<T> handler) where T : struct
         {
             if (m_disposed || handler == null)
             {
@@ -136,7 +136,7 @@ namespace GameBattle
             }
         }
         
-        protected void PublishCore<T>(T signal) where T : struct
+        protected void InternalPublish<T>(T signal) where T : struct
         {
             if (m_disposed)
             {
@@ -172,12 +172,12 @@ namespace GameBattle
             {
                 if (ExitPublish(type))
                 {
-                    Cleanup(type);
+                    DelayCleanup(type);
                 }
             }
         }
 
-        private void Cleanup(Type type)
+        private void DelayCleanup(Type type)
         {
             if (!m_delayCleanupTypes.Remove(type))
             {
