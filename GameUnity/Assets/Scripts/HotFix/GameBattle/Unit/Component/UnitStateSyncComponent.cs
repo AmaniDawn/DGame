@@ -6,6 +6,7 @@ namespace GameBattle
     {
         public UnitStateSnapshot Snapshot { get; set; }
         public uint StateVersion { get; private set; }
+        public uint AttrVersion { get; private set; }
 
         public void MarkDirty(UnitStateDirtyFlags flags)
         {
@@ -13,12 +14,18 @@ namespace GameBattle
             {
                 StateVersion++;
             }
+            
+            if ((flags & UnitStateDirtyFlags.Attr) != 0)
+            {
+                AttrVersion++;
+            }
         }
         
         public void Clear()
         {
             Snapshot = default;
             StateVersion = 0;
+            AttrVersion = 0;
         }
     }
 }

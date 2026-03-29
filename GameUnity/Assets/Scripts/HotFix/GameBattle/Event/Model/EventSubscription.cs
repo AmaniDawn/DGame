@@ -2,13 +2,13 @@
 
 namespace GameBattle
 {
-    internal sealed class UnitSignalSubscription
+    internal sealed class EventSubscription
     {
         public object Owner { get; }
         public Delegate Handler { get; }
         public bool Removed { get; set; }
 
-        public UnitSignalSubscription(object owner, Delegate handler)
+        public EventSubscription(object owner, Delegate handler)
         {
             Owner = owner;
             Handler = handler;

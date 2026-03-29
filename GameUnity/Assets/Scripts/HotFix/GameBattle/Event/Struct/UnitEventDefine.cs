@@ -1,12 +1,12 @@
 ﻿namespace GameBattle
 {
-    public readonly struct DamagedSignal : ISignal
+    public readonly struct UnitDamagedEvent : IUnitEvent
     {
         public readonly ulong UnitID;
         public readonly ulong CasterUnitId;
         public readonly int DamageValue;
         
-        public DamagedSignal(ulong unitId, ulong casterUnitId, int damageValue)
+        public UnitDamagedEvent(ulong unitId, ulong casterUnitId, int damageValue)
         {
             UnitID = unitId;
             CasterUnitId = casterUnitId;

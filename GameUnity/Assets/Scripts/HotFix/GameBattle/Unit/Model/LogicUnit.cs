@@ -11,7 +11,7 @@ namespace GameBattle
     public abstract class LogicUnit : Entity
     {
         public BattleContextComponent BattleContext { get; private set; }
-        public SignalHubComponent SignalHub { get; private set; }
+        public UnitEventHubComponent UnitEvents { get; private set; }
         
         public UnitStateSyncComponent StateSync { get; private set; }
         
@@ -83,7 +83,7 @@ namespace GameBattle
         {
             BattleContext = battleContextComponent;
             StateSync = AddComponent<UnitStateSyncComponent>();
-            SignalHub = AddComponent<SignalHubComponent>();
+            UnitEvents = AddComponent<UnitEventHubComponent>();
             CreateRenderUnit(this, battleContextComponent);
         }
 
@@ -94,9 +94,7 @@ namespace GameBattle
 
         #endregion
 
-        internal virtual void OnUnitStateChange(UnitState oldState, UnitState newState)
-        {
-        }
+        internal virtual void OnUnitStateChange(UnitState oldState, UnitState newState) { }
 
         protected virtual void OnDestroy() { }
 

@@ -43,8 +43,7 @@ namespace GameLogic
         public static bool IsSameUnit(this RenderUnit self, RenderUnit other)
             => other != null && self.RuntimeId != 0 && other.RuntimeId != 0 && self.RuntimeId == other.RuntimeId;
 
-        public static void SubscribeScoped<T>(this RenderUnit self, Action<T> handler)
-            where T : struct, ISignal
+        public static void SubscribeScoped<T>(this RenderUnit self, Action<T> handler) where T : struct, IUnitEvent 
             => self.LogicUnit.SubscribeScoped(self, self.Subscriptions, handler);
     }
 }

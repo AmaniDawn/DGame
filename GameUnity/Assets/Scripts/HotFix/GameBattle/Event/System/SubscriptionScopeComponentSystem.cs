@@ -14,7 +14,7 @@ namespace GameBattle
     public static class SubscriptionScopeComponentSystem
     {
         public static void SubscribeScoped<T>(this LogicUnit self, object owner, SubscriptionScopeComponent scope,
-            Action<T> handler) where T : struct, ISignal
+            Action<T> handler) where T : struct, IUnitEvent
         {
             self.Subscribe(owner, handler);
             scope.Add(() => self.Unsubscribe(handler));

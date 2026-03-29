@@ -132,14 +132,7 @@ namespace GameLogic
             }
 
             OnDestroy();
-
-            if (gameObject != null)
-            {
-                Object.Destroy(gameObject);
-                gameObject = null;
-                transform = null;
-            }
-
+            DestroyGameObject();
             DestroyAllGameTimer();
             IsDestroyed = true;
             UnitID = 0;
@@ -147,6 +140,16 @@ namespace GameLogic
             UnitType = UnitType.None;
             Visible = true;
             WaitDestroyTime = 0;
+        }
+
+        protected virtual void DestroyGameObject()
+        {
+            if (gameObject != null)
+            {
+                Object.Destroy(gameObject);
+                gameObject = null;
+                transform = null;
+            }
         }
 
         /// <summary>
@@ -181,9 +184,17 @@ namespace GameLogic
                 StateSyncVersion.LastStateVersion = stateSync.StateVersion;
                 SyncState();
             }
+            
+            if (StateSyncVersion.LastAttrVersion != stateSync.AttrVersion)
+            {
+                StateSyncVersion.LastAttrVersion = stateSync.AttrVersion;
+                SyncAttr();
+            }
         }
 
         protected virtual void SyncState() { }
+        
+        protected virtual void SyncAttr() { }
 
         /// <summary>
         /// 获取在编辑器中展示的游戏对象名称。

@@ -19,7 +19,7 @@ namespace GameBattle
         /// </summary>
         public LogicUnitFactoryComponent LogicUnitFactoryComponent { get; private set; }
         
-        public SignalHubComponent SignalHub { get; private set; }
+        public BattleEventHubComponent BattleEvents { get; private set; }
 
         /// <summary>
         /// 获取或设置渲染单位工厂。
@@ -36,7 +36,7 @@ namespace GameBattle
             var battle = subScene.AddComponent<BattleContextComponent>();
             battle.FrameSync = battle.AddComponent<FrameSyncComponent>();
             battle.LogicUnitFactoryComponent = battle.AddComponent<LogicUnitFactoryComponent>();
-            battle.SignalHub = battle.AddComponent<SignalHubComponent>();
+            battle.BattleEvents = battle.AddComponent<BattleEventHubComponent>();
             return battle;
         }
 
@@ -49,7 +49,7 @@ namespace GameBattle
             FrameSync = null;
             RenderUnitFactory = null;
             LogicUnitFactoryComponent = null;
-            SignalHub = null;
+            BattleEvents = null;
         }
     }
 }

@@ -4,15 +4,14 @@ using Fantasy.Entitas;
 
 namespace GameBattle
 {
-    public sealed class SignalHubComponent : Entity
+    public abstract class EventHubCoreComponent : Entity
     {
-        private readonly Dictionary<Type, List<UnitSignalSubscription>> m_subscriptions = new();
+        private readonly Dictionary<Type, List<EventSubscription>> m_subscriptions = new();
         private readonly Dictionary<Type, int> m_publishDepths = new();
         private readonly HashSet<Type> m_delayCleanupTypes = new();
         private bool m_disposed;
 
-        private bool IsPublishing(Type type)
-            => m_publishDepths.TryGetValue(type, out var depth) && depth > 0;
+        private bool IsPublishing(Type type) => m_publishDepths.TryGetValue(type, out var depth) && depth > 0;
 
         private void EnterPublish(Type type)
         {
@@ -42,7 +41,7 @@ namespace GameBattle
             return false;
         }
 
-        public void Subscribe<T>(object owner, Action<T> handler) where T : struct, ISignal
+        protected void SubscribeCore<T>(object owner, Action<T> handler) where T : struct
         {
             if (m_disposed || handler == null || owner == null)
             {
@@ -52,7 +51,7 @@ namespace GameBattle
 
             if (!m_subscriptions.TryGetValue(type, out var subscriptions))
             {
-                subscriptions = new List<UnitSignalSubscription>();
+                subscriptions = new List<EventSubscription>();
                 m_subscriptions.Add(type, subscriptions);
             }
             foreach (var subscription in subscriptions)
@@ -62,10 +61,10 @@ namespace GameBattle
                     return;
                 }
             }
-            subscriptions.Add(new UnitSignalSubscription(owner, handler));
+            subscriptions.Add(new EventSubscription(owner, handler));
         }
 
-        public void Unsubscribe<T>(Action<T> handler) where T : struct, ISignal
+        protected void UnsubscribeCore<T>(Action<T> handler) where T : struct
         {
             if (m_disposed || handler == null)
             {
@@ -137,7 +136,7 @@ namespace GameBattle
             }
         }
         
-        public void Publish<T>(T signal) where T : struct, ISignal
+        protected void PublishCore<T>(T signal) where T : struct
         {
             if (m_disposed)
             {
