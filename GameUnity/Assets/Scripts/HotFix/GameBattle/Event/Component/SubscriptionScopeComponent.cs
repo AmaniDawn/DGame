@@ -4,11 +4,18 @@ using Fantasy.Entitas;
 
 namespace GameBattle
 {
+    /// <summary>
+    /// 订阅作用域组件。
+    /// </summary>
     public sealed class SubscriptionScopeComponent : Entity
     {
         private readonly List<Action> m_clearActions = new();
         private bool m_disposed;
 
+        /// <summary>
+        /// 添加一条清理动作。
+        /// </summary>
+        /// <param name="clearAction">清理动作。</param>
         public void Add(Action clearAction)
         {
             if (m_disposed)
@@ -23,6 +30,9 @@ namespace GameBattle
             }
         }
 
+        /// <summary>
+        /// 销毁当前作用域并执行全部清理动作。
+        /// </summary>
         public void Destroy()
         {
             if (m_disposed)

@@ -6,12 +6,18 @@ using UnityEngine;
 
 namespace GameLogic
 {
+    /// <summary>
+    /// 主相机管理组件。
+    /// </summary>
     public sealed class CameraMgrComponent : Entity
     {
         private Camera m_mainCamera;
         private GameObject m_gameObject;
         private Transform m_transform;
 
+        /// <summary>
+        /// 获取主相机实例。
+        /// </summary>
         public Camera MainCamera
         {
             get
@@ -21,6 +27,9 @@ namespace GameLogic
             }
         }
         
+        /// <summary>
+        /// 获取主相机对应的游戏对象。
+        /// </summary>
         public GameObject gameObject 
         {
             get
@@ -30,6 +39,9 @@ namespace GameLogic
             }
         }
         
+        /// <summary>
+        /// 获取主相机对应的变换组件。
+        /// </summary>
         public Transform transform
         {
             get
@@ -68,6 +80,9 @@ namespace GameLogic
 
         private bool IsValidCamera => m_mainCamera != null && m_mainCamera.gameObject.activeInHierarchy;
 
+        /// <summary>
+        /// 清理当前缓存的相机引用。
+        /// </summary>
         public void Clear()
         {
             m_mainCamera = null;

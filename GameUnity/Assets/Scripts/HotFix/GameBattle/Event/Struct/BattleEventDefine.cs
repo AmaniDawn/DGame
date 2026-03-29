@@ -1,4 +1,3 @@
-﻿namespace GameBattle
+namespace GameBattle
 {
-    
 }

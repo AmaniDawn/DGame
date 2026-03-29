@@ -4,6 +4,9 @@ using Fantasy.Entitas;
 
 namespace GameBattle
 {
+    /// <summary>
+    /// 事件中心共享内核组件。
+    /// </summary>
     public abstract class EventHubCoreComponent : Entity
     {
         private readonly Dictionary<Type, List<EventSubscription>> m_subscriptions = new();
@@ -11,8 +14,17 @@ namespace GameBattle
         private readonly HashSet<Type> m_delayCleanupTypes = new();
         private bool m_disposed;
 
+        /// <summary>
+        /// 判断指定事件类型当前是否处于发布过程中。
+        /// </summary>
+        /// <param name="type">事件类型。</param>
+        /// <returns>如果正在发布则返回 <see langword="true"/>。</returns>
         private bool IsPublishing(Type type) => m_publishDepths.TryGetValue(type, out var depth) && depth > 0;
 
+        /// <summary>
+        /// 进入指定事件类型的发布上下文。
+        /// </summary>
+        /// <param name="type">事件类型。</param>
         private void EnterPublish(Type type)
         {
             if (m_publishDepths.TryGetValue(type, out var depth))
@@ -24,6 +36,11 @@ namespace GameBattle
             m_publishDepths.Add(type, 1);
         }
 
+        /// <summary>
+        /// 退出指定事件类型的发布上下文。
+        /// </summary>
+        /// <param name="type">事件类型。</param>
+        /// <returns>如果当前已退出最外层发布，则返回 <see langword="true"/>。</returns>
         private bool ExitPublish(Type type)
         {
             if (!m_publishDepths.TryGetValue(type, out var depth))
@@ -41,6 +58,12 @@ namespace GameBattle
             return false;
         }
 
+        /// <summary>
+        /// 注册事件监听。
+        /// </summary>
+        /// <typeparam name="T">事件类型。</typeparam>
+        /// <param name="owner">监听所属者。</param>
+        /// <param name="handler">事件回调。</param>
         protected void InternalSubscribe<T>(object owner, Action<T> handler) where T : struct
         {
             if (m_disposed || handler == null || owner == null)
@@ -64,6 +87,11 @@ namespace GameBattle
             subscriptions.Add(new EventSubscription(owner, handler));
         }
 
+        /// <summary>
+        /// 取消事件监听。
+        /// </summary>
+        /// <typeparam name="T">事件类型。</typeparam>
+        /// <param name="handler">待移除的事件回调。</param>
         protected void InternalUnsubscribe<T>(Action<T> handler) where T : struct
         {
             if (m_disposed || handler == null)
@@ -102,6 +130,10 @@ namespace GameBattle
             }
         }
 
+        /// <summary>
+        /// 移除指定所属者注册的全部监听。
+        /// </summary>
+        /// <param name="owner">监听所属者。</param>
         public void RemoveAll(object owner)
         {
             if (m_disposed || owner == null)
@@ -136,6 +168,11 @@ namespace GameBattle
             }
         }
         
+        /// <summary>
+        /// 发布事件。
+        /// </summary>
+        /// <typeparam name="T">事件类型。</typeparam>
+        /// <param name="signal">事件数据。</param>
         protected void InternalPublish<T>(T signal) where T : struct
         {
             if (m_disposed)
@@ -177,6 +214,10 @@ namespace GameBattle
             }
         }
 
+        /// <summary>
+        /// 对指定事件类型执行延迟清理。
+        /// </summary>
+        /// <param name="type">事件类型。</param>
         private void DelayCleanup(Type type)
         {
             if (!m_delayCleanupTypes.Remove(type))
@@ -198,6 +239,9 @@ namespace GameBattle
             }
         }
         
+        /// <summary>
+        /// 清空当前事件中心的全部状态。
+        /// </summary>
         public void Clear()
         {
             if (m_disposed)
