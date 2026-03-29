@@ -107,8 +107,12 @@ namespace GameBattle
         private static T CreateInternal<T>(this LogicUnitFactoryComponent self) where T : LogicUnit, new()
         {
             var unit = Entity.Create<T>(self.Scene, true, true);
-            // unit.Init();
-            // unit.Initialize(info);
+
+            if (!unit.Init((BattleContextComponent)self.Parent))
+            {
+                unit.Dispose();
+                throw new InvalidOperationException($"Init logic unit failed: {typeof(T).Name}");
+            }
             return unit;
         }
     }

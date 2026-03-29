@@ -89,16 +89,15 @@ namespace GameLogic
             UnitName = logicUnit.UnitName;
             StateSyncVersion = AddComponent<UnitStateSyncVersionComponent>();
             Subscriptions = AddComponent<SubscriptionScopeComponent>();
-            InternalInit();
             if (!OnInit(logicUnit))
             {
                 return false;
             }
 
-            return InternalAfterInit();
+            return AfterInit();
         }
 
-        private bool InternalAfterInit()
+        private bool AfterInit()
         {
             if (gameObject != null)
             {
@@ -107,8 +106,6 @@ namespace GameLogic
 
             return true;
         }
-
-        protected virtual void InternalInit() { }
 
         protected virtual bool OnInit(LogicUnit logicUnit)
         {

@@ -79,17 +79,34 @@ namespace GameBattle
 
         #region 初始化
 
-        public void Init(BattleContextComponent battleContextComponent)
+        public bool Init(BattleContextComponent battleContextComponent)
         {
             BattleContext = battleContextComponent;
             StateSync = AddComponent<UnitStateSyncComponent>();
             UnitEvents = AddComponent<UnitEventHubComponent>();
-            CreateRenderUnit(this, battleContextComponent);
+            
+            if (!OnInit())
+            {
+                return false;
+            }
+            
+            CreateRenderUnit(battleContextComponent);
+            return AfterInit();
         }
 
-        public void CreateRenderUnit(LogicUnit logicUnit, BattleContextComponent battleContextComponent)
+        protected virtual bool AfterInit()
         {
-            RenderUnit = battleContextComponent.CreateRenderUnit(logicUnit);
+            return true;
+        }
+
+        protected virtual bool OnInit()
+        {
+            return true;
+        }
+
+        public void CreateRenderUnit(BattleContextComponent battleContextComponent)
+        {
+            RenderUnit = battleContextComponent.CreateRenderUnit(this);
         }
 
         #endregion
