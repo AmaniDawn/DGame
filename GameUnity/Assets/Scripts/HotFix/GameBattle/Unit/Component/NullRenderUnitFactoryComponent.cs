@@ -30,12 +30,6 @@ namespace GameBattle
 
         private NullRenderUnit() { }
 
-        /// <summary>
-        /// 接收逻辑层事件通知，空实现不做任何处理。
-        /// </summary>
-        /// <param name="eventId">事件标识。</param>
-        public void OnUnitEvent(int eventId) { }
-
         public void SyncFromLogic() { }
     }
 }

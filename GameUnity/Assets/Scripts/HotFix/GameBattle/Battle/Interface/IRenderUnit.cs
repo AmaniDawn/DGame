@@ -9,11 +9,8 @@ namespace GameBattle
     public interface IRenderUnit
     {
         /// <summary>
-        /// 接收来自逻辑层单位的事件通知，进行相应的渲染处理。
+        /// 从 LogicUnit 同步快照数据。
         /// </summary>
-        /// <param name="eventId">事件标识。</param>
-        void OnUnitEvent(int eventId);
-        
         void SyncFromLogic();
     }
 }

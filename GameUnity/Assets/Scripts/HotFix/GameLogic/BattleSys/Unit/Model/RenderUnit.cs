@@ -170,13 +170,7 @@ namespace GameLogic
         /// </summary>
         /// <returns>默认返回 <see langword="false"/>。</returns>
         public virtual bool IsBoss() => false;
-
-        /// <summary>
-        /// 处理来自逻辑层的单位事件。
-        /// </summary>
-        /// <param name="eventId">事件标识。</param>
-        public virtual void OnUnitEvent(int eventId) { }
-
+        
         public virtual void SyncFromLogic()
         {
             // 示例
