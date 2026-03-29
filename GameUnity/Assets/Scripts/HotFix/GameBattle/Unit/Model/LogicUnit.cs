@@ -1,6 +1,7 @@
 using DGame;
 using Fantasy.Entitas;
 // ReSharper disable InconsistentNaming
+// ReSharper disable MemberCanBePrivate.Global
 
 namespace GameBattle
 {
@@ -10,6 +11,9 @@ namespace GameBattle
     public abstract class LogicUnit : Entity
     {
         public BattleContextComponent BattleContext { get; private set; }
+        public SignalHubComponent SignalHub { get; private set; }
+        
+        public UnitStateSyncComponent StateSync { get; private set; }
         
         /// <summary>
         /// 单位名称。
@@ -78,6 +82,8 @@ namespace GameBattle
         public void Init(BattleContextComponent battleContextComponent)
         {
             BattleContext = battleContextComponent;
+            StateSync = AddComponent<UnitStateSyncComponent>();
+            SignalHub = AddComponent<SignalHubComponent>();
             CreateRenderUnit(this, battleContextComponent);
         }
 

@@ -73,7 +73,6 @@ public sealed class Definition
         "RectTransform",
 
         // 资源相关
-        "Object",
         "ResourceRequest",
         "AssetBundle",
         "AssetBundleRequest",
@@ -166,7 +165,6 @@ public sealed class Definition
         "Rect",
 
         // 其他常见Unity类型
-        "ScriptableObject",
         "ScriptableObject",
         "LayerMask",
         "Tag"

@@ -18,6 +18,8 @@ namespace GameBattle
         /// 获取逻辑单位工厂组件。
         /// </summary>
         public LogicUnitFactoryComponent LogicUnitFactoryComponent { get; private set; }
+        
+        public SignalHubComponent SignalHub { get; private set; }
 
         /// <summary>
         /// 获取或设置渲染单位工厂。
@@ -34,6 +36,7 @@ namespace GameBattle
             var battle = subScene.AddComponent<BattleContextComponent>();
             battle.FrameSync = battle.AddComponent<FrameSyncComponent>();
             battle.LogicUnitFactoryComponent = battle.AddComponent<LogicUnitFactoryComponent>();
+            battle.SignalHub = battle.AddComponent<SignalHubComponent>();
             return battle;
         }
 
@@ -46,6 +49,7 @@ namespace GameBattle
             FrameSync = null;
             RenderUnitFactory = null;
             LogicUnitFactoryComponent = null;
+            SignalHub = null;
         }
     }
 }

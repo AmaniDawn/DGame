@@ -1,4 +1,6 @@
+using System;
 using Fantasy.Entitas.Interface;
+using GameBattle;
 
 namespace GameLogic
 {
@@ -40,5 +42,9 @@ namespace GameLogic
         /// <returns>是同一个有效运行时实例时返回 <see langword="true"/>。</returns>
         public static bool IsSameUnit(this RenderUnit self, RenderUnit other)
             => other != null && self.RuntimeId != 0 && other.RuntimeId != 0 && self.RuntimeId == other.RuntimeId;
+
+        public static void SubscribeScoped<T>(this RenderUnit self, Action<T> handler)
+            where T : struct, ISignal
+            => self.LogicUnit.SubscribeScoped(self, self.Subscriptions, handler);
     }
 }

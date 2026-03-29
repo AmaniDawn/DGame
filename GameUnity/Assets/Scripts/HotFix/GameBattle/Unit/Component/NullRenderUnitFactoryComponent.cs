@@ -35,5 +35,7 @@ namespace GameBattle
         /// </summary>
         /// <param name="eventId">事件标识。</param>
         public void OnUnitEvent(int eventId) { }
+
+        public void SyncFromLogic() { }
     }
 }

@@ -11,6 +11,10 @@ namespace GameLogic
     /// </summary>
     public abstract class RenderUnit : Entity, IRenderUnit
     {
+        public SubscriptionScopeComponent Subscriptions { get; private set; }
+        
+        public UnitStateSyncVersionComponent StateSyncVersion { get; private set; }
+        
         /// <summary>
         /// 单位名称。
         /// </summary>
@@ -83,6 +87,8 @@ namespace GameLogic
             LogicUnit = logicUnit;
             UnitType = logicUnit.UnitType;
             UnitName = logicUnit.UnitName;
+            StateSyncVersion = AddComponent<UnitStateSyncVersionComponent>();
+            Subscriptions = AddComponent<SubscriptionScopeComponent>();
             InternalInit();
             if (!OnInit(logicUnit))
             {
@@ -160,7 +166,25 @@ namespace GameLogic
         /// </summary>
         /// <param name="eventId">事件标识。</param>
         public virtual void OnUnitEvent(int eventId) { }
-        
+
+        public virtual void SyncFromLogic()
+        {
+            // 示例
+            if (LogicUnit == null || LogicUnit.StateSync == null)
+            {
+                return;
+            }
+            var stateSync = LogicUnit.StateSync;
+            
+            if (StateSyncVersion.LastStateVersion != stateSync.StateVersion)
+            {
+                StateSyncVersion.LastStateVersion = stateSync.StateVersion;
+                SyncState();
+            }
+        }
+
+        protected virtual void SyncState() { }
+
         /// <summary>
         /// 获取在编辑器中展示的游戏对象名称。
         /// </summary>
