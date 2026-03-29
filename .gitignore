@@ -15,7 +15,5 @@ openspec
 
 
 #Generata Tools
-Tools/Generata Tools/SourceGenerator/*.idea
-Tools/Generata Tools/SourceGenerator/*/bin
-Tools/Generata Tools/SourceGenerator/*/obj
-
+*bin
+*obj
