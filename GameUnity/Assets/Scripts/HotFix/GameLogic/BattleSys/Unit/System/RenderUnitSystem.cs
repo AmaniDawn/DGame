@@ -4,6 +4,14 @@ using GameBattle;
 
 namespace GameLogic
 {
+    public sealed class RenderUnitAwakeSystem : AwakeSystem<RenderUnit>
+    {
+        protected override void Awake(RenderUnit self)
+        {
+            self.Awake();
+        }
+    }
+    
     /// <summary>
     /// 渲染层单位销毁触发系统。
     /// </summary>

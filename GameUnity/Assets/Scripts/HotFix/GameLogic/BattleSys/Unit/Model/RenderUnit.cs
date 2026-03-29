@@ -114,6 +114,16 @@ namespace GameLogic
         {
             return true;
         }
+        
+        public void Awake()
+        {
+            OnAwake();
+            RegisterEvent();
+        }
+
+        protected virtual void OnAwake() { }
+
+        protected virtual void RegisterEvent() { }
 
         #endregion
 
