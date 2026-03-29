@@ -7,9 +7,40 @@ namespace GameBattle
     public sealed class SignalHubComponent : Entity
     {
         private readonly Dictionary<Type, List<UnitSignalSubscription>> m_subscriptions = new();
-        private readonly List<Type> m_publishingTypes = new();
+        private readonly Dictionary<Type, int> m_publishDepths = new();
         private readonly HashSet<Type> m_delayCleanupTypes = new();
         private bool m_disposed;
+
+        private bool IsPublishing(Type type)
+            => m_publishDepths.TryGetValue(type, out var depth) && depth > 0;
+
+        private void EnterPublish(Type type)
+        {
+            if (m_publishDepths.TryGetValue(type, out var depth))
+            {
+                m_publishDepths[type] = depth + 1;
+                return;
+            }
+
+            m_publishDepths.Add(type, 1);
+        }
+
+        private bool ExitPublish(Type type)
+        {
+            if (!m_publishDepths.TryGetValue(type, out var depth))
+            {
+                return true;
+            }
+
+            if (depth <= 1)
+            {
+                m_publishDepths.Remove(type);
+                return true;
+            }
+
+            m_publishDepths[type] = depth - 1;
+            return false;
+        }
 
         public void Subscribe<T>(object owner, Action<T> handler) where T : struct, ISignal
         {
@@ -47,7 +78,7 @@ namespace GameBattle
                 return;
             }
 
-            var publishing = m_publishingTypes.Contains(type);
+            var publishing = IsPublishing(type);
 
             for (int i = 0; i < subscriptions.Count; i++)
             {
@@ -61,7 +92,7 @@ namespace GameBattle
                 if (publishing)
                 {
                     subscription.Removed = true;
-                    m_delayCleanupTypes.Remove(type);
+                    m_delayCleanupTypes.Add(type);
                 }
                 else
                 {
@@ -83,7 +114,7 @@ namespace GameBattle
             {
                 var type = pair.Key;
                 var subscriptions = pair.Value;
-                var publishing = m_publishingTypes.Contains(type);
+                var publishing = IsPublishing(type);
 
                 for (int i = subscriptions.Count - 1; i >= 0; i--)
                 {
@@ -96,7 +127,7 @@ namespace GameBattle
                     if (publishing)
                     {
                         subscription.Removed = true;
-                        m_delayCleanupTypes.Remove(type);
+                        m_delayCleanupTypes.Add(type);
                     }
                     else
                     {
@@ -119,22 +150,32 @@ namespace GameBattle
                 return;
             }
 
-            m_publishingTypes.Add(type);
-            foreach (var subscription in subscriptions)
-            {
-                if (subscription.Removed)
-                {
-                    continue;
-                }
+            EnterPublish(type);
 
-                if (subscription.Handler is Action<T> callback)
+            try
+            {
+                var count = subscriptions.Count;
+                for (int i = 0; i < count; i++)
                 {
-                    callback(signal);
+                    var subscription = subscriptions[i];
+                    if (subscription.Removed)
+                    {
+                        continue;
+                    }
+
+                    if (subscription.Handler is Action<T> callback)
+                    {
+                        callback(signal);
+                    }
                 }
             }
-
-            m_publishingTypes.RemoveAt(m_publishingTypes.Count - 1);
-            Cleanup(type);
+            finally
+            {
+                if (ExitPublish(type))
+                {
+                    Cleanup(type);
+                }
+            }
         }
 
         private void Cleanup(Type type)
@@ -167,7 +208,7 @@ namespace GameBattle
 
             m_disposed = true;
             m_subscriptions.Clear();
-            m_publishingTypes.Clear();
+            m_publishDepths.Clear();
             m_delayCleanupTypes.Clear();
         }
     }
