@@ -1,10 +1,8 @@
-using Fantasy.Entitas;
-
 namespace GameBattle
 {
     /// <summary>
     /// 渲染层单位接口。
-    /// <remarks>定义渲染层单位接收逻辑层事件通知的能力</remarks>
+    /// <remarks>定义渲染层单位与逻辑层快照同步的能力。</remarks>
     /// </summary>
     public interface IRenderUnit
     {
