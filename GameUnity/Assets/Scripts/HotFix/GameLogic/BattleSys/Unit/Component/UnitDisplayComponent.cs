@@ -14,6 +14,7 @@ using System.Threading;
 using Cysharp.Threading.Tasks;
 using DGame;
 using Fantasy.Entitas;
+using GameBattle;
 using GameProto;
 using UnityEngine;
 using Object = UnityEngine.Object;
@@ -123,10 +124,15 @@ namespace GameLogic
         /// </summary>
         /// <param name="dummyName">挂点名称。</param>
         /// <returns>挂点 Transform；不存在时返回 null。</returns>
-        public Transform GetDummyPoint(string dummyName)
-        {
-            return UnitDummy.GetDummyPoint(dummyName);
-        }
+        public Transform GetDummyPoint(string dummyName) => UnitDummy.GetDummyPoint(dummyName);
+
+        public Transform GetDummyPoint(DummyPointType dummyType) => UnitDummy.GetDummyPoint(dummyType);
+
+        public bool TryGetDummyPoint(string dummyName, out Transform point)
+            => UnitDummy.TryGetDummyPoint(dummyName, out point);
+
+        public bool TryGetDummyPoint(DummyPointType pointType, out Transform point)
+            => UnitDummy.TryGetDummyPoint(pointType, out point);
 
         /// <summary>
         /// 设置整个显示层显隐。

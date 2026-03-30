@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using GameBattle;
 using UnityEngine;
 
 namespace GameLogic
@@ -12,7 +14,9 @@ namespace GameLogic
         /// <summary>
         /// 挂点名称到 Transform 的缓存表。
         /// </summary>
-        private readonly Dictionary<string, Transform> m_dummyPoints = new();
+        private readonly Dictionary<DummyPointType, Transform> m_dummyPoints = new();
+        
+        private static readonly Dictionary<string, DummyPointType> NAME_TO_TYPE_MAP = BuildNameMap();
 
         /// <summary>
         /// 当前缓存所对应的模型根节点。
@@ -54,23 +58,22 @@ namespace GameLogic
                 return null;
             }
 
-            if (m_dummyPoints.TryGetValue(dummyName, out var point) && point != null)
-            {
-                return point;
-            }
-
-            if (m_root == null)
+            if (!NAME_TO_TYPE_MAP.TryGetValue(dummyName, out var pointType))
             {
                 return null;
             }
 
-            point = m_root.Find(dummyName);
-            if (point != null)
+            return GetDummyPoint(pointType);
+        }
+        
+        public Transform GetDummyPoint(DummyPointType pointType)
+        {
+            if (pointType == DummyPointType.DM_NONE || pointType == DummyPointType.DM_MAX)
             {
-                m_dummyPoints[dummyName] = point;
+                return null;
             }
 
-            return point;
+            return m_dummyPoints.GetValueOrDefault(pointType, null);
         }
 
         /// <summary>
@@ -84,6 +87,12 @@ namespace GameLogic
             point = GetDummyPoint(dummyName);
             return point != null;
         }
+        
+        public bool TryGetDummyPoint(DummyPointType pointType, out Transform point)
+        {
+            point = GetDummyPoint(pointType);
+            return point != null;
+        }
 
         /// <summary>
         /// 清空当前挂点缓存。
@@ -93,6 +102,27 @@ namespace GameLogic
         {
             m_root = null;
             m_dummyPoints.Clear();
+        }
+        
+        private static Dictionary<string, DummyPointType> BuildNameMap()
+        {
+            var map = new Dictionary<string, DummyPointType>(StringComparer.Ordinal);
+
+            foreach (DummyPointType value in Enum.GetValues(typeof(DummyPointType)))
+            {
+                if (value == DummyPointType.DM_NONE || value == DummyPointType.DM_MAX)
+                {
+                    continue;
+                }
+
+                var name = value.ToString();
+                if (!map.TryAdd(name, value))
+                {
+                    throw new InvalidOperationException($"Duplicate DummyPointType name: {name}");
+                }
+            }
+
+            return map;
         }
 
         /// <summary>
@@ -106,9 +136,11 @@ namespace GameLogic
                 return;
             }
 
-            if (!m_dummyPoints.ContainsKey(node.name))
+            if (NAME_TO_TYPE_MAP.TryGetValue(node.name, out var pointType) &&
+                pointType != DummyPointType.DM_NONE &&
+                pointType != DummyPointType.DM_MAX)
             {
-                m_dummyPoints.Add(node.name, node);
+                m_dummyPoints[pointType] = node;
             }
 
             for (var i = 0; i < node.childCount; i++)
