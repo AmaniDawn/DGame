@@ -70,7 +70,7 @@ namespace GameLogic
 
             ModelRootTransform.SetParent(parent, false);
             ModelRootTransform.ResetLocalPosScaleRot();
-            MainModelPart.SetParent(ModelRootTransform);
+            MainModelPart?.SetParent(ModelRootTransform);
         }
 
         /// <summary>
@@ -85,17 +85,26 @@ namespace GameLogic
             if (MainModelCfg == null || string.IsNullOrEmpty(MainModelCfg.ModelLocation))
             {
                 MainModelPart?.Destroy();
+                MainModelPart = null;
                 m_owner?.UnitDummy?.Clear();
                 return false;
             }
             return await AddMainModelAsync(UnitModelType.MainModelType, ct);
         }
         
+        /// <summary>
+        /// 根据指定部位类型创建并加载模型部位。
+        /// 当前仅支持主模型部位。
+        /// </summary>
+        /// <param name="unitModelType">部位类型。</param>
+        /// <param name="ct">模型加载取消令牌。</param>
+        /// <returns>加载成功返回 <see langword="true"/>。</returns>
         public async UniTask<bool> AddMainModelAsync(UnitModelType unitModelType, CancellationToken ct = default)
         {
             switch (unitModelType)
             {
                 case UnitModelType.MainModelType:
+                    MainModelPart?.Destroy();
                     MainModelPart = UnitModelPartFactory.Create(m_owner, unitModelType,
                         OnModelCreated, OnModelDestroy, OnBeforeModelDestroy) as MainUnitModelPart;
                     if (MainModelPart == null)
@@ -108,25 +117,37 @@ namespace GameLogic
                     if (!isSuccess)
                     {
                         MainModelPart?.Destroy();
+                        MainModelPart = null;
                         m_owner?.UnitDummy?.Clear();
                         return false;
                     }
-                    var mainTransform = MainModelPart.Transform;
-                    m_owner?.UnitDummy?.Refresh(mainTransform);
                     return true;
             }
 
             return false;
         }
 
+        /// <summary>
+        /// 模型销毁前回调。
+        /// </summary>
+        /// <param name="unitModelType">销毁的部位类型。</param>
         private void OnBeforeModelDestroy(UnitModelType unitModelType)
         {
         }
 
+        /// <summary>
+        /// 模型销毁完成回调。
+        /// </summary>
+        /// <param name="unitModelType">销毁的部位类型。</param>
         private void OnModelDestroy(UnitModelType unitModelType)
         {
         }
 
+        /// <summary>
+        /// 模型创建完成回调。
+        /// </summary>
+        /// <param name="go">创建出的模型对象。</param>
+        /// <param name="unitModelType">创建的部位类型。</param>
         private void OnModelCreated(GameObject go, UnitModelType unitModelType)
         {
         }
@@ -135,7 +156,7 @@ namespace GameLogic
         /// 获取当前主模型对象。
         /// </summary>
         /// <returns>主模型对象；未加载时返回 null。</returns>
-        public GameObject GetModelGo() => MainModelPart.ModelGo;
+        public GameObject GetMainModelGo() => MainModelPart?.ModelGo;
 
         /// <summary>
         /// 设置整套模型显隐。
@@ -148,7 +169,8 @@ namespace GameLogic
         /// </summary>
         public void Destroy()
         {
-            MainModelPart.Destroy();
+            MainModelPart?.Destroy();
+            MainModelPart = null;
             MainModelCfg = null;
             m_owner?.UnitDummy?.Clear();
             if (ModelRoot != null)

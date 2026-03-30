@@ -23,11 +23,29 @@ using Object = UnityEngine.Object;
 
 namespace GameLogic
 {
+    /// <summary>
+    /// 单位模型部位类型。
+    /// </summary>
     public enum UnitModelType
     {
+        /// <summary>
+        /// 主模型部位。
+        /// </summary>
         MainModelType,
+
+        /// <summary>
+        /// 武器模型部位。
+        /// </summary>
         WeaponModelType,
+
+        /// <summary>
+        /// 阴影模型部位。
+        /// </summary>
         ActorShadowModelType,
+
+        /// <summary>
+        /// 部位类型上限。
+        /// </summary>
         MaxModelType
     }
     
@@ -72,10 +90,24 @@ namespace GameLogic
         /// </summary>
         public bool IsLoaded => m_modelGo != null;
         
+        /// <summary>
+        /// 当前部位类型。
+        /// </summary>
         public virtual UnitModelType ModelType { get; }
 
+        /// <summary>
+        /// 模型创建完成后的回调。
+        /// </summary>
         protected Action<GameObject, UnitModelType> m_onCreate;
+
+        /// <summary>
+        /// 模型销毁完成后的回调。
+        /// </summary>
         protected Action<UnitModelType> m_onDestroy;
+
+        /// <summary>
+        /// 模型销毁前的回调。
+        /// </summary>
         protected Action<UnitModelType> m_onBeforeDestroy;
 
         /// <summary>
@@ -114,7 +146,8 @@ namespace GameLogic
                 if (parent != null && m_parent != parent)
                 {
                     m_parent = parent;
-                    m_modelGo.transform.SetParent(parent);
+                    m_modelGo.transform.SetParent(parent, false);
+                    m_modelGo.transform.ResetLocalPosScaleRot();
                 }
                 return true;
             }
@@ -143,8 +176,14 @@ namespace GameLogic
         /// <param name="active">是否可见。</param>
         public virtual void SetActive(bool active) => m_modelGo?.SetActive(active);
         
+        /// <summary>
+        /// 模型加载完成后的扩展钩子。
+        /// </summary>
         protected virtual void OnModelLoaded() { }
 
+        /// <summary>
+        /// 模型销毁前的扩展钩子。
+        /// </summary>
         protected virtual void OnBeforeDestroy() { }
 
         /// <summary>

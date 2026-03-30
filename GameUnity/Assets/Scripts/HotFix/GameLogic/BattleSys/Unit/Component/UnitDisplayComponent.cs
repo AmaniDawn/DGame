@@ -123,7 +123,7 @@ namespace GameLogic
         /// 获取当前主模型对象。
         /// </summary>
         /// <returns>主模型对象；未加载时返回 null。</returns>
-        public GameObject GetMainModelGo() => UnitModel?.GetModelGo();
+        public GameObject GetMainModelGo() => UnitModel?.GetMainModelGo();
 
         /// <summary>
         /// 从当前挂点缓存中获取指定挂点。
