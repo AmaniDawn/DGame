@@ -1,3 +1,4 @@
+using System.Threading;
 using Fantasy.Entitas;
 using GameBattle;
 using UnityEngine;
@@ -90,6 +91,8 @@ namespace GameLogic
         /// </summary>
         /// <returns>默认返回 <see langword="false"/>。</returns>
         public virtual bool IsBoss() => false;
+        
+        private CancellationTokenSource m_initModelCancelTokenSource;
 
         #region 初始化相关
 
@@ -100,11 +103,14 @@ namespace GameLogic
         /// <returns>初始化成功时返回 <see langword="true"/>。</returns>
         public bool Init(LogicUnit logicUnit)
         {
+            m_initModelCancelTokenSource = new CancellationTokenSource();
+            UnitID = logicUnit.UnitID;
             LogicUnit = logicUnit;
             UnitType = logicUnit.UnitType;
             UnitName = logicUnit.UnitName;
             Visible = true;
             InitModel(CreateGameObject());
+            UnitEventHub = AddComponent<UnitEventHubComponent>();
             StateSyncVersion = AddComponent<UnitStateSyncVersionComponent>();
             Subscriptions = AddComponent<SubscriptionScopeComponent>();
             UnitDisplay = AddComponent<UnitDisplayComponent>();
@@ -113,6 +119,7 @@ namespace GameLogic
                 return false;
             }
 
+            UnitDisplay.InitAsync(m_initModelCancelTokenSource.Token).Forget();
             return AfterInit();
         }
 
@@ -165,8 +172,9 @@ namespace GameLogic
             {
                 return;
             }
-
+            
             OnDestroy();
+            CancelInitModel();
             DestroyGameObject();
             DestroyAllGameTimer();
             IsDestroyed = true;
@@ -175,6 +183,13 @@ namespace GameLogic
             UnitType = UnitType.None;
             Visible = true;
             WaitDestroyTime = 0;
+        }
+
+        private void CancelInitModel()
+        {
+            m_initModelCancelTokenSource?.Cancel();
+            m_initModelCancelTokenSource?.Dispose();
+            m_initModelCancelTokenSource = null;
         }
 
         protected virtual void DestroyGameObject()

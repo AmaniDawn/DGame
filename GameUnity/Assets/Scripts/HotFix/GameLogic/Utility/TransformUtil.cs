@@ -7,7 +7,7 @@ namespace GameLogic
         /// <summary>
         /// 提供 Transform 相关的辅助方法。
         /// </summary>
-        public class TransformUtil
+        public static class TransformUtil
         {
             /// <summary>
             /// 将指定 <see cref="Transform"/> 的本地位置、旋转和缩放重置为默认值。

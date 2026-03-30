@@ -1,4 +1,5 @@
-﻿using Cysharp.Threading.Tasks;
+﻿using System.Threading;
+using Cysharp.Threading.Tasks;
 using GameProto;
 using UnityEngine;
 
@@ -76,7 +77,7 @@ namespace GameLogic
         /// </summary>
         /// <param name="modelId">模型 ID。</param>
         /// <returns>刷新成功返回 true。</returns>
-        public async UniTask<bool> RefreshMainModelAsync(int modelId)
+        public async UniTask<bool> RefreshMainModelAsync(int modelId, CancellationToken ct = default)
         {
             MainModelCfg = modelId > 0 ? ModelConfigMgr.Instance.GetOrDefault(modelId) : null;
             if (MainModelCfg == null || string.IsNullOrEmpty(MainModelCfg.ModelLocation))
@@ -86,7 +87,7 @@ namespace GameLogic
                 return false;
             }
 
-            var isSuccess = await MainModelPart.LoadModelAsync(MainModelCfg.ModelLocation, ModelRootTransform);
+            var isSuccess = await MainModelPart.LoadModelAsync(MainModelCfg.ModelLocation, ModelRootTransform, ct);
 
             if (!isSuccess)
             {
@@ -115,10 +116,7 @@ namespace GameLogic
         /// 设置整套模型显隐。
         /// </summary>
         /// <param name="active">是否可见。</param>
-        public void SetActive(bool active)
-        {
-            ModelRoot.SetActive(active);
-        }
+        public void SetActive(bool active) => ModelRoot?.SetActive(active);
 
         /// <summary>
         /// 销毁模型容器及其所有部件。

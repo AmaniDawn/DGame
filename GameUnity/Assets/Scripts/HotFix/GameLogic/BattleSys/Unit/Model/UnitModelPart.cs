@@ -1,4 +1,5 @@
-﻿using Cysharp.Threading.Tasks;
+﻿using System.Threading;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace GameLogic
@@ -66,7 +67,7 @@ namespace GameLogic
         /// <param name="location">资源地址。</param>
         /// <param name="parent">挂载父节点。</param>
         /// <returns>加载成功返回 true。</returns>
-        public async UniTask<bool> LoadModelAsync(string location, Transform parent = null)
+        public async UniTask<bool> LoadModelAsync(string location, Transform parent = null, CancellationToken ct = default)
         {
             if (string.IsNullOrEmpty(location))
             {
@@ -88,7 +89,7 @@ namespace GameLogic
 
             m_parent = parent;
             m_location = location;
-            m_modelGo = await GameModule.ResourceModule.LoadGameObjectAsync(location, parent);
+            m_modelGo = await GameModule.ResourceModule.LoadGameObjectAsync(location, parent, ct);
             if (m_modelGo == null)
             {
                 m_parent = null;

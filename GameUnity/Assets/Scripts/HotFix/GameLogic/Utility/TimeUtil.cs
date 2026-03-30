@@ -79,7 +79,7 @@ namespace GameLogic
             public bool ShowDouble; // 例如8，要不要显示08
         };
 
-        public class TimeUtil
+        public static class TimeUtil
         {
             public static readonly DateTime InitTime = new DateTime(1970, 1, 1, 0, 0, 0, System.DateTimeKind.Utc);
 

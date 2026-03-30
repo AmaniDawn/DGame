@@ -9,10 +9,14 @@
  *          - DebugTextInfo（HP）
  */
 
+using System;
+using System.Threading;
 using Cysharp.Threading.Tasks;
+using DGame;
 using Fantasy.Entitas;
 using GameProto;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace GameLogic
 {
@@ -59,27 +63,36 @@ namespace GameLogic
         /// <summary>
         /// 初始化显示组件，并在渲染单位根节点下创建 DisplayRoot。
         /// </summary>
-        private async UniTaskVoid InitAsync()
+        public async UniTaskVoid InitAsync(CancellationToken ct = default)
         {
-            OwnerUnit = Parent as RenderUnit;
-            if (OwnerUnit == null || OwnerUnit.UnitRootTransform == null)
+            try
             {
-                return;
+                OwnerUnit = Parent as RenderUnit;
+                if (OwnerUnit == null || OwnerUnit.UnitRootTransform == null)
+                {
+                    return;
+                }
+
+                if (DisplayRoot == null)
+                {
+                    DisplayRoot = new GameObject(UnitHelper.DisplayRootName);
+                }
+
+                var displayTransform = DisplayRoot.transform;
+                displayTransform.SetParent(OwnerUnit.UnitRootTransform, false);
+                displayTransform.ResetLocalPosScaleRot();
+
+                UnitModel ??= new UnitModel(this);
+                var isSuccess = await RefreshMainModelAsync(OwnerUnit.GetModelID(), ct);
+                if (!isSuccess)
+                {
+                    Clear();
+                }
             }
-
-            if (DisplayRoot == null)
+            catch (Exception e)
             {
-                DisplayRoot = new GameObject(UnitHelper.DisplayRootName);
-            }
-
-            var displayTransform = DisplayRoot.transform;
-            displayTransform.SetParent(OwnerUnit.UnitRootTransform, false);
-            displayTransform.ResetLocalPosScaleRot();
-
-            UnitModel ??= new UnitModel(this);
-            var isSuccess = await RefreshMainModelAsync(OwnerUnit.GetModelID());
-            if (!isSuccess)
-            {
+                DLogger.Error($"UnitDisplayComponent init failed: {e}");
+                Clear();
             }
         }
 
@@ -89,14 +102,14 @@ namespace GameLogic
         /// </summary>
         /// <param name="modelId">模型 ID。</param>
         /// <returns>刷新成功返回 true。</returns>
-        public async UniTask<bool> RefreshMainModelAsync(int modelId)
+        public async UniTask<bool> RefreshMainModelAsync(int modelId, CancellationToken ct = default)
         {
             if (UnitModel == null)
             {
                 return false;
             }
 
-            return await UnitModel.RefreshMainModelAsync(modelId);
+            return await UnitModel.RefreshMainModelAsync(modelId, ct);
         }
 
         /// <summary>
@@ -120,11 +133,6 @@ namespace GameLogic
         /// </summary>
         /// <param name="active">是否可见。</param>
         public void SetActive(bool active) => DisplayRoot?.SetActive(active);
-        
-        public void Awake()
-        {
-            InitAsync().Forget();
-        }
 
         public void Destroy()
         {
