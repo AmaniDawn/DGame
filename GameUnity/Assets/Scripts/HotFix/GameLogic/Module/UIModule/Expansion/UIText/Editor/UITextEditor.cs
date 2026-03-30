@@ -202,15 +202,13 @@ namespace GameLogic
 
         #region 字体快捷按钮
 
+        private readonly string[] m_searchInFolders = { "Assets/BundleAssets/Fonts" };
         private List<Font> m_allFonts = new List<Font>();
 
         private void FindAllFonts()
         {
             m_allFonts.Clear();
-
-            // 在项目中查找所有字体文件
-            string[] fontGuids = AssetDatabase.FindAssets("t:Font");
-
+            string[] fontGuids = AssetDatabase.FindAssets("t:Font", m_searchInFolders);
             foreach (string guid in fontGuids)
             {
                 string assetPath = AssetDatabase.GUIDToAssetPath(guid);
