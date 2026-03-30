@@ -37,5 +37,20 @@ namespace GameBattle
             self.Subscribe(owner, handler);
             scope.Add(() => self.Unsubscribe(handler));
         }
+
+        /// <summary>
+        /// 注册一个跟随作用域自动释放的战斗事件监听。
+        /// </summary>
+        /// <typeparam name="T">战斗事件类型。</typeparam>
+        /// <param name="self">战斗上下文。</param>
+        /// <param name="owner">监听所属者。</param>
+        /// <param name="scope">订阅作用域。</param>
+        /// <param name="handler">事件回调。</param>
+        public static void SubscribeScoped<T>(this BattleContextComponent self, object owner, SubscriptionScopeComponent scope,
+            Action<T> handler) where T : struct, IBattleEvent
+        {
+            self.Subscribe(owner, handler);
+            scope.Add(() => self.Unsubscribe(handler));
+        }
     }
 }

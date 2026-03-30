@@ -49,7 +49,20 @@ namespace GameLogic
         #region Battle级事件相关
 
         /// <summary>
-        /// 注册战斗级事件监听。
+        /// (推荐)注册一个跟随作用域自动释放的战斗事件监听。
+        /// <remarks>此方法用于在战斗上下文中注册事件监听，当作用域销毁时自动取消监听。</remarks>
+        /// </summary>
+        /// <typeparam name="T">战斗事件类型。</typeparam>
+        /// <param name="owner">监听所属者。</param>
+        /// <param name="scope">订阅作用域。</param>
+        /// <param name="handler">事件回调。</param>
+        public static void SubscribeScoped<T>(object owner, SubscriptionScopeComponent scope,
+            Action<T> handler) where T : struct, IBattleEvent
+            => CurBattleContext.SubscribeScoped(owner, scope, handler);
+
+        /// <summary>
+        /// 注册战斗级事件监听。不推荐直接使用，请优先使用自动释放的 <see cref="SubscribeScoped{T}"/>。
+        /// <remarks>此方法用于在战斗上下文中注册事件监听，需要手动调用Unsubscribe取消监听/RemoveAll取消所有监听。</remarks>
         /// </summary>
         /// <typeparam name="T">战斗事件类型。</typeparam>
         /// <param name="owner">监听所属者。</param>
