@@ -16,6 +16,10 @@ namespace GameLogic
         /// </summary>
         private readonly Dictionary<DummyPointType, Transform> m_dummyPoints = new();
         
+        /// <summary>
+        /// 挂点名称到挂点类型的静态映射表。
+        /// 该映射在类型首次加载时构建一次，后续所有实例共享。
+        /// </summary>
         private static readonly Dictionary<string, DummyPointType> NAME_TO_TYPE_MAP = BuildNameMap();
 
         /// <summary>
@@ -66,6 +70,11 @@ namespace GameLogic
             return GetDummyPoint(pointType);
         }
         
+        /// <summary>
+        /// 根据挂点类型获取 Transform。
+        /// </summary>
+        /// <param name="pointType">挂点类型。</param>
+        /// <returns>查找到的挂点；不存在时返回 null。</returns>
         public Transform GetDummyPoint(DummyPointType pointType)
         {
             if (pointType == DummyPointType.DM_NONE || pointType == DummyPointType.DM_MAX)
@@ -88,6 +97,12 @@ namespace GameLogic
             return point != null;
         }
         
+        /// <summary>
+        /// 尝试按挂点类型获取挂点。
+        /// </summary>
+        /// <param name="pointType">挂点类型。</param>
+        /// <param name="point">输出挂点。</param>
+        /// <returns>找到时返回 true。</returns>
         public bool TryGetDummyPoint(DummyPointType pointType, out Transform point)
         {
             point = GetDummyPoint(pointType);
@@ -104,6 +119,11 @@ namespace GameLogic
             m_dummyPoints.Clear();
         }
         
+        /// <summary>
+        /// 构建挂点名称到挂点类型的静态映射。
+        /// 仅收录实际定义的挂点枚举值，并过滤掉哨兵项。
+        /// </summary>
+        /// <returns>挂点名称到挂点类型的映射表。</returns>
         private static Dictionary<string, DummyPointType> BuildNameMap()
         {
             var map = new Dictionary<string, DummyPointType>(StringComparer.Ordinal);

@@ -64,6 +64,7 @@ namespace GameLogic
         /// <summary>
         /// 初始化显示组件，并在渲染单位根节点下创建 DisplayRoot。
         /// </summary>
+        /// <param name="ct">模型初始化的取消令牌。</param>
         public async UniTaskVoid InitAsync(CancellationToken ct = default)
         {
             try
@@ -90,6 +91,10 @@ namespace GameLogic
                     Clear();
                 }
             }
+            catch (OperationCanceledException)
+            {
+                Clear();
+            }
             catch (Exception e)
             {
                 DLogger.Error($"UnitDisplayComponent init failed: {e}");
@@ -102,6 +107,7 @@ namespace GameLogic
         /// 这是显示组件对外暴露的主模型切换入口。
         /// </summary>
         /// <param name="modelId">模型 ID。</param>
+        /// <param name="ct">模型刷新时使用的取消令牌。</param>
         /// <returns>刷新成功返回 true。</returns>
         public async UniTask<bool> RefreshMainModelAsync(int modelId, CancellationToken ct = default)
         {
@@ -126,11 +132,28 @@ namespace GameLogic
         /// <returns>挂点 Transform；不存在时返回 null。</returns>
         public Transform GetDummyPoint(string dummyName) => UnitDummy.GetDummyPoint(dummyName);
 
+        /// <summary>
+        /// 从当前挂点缓存中获取指定类型的挂点。
+        /// </summary>
+        /// <param name="dummyType">挂点类型。</param>
+        /// <returns>挂点 Transform；不存在时返回 null。</returns>
         public Transform GetDummyPoint(DummyPointType dummyType) => UnitDummy.GetDummyPoint(dummyType);
 
+        /// <summary>
+        /// 尝试按挂点名称获取挂点。
+        /// </summary>
+        /// <param name="dummyName">挂点名称。</param>
+        /// <param name="point">输出挂点。</param>
+        /// <returns>找到时返回 true。</returns>
         public bool TryGetDummyPoint(string dummyName, out Transform point)
             => UnitDummy.TryGetDummyPoint(dummyName, out point);
 
+        /// <summary>
+        /// 尝试按挂点类型获取挂点。
+        /// </summary>
+        /// <param name="pointType">挂点类型。</param>
+        /// <param name="point">输出挂点。</param>
+        /// <returns>找到时返回 true。</returns>
         public bool TryGetDummyPoint(DummyPointType pointType, out Transform point)
             => UnitDummy.TryGetDummyPoint(pointType, out point);
 
@@ -140,6 +163,9 @@ namespace GameLogic
         /// <param name="active">是否可见。</param>
         public void SetActive(bool active) => DisplayRoot?.SetActive(active);
 
+        /// <summary>
+        /// 销毁显示组件持有的运行时显示对象。
+        /// </summary>
         public void Destroy()
         {
             Clear();
