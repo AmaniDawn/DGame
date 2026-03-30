@@ -21,6 +21,8 @@ namespace GameBattle
         
         public BattleEventHubComponent BattleEvents { get; private set; }
 
+        public SingletonManagerComponent SingletonManager { get; private set; }
+
         /// <summary>
         /// 获取或设置渲染单位工厂。
         /// </summary>
@@ -34,6 +36,7 @@ namespace GameBattle
         internal static BattleContextComponent Create(SubScene subScene)
         {
             var battle = subScene.AddComponent<BattleContextComponent>();
+            battle.SingletonManager = battle.AddComponent<SingletonManagerComponent>();
             battle.FrameSync = battle.AddComponent<FrameSyncComponent>();
             battle.LogicUnitFactoryComponent = battle.AddComponent<LogicUnitFactoryComponent>();
             battle.BattleEvents = battle.AddComponent<BattleEventHubComponent>();
@@ -50,6 +53,7 @@ namespace GameBattle
             RenderUnitFactory = null;
             LogicUnitFactoryComponent = null;
             BattleEvents = null;
+            SingletonManager = null;
         }
     }
 }
