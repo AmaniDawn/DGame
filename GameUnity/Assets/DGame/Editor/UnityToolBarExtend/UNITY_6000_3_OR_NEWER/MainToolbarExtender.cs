@@ -223,7 +223,7 @@ namespace DGame
 
             private static void UpdateScenes()
             {
-                m_initScenes = SceneSwitcher.GetScenesInPath(initScenePath);
+                m_initScenes = SceneSwitcher.GetScenesInBuild();
                 m_abScenes = SceneSwitcher.GetScenesInPath(abScenePath);
 
                 List<(string sceneName, string scenePath)> allScenes = GetScenesInPath();
@@ -259,6 +259,23 @@ namespace DGame
 
             private static class SceneSwitcher
             {
+                public static List<(string sceneName, string scenePath)> GetScenesInBuild()
+                {
+                    var scenes = new List<(string sceneName, string scenePath)>();
+                    foreach (var scene in EditorBuildSettings.scenes)
+                    {
+                        if (!scene.enabled || string.IsNullOrEmpty(scene.path))
+                        {
+                            continue;
+                        }
+
+                        var sceneName = Path.GetFileNameWithoutExtension(scene.path);
+                        scenes.Add((sceneName, scene.path));
+                    }
+
+                    return scenes;
+                }
+
                 public static List<(string sceneName, string scenePath)> GetScenesInPath(string path)
                 {
                     var scenes = new List<(string sceneName, string scenePath)>();
