@@ -31,11 +31,9 @@ namespace GameLogic
         /// <typeparam name="T">渲染单位事件类型。</typeparam>
         /// <param name="self">渲染单位实例。</param>
         /// <param name="handler">事件回调。</param>
-        public static void SubscribeRenderScoped<T>(this UnitDisplayComponent self, Action<T> handler) where T : struct, IUnitEvent
-        {
-            self.OwnerUnit.SubscribeRender(self.OwnerUnit, handler);
-            self.OwnerUnit.Subscriptions.Add(() => self.OwnerUnit.UnsubscribeRender(handler));
-        }
+        public static void SubscribeRenderScoped<T>(this UnitDisplayComponent self, Action<T> handler)
+            where T : struct, IUnitEvent
+            => self.OwnerUnit.SubscribeRenderScoped(handler);
 
         /// <summary>
         /// 注册渲染单位事件监听。

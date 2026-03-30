@@ -94,11 +94,9 @@ namespace GameLogic
         /// <param name="self">渲染单位实例。</param>
         /// <param name="owner">监听所属者。</param>
         /// <param name="handler">事件回调。</param>
-        public static void SubscribeRenderScoped<T>(this RenderUnit self, object owner, Action<T> handler) where T : struct, IUnitEvent
-        {
-            self.SubscribeRender(owner, handler);
-            self.Subscriptions.Add(() => self.UnsubscribeRender(handler));
-        }
+        public static void SubscribeRenderScoped<T>(this RenderUnit self, object owner, Action<T> handler)
+            where T : struct, IUnitEvent
+            => self.SubscribeRenderScoped(owner, self.Subscriptions, handler);
 
         /// <summary>
         /// 注册一个以当前渲染单位为所属者并自动释放的渲染单位事件监听。
@@ -106,11 +104,9 @@ namespace GameLogic
         /// <typeparam name="T">渲染单位事件类型。</typeparam>
         /// <param name="self">渲染单位实例。</param>
         /// <param name="handler">事件回调。</param>
-        public static void SubscribeRenderScoped<T>(this RenderUnit self, Action<T> handler) where T : struct, IUnitEvent
-        {
-            self.SubscribeRender(self, handler);
-            self.Subscriptions.Add(() => self.UnsubscribeRender(handler));
-        }
+        public static void SubscribeRenderScoped<T>(this RenderUnit self, Action<T> handler)
+            where T : struct, IUnitEvent
+            => self.SubscribeRenderScoped(self, self.Subscriptions, handler);
 
         /// <summary>
         /// 注册渲染单位事件监听。
