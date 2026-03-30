@@ -30,7 +30,7 @@ namespace GameBattle
         /// <param name="self">战斗上下文。</param>
         /// <param name="owner">监听所属者。</param>
         /// <param name="handler">事件回调。</param>
-        public static void Subscribe<T>(this BattleContextComponent self, object owner, Action<T> handler)
+        public static void SubscribeBattle<T>(this BattleContextComponent self, object owner, Action<T> handler)
             where T : struct, IBattleEvent
             => self.BattleEvents.Subscribe(owner, handler);
 
@@ -40,7 +40,7 @@ namespace GameBattle
         /// <typeparam name="T">战斗事件类型。</typeparam>
         /// <param name="self">战斗上下文。</param>
         /// <param name="handler">事件回调。</param>
-        public static void Unsubscribe<T>(this BattleContextComponent self, Action<T> handler)
+        public static void UnsubscribeBattle<T>(this BattleContextComponent self, Action<T> handler)
             where T : struct, IBattleEvent
             => self.BattleEvents.Unsubscribe(handler);
 
@@ -49,7 +49,7 @@ namespace GameBattle
         /// </summary>
         /// <param name="self">战斗上下文。</param>
         /// <param name="owner">监听所属者。</param>
-        public static void RemoveAll(this BattleContextComponent self, object owner)
+        public static void RemoveAllBattleSubscriptions(this BattleContextComponent self, object owner)
             => self.BattleEvents.RemoveAll(owner);
 
         /// <summary>
@@ -58,7 +58,7 @@ namespace GameBattle
         /// <typeparam name="T">战斗事件类型。</typeparam>
         /// <param name="self">战斗上下文。</param>
         /// <param name="eventData">事件数据。</param>
-        public static void Publish<T>(this BattleContextComponent self, T eventData)
+        public static void PublishBattle<T>(this BattleContextComponent self, T eventData)
             where T : struct, IBattleEvent
             => self.BattleEvents.Publish(eventData);
     }

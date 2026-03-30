@@ -51,8 +51,8 @@ namespace GameLogic
         public static bool IsSameUnit(this RenderUnit self, RenderUnit other)
             => other != null && self.RuntimeId != 0 && other.RuntimeId != 0 && self.RuntimeId == other.RuntimeId;
 
-        public static void SubscribeScoped<T>(this RenderUnit self, Action<T> handler) where T : struct, IUnitEvent 
-            => self.LogicUnit.SubscribeScoped(self, self.Subscriptions, handler);
+        public static void SubscribeLogicScoped<T>(this RenderUnit self, Action<T> handler) where T : struct, IUnitEvent
+            => self.LogicUnit.SubscribeLogicScoped(self, self.Subscriptions, handler);
 
         /// <summary>
         /// 注册一个跟随作用域自动释放的单位事件监听。
@@ -62,11 +62,36 @@ namespace GameLogic
         /// <param name="owner">监听所属者。</param>
         /// <param name="scope">订阅作用域。</param>
         /// <param name="handler">事件回调。</param>
-        public static void SubscribeScoped<T>(this RenderUnit self, object owner, SubscriptionScopeComponent scope,
+        public static void SubscribeRenderScoped<T>(this RenderUnit self, object owner, SubscriptionScopeComponent scope,
             Action<T> handler) where T : struct, IUnitEvent
         {
-            self.Subscribe(owner, handler);
-            scope.Add(() => self.Unsubscribe(handler));
+            self.SubscribeRender(owner, handler);
+            scope.Add(() => self.UnsubscribeRender(handler));
+        }
+
+        /// <summary>
+        /// 注册一个跟随作用域自动释放的单位事件监听。
+        /// </summary>
+        /// <typeparam name="T">单位事件类型。</typeparam>
+        /// <param name="self">渲染单位。</param>
+        /// <param name="owner">监听所属者。</param>
+        /// <param name="handler">事件回调。</param>
+        public static void SubscribeRenderScoped<T>(this RenderUnit self, object owner, Action<T> handler) where T : struct, IUnitEvent
+        {
+            self.SubscribeRender(owner, handler);
+            self.Subscriptions.Add(() => self.UnsubscribeRender(handler));
+        }
+
+        /// <summary>
+        /// 注册一个跟随作用域自动释放的单位事件监听。
+        /// </summary>
+        /// <typeparam name="T">单位事件类型。</typeparam>
+        /// <param name="self">渲染单位。</param>
+        /// <param name="handler">事件回调。</param>
+        public static void SubscribeRenderScoped<T>(this RenderUnit self, Action<T> handler) where T : struct, IUnitEvent
+        {
+            self.SubscribeRender(self, handler);
+            self.Subscriptions.Add(() => self.UnsubscribeRender(handler));
         }
 
         /// <summary>
@@ -76,7 +101,7 @@ namespace GameLogic
         /// <param name="self">渲染单位。</param>
         /// <param name="owner">监听所属者。</param>
         /// <param name="handler">事件回调。</param>
-        public static void Subscribe<T>(this RenderUnit self, object owner, Action<T> handler)
+        public static void SubscribeRender<T>(this RenderUnit self, object owner, Action<T> handler)
             where T : struct, IUnitEvent
             => self.UnitEventHub.Subscribe(owner, handler);
 
@@ -86,7 +111,7 @@ namespace GameLogic
         /// <typeparam name="T">单位事件类型。</typeparam>
         /// <param name="self">渲染单位。</param>
         /// <param name="handler">事件回调。</param>
-        public static void Unsubscribe<T>(this RenderUnit self, Action<T> handler)
+        public static void UnsubscribeRender<T>(this RenderUnit self, Action<T> handler)
             where T : struct, IUnitEvent
             => self.UnitEventHub.Unsubscribe(handler);
 
@@ -95,7 +120,7 @@ namespace GameLogic
         /// </summary>
         /// <param name="self">渲染单位。</param>
         /// <param name="owner">监听所属者。</param>
-        public static void RemoveAll(this RenderUnit self, object owner)
+        public static void RemoveAllRenderSubscriptions(this RenderUnit self, object owner)
             => self.UnitEventHub.RemoveAll(owner);
 
         /// <summary>
@@ -104,7 +129,7 @@ namespace GameLogic
         /// <typeparam name="T">单位事件类型。</typeparam>
         /// <param name="self">渲染单位。</param>
         /// <param name="eventData">事件数据。</param>
-        public static void Publish<T>(this RenderUnit self, T eventData)
+        public static void PublishRender<T>(this RenderUnit self, T eventData)
             where T : struct, IUnitEvent
             => self.UnitEventHub.Publish(eventData);
     }

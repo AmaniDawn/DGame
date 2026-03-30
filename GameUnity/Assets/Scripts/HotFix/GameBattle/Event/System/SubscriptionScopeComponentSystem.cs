@@ -31,11 +31,11 @@ namespace GameBattle
         /// <param name="owner">监听所属者。</param>
         /// <param name="scope">订阅作用域。</param>
         /// <param name="handler">事件回调。</param>
-        public static void SubscribeScoped<T>(this LogicUnit self, object owner, SubscriptionScopeComponent scope,
+        public static void SubscribeLogicScoped<T>(this LogicUnit self, object owner, SubscriptionScopeComponent scope,
             Action<T> handler) where T : struct, IUnitEvent
         {
-            self.Subscribe(owner, handler);
-            scope.Add(() => self.Unsubscribe(handler));
+            self.SubscribeLogic(owner, handler);
+            scope.Add(() => self.UnsubscribeLogic(handler));
         }
 
         /// <summary>
@@ -46,11 +46,11 @@ namespace GameBattle
         /// <param name="owner">监听所属者。</param>
         /// <param name="scope">订阅作用域。</param>
         /// <param name="handler">事件回调。</param>
-        public static void SubscribeScoped<T>(this BattleContextComponent self, object owner, SubscriptionScopeComponent scope,
+        public static void SubscribeBattleScoped<T>(this BattleContextComponent self, object owner, SubscriptionScopeComponent scope,
             Action<T> handler) where T : struct, IBattleEvent
         {
-            self.Subscribe(owner, handler);
-            scope.Add(() => self.Unsubscribe(handler));
+            self.SubscribeBattle(owner, handler);
+            scope.Add(() => self.UnsubscribeBattle(handler));
         }
     }
 }

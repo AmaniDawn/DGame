@@ -30,7 +30,7 @@ namespace GameBattle
         /// <param name="self">逻辑单位。</param>
         /// <param name="owner">监听所属者。</param>
         /// <param name="handler">事件回调。</param>
-        public static void Subscribe<T>(this LogicUnit self, object owner, Action<T> handler)
+        public static void SubscribeLogic<T>(this LogicUnit self, object owner, Action<T> handler)
             where T : struct, IUnitEvent
             => self.UnitEventHub.Subscribe(owner, handler);
         
@@ -40,7 +40,7 @@ namespace GameBattle
         /// <typeparam name="T">单位事件类型。</typeparam>
         /// <param name="self">逻辑单位。</param>
         /// <param name="handler">事件回调。</param>
-        public static void Unsubscribe<T>(this LogicUnit self, Action<T> handler)
+        public static void UnsubscribeLogic<T>(this LogicUnit self, Action<T> handler)
             where T : struct, IUnitEvent
             => self.UnitEventHub.Unsubscribe(handler);
 
@@ -49,7 +49,7 @@ namespace GameBattle
         /// </summary>
         /// <param name="self">逻辑单位。</param>
         /// <param name="owner">监听所属者。</param>
-        public static void RemoveAll(this LogicUnit self, object owner)
+        public static void RemoveAllLogicSubscriptions(this LogicUnit self, object owner)
             => self.UnitEventHub.RemoveAll(owner);
         
         /// <summary>
@@ -58,7 +58,7 @@ namespace GameBattle
         /// <typeparam name="T">单位事件类型。</typeparam>
         /// <param name="self">逻辑单位。</param>
         /// <param name="eventData">事件数据。</param>
-        public static void Publish<T>(this LogicUnit self, T eventData)
+        public static void PublishLogic<T>(this LogicUnit self, T eventData)
             where T : struct, IUnitEvent
             => self.UnitEventHub.Publish(eventData);
     }
