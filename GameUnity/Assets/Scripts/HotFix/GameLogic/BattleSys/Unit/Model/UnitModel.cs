@@ -1,4 +1,5 @@
-﻿using GameProto;
+﻿using Cysharp.Threading.Tasks;
+using GameProto;
 using UnityEngine;
 
 namespace GameLogic
@@ -44,14 +45,15 @@ namespace GameLogic
         public UnitModel(UnitDisplayComponent owner)
         {
             m_owner = owner;
+            Init();
         }
 
         /// <summary>
         /// 初始化模型根节点，并挂到显示容器下。
         /// </summary>
-        /// <param name="parent">显示层父节点。</param>
-        public void Init(Transform parent)
+        private void Init()
         {
+            var parent = m_owner.DisplayRootTransform;
             if (parent == null)
             {
                 return;
@@ -59,12 +61,12 @@ namespace GameLogic
 
             if (ModelRoot == null)
             {
-                ModelRoot = new GameObject("UnitModelRoot");
+                ModelRoot = new GameObject(UnitHelper.ModelRootName);
                 ModelRootTransform = ModelRoot.transform;
             }
 
             ModelRootTransform.SetParent(parent, false);
-            ResetLocalTransform(ModelRootTransform);
+            ModelRootTransform.ResetLocalPosScaleRot();
             MainModelPart.SetParent(ModelRootTransform);
         }
 
@@ -74,7 +76,7 @@ namespace GameLogic
         /// </summary>
         /// <param name="modelId">模型 ID。</param>
         /// <returns>刷新成功返回 true。</returns>
-        public bool RefreshMainModel(int modelId)
+        public async UniTask<bool> RefreshMainModelAsync(int modelId)
         {
             MainModelCfg = modelId > 0 ? ModelConfigMgr.Instance.GetOrDefault(modelId) : null;
             if (MainModelCfg == null || string.IsNullOrEmpty(MainModelCfg.ModelLocation))
@@ -84,7 +86,9 @@ namespace GameLogic
                 return false;
             }
 
-            if (!MainModelPart.Load(MainModelCfg.ModelLocation, ModelRootTransform))
+            var isSuccess = await MainModelPart.LoadModelAsync(MainModelCfg.ModelLocation, ModelRootTransform);
+
+            if (!isSuccess)
             {
                 m_owner?.UnitDummy?.Clear();
                 return false;
@@ -113,7 +117,7 @@ namespace GameLogic
         /// <param name="active">是否可见。</param>
         public void SetActive(bool active)
         {
-            MainModelPart.SetActive(active);
+            ModelRoot.SetActive(active);
         }
 
         /// <summary>
@@ -130,22 +134,6 @@ namespace GameLogic
                 ModelRoot = null;
                 ModelRootTransform = null;
             }
-        }
-
-        /// <summary>
-        /// 重置模型根节点局部姿态。
-        /// </summary>
-        /// <param name="trans">目标节点。</param>
-        private static void ResetLocalTransform(Transform trans)
-        {
-            if (trans == null)
-            {
-                return;
-            }
-
-            trans.localPosition = Vector3.zero;
-            trans.localRotation = Quaternion.identity;
-            trans.localScale = Vector3.one;
         }
     }
 }

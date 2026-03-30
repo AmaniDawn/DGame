@@ -1,4 +1,5 @@
-﻿using UnityEngine;
+﻿using Cysharp.Threading.Tasks;
+using UnityEngine;
 
 namespace GameLogic
 {
@@ -65,7 +66,7 @@ namespace GameLogic
         /// <param name="location">资源地址。</param>
         /// <param name="parent">挂载父节点。</param>
         /// <returns>加载成功返回 true。</returns>
-        public bool Load(string location, Transform parent = null)
+        public async UniTask<bool> LoadModelAsync(string location, Transform parent = null)
         {
             if (string.IsNullOrEmpty(location))
             {
@@ -77,7 +78,8 @@ namespace GameLogic
             {
                 if (parent != null && m_parent != parent)
                 {
-                    SetParent(parent);
+                    m_parent = parent;
+                    m_modelGo.transform.SetParent(parent);
                 }
                 return true;
             }
@@ -86,14 +88,15 @@ namespace GameLogic
 
             m_parent = parent;
             m_location = location;
-            m_modelGo = GameModule.ResourceModule.LoadGameObject(location, parent);
+            m_modelGo = await GameModule.ResourceModule.LoadGameObjectAsync(location, parent);
             if (m_modelGo == null)
             {
+                m_parent = null;
                 m_location = string.Empty;
                 return false;
             }
 
-            ResetLocalTransform(m_modelGo.transform);
+            m_modelGo.transform.ResetLocalPosScaleRot();
             return true;
         }
 
@@ -101,13 +104,7 @@ namespace GameLogic
         /// 设置模型显隐。
         /// </summary>
         /// <param name="active">是否可见。</param>
-        public void SetActive(bool active)
-        {
-            if (m_modelGo != null)
-            {
-                m_modelGo.SetActive(active);
-            }
-        }
+        public void SetActive(bool active) => m_modelGo?.SetActive(active);
 
         /// <summary>
         /// 销毁当前模型实例并清空部件状态。
@@ -122,23 +119,6 @@ namespace GameLogic
 
             m_location = string.Empty;
             m_parent = null;
-        }
-
-        /// <summary>
-        /// 重置实例的本地位移、旋转和缩放。
-        /// 统一保证模型实例进入容器后的局部姿态一致。
-        /// </summary>
-        /// <param name="trans">要重置的节点。</param>
-        private static void ResetLocalTransform(Transform trans)
-        {
-            if (trans == null)
-            {
-                return;
-            }
-
-            trans.localPosition = Vector3.zero;
-            trans.localRotation = Quaternion.identity;
-            trans.localScale = Vector3.one;
         }
     }
 }

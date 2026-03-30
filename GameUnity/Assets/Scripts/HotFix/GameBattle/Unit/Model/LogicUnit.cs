@@ -77,6 +77,11 @@ namespace GameBattle
         /// 单位是否已销毁。
         /// </summary>
         public bool IsDestroyed { get; internal set; }
+        
+        /// <summary>
+        /// 单位是否已死亡。
+        /// </summary>
+        public bool IsDied => IsDestroyed || UnitState == UnitState.Die;
 
         #region 初始化
 

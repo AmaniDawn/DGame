@@ -17,6 +17,8 @@ namespace GameLogic
         
         public UnitStateSyncVersionComponent StateSyncVersion { get; private set; }
         
+        public UnitDisplayComponent UnitDisplay { get; private set; }
+        
         /// <summary>
         /// 单位名称。
         /// </summary>
@@ -76,6 +78,18 @@ namespace GameLogic
         /// 渲染对象当前是否可见。
         /// </summary>
         public bool Visible { get; protected set; } = true;
+        
+        /// <summary>
+        /// 指示当前渲染单位是否需要绑定逻辑层单位。
+        /// </summary>
+        /// <returns>默认返回 <see langword="true"/>。</returns>
+        public virtual bool NeedBindLogicUnit() => true;
+
+        /// <summary>
+        /// 指示当前单位是否属于 Boss。
+        /// </summary>
+        /// <returns>默认返回 <see langword="false"/>。</returns>
+        public virtual bool IsBoss() => false;
 
         #region 初始化相关
 
@@ -89,8 +103,11 @@ namespace GameLogic
             LogicUnit = logicUnit;
             UnitType = logicUnit.UnitType;
             UnitName = logicUnit.UnitName;
+            Visible = true;
+            InitModel(CreateGameObject());
             StateSyncVersion = AddComponent<UnitStateSyncVersionComponent>();
             Subscriptions = AddComponent<SubscriptionScopeComponent>();
+            UnitDisplay = AddComponent<UnitDisplayComponent>();
             if (!OnInit(logicUnit))
             {
                 return false;
@@ -113,6 +130,13 @@ namespace GameLogic
         {
             return true;
         }
+
+        protected virtual GameObject CreateGameObject()
+        {
+            var go = new GameObject();
+            // go.transform.SetParent(BattleManager.Instance.TransHeroActorRoot);
+            return go;
+        }
         
         public void Awake()
         {
@@ -125,6 +149,8 @@ namespace GameLogic
         protected virtual void RegisterEvent() { }
 
         #endregion
+
+        #region Destroy 相关
 
         protected virtual void OnDestroy() { }
 
@@ -161,18 +187,10 @@ namespace GameLogic
             }
         }
 
-        /// <summary>
-        /// 指示当前渲染单位是否需要绑定逻辑层单位。
-        /// </summary>
-        /// <returns>默认返回 <see langword="true"/>。</returns>
-        public virtual bool NeedBindLogicUnit() => true;
+        #endregion
 
-        /// <summary>
-        /// 指示当前单位是否属于 Boss。
-        /// </summary>
-        /// <returns>默认返回 <see langword="false"/>。</returns>
-        public virtual bool IsBoss() => false;
-        
+        #region Sync 相关
+
         public virtual void SyncFromLogic()
         {
             // 示例
@@ -199,6 +217,22 @@ namespace GameLogic
         
         protected virtual void SyncAttr() { }
 
+        #endregion
+
+        #region 渲染相关
+
+        public abstract int GetModelID();
+
+        protected void InitModel(GameObject root)
+        {
+            UnitRoot = root;
+            UnitRootTransform = UnitRoot.transform;
+        }
+
+        #endregion
+
+        #region 工具方法
+
         /// <summary>
         /// 获取在编辑器中展示的游戏对象名称。
         /// </summary>
@@ -212,5 +246,7 @@ namespace GameLogic
 
             return "RenderUnit";
         }
+
+        #endregion
     }
 }

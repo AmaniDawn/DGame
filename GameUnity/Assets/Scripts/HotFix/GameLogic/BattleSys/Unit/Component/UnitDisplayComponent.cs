@@ -9,6 +9,7 @@
  *          - DebugTextInfo（HP）
  */
 
+using Cysharp.Threading.Tasks;
 using Fantasy.Entitas;
 using GameProto;
 using UnityEngine;
@@ -21,6 +22,8 @@ namespace GameLogic
     /// </summary>
     public sealed class UnitDisplayComponent : Entity
     {
+        public RenderUnit OwnerUnit { get; private set; }
+        
         /// <summary>
         /// 当前显示组件关联的模型容器。
         /// </summary>
@@ -56,27 +59,28 @@ namespace GameLogic
         /// <summary>
         /// 初始化显示组件，并在渲染单位根节点下创建 DisplayRoot。
         /// </summary>
-        /// <param name="owner">所属渲染单位。</param>
-        public void Init(RenderUnit owner)
+        private async UniTaskVoid InitAsync()
         {
-            if (owner == null || owner.UnitRootTransform == null)
+            OwnerUnit = Parent as RenderUnit;
+            if (OwnerUnit == null || OwnerUnit.UnitRootTransform == null)
             {
                 return;
             }
 
             if (DisplayRoot == null)
             {
-                DisplayRoot = new GameObject("DisplayRoot");
+                DisplayRoot = new GameObject(UnitHelper.DisplayRootName);
             }
 
             var displayTransform = DisplayRoot.transform;
-            displayTransform.SetParent(owner.UnitRootTransform, false);
-            displayTransform.localPosition = Vector3.zero;
-            displayTransform.localRotation = Quaternion.identity;
-            displayTransform.localScale = Vector3.one;
+            displayTransform.SetParent(OwnerUnit.UnitRootTransform, false);
+            displayTransform.ResetLocalPosScaleRot();
 
             UnitModel ??= new UnitModel(this);
-            UnitModel.Init(displayTransform);
+            var isSuccess = await RefreshMainModelAsync(OwnerUnit.GetModelID());
+            if (!isSuccess)
+            {
+            }
         }
 
         /// <summary>
@@ -85,24 +89,21 @@ namespace GameLogic
         /// </summary>
         /// <param name="modelId">模型 ID。</param>
         /// <returns>刷新成功返回 true。</returns>
-        public bool RefreshMainModel(int modelId)
+        public async UniTask<bool> RefreshMainModelAsync(int modelId)
         {
             if (UnitModel == null)
             {
                 return false;
             }
 
-            return UnitModel.RefreshMainModel(modelId);
+            return await UnitModel.RefreshMainModelAsync(modelId);
         }
 
         /// <summary>
         /// 获取当前主模型对象。
         /// </summary>
         /// <returns>主模型对象；未加载时返回 null。</returns>
-        public GameObject GetMainModelGo()
-        {
-            return UnitModel?.GetModelGo();
-        }
+        public GameObject GetMainModelGo() => UnitModel?.GetModelGo();
 
         /// <summary>
         /// 从当前挂点缓存中获取指定挂点。
@@ -118,14 +119,18 @@ namespace GameLogic
         /// 设置整个显示层显隐。
         /// </summary>
         /// <param name="active">是否可见。</param>
-        public void SetActive(bool active)
+        public void SetActive(bool active) => DisplayRoot?.SetActive(active);
+        
+        public void Awake()
         {
-            if (DisplayRoot != null)
-            {
-                DisplayRoot.SetActive(active);
-            }
+            InitAsync().Forget();
         }
 
+        public void Destroy()
+        {
+            Clear();
+        }
+        
         /// <summary>
         /// 清理显示组件相关资源。
         /// 包括模型容器、挂点缓存和显示根节点。

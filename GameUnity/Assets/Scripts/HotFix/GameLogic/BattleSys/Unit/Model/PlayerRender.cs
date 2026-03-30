@@ -5,5 +5,9 @@ namespace GameLogic
     /// </summary>
     public class PlayerRender : RenderUnit
     {
+        public override int GetModelID()
+        {
+            return 0;
+        }
     }
 }

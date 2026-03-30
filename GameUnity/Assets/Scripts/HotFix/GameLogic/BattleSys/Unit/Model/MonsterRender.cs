@@ -5,5 +5,9 @@
     /// </summary>
     public class MonsterRender : RenderUnit
     {
+        public override int GetModelID()
+        {
+            return 0;
+        }
     }
 }
