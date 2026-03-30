@@ -55,6 +55,21 @@ namespace GameLogic
             => self.LogicUnit.SubscribeScoped(self, self.Subscriptions, handler);
 
         /// <summary>
+        /// 注册一个跟随作用域自动释放的单位事件监听。
+        /// </summary>
+        /// <typeparam name="T">单位事件类型。</typeparam>
+        /// <param name="self">渲染单位。</param>
+        /// <param name="owner">监听所属者。</param>
+        /// <param name="scope">订阅作用域。</param>
+        /// <param name="handler">事件回调。</param>
+        public static void SubscribeScoped<T>(this RenderUnit self, object owner, SubscriptionScopeComponent scope,
+            Action<T> handler) where T : struct, IUnitEvent
+        {
+            self.Subscribe(owner, handler);
+            scope.Add(() => self.Unsubscribe(handler));
+        }
+
+        /// <summary>
         /// 注册单位事件监听。
         /// </summary>
         /// <typeparam name="T">单位事件类型。</typeparam>
@@ -64,5 +79,33 @@ namespace GameLogic
         public static void Subscribe<T>(this RenderUnit self, object owner, Action<T> handler)
             where T : struct, IUnitEvent
             => self.UnitEventHub.Subscribe(owner, handler);
+
+        /// <summary>
+        /// 取消单位事件监听。
+        /// </summary>
+        /// <typeparam name="T">单位事件类型。</typeparam>
+        /// <param name="self">渲染单位。</param>
+        /// <param name="handler">事件回调。</param>
+        public static void Unsubscribe<T>(this RenderUnit self, Action<T> handler)
+            where T : struct, IUnitEvent
+            => self.UnitEventHub.Unsubscribe(handler);
+
+        /// <summary>
+        /// 移除指定所属者的全部单位事件监听。
+        /// </summary>
+        /// <param name="self">渲染单位。</param>
+        /// <param name="owner">监听所属者。</param>
+        public static void RemoveAll(this RenderUnit self, object owner)
+            => self.UnitEventHub.RemoveAll(owner);
+
+        /// <summary>
+        /// 发布单位事件。
+        /// </summary>
+        /// <typeparam name="T">单位事件类型。</typeparam>
+        /// <param name="self">渲染单位。</param>
+        /// <param name="eventData">事件数据。</param>
+        public static void Publish<T>(this RenderUnit self, T eventData)
+            where T : struct, IUnitEvent
+            => self.UnitEventHub.Publish(eventData);
     }
 }
