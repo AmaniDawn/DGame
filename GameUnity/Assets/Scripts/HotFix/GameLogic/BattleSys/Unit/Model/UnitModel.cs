@@ -1,7 +1,9 @@
-﻿using System.Threading;
+﻿using System;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using GameProto;
 using UnityEngine;
+using Object = UnityEngine.Object;
 
 namespace GameLogic
 {
@@ -32,7 +34,7 @@ namespace GameLogic
         /// 主模型部件。
         /// 当前版本先只实现主模型，后续可以继续扩展武器、阴影、特效部件。
         /// </summary>
-        public UnitModelPart MainModelPart { get; } = new();
+        public MainUnitModelPart MainModelPart { get; private set; }
 
         /// <summary>
         /// 当前主模型配置。
@@ -82,28 +84,51 @@ namespace GameLogic
             MainModelCfg = modelId > 0 ? ModelConfigMgr.Instance.GetOrDefault(modelId) : null;
             if (MainModelCfg == null || string.IsNullOrEmpty(MainModelCfg.ModelLocation))
             {
-                MainModelPart.Destroy();
+                MainModelPart?.Destroy();
                 m_owner?.UnitDummy?.Clear();
                 return false;
             }
-
-            var isSuccess = await MainModelPart.LoadModelAsync(MainModelCfg.ModelLocation, ModelRootTransform, ct);
-
-            if (!isSuccess)
+            return await AddMainModelAsync(UnitModelType.MainModelType, ct);
+        }
+        
+        public async UniTask<bool> AddMainModelAsync(UnitModelType unitModelType, CancellationToken ct = default)
+        {
+            switch (unitModelType)
             {
-                m_owner?.UnitDummy?.Clear();
-                return false;
+                case UnitModelType.MainModelType:
+                    MainModelPart = UnitModelPartFactory.Create(m_owner, unitModelType,
+                        OnModelCreated, OnModelDestroy, OnBeforeModelDestroy) as MainUnitModelPart;
+                    if (MainModelPart == null)
+                    {
+                        m_owner?.UnitDummy?.Clear();
+                        return false;
+                    }
+                    var isSuccess = await MainModelPart.LoadModelAsync(MainModelCfg.ModelLocation, ModelRootTransform, ct);
+
+                    if (!isSuccess)
+                    {
+                        MainModelPart?.Destroy();
+                        m_owner?.UnitDummy?.Clear();
+                        return false;
+                    }
+                    var mainTransform = MainModelPart.Transform;
+                    m_owner?.UnitDummy?.Refresh(mainTransform);
+                    return true;
             }
 
-            var mainTransform = MainModelPart.Transform;
-            if (mainTransform != null)
-            {
-                var scale = MainModelCfg.ModelScale <= 0f ? 1f : MainModelCfg.ModelScale;
-                mainTransform.localScale = Vector3.one * scale;
-            }
+            return false;
+        }
 
-            m_owner?.UnitDummy?.Refresh(mainTransform);
-            return true;
+        private void OnBeforeModelDestroy(UnitModelType unitModelType)
+        {
+        }
+
+        private void OnModelDestroy(UnitModelType unitModelType)
+        {
+        }
+
+        private void OnModelCreated(GameObject go, UnitModelType unitModelType)
+        {
         }
 
         /// <summary>
