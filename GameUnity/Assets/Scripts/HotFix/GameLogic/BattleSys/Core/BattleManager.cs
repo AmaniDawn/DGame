@@ -1,4 +1,5 @@
-﻿using Fantasy;
+﻿using System;
+using Fantasy;
 using Fantasy.Entitas;
 using GameBattle;
 
@@ -28,13 +29,13 @@ namespace GameLogic
         /// 获取当前战斗上下文组件。
         /// </summary>
         /// <returns>当前战斗上下文组件，如果没有则返回 null。</returns>
-        public static BattleContextComponent GetCurBattleContext() => GameBattle.BattleManager.CurBattleContextComponent;
+        public static BattleContextComponent CurBattleContext => GameBattle.BattleManager.CurBattleContextComponent;
 
         /// <summary>
         /// 获取当前战斗场景。
         /// </summary>
         /// <returns>当前战斗场景，如果没有则返回 null。</returns>
-        public static SubScene GetCurBattleScene() => GameBattle.BattleManager.CurScene;
+        public static SubScene CurBattleScene => GameBattle.BattleManager.CurScene;
 
         /// <summary>
         /// 销毁当前战斗实例，释放所有相关资源。
@@ -44,5 +45,40 @@ namespace GameLogic
             GameBattle.BattleManager.DestroyBattle();
             BattleSystem.Instance.Clear();
         }
+
+        #region Battle级事件相关
+
+        /// <summary>
+        /// 注册战斗级事件监听。
+        /// </summary>
+        /// <typeparam name="T">战斗事件类型。</typeparam>
+        /// <param name="owner">监听所属者。</param>
+        /// <param name="handler">事件回调。</param>
+        public static void Subscribe<T>(object owner, Action<T> handler) where T : struct, IBattleEvent
+            => CurBattleContext.Subscribe(owner, handler);
+
+        /// <summary>
+        /// 取消战斗级事件监听。
+        /// </summary>
+        /// <typeparam name="T">战斗事件类型。</typeparam>
+        /// <param name="handler">事件回调。</param>
+        public static void Unsubscribe<T>(Action<T> handler) where T : struct, IBattleEvent
+            => CurBattleContext.Unsubscribe(handler);
+
+        /// <summary>
+        /// 发布战斗级事件。
+        /// </summary>
+        /// <typeparam name="T">战斗事件类型。</typeparam>
+        /// <param name="eventData">事件数据。</param>
+        public static void Publish<T>(T eventData) where T : struct, IBattleEvent
+            => CurBattleContext.Publish(eventData);
+
+        /// <summary>
+        /// 移除指定所属者的全部战斗级事件监听。
+        /// </summary>
+        /// <param name="owner">监听所属者。</param>
+        public static void RemoveAll(object owner) => CurBattleContext.RemoveAll(owner);
+
+        #endregion
     }
 }
