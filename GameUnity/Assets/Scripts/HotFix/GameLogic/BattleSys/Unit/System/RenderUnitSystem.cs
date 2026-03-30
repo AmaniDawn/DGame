@@ -53,5 +53,16 @@ namespace GameLogic
 
         public static void SubscribeScoped<T>(this RenderUnit self, Action<T> handler) where T : struct, IUnitEvent 
             => self.LogicUnit.SubscribeScoped(self, self.Subscriptions, handler);
+
+        /// <summary>
+        /// 注册单位事件监听。
+        /// </summary>
+        /// <typeparam name="T">单位事件类型。</typeparam>
+        /// <param name="self">渲染单位。</param>
+        /// <param name="owner">监听所属者。</param>
+        /// <param name="handler">事件回调。</param>
+        public static void Subscribe<T>(this RenderUnit self, object owner, Action<T> handler)
+            where T : struct, IUnitEvent
+            => self.UnitEventHub.Subscribe(owner, handler);
     }
 }

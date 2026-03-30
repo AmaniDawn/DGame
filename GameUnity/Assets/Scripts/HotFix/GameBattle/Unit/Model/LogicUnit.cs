@@ -11,7 +11,8 @@ namespace GameBattle
     public abstract class LogicUnit : Entity
     {
         public BattleContextComponent BattleContext { get; private set; }
-        public UnitEventHubComponent UnitEvents { get; private set; }
+
+        public UnitEventHubComponent UnitEventHub { get; private set; }
         
         public UnitStateSyncComponent StateSync { get; private set; }
         
@@ -83,7 +84,7 @@ namespace GameBattle
         {
             BattleContext = battleContextComponent;
             StateSync = AddComponent<UnitStateSyncComponent>();
-            UnitEvents = AddComponent<UnitEventHubComponent>();
+            UnitEventHub = AddComponent<UnitEventHubComponent>();
             
             if (!OnInit())
             {

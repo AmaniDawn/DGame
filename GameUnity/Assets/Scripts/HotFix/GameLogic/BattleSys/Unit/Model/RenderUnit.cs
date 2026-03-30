@@ -11,6 +11,8 @@ namespace GameLogic
     /// </summary>
     public abstract class RenderUnit : Entity, IRenderUnit
     {
+        public UnitEventHubComponent UnitEventHub { get; private set; }
+
         public SubscriptionScopeComponent Subscriptions { get; private set; }
         
         public UnitStateSyncVersionComponent StateSyncVersion { get; private set; }
@@ -48,27 +50,27 @@ namespace GameLogic
         /// <summary>
         /// 渲染对象根节点。
         /// </summary>
-        public GameObject gameObject { get; protected set; }
+        public GameObject UnitRoot { get; protected set; }
 
         /// <summary>
         /// 渲染对象根变换。
         /// </summary>
-        public Transform transform { get; protected set; }
+        public Transform UnitRootTransform { get; protected set; }
 
         /// <summary>
         /// 当前世界坐标位置。
         /// </summary>
-        public Vector3 Position => transform != null ? transform.position : Vector3.zero;
+        public Vector3 Position => UnitRootTransform != null ? UnitRootTransform.position : Vector3.zero;
 
         /// <summary>
         /// 当前世界朝向。
         /// </summary>
-        public Vector3 Forward => transform != null ? transform.forward : Vector3.forward;
+        public Vector3 Forward => UnitRootTransform != null ? UnitRootTransform.forward : Vector3.forward;
 
         /// <summary>
         /// 当前世界旋转。
         /// </summary>
-        public Quaternion Rotation => transform != null ? transform.rotation : Quaternion.identity;
+        public Quaternion Rotation => UnitRootTransform != null ? UnitRootTransform.rotation : Quaternion.identity;
 
         /// <summary>
         /// 渲染对象当前是否可见。
@@ -99,9 +101,9 @@ namespace GameLogic
 
         private bool AfterInit()
         {
-            if (gameObject != null)
+            if (UnitRoot != null)
             {
-                gameObject.name = GetGameObjectName();
+                UnitRoot.name = GetGameObjectName();
             }
 
             return true;
@@ -151,11 +153,11 @@ namespace GameLogic
 
         protected virtual void DestroyGameObject()
         {
-            if (gameObject != null)
+            if (UnitRoot != null)
             {
-                Object.Destroy(gameObject);
-                gameObject = null;
-                transform = null;
+                Object.Destroy(UnitRoot);
+                UnitRoot = null;
+                UnitRootTransform = null;
             }
         }
 

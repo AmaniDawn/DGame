@@ -32,7 +32,7 @@ namespace GameBattle
         /// <param name="handler">事件回调。</param>
         public static void Subscribe<T>(this LogicUnit self, object owner, Action<T> handler)
             where T : struct, IUnitEvent
-            => self.UnitEvents.Subscribe(owner, handler);
+            => self.UnitEventHub.Subscribe(owner, handler);
         
         /// <summary>
         /// 取消单位事件监听。
@@ -42,7 +42,7 @@ namespace GameBattle
         /// <param name="handler">事件回调。</param>
         public static void Unsubscribe<T>(this LogicUnit self, Action<T> handler)
             where T : struct, IUnitEvent
-            => self.UnitEvents.Unsubscribe(handler);
+            => self.UnitEventHub.Unsubscribe(handler);
 
         /// <summary>
         /// 移除指定所属者的全部单位事件监听。
@@ -50,7 +50,7 @@ namespace GameBattle
         /// <param name="self">逻辑单位。</param>
         /// <param name="owner">监听所属者。</param>
         public static void RemoveAll(this LogicUnit self, object owner)
-            => self.UnitEvents.RemoveAll(owner);
+            => self.UnitEventHub.RemoveAll(owner);
         
         /// <summary>
         /// 发布单位事件。
@@ -60,6 +60,6 @@ namespace GameBattle
         /// <param name="eventData">事件数据。</param>
         public static void Publish<T>(this LogicUnit self, T eventData)
             where T : struct, IUnitEvent
-            => self.UnitEvents.Publish(eventData);
+            => self.UnitEventHub.Publish(eventData);
     }
 }
