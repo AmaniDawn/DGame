@@ -15,7 +15,7 @@ namespace DGame
         private static List<(string sceneName, string scenePath)> m_abScenes;
         private static List<(string sceneName, string scenePath)> m_otherScenes;
 
-        private static string initScenePath = "Assets/Scenes";
+        // private static string initScenePath = "Assets/Scenes";
         private static string abScenePath = "Assets/BundleAssets/Scenes";
 
         static void UpdateScenes()
