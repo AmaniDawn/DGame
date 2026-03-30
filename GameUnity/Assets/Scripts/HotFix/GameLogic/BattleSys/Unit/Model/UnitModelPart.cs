@@ -1,4 +1,21 @@
-﻿using System.Threading;
+/* -------------------------------------------------------------------------
+ * 这里处理的是单个部位模型的加载、挂接、复用与销毁，不负责整套显示逻辑编排。
+ *
+ * 当前版本主要用于主模型部件，但如果后期出现更多的部位模型，例如：
+ * 武器模型、翅膀模型、挂件模型、阴影模型、特效承载模型，
+ * 都应该继续以这个类为基类，在此基础上派生出对应的部位模型子类。
+ *
+ * 例如可以扩展为：
+ * CharacterModelPart、WeaponModelPart、WingModelPart、AccessoryModelPart。
+ * 各子类只关注自身部位的资源定位、挂点规则和附加行为，
+ * 通用的模型加载、父节点切换、实例复用和销毁流程应尽量复用这里的基础能力。
+ *
+ * 不建议把不同部位的特殊规则直接堆叠进当前基类，
+ * 否则后续部位一多，这里会演变成职责混杂的“大而全”模型部件管理器。
+ * -------------------------------------------------------------------------
+ */
+
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
@@ -66,6 +83,7 @@ namespace GameLogic
         /// </summary>
         /// <param name="location">资源地址。</param>
         /// <param name="parent">挂载父节点。</param>
+        /// <param name="ct">模型加载时使用的取消令牌。</param>
         /// <returns>加载成功返回 true。</returns>
         public async UniTask<bool> LoadModelAsync(string location, Transform parent = null, CancellationToken ct = default)
         {
