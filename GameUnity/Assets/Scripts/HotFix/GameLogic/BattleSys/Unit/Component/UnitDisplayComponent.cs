@@ -126,6 +126,12 @@ namespace GameLogic
         public GameObject GetMainModelGo() => UnitModel?.GetMainModelGo();
 
         /// <summary>
+        /// 获取当前武器模型对象。
+        /// </summary>
+        /// <returns>武器模型对象；未加载时返回 null。</returns>
+        public GameObject GetWeaponModelGo() => UnitModel?.GetWeaponModelGo();
+
+        /// <summary>
         /// 从当前挂点缓存中获取指定挂点。
         /// </summary>
         /// <param name="dummyName">挂点名称。</param>

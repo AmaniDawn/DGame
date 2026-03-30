@@ -144,6 +144,27 @@ namespace GameProto
             }
         }
         /// <summary>
+        /// 武器模型配置表
+        /// </summary>
+        private TbWeaponModelConfig m_TbWeaponModelConfig;
+        public TbWeaponModelConfig TbWeaponModelConfig 
+        {
+            get
+            {
+                if (m_TbWeaponModelConfig == null)
+                {
+                    m_TbWeaponModelConfig = new TbWeaponModelConfig(m_defaultLoader("tbweaponmodelconfig"));
+                    m_TbWeaponModelConfig.ResolveRef(this);
+                }
+                return m_TbWeaponModelConfig;
+            }
+            set
+            {
+                m_TbWeaponModelConfig = value;
+                m_TbWeaponModelConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
         /// 特效配置表
         /// </summary>
         private TbEffectConfig m_TbEffectConfig;
@@ -355,6 +376,7 @@ namespace GameProto
             m_TbGetWayConfig = null;
             m_TbSoundConfig = null;
             m_TbModelConfig = null;
+            m_TbWeaponModelConfig = null;
             m_TbEffectConfig = null;
             m_TbGmConfig = null;
             m_TbFuncOpenConfig = null;

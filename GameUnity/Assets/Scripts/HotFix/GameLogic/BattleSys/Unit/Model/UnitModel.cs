@@ -9,7 +9,12 @@ namespace GameLogic
 {
     /// <summary>
     /// 单位模型容器。
-    /// 负责创建模型根节点、管理主模型部件，以及在模型切换后刷新挂点缓存。
+    /// <para>
+    /// 负责创建模型根节点，并统一管理主模型、武器模型等部位对象。
+    /// </para>
+    /// <para>
+    /// 当前实现中，主模型负责刷新挂点缓存；武器模型依赖该缓存绑定到主模型挂点。
+    /// </para>
     /// </summary>
     public sealed class UnitModel
     {
@@ -42,6 +47,17 @@ namespace GameLogic
         public ModelConfig MainModelCfg { get; private set; }
 
         /// <summary>
+        /// 武器模型部件。
+        /// 武器部件通常依附主模型挂点工作。
+        /// </summary>
+        public UnitWeaponModelPart WeaponModelPart { get; private set; }
+
+        /// <summary>
+        /// 当前武器模型配置。
+        /// </summary>
+        public WeaponModelConfig WeaponModelCfg { get; private set; }
+
+        /// <summary>
         /// 创建单位模型容器。
         /// </summary>
         /// <param name="owner">所属显示组件。</param>
@@ -70,7 +86,6 @@ namespace GameLogic
 
             ModelRootTransform.SetParent(parent, false);
             ModelRootTransform.ResetLocalPosScaleRot();
-            MainModelPart?.SetParent(ModelRootTransform);
         }
 
         /// <summary>
@@ -78,10 +93,11 @@ namespace GameLogic
         /// 会读取模型配置、加载模型资源，并刷新主模型挂点缓存。
         /// </summary>
         /// <param name="modelId">模型 ID。</param>
+        /// <param name="ct">模型加载取消令牌。</param>
         /// <returns>刷新成功返回 true。</returns>
         public async UniTask<bool> RefreshMainModelAsync(int modelId, CancellationToken ct = default)
         {
-            MainModelCfg = modelId > 0 ? ModelConfigMgr.Instance.GetOrDefault(modelId) : null;
+            MainModelCfg = modelId > 0 ? ModelConfigMgr.Instance.GetModelOrDefault(modelId) : null;
             if (MainModelCfg == null || string.IsNullOrEmpty(MainModelCfg.ModelLocation))
             {
                 MainModelPart?.Destroy();
@@ -89,50 +105,123 @@ namespace GameLogic
                 m_owner?.UnitDummy?.Clear();
                 return false;
             }
-            return await AddMainModelAsync(UnitModelType.MainModelType, ct);
+            return await AddModelAsync(UnitModelType.MainModelType, ct);
+        }
+
+        /// <summary>
+        /// 根据模型 ID 刷新武器模型。
+        /// </summary>
+        /// <param name="modelId">武器模型 ID。</param>
+        /// <param name="ct">模型加载取消令牌。</param>
+        /// <returns>刷新成功返回 <see langword="true"/>。</returns>
+        public async UniTask<bool> RefreshWeaponModelAsync(int modelId, CancellationToken ct = default)
+        {
+            WeaponModelCfg = modelId > 0 ? ModelConfigMgr.Instance.GetWeaponModelCfgOrDefault(modelId) : null;
+            if (WeaponModelCfg == null || string.IsNullOrEmpty(WeaponModelCfg.ModelLocation))
+            {
+                WeaponModelPart?.Destroy();
+                WeaponModelPart = null;
+                return false;
+            }
+
+            return await AddModelAsync(UnitModelType.WeaponModelType, ct);
         }
         
         /// <summary>
         /// 根据指定部位类型创建并加载模型部位。
-        /// 当前仅支持主模型部位。
         /// </summary>
         /// <param name="unitModelType">部位类型。</param>
         /// <param name="ct">模型加载取消令牌。</param>
         /// <returns>加载成功返回 <see langword="true"/>。</returns>
-        public async UniTask<bool> AddMainModelAsync(UnitModelType unitModelType, CancellationToken ct = default)
+        public async UniTask<bool> AddModelAsync(UnitModelType unitModelType, CancellationToken ct = default)
         {
             switch (unitModelType)
             {
                 case UnitModelType.MainModelType:
-                    MainModelPart?.Destroy();
-                    MainModelPart = UnitModelPartFactory.Create(m_owner, unitModelType,
-                        OnModelCreated, OnModelDestroy, OnBeforeModelDestroy) as MainUnitModelPart;
-                    if (MainModelPart == null)
-                    {
-                        m_owner?.UnitDummy?.Clear();
-                        return false;
-                    }
-                    var isSuccess = await MainModelPart.LoadModelAsync(MainModelCfg.ModelLocation, ModelRootTransform, ct);
+                    return await AddMainModelAsyncInternal(ct);
 
-                    if (!isSuccess)
-                    {
-                        MainModelPart?.Destroy();
-                        MainModelPart = null;
-                        m_owner?.UnitDummy?.Clear();
-                        return false;
-                    }
-                    return true;
+                case UnitModelType.WeaponModelType:
+                    return await AddWeaponModelAsyncInternal(ct);
+
+                default:
+                    return false;
             }
-
-            return false;
         }
 
         /// <summary>
+        /// 创建并加载主模型部位。
+        /// </summary>
+        /// <param name="ct">模型加载取消令牌。</param>
+        /// <returns>加载成功返回 <see langword="true"/>。</returns>
+        private async UniTask<bool> AddMainModelAsyncInternal(CancellationToken ct = default)
+        {
+            MainModelPart?.Destroy();
+            MainModelPart = CreatePart<MainUnitModelPart>(UnitModelType.MainModelType);
+            if (MainModelPart == null)
+            {
+                m_owner?.UnitDummy?.Clear();
+                return false;
+            }
+
+            var isSuccess = await MainModelPart.LoadModelAsync(MainModelCfg.ModelLocation, ModelRootTransform, ct);
+            if (!isSuccess)
+            {
+                MainModelPart.Destroy();
+                MainModelPart = null;
+                m_owner?.UnitDummy?.Clear();
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 创建并加载武器模型部位。
+        /// 武器部位加载成功后会尝试绑定到主模型挂点。
+        /// </summary>
+        /// <param name="ct">模型加载取消令牌。</param>
+        /// <returns>加载成功返回 <see langword="true"/>。</returns>
+        private async UniTask<bool> AddWeaponModelAsyncInternal(CancellationToken ct = default)
+        {
+            WeaponModelPart?.Destroy();
+            WeaponModelPart = CreatePart<UnitWeaponModelPart>(UnitModelType.WeaponModelType);
+            if (WeaponModelPart == null)
+            {
+                return false;
+            }
+
+            var isSuccess = await WeaponModelPart.RefreshModel(WeaponModelCfg, ModelRootTransform, ct);
+            if (!isSuccess)
+            {
+                WeaponModelPart.Destroy();
+                WeaponModelPart = null;
+                return false;
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// 创建指定类型的模型部位实例。
+        /// </summary>
+        /// <typeparam name="TPart">模型部位类型。</typeparam>
+        /// <param name="unitModelType">部位类型。</param>
+        /// <returns>创建出的模型部位；不支持时返回 <see langword="null"/>。</returns>
+        private TPart CreatePart<TPart>(UnitModelType unitModelType) where TPart : UnitModelPart
+            => UnitModelPartFactory.Create(m_owner, unitModelType,
+                OnModelCreated, OnModelDestroy, OnBeforeModelDestroy) as TPart;
+
+        /// <summary>
         /// 模型销毁前回调。
+        /// 主模型销毁前会先让武器回退到模型根节点，避免主模型删除时武器跟着丢失。
         /// </summary>
         /// <param name="unitModelType">销毁的部位类型。</param>
         private void OnBeforeModelDestroy(UnitModelType unitModelType)
         {
+            if (unitModelType == UnitModelType.MainModelType)
+            {
+                WeaponModelPart?.SetParent(ModelRootTransform, false);
+            }
         }
 
         /// <summary>
@@ -145,11 +234,16 @@ namespace GameLogic
 
         /// <summary>
         /// 模型创建完成回调。
+        /// 主模型创建完成后会驱动武器重新绑定到最新挂点。
         /// </summary>
         /// <param name="go">创建出的模型对象。</param>
         /// <param name="unitModelType">创建的部位类型。</param>
         private void OnModelCreated(GameObject go, UnitModelType unitModelType)
         {
+            if (unitModelType == UnitModelType.MainModelType)
+            {
+                WeaponModelPart?.RebindToDummy(ModelRootTransform);
+            }
         }
 
         /// <summary>
@@ -157,6 +251,12 @@ namespace GameLogic
         /// </summary>
         /// <returns>主模型对象；未加载时返回 null。</returns>
         public GameObject GetMainModelGo() => MainModelPart?.ModelGo;
+
+        /// <summary>
+        /// 获取当前武器模型对象。
+        /// </summary>
+        /// <returns>武器模型对象；未加载时返回 null。</returns>
+        public GameObject GetWeaponModelGo() => WeaponModelPart?.ModelGo;
 
         /// <summary>
         /// 设置整套模型显隐。
@@ -169,6 +269,9 @@ namespace GameLogic
         /// </summary>
         public void Destroy()
         {
+            WeaponModelPart?.Destroy();
+            WeaponModelPart = null;
+            WeaponModelCfg = null;
             MainModelPart?.Destroy();
             MainModelPart = null;
             MainModelCfg = null;

@@ -20,13 +20,17 @@ namespace GameLogic
         /// <param name="onBeforeDestroy">模型销毁前回调。</param>
         /// <returns>创建出的模型部位；不支持的类型返回 <see langword="null"/>。</returns>
         public static UnitModelPart Create(UnitDisplayComponent owner, UnitModelType unitModelType,
-            Action<GameObject, UnitModelType> onCreate, Action<UnitModelType> onDestroy, Action<UnitModelType> onBeforeDestroy)
+            Action<GameObject, UnitModelType> onCreate, Action<UnitModelType> onDestroy,
+            Action<UnitModelType> onBeforeDestroy)
         {
             switch (unitModelType)
             {
                 case UnitModelType.MainModelType:
                     return new MainUnitModelPart(owner, onCreate, onDestroy, onBeforeDestroy);
-                
+
+                case UnitModelType.WeaponModelType:
+                    return new UnitWeaponModelPart(owner, onCreate, onDestroy, onBeforeDestroy);
+
                 default:
                     DLogger.Warning($"UnitModelPartFactory Error ModelType: {unitModelType.ToString()}");
                     return null;

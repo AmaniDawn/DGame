@@ -33,9 +33,9 @@ namespace GameLogic
         public MainUnitModelPart(UnitDisplayComponent owner, Action<GameObject, UnitModelType> onCreate, Action<UnitModelType> onDestroy, Action<UnitModelType> onBeforeDestroy)
         {
             m_owner = owner;
-            base.m_onCreate = onCreate;
-            base.m_onDestroy = onDestroy;
-            base.m_onBeforeDestroy = onBeforeDestroy;
+            m_onCreate = onCreate;
+            m_onDestroy = onDestroy;
+            m_onBeforeDestroy = onBeforeDestroy;
         }
         
         /// <summary>
