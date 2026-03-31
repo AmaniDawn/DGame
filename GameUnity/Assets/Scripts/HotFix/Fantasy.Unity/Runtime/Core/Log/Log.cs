@@ -25,14 +25,14 @@ namespace Fantasy
             if (log == null)
             {
 #if FANTASY_NET
-                _logCore = new ConsoleLog();
+                _logCore = new ConsoleLog();  
 #endif
 #if FANTASY_UNITY
-                _logCore = new UnityLog();
-#endif
+                _logCore = new UnityLog(); 
+#endif         
                 return;
             }
-
+            
             _logCore = log;
 #if FANTASY_NET
             _logCore.Initialize(ProgramDefine.RuntimeMode);
