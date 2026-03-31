@@ -102,7 +102,13 @@ namespace GameBattle
                 battleContextComponent.LogicUnitRegistry?.Register(this);
                 registered = true;
                 CreateRenderUnit(battleContextComponent);
-                return AfterInit();
+                if (!AfterInit())
+                {
+                    return false;
+                }
+
+                battleContextComponent.LogicUnitLifecycle?.AddUnit(this);
+                return true;
             }
             catch
             {
@@ -145,6 +151,7 @@ namespace GameBattle
             }
 
             var battleContext = BattleContext;
+            battleContext?.LogicUnitLifecycle?.RemoveUnit(this);
             battleContext?.LogicUnitRegistry?.Unregister(this);
             OnDestroy();
             IsDestroyed = true;

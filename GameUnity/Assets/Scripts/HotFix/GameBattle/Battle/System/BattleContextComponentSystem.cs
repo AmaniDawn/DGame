@@ -1,5 +1,5 @@
 using System;
-using Fantasy;
+using DGame;
 using Fantasy.Entitas.Interface;
 
 namespace GameBattle
@@ -40,7 +40,7 @@ namespace GameBattle
         /// <param name="unitType">单位类型枚举。</param>
         /// <returns>创建的逻辑单位实例。</returns>
         public static LogicUnit CreateLogicUnit(this BattleContextComponent self, UnitType unitType)
-            => self?.LogicUnitFactoryComponent?.Create(unitType);
+            => self?.LogicUnitLifecycle?.Spawn(unitType);
 
         /// <summary>
         /// 设置渲染单位工厂。
@@ -100,5 +100,24 @@ namespace GameBattle
         /// <param name="visitor">遍历回调。</param>
         public static void ForEachLogicUnit(this BattleContextComponent self, Action<LogicUnit> visitor)
             => self?.LogicUnitRegistry?.ForEach(visitor);
+
+        /// <summary>
+        /// 标记逻辑单位延迟销毁。
+        /// </summary>
+        public static bool MarkLogicUnitDelayDestroy(this BattleContextComponent self, LogicUnit logicUnit,
+            FixedPoint64 destroyAt, LogicUnitDestroyReason reason)
+            => self?.LogicUnitLifecycle?.MarkDelayDestroy(logicUnit, destroyAt, reason) ?? false;
+
+        /// <summary>
+        /// 立即销毁逻辑单位。
+        /// </summary>
+        public static bool DestroyLogicUnitImmediately(this BattleContextComponent self, LogicUnit logicUnit, LogicUnitDestroyReason reason)
+            => self?.LogicUnitLifecycle?.DestroyImmediately(logicUnit, reason) ?? false;
+
+        /// <summary>
+        /// 推进逻辑单位生命周期。
+        /// </summary>
+        public static void UpdateLogicUnitLifecycle(this BattleContextComponent self, FixedPoint64 logicTime)
+            => self?.LogicUnitLifecycle?.Update(logicTime);
     }
 }

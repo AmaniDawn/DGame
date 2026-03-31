@@ -24,8 +24,19 @@ namespace GameBattle
         /// </summary>
         public LogicUnitRegistryComponent LogicUnitRegistry { get; private set; }
 
+        /// <summary>
+        /// 获取逻辑单位生命周期组件。
+        /// </summary>
+        public LogicUnitLifecycleComponent LogicUnitLifecycle { get; private set; }
+
+        /// <summary>
+        /// 获取战斗级事件中心组件。
+        /// </summary>
         public BattleEventHubComponent BattleEvents { get; private set; }
 
+        /// <summary>
+        /// 获取战斗单例管理组件。
+        /// </summary>
         public SingletonManagerComponent SingletonManager { get; private set; }
 
         /// <summary>
@@ -45,6 +56,7 @@ namespace GameBattle
             battle.FrameSync = battle.AddComponent<FrameSyncComponent>();
             battle.LogicUnitFactoryComponent = battle.AddComponent<LogicUnitFactoryComponent>();
             battle.LogicUnitRegistry = battle.AddComponent<LogicUnitRegistryComponent>();
+            battle.LogicUnitLifecycle = battle.AddComponent<LogicUnitLifecycleComponent>();
             battle.BattleEvents = battle.AddComponent<BattleEventHubComponent>();
             return battle;
         }
@@ -55,11 +67,13 @@ namespace GameBattle
         /// </summary>
         public void Destroy()
         {
+            LogicUnitLifecycle?.DestroyAll(LogicUnitDestroyReason.BattleCleanup);
             LogicUnitRegistry?.Clear();
             FrameSync = null;
             RenderUnitFactory = null;
             LogicUnitFactoryComponent = null;
             LogicUnitRegistry = null;
+            LogicUnitLifecycle = null;
             BattleEvents = null;
             SingletonManager = null;
         }
