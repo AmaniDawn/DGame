@@ -24,7 +24,7 @@ namespace GameLogic
 {
     /// <summary>
     /// 单位显示组件。
-    /// 负责创建显示根节点 DisplayRoot，并持有模型容器、挂点缓存与显示排序控制。
+    /// <remarks>负责创建显示根节点 DisplayRoot，并持有模型容器、挂点缓存与显示排序控制。</remarks>
     /// </summary>
     public sealed class UnitDisplayComponent : Entity
     {
