@@ -38,6 +38,20 @@ namespace GameBattle
         }
 
         /// <summary>
+        /// 标记并写入单位朝向。
+        /// </summary>
+        /// <param name="self">逻辑单位。</param>
+        /// <param name="forward">目标朝向向量。</param>
+        public static void MarkForward(this LogicUnit self, FixedPointVector3 forward)
+        {
+            var snapshot = self.StateSync.Snapshot;
+            snapshot.MoveForward = forward;
+            snapshot.Rotation = self.transform.rotation;
+            self.StateSync.Snapshot = snapshot;
+            self.StateSync.MarkDirty(UnitStateDirtyFlags.Transform);
+        }
+
+        /// <summary>
         /// 标记并写入单位生命值。
         /// </summary>
         /// <param name="self">逻辑单位。</param>

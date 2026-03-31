@@ -1,4 +1,4 @@
-using DGame;
+﻿using DGame;
 using Fantasy.Entitas.Interface;
 
 namespace GameBattle
@@ -60,7 +60,10 @@ namespace GameBattle
             {
                 return;
             }
-            self.transform.rotation = FixedPointQuaternion.LookRotation(dir.normalized);
+            var normalized = dir.normalized;
+            self.transform.rotation = FixedPointQuaternion.LookRotation(normalized);
+            self.MoveForward = normalized;
+            self.MarkForward(normalized);
         }
         
         /// <summary>
@@ -77,7 +80,10 @@ namespace GameBattle
                 return;
             }
 
-            self.transform.rotation = FixedPointQuaternion.LookRotation(dir.normalized);
+            var normalized = dir.normalized;
+            self.transform.rotation = FixedPointQuaternion.LookRotation(normalized);
+            self.MoveForward = normalized;
+            self.MarkForward(normalized);
         }
 
         /// <summary>
@@ -95,13 +101,16 @@ namespace GameBattle
                 return;
             }
 
-            var targetRotation = FixedPointQuaternion.LookRotation(dir.normalized);
+            var normalized = dir.normalized;
+            var targetRotation = FixedPointQuaternion.LookRotation(normalized);
             self.transform.rotation = FixedPointQuaternion.RotateTowards
             (
                 self.transform.rotation,
                 targetRotation,
                 maxDegreesPerTick
             );
+            self.MoveForward = normalized;
+            self.MarkForward(normalized);
         }
         
         /// <summary>

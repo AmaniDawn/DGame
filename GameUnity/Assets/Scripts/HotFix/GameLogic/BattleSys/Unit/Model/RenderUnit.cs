@@ -1,4 +1,5 @@
 using System.Threading;
+using DGame;
 using Fantasy.Entitas;
 using GameBattle;
 using UnityEngine;
@@ -19,6 +20,8 @@ namespace GameLogic
         public UnitStateSyncVersionComponent StateSyncVersion { get; private set; }
         
         public UnitDisplayComponent UnitDisplay { get; private set; }
+
+        public UnitTransformSyncComponent TransformSync { get; private set; }
         
         /// <summary>
         /// 单位名称。
@@ -109,18 +112,28 @@ namespace GameLogic
             UnitType = logicUnit.UnitType;
             UnitName = logicUnit.UnitName;
             Visible = true;
+            IsDestroyed = false;
             InitModel(CreateGameObject());
             UnitEventHub = AddComponent<UnitEventHubComponent>();
             StateSyncVersion = AddComponent<UnitStateSyncVersionComponent>();
             Subscriptions = AddComponent<SubscriptionScopeComponent>();
+            TransformSync = AddComponent<UnitTransformSyncComponent>();
+            TransformSync.Init(this);
+            TransformSync.SyncInit();
             UnitDisplay = AddComponent<UnitDisplayComponent>();
             if (!OnInit(logicUnit))
             {
                 return false;
             }
 
+            if (!AfterInit())
+            {
+                return false;
+            }
+
+            BattleSystem.Instance.RegisterRenderUnit(this);
             UnitDisplay.InitAsync(m_initModelCancelTokenSource.Token).Forget();
-            return AfterInit();
+            return true;
         }
 
         private bool AfterInit()
@@ -172,6 +185,11 @@ namespace GameLogic
             {
                 return;
             }
+
+            if (BattleSystem.IsValid)
+            {
+                BattleSystem.Instance.UnregisterRenderUnit(this);
+            }
             
             OnDestroy();
             CancelInitModel();
@@ -208,12 +226,19 @@ namespace GameLogic
 
         public virtual void SyncFromLogic()
         {
-            // 示例
             if (LogicUnit == null || LogicUnit.StateSync == null)
             {
                 return;
             }
+
             var stateSync = LogicUnit.StateSync;
+            if (StateSyncVersion.LastTransformVersion != stateSync.TransformVersion)
+            {
+                StateSyncVersion.LastTransformVersion = stateSync.TransformVersion;
+                TransformSync?.NotifyLogicTransformChanged();
+            }
+
+            TransformSync?.Sync(GameTime.DeltaTime);
             
             if (StateSyncVersion.LastStateVersion != stateSync.StateVersion)
             {

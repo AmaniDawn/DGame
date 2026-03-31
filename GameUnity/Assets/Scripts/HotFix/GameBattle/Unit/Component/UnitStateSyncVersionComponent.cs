@@ -8,9 +8,15 @@ namespace GameBattle
     public class UnitStateSyncVersionComponent : Entity
     {
         /// <summary>
+        /// 获取或设置上次已同步的变换版本号。
+        /// </summary>
+        public uint LastTransformVersion { get; set; }
+
+        /// <summary>
         /// 获取或设置上次已同步的状态版本号。
         /// </summary>
         public uint LastStateVersion { get; set; }
+
         /// <summary>
         /// 获取或设置上次已同步的属性版本号。
         /// </summary>
@@ -21,6 +27,7 @@ namespace GameBattle
         /// </summary>
         public void Clear()
         {
+            LastTransformVersion = 0;
             LastStateVersion = 0;
             LastAttrVersion = 0;
         }
