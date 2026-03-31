@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using DGame;
 using Fantasy.Entitas.Interface;
 
@@ -115,9 +115,17 @@ namespace GameBattle
             => self?.LogicUnitLifecycle?.DestroyImmediately(logicUnit, reason) ?? false;
 
         /// <summary>
-        /// 推进逻辑单位生命周期。
+        /// 推进当前战斗中的全部活跃逻辑单位固定帧逻辑。
         /// </summary>
-        public static void UpdateLogicUnitLifecycle(this BattleContextComponent self, FixedPoint64 logicTime)
-            => self?.LogicUnitLifecycle?.Update(logicTime);
+        /// <param name="self">战斗上下文组件。</param>
+        /// <param name="deltaTime">当前固定逻辑帧时间增量。</param>
+        public static void FixedUpdateBattleLogicUnits(this BattleContextComponent self, FixedPoint64 deltaTime)
+            => self.FixedUpdateLogicUnits(deltaTime);
+
+        /// <summary>
+        /// 推进逻辑单位生命周期固定帧逻辑。
+        /// </summary>
+        public static void FixedUpdateLogicUnitLifecycle(this BattleContextComponent self, FixedPoint64 logicTime)
+            => self?.LogicUnitLifecycle?.FixedUpdate(logicTime);
     }
 }

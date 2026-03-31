@@ -1,4 +1,4 @@
-using DGame;
+﻿using DGame;
 using Fantasy.Entitas;
 // ReSharper disable InconsistentNaming
 // ReSharper disable MemberCanBePrivate.Global
@@ -138,6 +138,25 @@ namespace GameBattle
         }
 
         #endregion
+
+        /// <summary>
+        /// 推进单位固定帧逻辑。
+        /// </summary>
+        /// <param name="deltaTime">当前固定逻辑帧时间增量。</param>
+        internal void FixedUpdate(FixedPoint64 deltaTime)
+        {
+            if (IsDisposed || IsDied || IsDestroyed)
+            {
+                return;
+            }
+            OnFixedUpdate(deltaTime);
+        }
+
+        /// <summary>
+        /// 推进单位固定帧逻辑。
+        /// </summary>
+        /// <param name="deltaTime">当前固定逻辑帧时间增量。</param>
+        protected virtual void OnFixedUpdate(FixedPoint64 deltaTime) { }
 
         internal virtual void OnUnitStateChange(UnitState oldState, UnitState newState) { }
 

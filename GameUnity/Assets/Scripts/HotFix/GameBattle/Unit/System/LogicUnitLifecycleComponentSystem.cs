@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 using DGame;
 using Fantasy.Entitas.Interface;
 
@@ -168,26 +168,26 @@ namespace GameBattle
         }
 
         /// <summary>
-        /// 推进待销毁逻辑单位列表。
+        /// 推进待销毁逻辑单位列表的固定帧逻辑。
         /// </summary>
         /// <param name="self">逻辑单位生命周期组件。</param>
         /// <param name="logicTime">当前战斗时间。</param>
-        public static void Update(this LogicUnitLifecycleComponent self, FixedPoint64 logicTime)
+        public static void FixedUpdate(this LogicUnitLifecycleComponent self, FixedPoint64 logicTime)
         {
             if (self == null)
             {
                 return;
             }
 
-            UpdateDelayDestroyUnits(self, logicTime);
+            FixedUpdateDelayDestroyUnits(self, logicTime);
         }
 
         /// <summary>
-        /// 推进延迟销毁逻辑单位列表。
+        /// 推进延迟销毁逻辑单位列表的固定帧逻辑。
         /// </summary>
         /// <param name="self">逻辑单位生命周期组件。</param>
         /// <param name="logicTime">当前战斗时间。</param>
-        private static void UpdateDelayDestroyUnits(LogicUnitLifecycleComponent self, FixedPoint64 logicTime)
+        private static void FixedUpdateDelayDestroyUnits(LogicUnitLifecycleComponent self, FixedPoint64 logicTime)
         {
             var delayDestroyUnits = self.DelayDestroyUnits;
             for (int i = delayDestroyUnits.Count - 1; i >= 0; i--)
