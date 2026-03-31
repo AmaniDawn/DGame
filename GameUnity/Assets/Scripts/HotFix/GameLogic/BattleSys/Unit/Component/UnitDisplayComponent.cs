@@ -1,4 +1,4 @@
-﻿/*
+/*
  * Hierarchy层次结构
  * - UnitRoot (RenderUnit 根节点，战斗内是 HeroActorRoot 的子节点，UI是UIActorModel 生成的 ActorModelTrans 节点)
  *      - DisplayRoot （代表 UnitDisplayComponent 组件的节点）
@@ -17,16 +17,21 @@ using Fantasy.Entitas;
 using GameBattle;
 using GameProto;
 using UnityEngine;
+using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
 
 namespace GameLogic
 {
     /// <summary>
     /// 单位显示组件。
-    /// 负责创建显示根节点 DisplayRoot，并持有模型容器与挂点缓存。
+    /// 负责创建显示根节点 DisplayRoot，并持有模型容器、挂点缓存与显示排序控制。
     /// </summary>
     public sealed class UnitDisplayComponent : Entity
     {
+        private SortingGroup m_sortingGroup;
+        private int m_sortingOrder;
+        private int m_sortingLayerId;
+
         public RenderUnit OwnerUnit { get; private set; }
         
         /// <summary>
@@ -62,6 +67,61 @@ namespace GameLogic
         public Transform DisplayRootTransform => DisplayRoot != null ? DisplayRoot.transform : null;
 
         /// <summary>
+        /// 当前显示根节点上的 SortingGroup。
+        /// <remarks>SortingGroup 挂在 DisplayRoot 上，保证模型重建后排序配置仍然持续生效。</remarks>
+        /// </summary>
+        public SortingGroup SortingGroup
+        {
+            get
+            {
+                if (DisplayRoot == null)
+                {
+                    return null;
+                }
+                m_sortingGroup = DGame.Utility.UnityUtil.AddMonoBehaviour<SortingGroup>(DisplayRoot);
+                return m_sortingGroup;
+            }
+        }
+
+        /// <summary>
+        /// 当前显示层使用的 SortingOrder。
+        /// <remarks>即使模型尚未创建，也会先缓存数值，并在模型创建完成后自动重新应用。</remarks>
+        /// </summary>
+        public int SortingOrder
+        {
+            get => m_sortingOrder;
+            set
+            {
+                if (m_sortingOrder == value && m_sortingGroup != null)
+                {
+                    return;
+                }
+
+                m_sortingOrder = value;
+                ApplySorting();
+            }
+        }
+
+        /// <summary>
+        /// 当前显示层使用的 SortingLayerId。
+        /// <remarks>即使模型尚未创建，也会先缓存数值，并在模型创建完成后自动重新应用。</remarks>
+        /// </summary>
+        public int SortingLayerId
+        {
+            get => m_sortingLayerId;
+            set
+            {
+                if (m_sortingLayerId == value && m_sortingGroup != null)
+                {
+                    return;
+                }
+
+                m_sortingLayerId = value;
+                ApplySorting();
+            }
+        }
+
+        /// <summary>
         /// 初始化显示组件，并在渲染单位根节点下创建 DisplayRoot。
         /// </summary>
         /// <param name="ct">模型初始化的取消令牌。</param>
@@ -83,6 +143,8 @@ namespace GameLogic
                 var displayTransform = DisplayRoot.transform;
                 displayTransform.SetParent(OwnerUnit.UnitRootTransform, false);
                 displayTransform.ResetLocalPosScaleRot();
+                this.SubscribeRenderScoped<UnitModelCreatedEvent>(OnUnitModelCreated);
+                ApplySorting();
 
                 UnitModel ??= new UnitModel(this);
                 var isSuccess = await RefreshMainModelAsync(OwnerUnit.GetModelID(), ct);
@@ -170,11 +232,45 @@ namespace GameLogic
         public void SetActive(bool active) => DisplayRoot?.SetActive(active);
 
         /// <summary>
+        /// 立即刷新当前显示层的 SortingGroup 配置。
+        /// <remarks>适合在模型重建、切换显示层级或外部修改排序参数后调用。</remarks>
+        /// </summary>
+        public void RefreshSorting()
+        {
+            ApplySorting();
+        }
+
+        /// <summary>
         /// 销毁显示组件持有的运行时显示对象。
         /// </summary>
         public void Destroy()
         {
             Clear();
+        }
+
+        /// <summary>
+        /// 模型创建完成后的回调。
+        /// <remarks>新模型实例挂入显示层后重新应用当前排序配置，保证后创建的表现对象也受同一排序入口控制。</remarks>
+        /// </summary>
+        /// <param name="eventData">模型创建事件。</param>
+        private void OnUnitModelCreated(UnitModelCreatedEvent eventData)
+        {
+            ApplySorting();
+        }
+        
+        /// <summary>
+        /// 将当前缓存的排序配置应用到显示根节点上的 SortingGroup。
+        /// </summary>
+        private void ApplySorting()
+        {
+            var sortingGroup = SortingGroup;
+            if (sortingGroup == null)
+            {
+                return;
+            }
+
+            sortingGroup.sortingLayerID = m_sortingLayerId;
+            sortingGroup.sortingOrder = m_sortingOrder;
         }
         
         /// <summary>
@@ -186,6 +282,7 @@ namespace GameLogic
             UnitModel?.Destroy();
             UnitModel = null;
             UnitDummy.Clear();
+            m_sortingGroup = null;
             if (DisplayRoot != null)
             {
                 Object.Destroy(DisplayRoot);
