@@ -165,7 +165,7 @@ namespace GameLogic
         protected virtual GameObject CreateGameObject()
         {
             var go = new GameObject();
-            var parent = BattleSystem.IsValid ? BattleSystem.Instance.ViewRoots?.UnitRoot : null;
+            var parent = BattleSystem.IsValid ? BattleSystem.Instance.ViewRoots?.UnitRoot() : null;
             if (parent != null)
             {
                 go.transform.SetParent(parent, false);
