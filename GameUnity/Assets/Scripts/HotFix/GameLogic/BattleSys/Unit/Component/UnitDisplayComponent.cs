@@ -275,7 +275,7 @@ namespace GameLogic
         
         /// <summary>
         /// 清理显示组件相关资源。
-        /// 包括模型容器、挂点缓存和显示根节点。
+        /// <remarks>包括模型容器、挂点缓存和显示根节点。</remarks>
         /// </summary>
         public void Clear()
         {
