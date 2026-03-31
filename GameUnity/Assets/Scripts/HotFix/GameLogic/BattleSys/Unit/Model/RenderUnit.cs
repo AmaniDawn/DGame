@@ -1,5 +1,4 @@
 using System.Threading;
-using DGame;
 using Fantasy.Entitas;
 using GameBattle;
 using UnityEngine;
@@ -13,16 +12,24 @@ namespace GameLogic
     /// </summary>
     public abstract class RenderUnit : Entity, IRenderUnit
     {
+        #region Component
+
         public UnitEventHubComponent UnitEventHub { get; private set; }
 
         public SubscriptionScopeComponent Subscriptions { get; private set; }
-        
+
         public UnitStateSyncVersionComponent StateSyncVersion { get; private set; }
-        
+
         public UnitDisplayComponent UnitDisplay { get; private set; }
 
         public UnitTransformSyncComponent TransformSync { get; private set; }
-        
+
+        public UnitAttributeDisplayComponent AttributeDisplay { get; private set; }
+
+        #endregion
+
+        #region Property
+
         /// <summary>
         /// 单位名称。
         /// </summary>
@@ -82,7 +89,7 @@ namespace GameLogic
         /// 渲染对象当前是否可见。
         /// </summary>
         public bool Visible { get; protected set; } = true;
-        
+
         /// <summary>
         /// 指示当前渲染单位是否需要绑定逻辑层单位。
         /// </summary>
@@ -94,8 +101,10 @@ namespace GameLogic
         /// </summary>
         /// <returns>默认返回 <see langword="false"/>。</returns>
         public virtual bool IsBoss() => false;
-        
+
         private CancellationTokenSource m_initModelCancelTokenSource;
+
+        #endregion
 
         #region 初始化相关
 
@@ -120,6 +129,8 @@ namespace GameLogic
             TransformSync = AddComponent<UnitTransformSyncComponent>();
             TransformSync.Init(this);
             TransformSync.SyncInit();
+            AttributeDisplay = AddComponent<UnitAttributeDisplayComponent>();
+            AttributeDisplay.Init(this);
             UnitDisplay = AddComponent<UnitDisplayComponent>();
             if (!OnInit(logicUnit))
             {
@@ -195,6 +206,8 @@ namespace GameLogic
             CancelInitModel();
             DestroyGameObject();
             DestroyAllGameTimer();
+            TransformSync?.Clear();
+            AttributeDisplay?.Clear();
             IsDestroyed = true;
             UnitID = 0;
             LogicUnit = null;
@@ -238,7 +251,7 @@ namespace GameLogic
                 TransformSync?.NotifyLogicTransformChanged();
             }
 
-            TransformSync?.Sync(GameTime.DeltaTime);
+            TransformSync?.Sync(Time.deltaTime);
             
             if (StateSyncVersion.LastStateVersion != stateSync.StateVersion)
             {
@@ -255,7 +268,15 @@ namespace GameLogic
 
         protected virtual void SyncState() { }
         
-        protected virtual void SyncAttr() { }
+        protected virtual void SyncAttr()
+        {
+            if (LogicUnit?.StateSync == null)
+            {
+                return;
+            }
+
+            AttributeDisplay?.Sync(LogicUnit.StateSync.Snapshot);
+        }
 
         #endregion
 
