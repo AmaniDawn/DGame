@@ -70,7 +70,7 @@ namespace GameLogic
         /// <param name="self">渲染单位实例。</param>
         /// <param name="handler">事件回调。</param>
         public static void SubscribeLogicScoped<T>(this RenderUnit self, Action<T> handler) where T : struct, IUnitEvent
-            => self.LogicUnit.SubscribeLogicScoped(self, self.Subscriptions, handler);
+            => self.LogicUnit?.SubscribeLogicScoped(self, self.Subscriptions, handler);
 
         /// <summary>
         /// 注册一个跟随指定作用域自动释放的渲染单位事件监听。
@@ -117,7 +117,7 @@ namespace GameLogic
         /// <param name="handler">事件回调。</param>
         public static void SubscribeRender<T>(this RenderUnit self, object owner, Action<T> handler)
             where T : struct, IUnitEvent
-            => self.UnitEventHub.Subscribe(owner, handler);
+            => self.UnitEventHub?.Subscribe(owner, handler);
 
         /// <summary>
         /// 取消渲染单位事件监听。
@@ -127,7 +127,7 @@ namespace GameLogic
         /// <param name="handler">事件回调。</param>
         public static void UnsubscribeRender<T>(this RenderUnit self, Action<T> handler)
             where T : struct, IUnitEvent
-            => self.UnitEventHub.Unsubscribe(handler);
+            => self.UnitEventHub?.Unsubscribe(handler);
 
         /// <summary>
         /// 移除指定所属者注册的全部渲染单位事件监听。
@@ -135,7 +135,7 @@ namespace GameLogic
         /// <param name="self">渲染单位实例。</param>
         /// <param name="owner">监听所属者。</param>
         public static void RemoveAllRenderSubscriptions(this RenderUnit self, object owner)
-            => self.UnitEventHub.RemoveAll(owner);
+            => self.UnitEventHub?.RemoveAll(owner);
 
         /// <summary>
         /// 发布渲染单位事件。
@@ -145,6 +145,6 @@ namespace GameLogic
         /// <param name="eventData">事件数据。</param>
         public static void PublishRender<T>(this RenderUnit self, T eventData)
             where T : struct, IUnitEvent
-            => self.UnitEventHub.Publish(eventData);
+            => self.UnitEventHub?.Publish(eventData);
     }
 }

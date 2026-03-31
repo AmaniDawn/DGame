@@ -222,6 +222,8 @@ namespace GameLogic
             {
                 WeaponModelPart?.SetParent(ModelRootTransform, false);
             }
+
+            m_owner.PublishRender(new BeforeUnitModelDestroyEvent(unitModelType));
         }
 
         /// <summary>
@@ -230,6 +232,7 @@ namespace GameLogic
         /// <param name="unitModelType">销毁的部位类型。</param>
         private void OnModelDestroy(UnitModelType unitModelType)
         {
+            m_owner.PublishRender(new UnitModelDestroyedEvent(unitModelType));
         }
 
         /// <summary>
@@ -244,6 +247,8 @@ namespace GameLogic
             {
                 WeaponModelPart?.RebindToDummy(ModelRootTransform);
             }
+
+            m_owner.PublishRender(new UnitModelCreatedEvent(go, unitModelType));
         }
 
         /// <summary>
