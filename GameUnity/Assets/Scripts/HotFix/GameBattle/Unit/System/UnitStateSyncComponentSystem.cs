@@ -14,7 +14,7 @@ namespace GameBattle
         /// <param name="self">单位状态同步组件实例。</param>
         protected override void Destroy(UnitStateSyncComponent self)
         {
-            self.Clear();
+            self?.Clear();
         }
     }
     

@@ -1,4 +1,5 @@
-﻿using Fantasy;
+using System;
+using Fantasy;
 using Fantasy.Entitas.Interface;
 
 namespace GameBattle
@@ -30,8 +31,8 @@ namespace GameBattle
         /// <param name="logicUnit">逻辑层单位。</param>
         /// <returns>创建的渲染层单位。</returns>
         public static IRenderUnit CreateRenderUnit(this BattleContextComponent self, LogicUnit logicUnit)
-            => self.GetRenderUnitFactory().Create(logicUnit);
-        
+            => self?.GetRenderUnitFactory()?.Create(logicUnit);
+
         /// <summary>
         /// 创建指定类型的逻辑单位。
         /// </summary>
@@ -39,7 +40,7 @@ namespace GameBattle
         /// <param name="unitType">单位类型枚举。</param>
         /// <returns>创建的逻辑单位实例。</returns>
         public static LogicUnit CreateLogicUnit(this BattleContextComponent self, UnitType unitType)
-            => self.LogicUnitFactoryComponent.Create(unitType);
+            => self?.LogicUnitFactoryComponent?.Create(unitType);
 
         /// <summary>
         /// 设置渲染单位工厂。
@@ -57,5 +58,47 @@ namespace GameBattle
         /// <returns>渲染单位工厂实例。</returns>
         public static IRenderUnitFactory GetRenderUnitFactory(this BattleContextComponent self)
             => self.RenderUnitFactory ?? (self.RenderUnitFactory = self.AddComponent<NullRenderUnitFactoryComponent>());
+
+        /// <summary>
+        /// 注册逻辑单位到当前战斗上下文索引。
+        /// </summary>
+        /// <param name="self">战斗上下文组件。</param>
+        /// <param name="logicUnit">待注册的逻辑单位。</param>
+        public static void RegisterLogicUnit(this BattleContextComponent self, LogicUnit logicUnit)
+            => self?.LogicUnitRegistry?.Register(logicUnit);
+
+        /// <summary>
+        /// 从当前战斗上下文索引中移除逻辑单位。
+        /// </summary>
+        /// <param name="self">战斗上下文组件。</param>
+        /// <param name="logicUnit">待移除的逻辑单位。</param>
+        public static void UnregisterLogicUnit(this BattleContextComponent self, LogicUnit logicUnit)
+            => self?.LogicUnitRegistry?.Unregister(logicUnit);
+
+        /// <summary>
+        /// 按 Entity.Id 查询逻辑单位。
+        /// </summary>
+        /// <param name="self">战斗上下文组件。</param>
+        /// <param name="entityId">逻辑单位实体 ID。</param>
+        /// <param name="logicUnit">查询结果。</param>
+        /// <returns>找到时返回 <see langword="true"/>。</returns>
+        public static bool TryGetLogicUnit(this BattleContextComponent self, long entityId, out LogicUnit logicUnit)
+        {
+            if (self == null || self.LogicUnitRegistry == null)
+            {
+                logicUnit = null;
+                return false;
+            }
+
+            return self.LogicUnitRegistry.TryGet(entityId, out logicUnit);
+        }
+
+        /// <summary>
+        /// 遍历当前战斗中的全部逻辑单位。
+        /// </summary>
+        /// <param name="self">战斗上下文组件。</param>
+        /// <param name="visitor">遍历回调。</param>
+        public static void ForEachLogicUnit(this BattleContextComponent self, Action<LogicUnit> visitor)
+            => self?.LogicUnitRegistry?.ForEach(visitor);
     }
 }

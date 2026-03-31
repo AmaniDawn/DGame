@@ -142,7 +142,7 @@ namespace GameLogic
                 return false;
             }
 
-            BattleSystem.Instance.RegisterRenderUnit(this);
+            BattleSystem.Instance.RenderUnits.Register(this);
             UnitDisplay.InitAsync(m_initModelCancelTokenSource.Token).Forget();
             return true;
         }
@@ -199,7 +199,7 @@ namespace GameLogic
 
             if (BattleSystem.IsValid)
             {
-                BattleSystem.Instance.UnregisterRenderUnit(this);
+                BattleSystem.Instance.RenderUnits.Unregister(this);
             }
             
             OnDestroy();

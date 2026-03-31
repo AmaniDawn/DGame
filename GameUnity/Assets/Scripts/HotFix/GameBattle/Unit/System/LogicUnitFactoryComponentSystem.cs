@@ -57,9 +57,7 @@ namespace GameBattle
         /// </summary>
         /// <param name="self">逻辑单位工厂组件实例。</param>
         public static void Destroy(this LogicUnitFactoryComponent self)
-        {
-            self.LogicUnitCreators.Clear();
-        }
+            => self?.LogicUnitCreators?.Clear();
 
         /// <summary>
         /// 注册新的单位类型到工厂。
@@ -79,7 +77,7 @@ namespace GameBattle
         /// <param name="unitType">单位类型枚举。</param>
         public static void Register<TUnit>(this BattleContextComponent self, UnitType unitType)
             where TUnit : LogicUnit, new()
-            => self.LogicUnitFactoryComponent.Register<TUnit>(unitType);
+            => self?.LogicUnitFactoryComponent?.Register<TUnit>(unitType);
 
         /// <summary>
         /// 创建指定类型的逻辑单位。

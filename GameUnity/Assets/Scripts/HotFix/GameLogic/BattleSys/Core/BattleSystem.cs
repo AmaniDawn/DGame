@@ -1,4 +1,4 @@
-using System.Collections.Generic;
+using System;
 using GameBattle;
 
 namespace GameLogic
@@ -8,8 +8,10 @@ namespace GameLogic
     /// </summary>
     public sealed class BattleSystem : Singleton<BattleSystem>, IUpdate
     {
-        private readonly List<RenderUnit> m_renderUnits = new();
-        private readonly List<RenderUnit> m_renderUnitsBuffer = new();
+        /// <summary>
+        /// 当前战斗内的渲染单位注册表。
+        /// </summary>
+        public RenderUnitRegistry RenderUnits { get; } = new();
 
         /// <summary>
         /// 获取当前战斗上下文。
@@ -28,8 +30,7 @@ namespace GameLogic
         public void Init(BattleContextComponent battleContext)
         {
             CurBattleContext = battleContext;
-            m_renderUnits.Clear();
-            m_renderUnitsBuffer.Clear();
+            RenderUnits.Clear();
             battleContext.SetRenderUnitFactory(battleContext.AddComponent<RenderUnitFactoryComponent>());
             CameraMgr = battleContext.AddComponent<CameraMgrComponent>();
         }
@@ -39,60 +40,60 @@ namespace GameLogic
         /// </summary>
         /// <param name="renderUnit">渲染单位。</param>
         public void RegisterRenderUnit(RenderUnit renderUnit)
-        {
-            if (renderUnit == null || m_renderUnits.Contains(renderUnit))
-            {
-                return;
-            }
-
-            m_renderUnits.Add(renderUnit);
-        }
+            => RenderUnits.Register(renderUnit);
 
         /// <summary>
         /// 反注册渲染单位。
         /// </summary>
         /// <param name="renderUnit">渲染单位。</param>
         public void UnregisterRenderUnit(RenderUnit renderUnit)
-        {
-            if (renderUnit == null)
-            {
-                return;
-            }
+            => RenderUnits.Unregister(renderUnit);
 
-            m_renderUnits.Remove(renderUnit);
-        }
+        /// <summary>
+        /// 按 Entity.Id 查询渲染单位。
+        /// </summary>
+        /// <param name="entityId">渲染单位实体 ID。</param>
+        /// <param name="renderUnit">查询结果。</param>
+        /// <returns>找到时返回 <see langword="true"/>。</returns>
+        public bool TryGetRenderUnit(long entityId, out RenderUnit renderUnit)
+            => RenderUnits.TryGet(entityId, out renderUnit);
+
+        /// <summary>
+        /// 遍历当前战斗中的全部渲染单位。
+        /// </summary>
+        /// <param name="visitor">遍历回调。</param>
+        public void ForEachRenderUnit(Action<RenderUnit> visitor)
+            => RenderUnits.ForEach(visitor);
 
         /// <summary>
         /// 每帧驱动所有活跃渲染单位执行同步与插值。
         /// </summary>
         public void OnUpdate()
         {
-            if (CurBattleContext == null || m_renderUnits.Count == 0)
+            if (CurBattleContext == null || RenderUnits.Count == 0)
             {
                 return;
             }
 
-            m_renderUnitsBuffer.Clear();
-            m_renderUnitsBuffer.AddRange(m_renderUnits);
-            foreach (var renderUnit in m_renderUnitsBuffer)
+            var snapshot = RenderUnits.BuildSnapshot();
+            foreach (var renderUnit in snapshot)
             {
                 if (renderUnit == null || renderUnit.IsDisposed || renderUnit.IsDestroyed)
                 {
-                    m_renderUnits.Remove(renderUnit);
+                    RenderUnits.Unregister(renderUnit);
                     continue;
                 }
 
                 renderUnit.SyncFromLogic();
             }
         }
-        
+
         /// <summary>
         /// 清理战斗系统状态。
         /// </summary>
         public void Clear()
         {
-            m_renderUnits.Clear();
-            m_renderUnitsBuffer.Clear();
+            RenderUnits.Clear();
             CurBattleContext = null;
             CameraMgr = null;
         }

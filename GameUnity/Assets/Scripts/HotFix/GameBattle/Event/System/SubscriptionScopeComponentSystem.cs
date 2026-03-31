@@ -34,8 +34,8 @@ namespace GameBattle
         public static void SubscribeLogicScoped<T>(this LogicUnit self, object owner, SubscriptionScopeComponent scope,
             Action<T> handler) where T : struct, IUnitEvent
         {
-            self.SubscribeLogic(owner, handler);
-            scope.Add(() => self.UnsubscribeLogic(handler));
+            self?.SubscribeLogic(owner, handler);
+            scope?.Add(() => self?.UnsubscribeLogic(handler));
         }
 
         /// <summary>
@@ -49,8 +49,8 @@ namespace GameBattle
         public static void SubscribeBattleScoped<T>(this BattleContextComponent self, object owner, SubscriptionScopeComponent scope,
             Action<T> handler) where T : struct, IBattleEvent
         {
-            self.SubscribeBattle(owner, handler);
-            scope.Add(() => self.UnsubscribeBattle(handler));
+            self?.SubscribeBattle(owner, handler);
+            scope?.Add(() => self?.UnsubscribeBattle(handler));
         }
     }
 }

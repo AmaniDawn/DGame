@@ -1,4 +1,5 @@
 ﻿using DGame;
+using Fantasy.Entitas;
 using Fantasy.Entitas.Interface;
 
 namespace GameBattle
@@ -112,14 +113,13 @@ namespace GameBattle
             self.MoveForward = normalized;
             self.MarkForward(normalized);
         }
-        
+
         /// <summary>
         /// 判断两个逻辑单位是否表示同一个运行时实例。
         /// </summary>
         /// <param name="self"></param>
         /// <param name="other">待比较的逻辑单位。</param>
         /// <returns>是同一个有效运行时实例时返回 <see langword="true"/>。</returns>
-        public static bool IsSameUnit(this LogicUnit self, LogicUnit other)
-            => other != null && self.RuntimeId != 0 && other.RuntimeId != 0 && self.RuntimeId == other.RuntimeId;
+        public static bool IsSameUnit(this LogicUnit self, LogicUnit other) => self?.RuntimeId == other?.RuntimeId;
     }
 }

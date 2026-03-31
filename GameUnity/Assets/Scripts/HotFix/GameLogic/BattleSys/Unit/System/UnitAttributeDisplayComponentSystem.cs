@@ -13,7 +13,7 @@ namespace GameLogic
         /// <param name="self">单位属性表现同步组件实例。</param>
         protected override void Destroy(UnitAttributeDisplayComponent self)
         {
-            self.Clear();
+            self?.Clear();
         }
     }
 }

@@ -1,4 +1,4 @@
-﻿using Fantasy;
+using Fantasy;
 using Fantasy.Entitas;
 
 namespace GameBattle
@@ -18,7 +18,12 @@ namespace GameBattle
         /// 获取逻辑单位工厂组件。
         /// </summary>
         public LogicUnitFactoryComponent LogicUnitFactoryComponent { get; private set; }
-        
+
+        /// <summary>
+        /// 获取逻辑单位注册表组件。
+        /// </summary>
+        public LogicUnitRegistryComponent LogicUnitRegistry { get; private set; }
+
         public BattleEventHubComponent BattleEvents { get; private set; }
 
         public SingletonManagerComponent SingletonManager { get; private set; }
@@ -39,6 +44,7 @@ namespace GameBattle
             battle.SingletonManager = battle.AddComponent<SingletonManagerComponent>();
             battle.FrameSync = battle.AddComponent<FrameSyncComponent>();
             battle.LogicUnitFactoryComponent = battle.AddComponent<LogicUnitFactoryComponent>();
+            battle.LogicUnitRegistry = battle.AddComponent<LogicUnitRegistryComponent>();
             battle.BattleEvents = battle.AddComponent<BattleEventHubComponent>();
             return battle;
         }
@@ -49,9 +55,11 @@ namespace GameBattle
         /// </summary>
         public void Destroy()
         {
+            LogicUnitRegistry?.Clear();
             FrameSync = null;
             RenderUnitFactory = null;
             LogicUnitFactoryComponent = null;
+            LogicUnitRegistry = null;
             BattleEvents = null;
             SingletonManager = null;
         }

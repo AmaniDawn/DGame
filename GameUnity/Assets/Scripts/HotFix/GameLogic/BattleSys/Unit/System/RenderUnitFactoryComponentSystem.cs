@@ -16,7 +16,7 @@ namespace GameLogic
         /// <param name="self">渲染单位工厂组件实例。</param>
         protected override void Awake(RenderUnitFactoryComponent self)
         {
-            self.Awake();
+            self?.Awake();
         }
     }
 
@@ -31,7 +31,7 @@ namespace GameLogic
         /// <param name="self">渲染单位工厂组件实例。</param>
         protected override void Destroy(RenderUnitFactoryComponent self)
         {
-            self.Destroy();
+            self?.Destroy();
         }
     }
 
@@ -55,9 +55,7 @@ namespace GameLogic
         /// </summary>
         /// <param name="self">渲染单位工厂组件实例。</param>
         public static void Destroy(this RenderUnitFactoryComponent self)
-        {
-            self.RenderUnitCreators.Clear();
-        }
+            => self?.RenderUnitCreators?.Clear();
 
         /// <summary>
         /// 注册逻辑单位类型到渲染单位类型的映射。
@@ -67,9 +65,7 @@ namespace GameLogic
         /// <param name="self">渲染单位工厂组件实例。</param>
         public static void Register<TLogic, TRender>(this RenderUnitFactoryComponent self)
             where TLogic : LogicUnit where TRender : RenderUnit, new()
-        {
-            self.RenderUnitCreators[typeof(TLogic)] = self.CreateInternal<TRender>;
-        }
+            => self.RenderUnitCreators[typeof(TLogic)] = self.CreateInternal<TRender>;
 
         /// <summary>
         /// 创建并初始化指定类型的渲染单位。

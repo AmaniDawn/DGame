@@ -13,7 +13,7 @@ namespace GameLogic
         /// <param name="self">摄像机管理组件实例。</param>
         protected override void Destroy(CameraMgrComponent self)
         {
-            self.Clear();
+            self?.Clear();
         }
     }
     

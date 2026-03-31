@@ -9,7 +9,7 @@ namespace GameLogic
     {
         protected override void Destroy(UnitTransformSyncComponent self)
         {
-            self.Clear();
+            self?.Clear();
         }
     }
 }

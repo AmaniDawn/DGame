@@ -13,9 +13,9 @@ namespace GameBattle
         public BattleContextComponent BattleContext { get; private set; }
 
         public UnitEventHubComponent UnitEventHub { get; private set; }
-        
+
         public UnitStateSyncComponent StateSync { get; private set; }
-        
+
         /// <summary>
         /// 单位名称。
         /// </summary>
@@ -77,7 +77,7 @@ namespace GameBattle
         /// 单位是否已销毁。
         /// </summary>
         public bool IsDestroyed { get; internal set; }
-        
+
         /// <summary>
         /// 单位是否已死亡。
         /// </summary>
@@ -90,14 +90,30 @@ namespace GameBattle
             BattleContext = battleContextComponent;
             StateSync = AddComponent<UnitStateSyncComponent>();
             UnitEventHub = AddComponent<UnitEventHubComponent>();
-            
+
             if (!OnInit())
             {
                 return false;
             }
-            
-            CreateRenderUnit(battleContextComponent);
-            return AfterInit();
+
+            var registered = false;
+            try
+            {
+                battleContextComponent.LogicUnitRegistry?.Register(this);
+                registered = true;
+                CreateRenderUnit(battleContextComponent);
+                return AfterInit();
+            }
+            catch
+            {
+                if (registered)
+                {
+                    battleContextComponent.LogicUnitRegistry?.Unregister(this);
+                }
+
+                DestroyRenderUnit();
+                return false;
+            }
         }
 
         protected virtual bool AfterInit()
@@ -128,6 +144,8 @@ namespace GameBattle
                 return;
             }
 
+            var battleContext = BattleContext;
+            battleContext?.LogicUnitRegistry?.Unregister(this);
             OnDestroy();
             IsDestroyed = true;
             DestroyRenderUnit();
