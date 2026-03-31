@@ -1,4 +1,4 @@
-/*
+/* -------------------------------------------------------------------------
  * Hierarchy层次结构
  * - UnitRoot (RenderUnit 根节点，战斗内是 HeroActorRoot 的子节点，UI是UIActorModel 生成的 ActorModelTrans 节点)
  *      - DisplayRoot （代表 UnitDisplayComponent 组件的节点）
@@ -7,6 +7,7 @@
  *                  - OtherModel（其他部位模型）
  *              - OtherModel（其他部位模型）
  *          - DebugTextInfo（HP）
+ * -------------------------------------------------------------------------
  */
 
 using System;
@@ -28,9 +29,15 @@ namespace GameLogic
     /// </summary>
     public sealed class UnitDisplayComponent : Entity
     {
+        #region private
+
         private SortingGroup m_sortingGroup;
         private int m_sortingOrder;
         private int m_sortingLayerId;
+
+        #endregion
+
+        #region 基础显示状态
 
         public RenderUnit OwnerUnit { get; private set; }
         
@@ -60,6 +67,10 @@ namespace GameLogic
         /// 一般会在主模型加载完成后刷新。
         /// </summary>
         public DummyPointCache UnitDummy { get; private set; } = new DummyPointCache();
+
+        #endregion
+
+        #region 排序与显示访问器
 
         /// <summary>
         /// 显示根节点 Transform。
@@ -120,6 +131,10 @@ namespace GameLogic
                 ApplySorting();
             }
         }
+
+        #endregion
+
+        #region 初始化与模型刷新
 
         /// <summary>
         /// 初始化显示组件，并在渲染单位根节点下创建 DisplayRoot。
@@ -193,6 +208,10 @@ namespace GameLogic
         /// <returns>武器模型对象；未加载时返回 null。</returns>
         public GameObject GetWeaponModelGo() => UnitModel?.GetWeaponModelGo();
 
+        #endregion
+
+        #region 挂点访问
+
         /// <summary>
         /// 从当前挂点缓存中获取指定挂点。
         /// </summary>
@@ -225,6 +244,10 @@ namespace GameLogic
         public bool TryGetDummyPoint(DummyPointType pointType, out Transform point)
             => UnitDummy.TryGetDummyPoint(pointType, out point);
 
+        #endregion
+
+        #region 显示控制
+
         /// <summary>
         /// 设置整个显示层显隐。
         /// </summary>
@@ -248,6 +271,10 @@ namespace GameLogic
             Clear();
         }
 
+        #endregion
+
+        #region 内部事件响应
+
         /// <summary>
         /// 模型创建完成后的回调。
         /// <remarks>新模型实例挂入显示层后重新应用当前排序配置，保证后创建的表现对象也受同一排序入口控制。</remarks>
@@ -257,6 +284,10 @@ namespace GameLogic
         {
             ApplySorting();
         }
+
+        #endregion
+
+        #region 内部辅助方法
         
         /// <summary>
         /// 将当前缓存的排序配置应用到显示根节点上的 SortingGroup。
@@ -289,5 +320,7 @@ namespace GameLogic
                 DisplayRoot = null;
             }
         }
+
+        #endregion
     }
 }
