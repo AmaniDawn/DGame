@@ -145,7 +145,7 @@ namespace GameBattle
         /// <param name="deltaTime">当前固定逻辑帧时间增量。</param>
         internal void FixedUpdate(FixedPoint64 deltaTime)
         {
-            if (IsDisposed || IsDied || IsDestroyed)
+            if (IsDisposed || IsDestroyed)
             {
                 return;
             }
@@ -153,7 +153,7 @@ namespace GameBattle
         }
 
         /// <summary>
-        /// 推进单位固定帧逻辑。
+        /// 子类固定帧逻辑扩展点。
         /// </summary>
         /// <param name="deltaTime">当前固定逻辑帧时间增量。</param>
         protected virtual void OnFixedUpdate(FixedPoint64 deltaTime) { }
