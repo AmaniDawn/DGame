@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Fantasy.Entitas;
 using Fantasy.Entitas.Interface;
 using GameBattle;
