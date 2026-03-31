@@ -165,7 +165,11 @@ namespace GameLogic
         protected virtual GameObject CreateGameObject()
         {
             var go = new GameObject();
-            // go.transform.SetParent(BattleManager.Instance.TransHeroActorRoot);
+            var parent = BattleSystem.IsValid ? BattleSystem.Instance.ViewRoots?.UnitRoot : null;
+            if (parent != null)
+            {
+                go.transform.SetParent(parent, false);
+            }
             return go;
         }
         

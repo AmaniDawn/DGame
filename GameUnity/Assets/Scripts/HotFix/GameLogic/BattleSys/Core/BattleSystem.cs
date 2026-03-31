@@ -8,6 +8,8 @@ namespace GameLogic
     /// </summary>
     public sealed class BattleSystem : Singleton<BattleSystem>, IUpdate
     {
+        #region Component
+
         /// <summary>
         /// 当前战斗内的渲染单位注册表。
         /// </summary>
@@ -24,6 +26,13 @@ namespace GameLogic
         public CameraMgrComponent CameraMgr { get; private set; }
 
         /// <summary>
+        /// 获取当前战斗的视图根节点组件。
+        /// </summary>
+        public BattleViewRootComponent ViewRoots { get; private set; }
+
+        #endregion
+
+        /// <summary>
         /// 初始化战斗系统。
         /// </summary>
         /// <param name="battleContext">战斗上下文。</param>
@@ -33,7 +42,11 @@ namespace GameLogic
             RenderUnits.Clear();
             battleContext.SetRenderUnitFactory(battleContext.AddComponent<RenderUnitFactoryComponent>());
             CameraMgr = battleContext.AddComponent<CameraMgrComponent>();
+            ViewRoots = battleContext.AddComponent<BattleViewRootComponent>();
+            ViewRoots.Init();
         }
+
+        #region RenderUnit注册与反注册相关
 
         /// <summary>
         /// 注册一个活跃渲染单位，使其在每帧执行逻辑到表现的同步。
@@ -64,6 +77,8 @@ namespace GameLogic
         /// <param name="visitor">遍历回调。</param>
         public void ForEachRenderUnit(Action<RenderUnit> visitor)
             => RenderUnits.ForEach(visitor);
+
+        #endregion
 
         /// <summary>
         /// 每帧驱动所有活跃渲染单位执行同步与插值。
@@ -96,6 +111,7 @@ namespace GameLogic
             RenderUnits.Clear();
             CurBattleContext = null;
             CameraMgr = null;
+            ViewRoots = null;
         }
     }
 }

@@ -38,6 +38,12 @@ namespace GameLogic
         public static SubScene CurBattleScene => GameBattle.BattleManager.CurScene;
 
         /// <summary>
+        /// 获取当前战斗的视图根节点组件。
+        /// </summary>
+        /// <returns>当前战斗的视图根节点组件；未初始化时返回 null。</returns>
+        public static BattleViewRootComponent CurViewRoots => BattleSystem.IsValid ? BattleSystem.Instance.ViewRoots : null;
+
+        /// <summary>
         /// 销毁当前战斗实例，释放所有相关资源。
         /// </summary>
         public static void DestroyBattle()
