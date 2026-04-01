@@ -37,8 +37,8 @@ namespace GameLogic
         
         protected override void OnInit()
         {
-            m_loginSaveData = ClientSaveDataMgr.Instance.GetSaveData<LoginSaveData>();
-            m_quickAuthSaveData = ClientSaveDataMgr.Instance.GetSaveData<QuickAuthSaveData>();
+            m_loginSaveData = LoginSaveData.Get;
+            m_quickAuthSaveData = QuickAuthSaveData.Get;
         }
 
         public void OnRoleLogout()

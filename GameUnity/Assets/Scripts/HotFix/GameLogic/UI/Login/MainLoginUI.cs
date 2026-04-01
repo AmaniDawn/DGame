@@ -16,7 +16,7 @@ namespace GameLogic
 			m_goAccountNode.SetActive(false);
 			m_toggleUserPrivacy.isOn = LoginDataMgr.Instance.IsAgreeUserPrivacy;
 			
-			m_quickAuthSaveData = ClientSaveDataMgr.Instance.GetSaveData<QuickAuthSaveData>();
+			m_quickAuthSaveData = QuickAuthSaveData.Get;
 			if (m_quickAuthSaveData != null)
 			{
 				m_inputAccount.text = m_quickAuthSaveData.Uid;
@@ -174,7 +174,7 @@ namespace GameLogic
 		{
 			if (m_quickAuthSaveData == null)
 			{
-				m_quickAuthSaveData = ClientSaveDataMgr.Instance.GetSaveData<QuickAuthSaveData>();
+				m_quickAuthSaveData = QuickAuthSaveData.Get;
 			}
 
 			if (string.IsNullOrWhiteSpace(m_inputAccount.text) || string.IsNullOrWhiteSpace(m_inputPassword.text))

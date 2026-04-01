@@ -103,7 +103,7 @@ namespace GameLogic
 
         public async FTask LoginGateRequest()
         {
-            var quickAuthSaveData = ClientSaveDataMgr.Instance.GetSaveData<QuickAuthSaveData>();
+            var quickAuthSaveData = QuickAuthSaveData.Get;
             if (quickAuthSaveData == null)
             {
                 return;
