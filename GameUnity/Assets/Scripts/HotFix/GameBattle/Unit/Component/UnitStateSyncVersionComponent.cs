@@ -5,7 +5,7 @@ namespace GameBattle
     /// <summary>
     /// 单位状态同步版本记录组件。
     /// </summary>
-    public class UnitStateSyncVersionComponent : Entity
+    public sealed class UnitStateSyncVersionComponent : Entity
     {
         /// <summary>
         /// 获取或设置上次已同步的变换版本号。

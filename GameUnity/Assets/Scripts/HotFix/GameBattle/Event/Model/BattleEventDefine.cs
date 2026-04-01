@@ -10,7 +10,7 @@ namespace GameBattle
             LogicUnit = logicUnit;
         }
 
-        public LogicUnit LogicUnit { get; }
+        public readonly LogicUnit LogicUnit { get; }
     }
 
     /// <summary>
@@ -24,8 +24,8 @@ namespace GameBattle
             Reason = reason;
         }
 
-        public LogicUnit LogicUnit { get; }
+        public readonly LogicUnit LogicUnit { get; }
 
-        public LogicUnitDestroyReason Reason { get; }
+        public readonly LogicUnitDestroyReason Reason { get; }
     }
 }

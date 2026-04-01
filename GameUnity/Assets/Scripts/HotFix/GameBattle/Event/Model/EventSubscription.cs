@@ -25,7 +25,7 @@ namespace GameBattle
         /// </summary>
         /// <param name="owner">订阅所属者。</param>
         /// <param name="handler">事件回调。</param>
-        public EventSubscription(object owner, Delegate handler)
+        internal EventSubscription(object owner, Delegate handler)
         {
             Owner = owner;
             Handler = handler;

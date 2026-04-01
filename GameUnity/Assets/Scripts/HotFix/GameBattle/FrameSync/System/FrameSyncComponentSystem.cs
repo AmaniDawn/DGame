@@ -1,6 +1,6 @@
 ﻿namespace GameBattle
 {
-    public class FrameSyncComponentSystem
+    public static class FrameSyncComponentSystem
     {
         
     }

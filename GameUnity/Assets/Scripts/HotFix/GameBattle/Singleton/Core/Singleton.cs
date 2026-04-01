@@ -7,7 +7,7 @@ namespace GameBattle
     /// <remarks>生命周期独立于战斗上下文。</remarks>
     /// </summary>
     /// <typeparam name="T">具体的全局单例类型。</typeparam>
-    public class Singleton<T> : ISingleton where T : Singleton<T>, new()
+    public abstract class Singleton<T> : ISingleton where T : Singleton<T>, new()
     {
         /// <summary>
         /// 全局唯一实例。

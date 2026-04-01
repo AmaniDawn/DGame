@@ -7,27 +7,35 @@ namespace GameLogic
     /// 单位属性表现快照。
     /// <remarks>用于承载渲染层当前关心的连续属性值。</remarks>
     /// </summary>
-    public struct UnitAttributeSnapshot
+    public readonly struct UnitAttributeSnapshot
     {
         /// <summary>
         /// 当前生命值。
         /// </summary>
-        public int Hp { get; set; }
+        public readonly int Hp;
 
         /// <summary>
         /// 最大生命值。
         /// </summary>
-        public int MaxHp { get; set; }
+        public readonly int MaxHp;
 
         /// <summary>
         /// 当前法力值。
         /// </summary>
-        public int Mp { get; set; }
+        public readonly int Mp;
 
         /// <summary>
         /// 最大法力值。
         /// </summary>
-        public int MaxMp { get; set; }
+        public readonly int MaxMp;
+
+        public UnitAttributeSnapshot(in UnitStateSnapshot snapshot)
+        {
+            Hp = snapshot.Hp;
+            MaxHp = snapshot.MaxHp;
+            Mp = snapshot.Mp;
+            MaxMp = snapshot.MaxMp;
+        }
     }
 
     /// <summary>
@@ -69,13 +77,7 @@ namespace GameLogic
         public void Sync(in UnitStateSnapshot stateSnapshot)
         {
             var previous = Snapshot;
-            var current = new UnitAttributeSnapshot
-            {
-                Hp = stateSnapshot.Hp,
-                MaxHp = stateSnapshot.MaxHp,
-                Mp = stateSnapshot.Mp,
-                MaxMp = stateSnapshot.MaxMp,
-            };
+            var current = new UnitAttributeSnapshot(stateSnapshot);
 
             var changeFlags = GetChangeFlags(previous, current);
             Snapshot = current;

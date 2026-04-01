@@ -1,7 +1,7 @@
 ﻿namespace GameLogic
 {
     [ClientSaveData("QuickAuthSaveData")]
-    public class QuickAuthSaveData : BaseClientSaveData
+    public sealed class QuickAuthSaveData : BaseClientSaveData
     {
         public string Uid;
         public string Pwd;

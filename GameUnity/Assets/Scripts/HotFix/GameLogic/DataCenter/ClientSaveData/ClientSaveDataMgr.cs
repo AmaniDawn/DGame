@@ -5,7 +5,7 @@ using DGame;
 
 namespace GameLogic
 {
-    public class ClientSaveDataMgr : Singleton<ClientSaveDataMgr>
+    public sealed class ClientSaveDataMgr : Singleton<ClientSaveDataMgr>
     {
         private readonly Dictionary<string, BaseClientSaveData> m_saveDataDict
             = new Dictionary<string, BaseClientSaveData>();

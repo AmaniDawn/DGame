@@ -7,7 +7,7 @@ namespace GameLogic
     /// 单位模型创建完成事件。
     /// <remarks>当某个模型部位实例化并完成基础挂载后，由渲染层对外发布。</remarks>
     /// </summary>
-    public struct UnitModelCreatedEvent : IUnitEvent
+    public readonly struct UnitModelCreatedEvent : IUnitEvent
     {
         /// <summary>
         /// 创建完成的模型对象。
@@ -35,7 +35,7 @@ namespace GameLogic
     /// 单位模型即将销毁事件。
     /// <remarks>当某个模型部位准备销毁，但销毁动作尚未真正执行完成时发布。</remarks>
     /// </summary>
-    public struct BeforeUnitModelDestroyEvent : IUnitEvent
+    public readonly struct BeforeUnitModelDestroyEvent : IUnitEvent
     {
         /// <summary>
         /// 即将销毁的模型部位类型。
@@ -56,7 +56,7 @@ namespace GameLogic
     /// 单位模型销毁完成事件。
     /// <remarks>当某个模型部位已经完成销毁后，由渲染层对外发布。</remarks>
     /// </summary>
-    public struct UnitModelDestroyedEvent : IUnitEvent
+    public readonly struct UnitModelDestroyedEvent : IUnitEvent
     {
         /// <summary>
         /// 已销毁的模型部位类型。

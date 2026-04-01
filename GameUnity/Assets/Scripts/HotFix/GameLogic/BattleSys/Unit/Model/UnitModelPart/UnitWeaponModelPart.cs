@@ -20,7 +20,7 @@ namespace GameLogic
     /// 当主模型切换或销毁时，武器会先临时回退到模型根节点，待主模型新挂点就绪后再重新绑定。
     /// </para>
     /// </summary>
-    public class UnitWeaponModelPart : UnitModelPart
+    public sealed class UnitWeaponModelPart : UnitModelPart
     {
         private readonly UnitDisplayComponent m_owner;
 
@@ -109,7 +109,7 @@ namespace GameLogic
         /// </summary>
         /// <param name="modelConfig">模型配置。</param>
         /// <returns>绑定挂点类型。</returns>
-        protected virtual DummyPointType ResolveBindPointType(WeaponModelConfig modelConfig)
+        private DummyPointType ResolveBindPointType(WeaponModelConfig modelConfig)
         {
             if (modelConfig == null || string.IsNullOrWhiteSpace(modelConfig.DummyPoint))
             {
@@ -125,7 +125,7 @@ namespace GameLogic
         /// 当前默认直接使用武器配置中的 UI 偏移参数。
         /// </summary>
         /// <returns>本地位置偏移。</returns>
-        protected virtual Vector3 GetLocalPosition()
+        private Vector3 GetLocalPosition()
         {
             if (ModelConfig == null)
             {
@@ -140,7 +140,7 @@ namespace GameLogic
         /// 当前默认仅使用配置中的 Z 轴旋转。
         /// </summary>
         /// <returns>本地欧拉角。</returns>
-        protected virtual Vector3 GetLocalEulerAngles()
+        private Vector3 GetLocalEulerAngles()
         {
             if (ModelConfig == null)
             {
@@ -155,7 +155,7 @@ namespace GameLogic
         /// 当前默认使用配置中的 UI 缩放参数。
         /// </summary>
         /// <returns>本地缩放。</returns>
-        protected virtual Vector3 GetLocalScale()
+        private Vector3 GetLocalScale()
         {
             if (ModelConfig == null || ModelConfig.UIScale <= 0f)
             {

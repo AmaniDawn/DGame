@@ -1,7 +1,7 @@
 ﻿namespace GameLogic
 {
     [ClientSaveData("SystemSaveData")]
-    public class SystemSaveData : BaseClientSaveData
+    public sealed class SystemSaveData : BaseClientSaveData
     {
         /// <summary>
         /// 系统保存数据类型枚举

@@ -9,7 +9,7 @@ namespace GameLogic
     /// 主模型部位。
     /// 负责主角色模型的加载、缩放处理和挂点缓存刷新。
     /// </summary>
-    public class MainUnitModelPart : UnitModelPart
+    public sealed class MainUnitModelPart : UnitModelPart
     {
         private readonly UnitDisplayComponent m_owner;
 

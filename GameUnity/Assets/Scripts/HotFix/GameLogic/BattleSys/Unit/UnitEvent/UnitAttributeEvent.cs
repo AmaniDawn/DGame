@@ -34,7 +34,7 @@ namespace GameLogic
     /// 单位属性同步完成事件。
     /// 由属性表现同步组件在属性快照发生变化后发布，供血条、蓝条、名字板等表现模块订阅。
     /// </summary>
-    public struct UnitAttributeChangedEvent : IUnitEvent
+    public readonly struct UnitAttributeChangedEvent : IUnitEvent
     {
         /// <summary>
         /// 同步前的旧属性快照。

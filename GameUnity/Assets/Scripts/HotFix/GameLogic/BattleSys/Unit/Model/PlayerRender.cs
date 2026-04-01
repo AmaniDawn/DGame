@@ -3,7 +3,7 @@ namespace GameLogic
     /// <summary>
     /// 玩家渲染单位。
     /// </summary>
-    public class PlayerRender : RenderUnit
+    public sealed class PlayerRender : RenderUnit
     {
         /// <summary>
         /// 获取玩家当前使用的模型配置 ID。

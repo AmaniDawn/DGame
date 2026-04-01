@@ -40,7 +40,7 @@ namespace GameLogic
     /// <summary>
     /// 网络连接监控器，负责检测网络断开并处理自动重连。
     /// </summary>
-    public class ClientConnectWatcher
+    public sealed class ClientConnectWatcher
     {
         // 自动重连次数
         private readonly int AUTO_RECONNECT_MAX_COUNT = 2;

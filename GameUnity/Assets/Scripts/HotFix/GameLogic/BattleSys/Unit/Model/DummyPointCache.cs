@@ -9,7 +9,7 @@ namespace GameLogic
     /// 主模型挂点缓存。
     /// 用于在模型加载完成后缓存常用骨骼点/挂点，避免频繁递归查找 Transform。
     /// </summary>
-    public class DummyPointCache
+    public sealed class DummyPointCache
     {
         /// <summary>
         /// 挂点名称到 Transform 的缓存表。

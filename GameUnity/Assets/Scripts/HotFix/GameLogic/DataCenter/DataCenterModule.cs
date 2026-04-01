@@ -35,7 +35,7 @@
     /// 数据中心模块基类，提供单例模式和生命周期虚方法。
     /// </summary>
     /// <typeparam name="T">模块类型</typeparam>
-    public class DataCenterModule<T> : IDataCenterModule where T : new()
+    public abstract class DataCenterModule<T> : IDataCenterModule where T : new()
     {
         private static T m_instance;
 

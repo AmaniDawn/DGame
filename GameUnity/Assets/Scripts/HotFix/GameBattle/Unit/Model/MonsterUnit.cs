@@ -3,7 +3,7 @@
     /// <summary>
     /// 怪物逻辑单位。
     /// </summary>
-    public class MonsterUnit : LogicUnit
+    public sealed class MonsterUnit : LogicUnit
     {
     }
 }
