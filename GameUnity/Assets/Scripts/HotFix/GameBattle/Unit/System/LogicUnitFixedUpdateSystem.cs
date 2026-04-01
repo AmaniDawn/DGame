@@ -6,7 +6,7 @@ namespace GameBattle
     /// <summary>
     /// 逻辑单位固定帧更新系统。
     /// </summary>
-    public static class LogicUnitUpdateSystem
+    public static class LogicUnitFixedUpdateSystem
     {
         /// <summary>
         /// 推进当前战斗内全部活跃逻辑单位的固定帧逻辑。
