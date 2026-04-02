@@ -29,6 +29,11 @@ namespace GameBattle
         public ulong UnitID { get; internal set; }
 
         /// <summary>
+        /// 所属单位唯一标识。
+        /// </summary>
+        public ulong OwnerUnitID { get; internal set; }
+
+        /// <summary>
         /// 单位类型。
         /// </summary>
         public UnitType UnitType { get; internal set; }
