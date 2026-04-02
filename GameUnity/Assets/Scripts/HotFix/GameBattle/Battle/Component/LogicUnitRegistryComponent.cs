@@ -10,26 +10,28 @@ namespace GameBattle
     /// </summary>
     public sealed class LogicUnitRegistryComponent : Entity
     {
-        private readonly Dictionary<long, LogicUnit> m_unitsById = new(); // 以实体 Id 建立的逻辑单位索引
+        private readonly Dictionary<ulong, LogicUnit> m_unitsByUnitId = new(); // 以逻辑 UnitID 建立的单位主索引
+        private readonly Dictionary<long, LogicUnit> m_unitsByEntityId = new(); // 以实体 Id 建立的运行时实例索引
 
         /// <summary>
         /// 当前已注册的逻辑单位数量。
         /// </summary>
-        public int Count => m_unitsById.Count;
+        public int Count => m_unitsByUnitId.Count;
 
         /// <summary>
         /// 注册逻辑单位。
-        /// 使用 <see cref="Entity.Id"/> 作为内部索引主键。
+        /// 同时写入逻辑 UnitID 主索引与实体 Id 运行时索引。
         /// </summary>
         /// <param name="logicUnit">待注册的逻辑单位。</param>
         public void Register(LogicUnit logicUnit)
         {
-            if (logicUnit == null)
+            if (logicUnit == null || logicUnit.UnitID == 0)
             {
                 return;
             }
 
-            m_unitsById[logicUnit.Id] = logicUnit;
+            m_unitsByUnitId[logicUnit.UnitID] = logicUnit;
+            m_unitsByEntityId[logicUnit.Id] = logicUnit;
         }
 
         /// <summary>
@@ -43,8 +45,21 @@ namespace GameBattle
                 return;
             }
 
-            m_unitsById.Remove(logicUnit.Id);
+            if (logicUnit.UnitID != 0)
+            {
+                m_unitsByUnitId.Remove(logicUnit.UnitID);
+            }
+
+            m_unitsByEntityId.Remove(logicUnit.Id);
         }
+
+        /// <summary>
+        /// 按逻辑 UnitID 查询逻辑单位。
+        /// </summary>
+        /// <param name="unitId">逻辑单位 ID。</param>
+        /// <param name="logicUnit">查询结果。</param>
+        /// <returns>找到时返回 <see langword="true"/>。</returns>
+        public bool TryGet(ulong unitId, out LogicUnit logicUnit) => m_unitsByUnitId.TryGetValue(unitId, out logicUnit);
 
         /// <summary>
         /// 按实体 ID 查询逻辑单位。
@@ -52,7 +67,7 @@ namespace GameBattle
         /// <param name="entityId">逻辑单位实体 ID。</param>
         /// <param name="logicUnit">查询结果。</param>
         /// <returns>找到时返回 <see langword="true"/>。</returns>
-        public bool TryGet(long entityId, out LogicUnit logicUnit) => m_unitsById.TryGetValue(entityId, out logicUnit);
+        public bool TryGet(long entityId, out LogicUnit logicUnit) => m_unitsByEntityId.TryGetValue(entityId, out logicUnit);
 
         /// <summary>
         /// 遍历当前战斗中的全部逻辑单位。
@@ -65,7 +80,7 @@ namespace GameBattle
                 return;
             }
 
-            foreach (var logicUnit in m_unitsById.Values)
+            foreach (var logicUnit in m_unitsByUnitId.Values)
             {
                 visitor(logicUnit);
             }
@@ -74,6 +89,10 @@ namespace GameBattle
         /// <summary>
         /// 清空全部注册数据。
         /// </summary>
-        public void Clear() => m_unitsById.Clear();
+        public void Clear()
+        {
+            m_unitsByUnitId.Clear();
+            m_unitsByEntityId.Clear();
+        }
     }
 }

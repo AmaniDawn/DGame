@@ -181,6 +181,7 @@ namespace GameBattle
 
             UnitName = string.Empty;
             UnitID = 0;
+            OwnerUnitID = 0;
             UnitType = UnitType.None;
             UnitState = UnitState.None;
             ConfigID = 0;

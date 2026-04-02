@@ -38,14 +38,23 @@ namespace GameBattle
         /// </summary>
         /// <param name="self">战斗上下文组件。</param>
         /// <param name="unitType">单位类型枚举。</param>
+        /// <param name="unitId">外部指定的逻辑单位 ID；为 0 时自动分配。</param>
         /// <returns>创建的逻辑单位实例。</returns>
-        public static LogicUnit CreateLogicUnit(this BattleContextComponent self, UnitType unitType)
+        public static LogicUnit CreateLogicUnit(this BattleContextComponent self, UnitType unitType, ulong unitId = 0)
         {
             var logicUnit = self?.LogicUnitFactoryComponent?.Create(unitType);
             if (logicUnit == null)
             {
                 return null;
             }
+
+            logicUnit.UnitID = self.AllocateLogicUnitId(unitId);
+            if (logicUnit.UnitID == 0 || !logicUnit.Init(self))
+            {
+                logicUnit.Dispose();
+                return null;
+            }
+
             var registered = false;
             var added = false;
             try
@@ -72,6 +81,23 @@ namespace GameBattle
                 return null;
             }
         }
+
+        /// <summary>
+        /// 分配一个新的逻辑单位 ID。
+        /// </summary>
+        /// <param name="self">战斗上下文组件。</param>
+        /// <returns>分配得到的 UnitID；上下文无效时返回 0。</returns>
+        public static ulong AllocateLogicUnitId(this BattleContextComponent self)
+            => self?.UnitIdGenerator?.Allocate() ?? 0;
+
+        /// <summary>
+        /// 使用指定逻辑单位 ID，并确保后续自增游标不回退。
+        /// </summary>
+        /// <param name="self">战斗上下文组件。</param>
+        /// <param name="specifiedUnitId">外部指定的 UnitID；为 0 时自动分配。</param>
+        /// <returns>最终使用的 UnitID；上下文无效时返回 0。</returns>
+        public static ulong AllocateLogicUnitId(this BattleContextComponent self, ulong specifiedUnitId)
+            => self?.UnitIdGenerator?.AllocateOrUse(specifiedUnitId) ?? 0;
 
         /// <summary>
         /// 设置渲染单位工厂。
@@ -141,6 +167,24 @@ namespace GameBattle
         {
             self?.RemoveLogicUnit(logicUnit);
             self?.UnregisterLogicUnit(logicUnit);
+        }
+
+        /// <summary>
+        /// 按逻辑 UnitID 查询逻辑单位。
+        /// </summary>
+        /// <param name="self">战斗上下文组件。</param>
+        /// <param name="unitId">逻辑单位 ID。</param>
+        /// <param name="logicUnit">查询结果。</param>
+        /// <returns>找到时返回 <see langword="true"/>。</returns>
+        public static bool TryGetLogicUnitByUnitId(this BattleContextComponent self, ulong unitId, out LogicUnit logicUnit)
+        {
+            if (self == null || self.LogicUnitRegistry == null)
+            {
+                logicUnit = null;
+                return false;
+            }
+
+            return self.LogicUnitRegistry.TryGet(unitId, out logicUnit);
         }
 
         /// <summary>

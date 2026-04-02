@@ -22,6 +22,11 @@ namespace GameBattle
         public LogicUnitFactoryComponent LogicUnitFactoryComponent { get; private set; }
 
         /// <summary>
+        /// 获取逻辑单位 ID 生成组件。
+        /// </summary>
+        public UnitIdGeneratorComponent UnitIdGenerator { get; private set; }
+
+        /// <summary>
         /// 获取逻辑单位注册表组件。
         /// </summary>
         public LogicUnitRegistryComponent LogicUnitRegistry { get; private set; }
@@ -59,6 +64,7 @@ namespace GameBattle
             battle.SingletonManager = battle.AddComponent<SingletonManagerComponent>();
             battle.FrameSync = battle.AddComponent<FrameSyncComponent>();
             battle.LogicUnitFactoryComponent = battle.AddComponent<LogicUnitFactoryComponent>();
+            battle.UnitIdGenerator = battle.AddComponent<UnitIdGeneratorComponent>();
             battle.LogicUnitRegistry = battle.AddComponent<LogicUnitRegistryComponent>();
             battle.LogicUnitLifecycle = battle.AddComponent<LogicUnitLifecycleComponent>();
             battle.BattleEvents = battle.AddComponent<BattleEventHubComponent>();
@@ -77,6 +83,7 @@ namespace GameBattle
             FrameSync = null;
             RenderUnitFactory = null;
             LogicUnitFactoryComponent = null;
+            UnitIdGenerator = null;
             LogicUnitRegistry = null;
             LogicUnitLifecycle = null;
             BattleEvents = null;

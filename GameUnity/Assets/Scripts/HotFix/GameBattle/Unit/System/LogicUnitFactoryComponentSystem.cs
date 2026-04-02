@@ -1,7 +1,7 @@
-using System;
 using Fantasy;
 using Fantasy.Entitas;
 using Fantasy.Entitas.Interface;
+using System;
 
 namespace GameBattle
 {
@@ -105,14 +105,7 @@ namespace GameBattle
         /// <returns>创建的逻辑单位实例。</returns>
         private static T CreateInternal<T>(this LogicUnitFactoryComponent self) where T : LogicUnit, new()
         {
-            var unit = Entity.Create<T>(self.Scene, true, true);
-
-            if (!unit.Init((BattleContextComponent)self.Parent))
-            {
-                unit.Dispose();
-                throw new InvalidOperationException($"Init logic unit failed: {typeof(T).Name}");
-            }
-            return unit;
+            return Entity.Create<T>(self.Scene, true, true);
         }
     }
 }
