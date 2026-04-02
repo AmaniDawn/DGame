@@ -33,6 +33,20 @@ public sealed partial class ModelConfig : Luban.BeanBase
         ShadowScaleY = _buf.ReadFloat();
         ShadowOffsetX = _buf.ReadFloat();
         ShadowOffsetY = _buf.ReadFloat();
+        BaseMoveSpeed = _buf.ReadFloat();
+        EnableCollision = _buf.ReadBool();
+        UseAabbCollision = _buf.ReadBool();
+        CollisionRadius = _buf.ReadFloat();
+        CollisionHeight = _buf.ReadFloat();
+        HpBarOffsetX = _buf.ReadFloat();
+        HpBarOffsetY = _buf.ReadFloat();
+        HitFlashColorR = _buf.ReadFloat();
+        HitFlashColorG = _buf.ReadFloat();
+        HitFlashColorB = _buf.ReadFloat();
+        HitFullFlashTime = _buf.ReadFloat();
+        HitFlashTime = _buf.ReadFloat();
+        DeathFadeOutDurTime = _buf.ReadFloat();
+        DeathEffectSoundID = _buf.ReadInt();
     }
 
     public static ModelConfig DeserializeModelConfig(ByteBuf _buf)
@@ -100,6 +114,62 @@ public sealed partial class ModelConfig : Luban.BeanBase
     /// 阴影偏移Y
     /// </summary>
     public float ShadowOffsetY;
+    /// <summary>
+    /// 参考移动速度
+    /// </summary>
+    public float BaseMoveSpeed;
+    /// <summary>
+    /// 是否开启碰撞
+    /// </summary>
+    public bool EnableCollision;
+    /// <summary>
+    /// 是否矩形碰撞
+    /// </summary>
+    public bool UseAabbCollision;
+    /// <summary>
+    /// 碰撞半径
+    /// </summary>
+    public float CollisionRadius;
+    /// <summary>
+    /// 碰撞高度
+    /// </summary>
+    public float CollisionHeight;
+    /// <summary>
+    /// 血条高度偏移X
+    /// </summary>
+    public float HpBarOffsetX;
+    /// <summary>
+    /// 血条高度偏移Y
+    /// </summary>
+    public float HpBarOffsetY;
+    /// <summary>
+    /// 受击高亮R
+    /// </summary>
+    public float HitFlashColorR;
+    /// <summary>
+    /// 受击高亮G
+    /// </summary>
+    public float HitFlashColorG;
+    /// <summary>
+    /// 受击高亮B
+    /// </summary>
+    public float HitFlashColorB;
+    /// <summary>
+    /// 受击高亮总持续时间
+    /// </summary>
+    public float HitFullFlashTime;
+    /// <summary>
+    /// 受击高亮持续时间
+    /// </summary>
+    public float HitFlashTime;
+    /// <summary>
+    /// 死亡渐变消失时间
+    /// </summary>
+    public float DeathFadeOutDurTime;
+    /// <summary>
+    /// 死亡音效ID
+    /// </summary>
+    public int DeathEffectSoundID;
 
     public const int __ID__ = 1694060459;
     public override int GetTypeId() => __ID__;
@@ -130,6 +200,20 @@ public sealed partial class ModelConfig : Luban.BeanBase
         other.ShadowScaleY = ShadowScaleY;
         other.ShadowOffsetX = ShadowOffsetX;
         other.ShadowOffsetY = ShadowOffsetY;
+        other.BaseMoveSpeed = BaseMoveSpeed;
+        other.EnableCollision = EnableCollision;
+        other.UseAabbCollision = UseAabbCollision;
+        other.CollisionRadius = CollisionRadius;
+        other.CollisionHeight = CollisionHeight;
+        other.HpBarOffsetX = HpBarOffsetX;
+        other.HpBarOffsetY = HpBarOffsetY;
+        other.HitFlashColorR = HitFlashColorR;
+        other.HitFlashColorG = HitFlashColorG;
+        other.HitFlashColorB = HitFlashColorB;
+        other.HitFullFlashTime = HitFullFlashTime;
+        other.HitFlashTime = HitFlashTime;
+        other.DeathFadeOutDurTime = DeathFadeOutDurTime;
+        other.DeathEffectSoundID = DeathEffectSoundID;
     }
     
     public override string ToString()
@@ -150,6 +234,20 @@ public sealed partial class ModelConfig : Luban.BeanBase
         + "ShadowScaleY:" + ShadowScaleY + ","
         + "ShadowOffsetX:" + ShadowOffsetX + ","
         + "ShadowOffsetY:" + ShadowOffsetY + ","
+        + "BaseMoveSpeed:" + BaseMoveSpeed + ","
+        + "EnableCollision:" + EnableCollision + ","
+        + "UseAabbCollision:" + UseAabbCollision + ","
+        + "CollisionRadius:" + CollisionRadius + ","
+        + "CollisionHeight:" + CollisionHeight + ","
+        + "HpBarOffsetX:" + HpBarOffsetX + ","
+        + "HpBarOffsetY:" + HpBarOffsetY + ","
+        + "HitFlashColorR:" + HitFlashColorR + ","
+        + "HitFlashColorG:" + HitFlashColorG + ","
+        + "HitFlashColorB:" + HitFlashColorB + ","
+        + "HitFullFlashTime:" + HitFullFlashTime + ","
+        + "HitFlashTime:" + HitFlashTime + ","
+        + "DeathFadeOutDurTime:" + DeathFadeOutDurTime + ","
+        + "DeathEffectSoundID:" + DeathEffectSoundID + ","
         + "}";
     }
 }
