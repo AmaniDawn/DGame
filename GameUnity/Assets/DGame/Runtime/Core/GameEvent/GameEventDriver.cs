@@ -3,7 +3,7 @@ using System.Collections.Generic;
 
 namespace DGame
 {
-    public class GameEventDriver : IMemory
+    public class GameEventDriver : MemoryObject
     {
         private class EventRecord
         {
@@ -31,7 +31,7 @@ namespace DGame
             m_eventRecords = new List<EventRecord>();
         }
 
-        public void OnRelease()
+        public override void OnRelease()
         {
             if (!m_isInitialized)
             {
