@@ -20,6 +20,11 @@ namespace GameBattle
 
         public LogicUnitAttrComponent Attr { get; private set; }
 
+        /// <summary>
+        /// 单位运行时几何配置组件。
+        /// </summary>
+        public LogicUnitConfigComponent Config { get; private set; }
+
         #endregion
 
         /// <summary>
@@ -116,9 +121,9 @@ namespace GameBattle
 
         #region 初始化
 
-        internal bool ApplyCreateData(LogicUnitCreateData createData)
+        internal bool ApplyCreateData(LogicUnitCreateData createData, LogicUnitConfigData configData)
         {
-            if (createData == null || createData.UnitType == UnitType.None)
+            if (createData == null || configData == null || createData.UnitType == UnitType.None)
             {
                 return false;
             }
@@ -136,6 +141,9 @@ namespace GameBattle
             Attr.Owner = this;
             Attr.InitBaseAttr(createData.BaseAttr);
 
+            Config ??= AddComponent<LogicUnitConfigComponent>();
+            Config.Init(this, configData, createData.BornScale);
+
             if (HasBornPose && !BornForward.IsNearlyZero())
             {
                 MoveForward = BornForward.normalized;
@@ -152,6 +160,10 @@ namespace GameBattle
             if (Attr != null)
             {
                 Attr.Owner = this;
+            }
+            if (Config != null)
+            {
+                Config.Owner = this;
             }
 
             if (!OnInit())
@@ -230,13 +242,19 @@ namespace GameBattle
 
         private void ApplyBornPoseToTransform()
         {
-            if (!HasBornPose || transform == null)
+            if (transform == null)
+            {
+                return;
+            }
+
+            transform.localScale = Config?.RuntimeModelScale ?? BornScale;
+
+            if (!HasBornPose)
             {
                 return;
             }
 
             transform.position = BornPosition;
-            transform.localScale = BornScale;
 
             var forward = BornForward;
             forward.y = 0;
@@ -303,6 +321,7 @@ namespace GameBattle
             TranslatePos = FixedPointVector3.zero;
             m_waitDestroyTime = FixedPoint64.Zero;
             Attr = null;
+            Config = null;
             BattleContext = null;
         }
 

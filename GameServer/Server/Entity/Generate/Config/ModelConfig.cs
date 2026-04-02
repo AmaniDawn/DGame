@@ -36,8 +36,8 @@ public sealed partial class ModelConfig : Luban.BeanBase
         BaseMoveSpeed = _buf.ReadFloat();
         EnableCollision = _buf.ReadBool();
         UseAabbCollision = _buf.ReadBool();
-        CollisionRadius = _buf.ReadFloat();
-        CollisionHeight = _buf.ReadFloat();
+        CapsuleRadius = _buf.ReadFloat();
+        CapsuleHeight = _buf.ReadFloat();
         HpBarOffsetX = _buf.ReadFloat();
         HpBarOffsetY = _buf.ReadFloat();
         HitFlashColorR = _buf.ReadFloat();
@@ -129,11 +129,11 @@ public sealed partial class ModelConfig : Luban.BeanBase
     /// <summary>
     /// 碰撞半径
     /// </summary>
-    public float CollisionRadius;
+    public float CapsuleRadius;
     /// <summary>
     /// 碰撞高度
     /// </summary>
-    public float CollisionHeight;
+    public float CapsuleHeight;
     /// <summary>
     /// 血条高度偏移X
     /// </summary>
@@ -203,8 +203,8 @@ public sealed partial class ModelConfig : Luban.BeanBase
         other.BaseMoveSpeed = BaseMoveSpeed;
         other.EnableCollision = EnableCollision;
         other.UseAabbCollision = UseAabbCollision;
-        other.CollisionRadius = CollisionRadius;
-        other.CollisionHeight = CollisionHeight;
+        other.CapsuleRadius = CapsuleRadius;
+        other.CapsuleHeight = CapsuleHeight;
         other.HpBarOffsetX = HpBarOffsetX;
         other.HpBarOffsetY = HpBarOffsetY;
         other.HitFlashColorR = HitFlashColorR;
@@ -237,8 +237,8 @@ public sealed partial class ModelConfig : Luban.BeanBase
         + "BaseMoveSpeed:" + BaseMoveSpeed + ","
         + "EnableCollision:" + EnableCollision + ","
         + "UseAabbCollision:" + UseAabbCollision + ","
-        + "CollisionRadius:" + CollisionRadius + ","
-        + "CollisionHeight:" + CollisionHeight + ","
+        + "CapsuleRadius:" + CapsuleRadius + ","
+        + "CapsuleHeight:" + CapsuleHeight + ","
         + "HpBarOffsetX:" + HpBarOffsetX + ","
         + "HpBarOffsetY:" + HpBarOffsetY + ","
         + "HitFlashColorR:" + HitFlashColorR + ","

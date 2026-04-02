@@ -1,6 +1,7 @@
 ﻿using System;
 using DGame;
 using Fantasy.Entitas.Interface;
+using GameProto;
 
 namespace GameBattle
 {
@@ -24,6 +25,8 @@ namespace GameBattle
     /// </summary>
     public static class BattleContextComponentSystem
     {
+        #region 渲染工厂
+
         /// <summary>
         /// 创建渲染单位。
         /// </summary>
@@ -32,6 +35,27 @@ namespace GameBattle
         /// <returns>创建的渲染层单位。</returns>
         public static IRenderUnit CreateRenderUnit(this BattleContextComponent self, LogicUnit logicUnit)
             => self?.GetRenderUnitFactory()?.Create(logicUnit);
+
+        /// <summary>
+        /// 设置渲染单位工厂。
+        /// </summary>
+        /// <param name="self">战斗上下文组件实例。</param>
+        /// <param name="renderUnitFactory">渲染单位工厂。</param>
+        public static void SetRenderUnitFactory(this BattleContextComponent self, IRenderUnitFactory renderUnitFactory)
+            => self.RenderUnitFactory = renderUnitFactory;
+
+        /// <summary>
+        /// 获取渲染单位工厂。
+        /// <remarks>如果未设置则自动添加空渲染工厂组件作为兜底。</remarks>
+        /// </summary>
+        /// <param name="self">战斗上下文组件实例。</param>
+        /// <returns>渲染单位工厂实例。</returns>
+        public static IRenderUnitFactory GetRenderUnitFactory(this BattleContextComponent self)
+            => self.RenderUnitFactory ?? (self.RenderUnitFactory = self.AddComponent<NullRenderUnitFactoryComponent>());
+
+        #endregion
+
+        #region 逻辑单位创建
 
         /// <summary>
         /// 创建指定类型的逻辑单位。
@@ -65,46 +89,59 @@ namespace GameBattle
                     return null;
                 }
 
-                var logicUnit = factory.Create(createData.UnitType);
-                if (logicUnit == null)
+                var configData = BuildLogicUnitConfigData(createData);
+                if (configData == null)
                 {
                     return null;
                 }
 
-                logicUnit.UnitID = self.AllocateLogicUnitId(createData.UnitId);
-                if (logicUnit.UnitID == 0 || !logicUnit.ApplyCreateData(createData) || !logicUnit.Init(self))
-                {
-                    logicUnit.Dispose();
-                    return null;
-                }
-
-                var registered = false;
-                var added = false;
                 try
                 {
-                    self.RegisterLogicUnit(logicUnit);
-                    registered = true;
-                    if (!self.AddLogicUnit(logicUnit))
+                    var logicUnit = factory.Create(createData.UnitType);
+                    if (logicUnit == null)
                     {
-                        throw new InvalidOperationException($"Attach logic unit to battle failed: {logicUnit.GetType().Name}");
+                        return null;
                     }
 
-                    added = true;
-                    return logicUnit;
-                }
-                catch
-                {
-                    if (added || registered)
-                    {
-                        self.DetachLogicUnit(logicUnit);
-                    }
-
-                    if (!logicUnit.IsDisposed)
+                    logicUnit.UnitID = self.AllocateLogicUnitId(createData.UnitId);
+                    if (logicUnit.UnitID == 0 || !logicUnit.ApplyCreateData(createData, configData) || !logicUnit.Init(self))
                     {
                         logicUnit.Dispose();
+                        return null;
                     }
 
-                    return null;
+                    var registered = false;
+                    var added = false;
+                    try
+                    {
+                        self.RegisterLogicUnit(logicUnit);
+                        registered = true;
+                        if (!self.AddLogicUnit(logicUnit))
+                        {
+                            throw new InvalidOperationException($"Attach logic unit to battle failed: {logicUnit.GetType().Name}");
+                        }
+
+                        added = true;
+                        return logicUnit;
+                    }
+                    catch
+                    {
+                        if (added || registered)
+                        {
+                            self.DetachLogicUnit(logicUnit);
+                        }
+
+                        if (!logicUnit.IsDisposed)
+                        {
+                            logicUnit.Dispose();
+                        }
+
+                        return null;
+                    }
+                }
+                finally
+                {
+                    MemoryPool.Release(configData);
                 }
             }
             finally
@@ -130,22 +167,9 @@ namespace GameBattle
         public static ulong AllocateLogicUnitId(this BattleContextComponent self, ulong specifiedUnitId)
             => self?.UnitIdGenerator?.AllocateOrUse(specifiedUnitId) ?? 0;
 
-        /// <summary>
-        /// 设置渲染单位工厂。
-        /// </summary>
-        /// <param name="self">战斗上下文组件实例。</param>
-        /// <param name="renderUnitFactory">渲染单位工厂。</param>
-        public static void SetRenderUnitFactory(this BattleContextComponent self, IRenderUnitFactory renderUnitFactory)
-            => self.RenderUnitFactory = renderUnitFactory;
+        #endregion
 
-        /// <summary>
-        /// 获取渲染单位工厂。
-        /// <remarks>如果未设置则自动添加空渲染工厂组件作为兜底。</remarks>
-        /// </summary>
-        /// <param name="self">战斗上下文组件实例。</param>
-        /// <returns>渲染单位工厂实例。</returns>
-        public static IRenderUnitFactory GetRenderUnitFactory(this BattleContextComponent self)
-            => self.RenderUnitFactory ?? (self.RenderUnitFactory = self.AddComponent<NullRenderUnitFactoryComponent>());
+        #region 逻辑单位注册与查询
 
         /// <summary>
         /// 注册逻辑单位到当前战斗上下文索引。
@@ -244,6 +268,37 @@ namespace GameBattle
         public static void ForEachLogicUnit(this BattleContextComponent self, Action<LogicUnit> visitor)
             => self?.LogicUnitRegistry?.ForEach(visitor);
 
+        #endregion
+
+        #region 逻辑单位配置构建
+
+        /// <summary>
+        /// 根据创建输入构建逻辑单位运行时配置。
+        /// </summary>
+        private static LogicUnitConfigData BuildLogicUnitConfigData(LogicUnitCreateData createData)
+        {
+            if (createData == null)
+            {
+                return null;
+            }
+
+            var configData = LogicUnitConfigData.Create();
+            ApplyDefaultLogicUnitConfig(configData);
+
+            var modelConfig = GetLogicUnitModelConfig(createData.ConfigId);
+            if (modelConfig != null)
+            {
+                ApplyModelConfig(configData, modelConfig);
+            }
+
+            ApplyWeaponConfig(configData, createData);
+            return configData;
+        }
+
+        #endregion
+
+        #region 逻辑单位销毁与更新
+
         /// <summary>
         /// 标记逻辑单位延迟销毁。
         /// </summary>
@@ -338,5 +393,83 @@ namespace GameBattle
                 self.DestroyLogicUnitImmediately(logicUnit, delayData.Reason);
             }
         }
+
+        #endregion
+
+        #region 模型配置应用
+
+        private static ModelConfig GetLogicUnitModelConfig(uint configId)
+        {
+            if (configId == 0 || configId > int.MaxValue)
+            {
+                return null;
+            }
+
+            return ModelConfigMgr.Instance.GetModelOrDefault((int)configId);
+        }
+
+        private static void ApplyDefaultLogicUnitConfig(LogicUnitConfigData configData)
+        {
+            configData.Clear();
+            configData.EnableCollision = true;
+            configData.CollisionShapeType = UnitCollisionShapeType.AABB;
+        }
+
+        private static void ApplyModelConfig(LogicUnitConfigData configData, ModelConfig modelConfig)
+        {
+            var modelScale = modelConfig.ModelScale > 0 ? modelConfig.ModelScale : FixedPoint64.One;
+            configData.ModelScale = new FixedPointVector3(modelScale, modelScale, modelScale);
+            configData.EnableCollision = modelConfig.EnableCollision;
+
+            var capsuleRadius = modelConfig.CapsuleRadius > 0
+                ? modelConfig.CapsuleRadius : FixedPoint64.Zero;
+            var capsuleHeight = modelConfig.CapsuleHeight > 0
+                ? modelConfig.CapsuleHeight : FixedPoint64.Zero;
+
+            if (modelConfig.UseAabbCollision)
+            {
+                configData.CollisionShapeType = UnitCollisionShapeType.AABB;
+                configData.AabbHalfExtents = new FixedPointVector3
+                (
+                    capsuleRadius,
+                    capsuleHeight * FixedPoint64.Half,
+                    capsuleRadius
+                );
+                configData.UseAabbOverlap = true;
+                configData.CapsuleRadius = FixedPoint64.Zero;
+                configData.CapsuleHeight = FixedPoint64.Zero;
+                return;
+            }
+
+            configData.CollisionShapeType = UnitCollisionShapeType.Capsule;
+            configData.CapsuleRadius = capsuleRadius;
+            configData.CapsuleHeight = capsuleHeight;
+            configData.AabbHalfExtents = FixedPointVector3.zero;
+            configData.UseAabbOverlap = false;
+        }
+
+        private static void ApplyWeaponConfig(LogicUnitConfigData configData, LogicUnitCreateData createData)
+        {
+            if (!createData.TryGetPayload<PlayerUnitCreatePayload>(out var playerPayload))
+            {
+                return;
+            }
+
+            if (playerPayload.WeaponConfigId == 0 || playerPayload.WeaponConfigId > int.MaxValue)
+            {
+                return;
+            }
+
+            var weaponConfig = ModelConfigMgr.Instance.GetWeaponModelCfgOrDefault((int)playerPayload.WeaponConfigId);
+            if (weaponConfig == null)
+            {
+                return;
+            }
+
+            configData.FireOffset =
+                new FixedPointVector3(FixedPoint64.Zero, FixedPoint64.Zero, weaponConfig.FirePosLen);
+        }
+
+        #endregion
     }
 }
