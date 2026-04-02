@@ -7,12 +7,12 @@ namespace DGame
 {
     internal partial class ResourceExtComponent
     {
-        private class LoadingState : IMemory
+        private class LoadingState : MemoryObject
         {
             public CancellationTokenSource Cts { get; set; }
             public string Location { get; set; }
 
-            public void OnRelease()
+            public override void OnRelease()
             {
                 Cts?.Cancel();
                 Cts?.Dispose();
@@ -91,7 +91,7 @@ namespace DGame
             CancelAndCleanupOldRequest(target);
             // 创建新的加载状态
             var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            var loadingState = MemoryPool.Spawn<LoadingState>();
+            var loadingState = MemoryObject.Spawn<LoadingState>();
             loadingState.Cts = linkedTokenSource;
             loadingState.Location = location;
             m_loadingStates[target] = loadingState;
@@ -152,7 +152,7 @@ namespace DGame
         {
             if (m_loadingStates.TryGetValue(target, out var oldState))
             {
-                MemoryPool.Release(oldState);
+                MemoryObject.Release(oldState);
                 m_loadingStates.Remove(target);
             }
         }
@@ -165,7 +165,7 @@ namespace DGame
         {
             if (m_loadingStates.TryGetValue(target, out var state))
             {
-                MemoryPool.Release(state);
+                MemoryObject.Release(state);
                 m_loadingStates.Remove(target);
             }
         }
@@ -189,7 +189,7 @@ namespace DGame
         {
             foreach (var state in m_loadingStates.Values)
             {
-                MemoryPool.Release(state);
+                MemoryObject.Release(state);
             }
 
             m_loadingStates.Clear();

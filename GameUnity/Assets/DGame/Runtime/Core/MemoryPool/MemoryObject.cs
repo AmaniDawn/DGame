@@ -10,14 +10,8 @@ namespace DGame
         /// </summary>
         public abstract void OnRelease();
 
-        public static void Release(MemoryObject memoryObject)
-        {
-            MemoryPool.Release(memoryObject);
-        }
+        public static void Release(MemoryObject memoryObject) => MemoryPool.Release(memoryObject);
 
-        public static T Spawn<T>() where T : MemoryObject, new()
-        {
-            return MemoryPool.Spawn<T>();
-        }
+        public static T Spawn<T>() where T : MemoryObject, new() => MemoryPool.Spawn<T>();
     }
 }

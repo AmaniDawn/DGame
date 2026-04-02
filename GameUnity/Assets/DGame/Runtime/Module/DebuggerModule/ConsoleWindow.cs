@@ -94,7 +94,7 @@ namespace DGame
                 m_logNodeQueue.Enqueue(LogNode.Create(type, logMessage, stacktrace));
                 while (m_logNodeQueue.Count > maxLine)
                 {
-                    MemoryPool.Release(m_logNodeQueue.Dequeue());
+                    MemoryObject.Release(m_logNodeQueue.Dequeue());
                 }
             }
 
@@ -452,7 +452,7 @@ namespace DGame
             {
                 foreach (LogNode logNode in m_logNodeQueue)
                 {
-                    MemoryPool.Release(logNode);
+                    MemoryObject.Release(logNode);
                 }
                 m_logNodeQueue.Clear();
                 ClearLogNodes();
@@ -643,7 +643,7 @@ namespace DGame
 
                 foreach (var node in m_logNodes)
                 {
-                    MemoryPool.Release(node);
+                    MemoryObject.Release(node);
                 }
                 m_logNodes.Clear();
             }
