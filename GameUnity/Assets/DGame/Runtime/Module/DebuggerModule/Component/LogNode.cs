@@ -5,7 +5,7 @@ namespace DGame
 {
     public sealed partial class DebuggerDriver
     {
-        public sealed class LogNode : IMemory
+        public sealed class LogNode : MemoryObject
         {
             private DateTime m_logTime = default(DateTime);
             private int m_logFrameCount;
@@ -21,7 +21,7 @@ namespace DGame
 
             public static LogNode Create(LogType logType, string logMessage, string stackTrace)
             {
-                LogNode logNode = MemoryPool.Spawn<LogNode>();
+                LogNode logNode = MemoryObject.Spawn<LogNode>();
                 logNode.m_logTime = DateTime.Now;
                 logNode.m_logFrameCount = Time.frameCount;
                 logNode.m_logType = logType;
@@ -30,7 +30,7 @@ namespace DGame
                 return logNode;
             }
 
-            public void OnRelease()
+            public override void OnRelease()
             {
                 m_logTime = default(DateTime);
                 m_logFrameCount = 0;
@@ -40,7 +40,7 @@ namespace DGame
             }
         }
 
-        public sealed class PrintLogNode : IMemory
+        public sealed class PrintLogNode : MemoryObject
         {
             private DateTime m_logTime;
             private int m_logFrameCount;
@@ -56,7 +56,7 @@ namespace DGame
 
             public static PrintLogNode Create(LogType logType, string logMessage, string stackTrace)
             {
-                var node = MemoryPool.Spawn<PrintLogNode>();
+                var node = MemoryObject.Spawn<PrintLogNode>();
                 node.m_logTime = DateTime.Now;
                 node.m_logFrameCount = Time.frameCount;
                 node.m_logType = logType;
@@ -65,7 +65,7 @@ namespace DGame
                 return node;
             }
 
-            public void OnRelease()
+            public override void OnRelease()
             {
                 m_logTime = default;
                 m_logFrameCount = 0;

@@ -23,18 +23,12 @@ namespace DGame
 
         internal static AudioData Spawn(AssetHandle assetHandle, bool inPool)
         {
-            AudioData audioData = MemoryPool.Spawn<AudioData>();
+            AudioData audioData = MemoryObject.Spawn<AudioData>();
             audioData.AssetHandle = assetHandle;
             audioData.InPool = inPool;
             return audioData;
         }
 
-        internal static void Release(AudioData audioData)
-        {
-            if (audioData != null)
-            {
-                MemoryPool.Release(audioData);
-            }
-        }
+        internal static void Release(AudioData audioData) => MemoryObject.Release(audioData);
     }
 }

@@ -5,7 +5,7 @@ using UnityEngine.Playables;
 
 namespace DGame
 {
-    internal class AnimPlayable : IMemory, IAnimPlayable
+    internal class AnimPlayable : MemoryObject, IAnimPlayable
     {
         private readonly List<AnimClip> m_animClips;
         private readonly List<AnimMixer> m_animMixers;
@@ -29,7 +29,7 @@ namespace DGame
             m_isDestroyed = true;
         }
 
-        public void OnRelease()
+        public override void OnRelease()
         {
             for (int i = 0; i < m_animClips.Count; i++)
             {
@@ -54,7 +54,7 @@ namespace DGame
                 throw new DGameException("传入的Animator无效");
             }
             string name = animator.gameObject.name;
-            AnimPlayable animPlayable = MemoryPool.Spawn<AnimPlayable>();
+            AnimPlayable animPlayable = MemoryObject.Spawn<AnimPlayable>();
             animPlayable.m_animator = animator;
             animPlayable.m_graph = PlayableGraph.Create(name);
             animPlayable.m_graph.SetTimeUpdateMode(DirectorUpdateMode.Manual);
@@ -81,7 +81,7 @@ namespace DGame
             }
         }
 
-        public void DestroyGraph() => MemoryPool.Release(this);
+        public void DestroyGraph() => MemoryObject.Release(this);
 
         public void PlayGraph() => m_graph.Play();
 
