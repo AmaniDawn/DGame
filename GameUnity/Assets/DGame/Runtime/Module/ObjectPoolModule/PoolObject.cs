@@ -8,14 +8,14 @@ namespace DGame
         /// 对象池内部泛型对象 对象池使用
         /// </summary>
         /// <typeparam name="T">对象</typeparam>
-        private sealed class PoolObject<T> : IMemory where T : BasePoolObject
+        private sealed class PoolObject<T> : MemoryObject where T : BasePoolObject
         {
             #region 内存池方法
 
             /// <summary>
             /// 回收到内存池 初始化信息
             /// </summary>
-            public void OnRelease()
+            public override void OnRelease()
             {
                 m_object = null;
                 SpawnCount = 0;

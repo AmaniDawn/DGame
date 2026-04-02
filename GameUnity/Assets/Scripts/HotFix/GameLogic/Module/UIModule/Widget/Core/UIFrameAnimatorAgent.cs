@@ -16,7 +16,7 @@ namespace GameLogic
         Max
     }
 
-    public sealed class UIFrameAnimatorAgent : IMemory
+    public sealed class UIFrameAnimatorAgent : MemoryObject
     {
         #region 字段
 
@@ -55,7 +55,7 @@ namespace GameLogic
         /// <summary>
         /// 创建帧动画代理实例
         /// </summary>
-        public static UIFrameAnimatorAgent Create() => MemoryPool.Spawn<UIFrameAnimatorAgent>();
+        public static UIFrameAnimatorAgent Create() => MemoryObject.Spawn<UIFrameAnimatorAgent>();
 
         /// <summary>
         /// 初始化帧动画代理，异步加载帧动画资源
@@ -291,13 +291,13 @@ namespace GameLogic
         /// </summary>
         public void Release()
         {
-            MemoryPool.Release(this);
+            MemoryObject.Release(this);
         }
 
         /// <summary>
         /// 释放资源回调
         /// </summary>
-        public void OnRelease()
+        public override void OnRelease()
         {
             GameModule.GameTimerModule.DestroyGameTimer(m_gameTimer);
             m_isInit = false;

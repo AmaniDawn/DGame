@@ -276,12 +276,7 @@ namespace DGame
             }
             else if(handle != null)
             {
-                if (m_audioData != null)
-                {
-                    AudioData.Release(m_audioData);
-                    m_audioData = null;
-                }
-
+                AudioData.Release(m_audioData);
                 m_audioData = AudioData.Spawn(handle, m_inPool);
                 m_audioSource.clip = handle.AssetObject as AudioClip;
 
@@ -371,10 +366,8 @@ namespace DGame
                 Object.Destroy(m_transform.gameObject);
             }
 
-            if (m_audioData != null)
-            {
-                AudioData.Release(m_audioData);
-            }
+            AudioData.Release(m_audioData);
+            m_audioData = null;
         }
     }
 }

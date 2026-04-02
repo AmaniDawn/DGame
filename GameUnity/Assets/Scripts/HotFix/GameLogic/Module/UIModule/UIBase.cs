@@ -241,7 +241,7 @@ namespace GameLogic
         private GameEventDriver m_eventDriver;
 
         protected GameEventDriver EventDriver =>
-            m_eventDriver == null ? m_eventDriver = MemoryPool.Spawn<GameEventDriver>() : m_eventDriver;
+            m_eventDriver == null ? m_eventDriver = MemoryObject.Spawn<GameEventDriver>() : m_eventDriver;
 
         /// <summary>
         /// 添加UI事件
@@ -322,11 +322,8 @@ namespace GameLogic
 
         protected void RemoveAllUIEvents()
         {
-            if (m_eventDriver != null)
-            {
-                MemoryPool.Release(m_eventDriver);
-                m_eventDriver = null;
-            }
+            MemoryObject.Release(m_eventDriver);
+            m_eventDriver = null;
         }
 
         #endregion

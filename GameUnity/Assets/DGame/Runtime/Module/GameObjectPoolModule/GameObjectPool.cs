@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace DGame
 {
-    public sealed class GameObjectPool : IMemory
+    public sealed class GameObjectPool : MemoryObject
     {
         private Queue<GameObject> m_goPool;
         private readonly DGameLinkedList<GameObject> m_spawnedPool = new DGameLinkedList<GameObject>();
@@ -71,7 +71,7 @@ namespace DGame
             int maxCapacity = int.MaxValue, float autoDestroyTime = -1f, bool dontDestroy = false,
             bool allowMultiSpawn = true)
         {
-            GameObjectPool pool = MemoryPool.Spawn<GameObjectPool>();
+            GameObjectPool pool = MemoryObject.Spawn<GameObjectPool>();
             pool.IsDestroyed = false;
             pool.m_parent = new GameObject($"{location}_Object_Pool");
             pool.m_parent.transform.SetParent(poolRoot, false);
@@ -325,7 +325,7 @@ namespace DGame
         public void Destroy()
         {
             IsDestroyed = true;
-            MemoryPool.Release(this);
+            MemoryObject.Release(this);
         }
 
         private void DestroyGameObject(GameObject go)
@@ -359,7 +359,7 @@ namespace DGame
             m_spawnedPool.Clear();
         }
 
-        public void OnRelease()
+        public override void OnRelease()
         {
             DestroyAllGameObject();
             UnityEngine.Object.Destroy(m_parent);
