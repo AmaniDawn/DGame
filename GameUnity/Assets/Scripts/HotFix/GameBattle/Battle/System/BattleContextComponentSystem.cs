@@ -41,44 +41,75 @@ namespace GameBattle
         /// <param name="unitId">外部指定的逻辑单位 ID；为 0 时自动分配。</param>
         /// <returns>创建的逻辑单位实例。</returns>
         public static LogicUnit CreateLogicUnit(this BattleContextComponent self, UnitType unitType, ulong unitId = 0)
+            => self.CreateLogicUnit(LogicUnitCreateData.Create(unitType).SetUnitId(unitId));
+
+        /// <summary>
+        /// 根据创建数据创建逻辑单位。
+        /// <remarks>创建成功或失败后都会自动归还 <paramref name="createData"/> 到内存池。</remarks>
+        /// </summary>
+        /// <param name="self">战斗上下文组件。</param>
+        /// <param name="createData">逻辑单位创建数据。</param>
+        /// <returns>创建的逻辑单位实例。</returns>
+        public static LogicUnit CreateLogicUnit(this BattleContextComponent self, LogicUnitCreateData createData)
         {
-            var logicUnit = self?.LogicUnitFactoryComponent?.Create(unitType);
-            if (logicUnit == null)
+            if (createData == null)
             {
                 return null;
             }
 
-            logicUnit.UnitID = self.AllocateLogicUnitId(unitId);
-            if (logicUnit.UnitID == 0 || !logicUnit.Init(self))
-            {
-                logicUnit.Dispose();
-                return null;
-            }
-
-            var registered = false;
-            var added = false;
             try
             {
-                self.RegisterLogicUnit(logicUnit);
-                registered = true;
-                if (!self.AddLogicUnit(logicUnit))
+                var factory = self?.LogicUnitFactoryComponent;
+                if (factory == null || createData.UnitType == UnitType.None)
                 {
-                    throw new InvalidOperationException($"Attach logic unit to battle failed: {logicUnit.GetType().Name}");
+                    return null;
                 }
-                added = true;
-                return logicUnit;
-            }
-            catch
-            {
-                if (added || registered)
+
+                var logicUnit = factory.Create(createData.UnitType);
+                if (logicUnit == null)
                 {
-                    self.DetachLogicUnit(logicUnit);
+                    return null;
                 }
-                if (!logicUnit.IsDisposed)
+
+                logicUnit.UnitID = self.AllocateLogicUnitId(createData.UnitId);
+                if (logicUnit.UnitID == 0 || !logicUnit.ApplyCreateData(createData) || !logicUnit.Init(self))
                 {
                     logicUnit.Dispose();
+                    return null;
                 }
-                return null;
+
+                var registered = false;
+                var added = false;
+                try
+                {
+                    self.RegisterLogicUnit(logicUnit);
+                    registered = true;
+                    if (!self.AddLogicUnit(logicUnit))
+                    {
+                        throw new InvalidOperationException($"Attach logic unit to battle failed: {logicUnit.GetType().Name}");
+                    }
+
+                    added = true;
+                    return logicUnit;
+                }
+                catch
+                {
+                    if (added || registered)
+                    {
+                        self.DetachLogicUnit(logicUnit);
+                    }
+
+                    if (!logicUnit.IsDisposed)
+                    {
+                        logicUnit.Dispose();
+                    }
+
+                    return null;
+                }
+            }
+            finally
+            {
+                MemoryPool.Release(createData);
             }
         }
 

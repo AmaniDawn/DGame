@@ -59,7 +59,31 @@ namespace GameBattle
         public static void MarkHp(this LogicUnit self, int hp)
         {
             var snapshot = self.StateSync.Snapshot;
-            snapshot.Hp = hp;
+            var attrSnapshot = snapshot.Attr;
+            attrSnapshot.Hp = hp;
+            snapshot.Attr = attrSnapshot;
+            self.StateSync.Snapshot = snapshot;
+            self.StateSync.MarkDirty(UnitStateDirtyFlags.Attr);
+        }
+
+        /// <summary>
+        /// 批量标记并写入单位属性快照。
+        /// </summary>
+        /// <param name="self">逻辑单位。</param>
+        /// <param name="atk">当前攻击力。</param>
+        /// <param name="hp">当前生命值。</param>
+        /// <param name="maxHp">当前最大生命值。</param>
+        /// <param name="moveSpeed">当前移动速度。</param>
+        public static void MarkAttrSnapshot(this LogicUnit self, int atk, int hp, int maxHp, FixedPoint64 moveSpeed)
+        {
+            var snapshot = self.StateSync.Snapshot;
+            snapshot.Attr = new UnitAttrSnapshot
+            {
+                Atk = atk,
+                Hp = hp,
+                MaxHp = maxHp,
+                MoveSpeed = moveSpeed
+            };
             self.StateSync.Snapshot = snapshot;
             self.StateSync.MarkDirty(UnitStateDirtyFlags.Attr);
         }

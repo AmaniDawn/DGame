@@ -10,11 +10,17 @@ namespace GameBattle
     /// </summary>
     public abstract class LogicUnit : Entity
     {
+        #region Components
+
         public BattleContextComponent BattleContext { get; private set; }
 
         public UnitEventHubComponent UnitEventHub { get; private set; }
 
         public UnitStateSyncComponent StateSync { get; private set; }
+
+        public LogicUnitAttrComponent Attr { get; private set; }
+
+        #endregion
 
         /// <summary>
         /// 单位名称。
@@ -32,6 +38,26 @@ namespace GameBattle
         /// 所属单位唯一标识。
         /// </summary>
         public ulong OwnerUnitID { get; internal set; }
+
+        /// <summary>
+        /// 是否存在出生位姿数据。
+        /// </summary>
+        public bool HasBornPose { get; internal set; }
+
+        /// <summary>
+        /// 出生位置。
+        /// </summary>
+        public FixedPointVector3 BornPosition { get; internal set; } = FixedPointVector3.zero;
+
+        /// <summary>
+        /// 出生朝向。
+        /// </summary>
+        public FixedPointVector3 BornForward { get; internal set; } = FixedPointVector3.forward;
+
+        /// <summary>
+        /// 出生缩放。
+        /// </summary>
+        public FixedPointVector3 BornScale { get; internal set; } = FixedPointVector3.one;
 
         /// <summary>
         /// 单位类型。
@@ -90,11 +116,43 @@ namespace GameBattle
 
         #region 初始化
 
+        internal bool ApplyCreateData(LogicUnitCreateData createData)
+        {
+            if (createData == null || createData.UnitType == UnitType.None)
+            {
+                return false;
+            }
+
+            UnitType = createData.UnitType;
+            UnitName = createData.UnitName;
+            OwnerUnitID = createData.OwnerUnitId;
+            ConfigID = createData.ConfigId;
+            HasBornPose = createData.HasBornPose;
+            BornPosition = createData.BornPosition;
+            BornForward = createData.BornForward;
+            BornScale = createData.BornScale;
+
+            Attr ??= AddComponent<LogicUnitAttrComponent>();
+            Attr.Owner = this;
+            Attr.InitBaseAttr(createData.BaseAttr);
+
+            if (HasBornPose && !BornForward.IsNearlyZero())
+            {
+                MoveForward = BornForward.normalized;
+            }
+
+            return OnApplyCreateData(createData);
+        }
+
         internal bool Init(BattleContextComponent battleContextComponent)
         {
             BattleContext = battleContextComponent;
             StateSync = AddComponent<UnitStateSyncComponent>();
             UnitEventHub = AddComponent<UnitEventHubComponent>();
+            if (Attr != null)
+            {
+                Attr.Owner = this;
+            }
 
             if (!OnInit())
             {
@@ -104,6 +162,9 @@ namespace GameBattle
             var initSucceeded = false;
             try
             {
+                ApplyBornPoseToTransform();
+                SyncInitialSnapshot();
+                Attr?.SyncSnapshot();
                 CreateRenderUnit(battleContextComponent);
                 if (!AfterInit())
                 {
@@ -131,6 +192,11 @@ namespace GameBattle
             return true;
         }
 
+        protected virtual bool OnApplyCreateData(LogicUnitCreateData createData)
+        {
+            return true;
+        }
+
         protected virtual bool OnInit()
         {
             return true;
@@ -139,6 +205,49 @@ namespace GameBattle
         private void CreateRenderUnit(BattleContextComponent battleContextComponent)
         {
             RenderUnit = battleContextComponent.CreateRenderUnit(this);
+        }
+
+        private void SyncInitialSnapshot()
+        {
+            if (StateSync == null)
+            {
+                return;
+            }
+
+            var snapshot = StateSync.Snapshot;
+            snapshot.UnitID = UnitID;
+            snapshot.UnitType = UnitType;
+            snapshot.UnitState = UnitState;
+            snapshot.MoveForward = MoveForward;
+            if (transform != null)
+            {
+                snapshot.Position = transform.position;
+                snapshot.Rotation = transform.rotation;
+            }
+
+            StateSync.Snapshot = snapshot;
+        }
+
+        private void ApplyBornPoseToTransform()
+        {
+            if (!HasBornPose || transform == null)
+            {
+                return;
+            }
+
+            transform.position = BornPosition;
+            transform.localScale = BornScale;
+
+            var forward = BornForward;
+            forward.y = 0;
+            if (forward.IsNearlyZero())
+            {
+                return;
+            }
+
+            var normalized = forward.normalized;
+            transform.rotation = FixedPointQuaternion.LookRotation(normalized);
+            MoveForward = normalized;
         }
 
         #endregion
@@ -182,6 +291,10 @@ namespace GameBattle
             UnitName = string.Empty;
             UnitID = 0;
             OwnerUnitID = 0;
+            HasBornPose = false;
+            BornPosition = FixedPointVector3.zero;
+            BornForward = FixedPointVector3.forward;
+            BornScale = FixedPointVector3.one;
             UnitType = UnitType.None;
             UnitState = UnitState.None;
             ConfigID = 0;
@@ -189,6 +302,7 @@ namespace GameBattle
             MoveForward = FixedPointVector3.forward;
             TranslatePos = FixedPointVector3.zero;
             m_waitDestroyTime = FixedPoint64.Zero;
+            Attr = null;
             BattleContext = null;
         }
 

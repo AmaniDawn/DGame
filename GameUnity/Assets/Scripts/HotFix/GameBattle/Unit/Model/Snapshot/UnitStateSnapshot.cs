@@ -1,7 +1,7 @@
 ﻿/* -------------------------------------------------------------------------
  * 适合放入这里的是“某个时刻可直接读取的当前状态”，而不是一次性的边沿通知。
  * 典型例子：
- * Position、Rotation、MoveForward、Hp/MaxHp、Mp/MaxMp、当前 UnitState。
+ * Position、Rotation、MoveForward、Hp/MaxHp、当前 UnitState。
  *
  * 这些数据通常会被 RenderUnit、血条、名字板等表现层在同步阶段主动拉取，
  * 并配合版本号判断是否需要刷新。
@@ -68,23 +68,8 @@ namespace GameBattle
         public FixedPointVector3 MoveForward { get; set; }
 
         /// <summary>
-        /// 当前生命值。
+        /// 当前属性同步快照。
         /// </summary>
-        public int Hp { get; set; }
-
-        /// <summary>
-        /// 最大生命值。
-        /// </summary>
-        public int MaxHp { get; set; }
-
-        /// <summary>
-        /// 当前法力值。
-        /// </summary>
-        public int Mp { get; set; }
-
-        /// <summary>
-        /// 最大法力值。
-        /// </summary>
-        public int MaxMp { get; set; }
+        public UnitAttrSnapshot Attr { get; set; }
     }
 }

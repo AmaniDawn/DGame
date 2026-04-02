@@ -20,31 +20,26 @@ namespace GameLogic
         Hp = 1 << 0,
 
         /// <summary>
-        /// 法力值相关属性发生变化。
-        /// </summary>
-        Mp = 1 << 1,
-
-        /// <summary>
         /// 当前已支持的全部属性域。
         /// </summary>
-        All = Hp | Mp,
+        All = Hp,
     }
 
     /// <summary>
     /// 单位属性同步完成事件。
-    /// 由属性表现同步组件在属性快照发生变化后发布，供血条、蓝条、名字板等表现模块订阅。
+    /// 由属性表现同步组件在属性快照发生变化后发布，供血条、名字板等表现模块订阅。
     /// </summary>
     public readonly struct UnitAttributeChangedEvent : IUnitEvent
     {
         /// <summary>
         /// 同步前的旧属性快照。
         /// </summary>
-        public UnitAttributeSnapshot Previous { get; }
+        public UnitAttrSnapshot Previous { get; }
 
         /// <summary>
         /// 同步后的新属性快照。
         /// </summary>
-        public UnitAttributeSnapshot Current { get; }
+        public UnitAttrSnapshot Current { get; }
 
         /// <summary>
         /// 本次发生变化的属性域标记。
@@ -57,7 +52,7 @@ namespace GameLogic
         /// <param name="previous">旧属性快照。</param>
         /// <param name="current">新属性快照。</param>
         /// <param name="changeFlags">变化标记。</param>
-        public UnitAttributeChangedEvent(UnitAttributeSnapshot previous, UnitAttributeSnapshot current,
+        public UnitAttributeChangedEvent(UnitAttrSnapshot previous, UnitAttrSnapshot current,
             UnitAttributeChangeFlags changeFlags)
         {
             Previous = previous;

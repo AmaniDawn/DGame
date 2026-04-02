@@ -4,41 +4,6 @@ using GameBattle;
 namespace GameLogic
 {
     /// <summary>
-    /// 单位属性表现快照。
-    /// <remarks>用于承载渲染层当前关心的连续属性值。</remarks>
-    /// </summary>
-    public readonly struct UnitAttributeSnapshot
-    {
-        /// <summary>
-        /// 当前生命值。
-        /// </summary>
-        public readonly int Hp;
-
-        /// <summary>
-        /// 最大生命值。
-        /// </summary>
-        public readonly int MaxHp;
-
-        /// <summary>
-        /// 当前法力值。
-        /// </summary>
-        public readonly int Mp;
-
-        /// <summary>
-        /// 最大法力值。
-        /// </summary>
-        public readonly int MaxMp;
-
-        public UnitAttributeSnapshot(in UnitStateSnapshot snapshot)
-        {
-            Hp = snapshot.Hp;
-            MaxHp = snapshot.MaxHp;
-            Mp = snapshot.Mp;
-            MaxMp = snapshot.MaxMp;
-        }
-    }
-
-    /// <summary>
     /// 单位属性表现同步组件。
     /// <remarks>负责缓存逻辑层属性快照，并在属性变化时向渲染层分发统一的属性更新事件。</remarks>
     /// </summary>
@@ -52,7 +17,7 @@ namespace GameLogic
         /// <summary>
         /// 当前缓存的属性快照。
         /// </summary>
-        public UnitAttributeSnapshot Snapshot { get; private set; }
+        public UnitAttrSnapshot Snapshot { get; private set; }
 
         /// <summary>
         /// 当前属性组件是否已经完成首次同步。
@@ -77,7 +42,7 @@ namespace GameLogic
         public void Sync(in UnitStateSnapshot stateSnapshot)
         {
             var previous = Snapshot;
-            var current = new UnitAttributeSnapshot(stateSnapshot);
+            var current = stateSnapshot.Attr;
 
             var changeFlags = GetChangeFlags(previous, current);
             Snapshot = current;
@@ -112,7 +77,7 @@ namespace GameLogic
         /// <param name="previous">旧快照。</param>
         /// <param name="current">新快照。</param>
         /// <returns>属性变化标记。</returns>
-        private static UnitAttributeChangeFlags GetChangeFlags(in UnitAttributeSnapshot previous, in UnitAttributeSnapshot current)
+        private static UnitAttributeChangeFlags GetChangeFlags(in UnitAttrSnapshot previous, in UnitAttrSnapshot current)
         {
             var flags = UnitAttributeChangeFlags.None;
 
@@ -120,12 +85,6 @@ namespace GameLogic
             {
                 flags |= UnitAttributeChangeFlags.Hp;
             }
-
-            if (previous.Mp != current.Mp || previous.MaxMp != current.MaxMp)
-            {
-                flags |= UnitAttributeChangeFlags.Mp;
-            }
-
             return flags;
         }
     }
