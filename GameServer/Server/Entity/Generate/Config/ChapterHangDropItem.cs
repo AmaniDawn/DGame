@@ -10,33 +10,33 @@
 using Luban;
 
 
-namespace GameProto.item
+namespace GameProto
 {
-public sealed partial class ItemExchange : Luban.BeanBase
+public sealed partial class ChapterHangDropItem : Luban.BeanBase
 {
-    public ItemExchange() { }
+    public ChapterHangDropItem() { }
     
-    public ItemExchange(ByteBuf _buf) 
+    public ChapterHangDropItem(ByteBuf _buf) 
     {
-        Id = _buf.ReadInt();
+        ItemID = _buf.ReadInt();
         Num = _buf.ReadInt();
     }
 
-    public static ItemExchange DeserializeItemExchange(ByteBuf _buf)
+    public static ChapterHangDropItem DeserializeChapterHangDropItem(ByteBuf _buf)
     {
-        return new item.ItemExchange(_buf);
+        return new ChapterHangDropItem(_buf);
     }
 
     /// <summary>
-    /// 道具id
+    /// 挂机道具类型
     /// </summary>
-    public int Id;
+    public int ItemID;
     /// <summary>
-    /// 道具数量
+    /// 数量
     /// </summary>
     public int Num;
 
-    public const int __ID__ = 1814660465;
+    public const int __ID__ = 387067393;
     public override int GetTypeId() => __ID__;
 
     public  void ResolveRef(Tables tables)
@@ -44,21 +44,21 @@ public sealed partial class ItemExchange : Luban.BeanBase
     }
 
 
-    public void CopyTo(ref ItemExchange other)
+    public void CopyTo(ref ChapterHangDropItem other)
     {
         if (other == null)
         {
-            other = new ItemExchange();
+            other = new ChapterHangDropItem();
         }
-        other.Id = Id;
+        other.ItemID = ItemID;
         other.Num = Num;
     }
     
     public override string ToString()
     {
         return "{ "
-        + "id:" + Id + ","
-        + "num:" + Num + ","
+        + "ItemID:" + ItemID + ","
+        + "Num:" + Num + ","
         + "}";
     }
 }

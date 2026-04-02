@@ -10,52 +10,55 @@
 using Luban;
 
 
-namespace GameProto.test
+namespace GameProto
 {
-/// <summary>
-/// 这是一个圆
-/// </summary>
-public sealed partial class Circle : Shape
+public sealed partial class Pos : Luban.BeanBase
 {
-    public Circle() { }
+    public Pos() { }
     
-    public Circle(ByteBuf _buf)  : base(_buf) 
+    public Pos(ByteBuf _buf) 
     {
-        Radius = _buf.ReadFloat();
+        X = _buf.ReadFloat();
+        Y = _buf.ReadFloat();
     }
 
-    public static Circle DeserializeCircle(ByteBuf _buf)
+    public static Pos DeserializePos(ByteBuf _buf)
     {
-        return new test.Circle(_buf);
+        return new Pos(_buf);
     }
 
     /// <summary>
-    /// 半径
+    /// X轴
     /// </summary>
-    public float Radius;
+    public float X;
+    /// <summary>
+    /// Y轴
+    /// </summary>
+    public float Y;
 
-    public const int __ID__ = 2131829196;
+    public const int __ID__ = 80436;
     public override int GetTypeId() => __ID__;
 
-    public override void ResolveRef(Tables tables)
+    public  void ResolveRef(Tables tables)
     {
-        base.ResolveRef(tables);
     }
 
 
-    public void CopyTo(ref Circle other)
+    public void CopyTo(ref Pos other)
     {
         if (other == null)
         {
-            other = new Circle();
+            other = new Pos();
         }
-        other.Radius = Radius;
+        other.X = X;
+        other.Y = Y;
     }
     
     public override string ToString()
     {
         return "{ "
-        + "radius:" + Radius + ","
+        + "X:" + X + ","
+        + "Y:" + Y + ","
         + "}";
     }
 }

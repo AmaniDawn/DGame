@@ -249,6 +249,27 @@ namespace GameProto
             }
         }
         /// <summary>
+        /// 章节配置表
+        /// </summary>
+        private TbChapterConfig m_TbChapterConfig;
+        public TbChapterConfig TbChapterConfig 
+        {
+            get
+            {
+                if (m_TbChapterConfig == null)
+                {
+                    m_TbChapterConfig = new TbChapterConfig(m_defaultLoader("tbchapterconfig"));
+                    m_TbChapterConfig.ResolveRef(this);
+                }
+                return m_TbChapterConfig;
+            }
+            set
+            {
+                m_TbChapterConfig = value;
+                m_TbChapterConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
         /// 服务器状态配置表
         /// </summary>
         private TbServerStateConfig m_TbServerStateConfig;
@@ -297,6 +318,7 @@ namespace GameProto
             m_TbGmConfig = null;
             m_TbFuncOpenConfig = null;
             m_TbFuncParamConfig = null;
+            m_TbChapterConfig = null;
             m_TbServerStateConfig = null;
         }
 
