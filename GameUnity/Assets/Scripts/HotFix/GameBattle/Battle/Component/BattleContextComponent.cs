@@ -71,7 +71,8 @@ namespace GameBattle
         /// </summary>
         public void Destroy()
         {
-            LogicUnitLifecycle?.DestroyAll(LogicUnitDestroyReason.BattleCleanup);
+            this.DestroyAllLogicUnits(LogicUnitDestroyReason.BattleCleanup);
+            LogicUnitLifecycle?.Clear();
             LogicUnitRegistry?.Clear();
             FrameSync = null;
             RenderUnitFactory = null;

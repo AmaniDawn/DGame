@@ -24,6 +24,11 @@ namespace GameBattle
         /// 已标记待销毁的逻辑单位列表
         /// </summary>
         internal readonly List<DelayDestroyLogicUnit> DelayDestroyUnits = new();
+
+        /// <summary>
+        /// 固定帧内已到期的待销毁单位快照
+        /// </summary>
+        internal readonly List<DelayDestroyLogicUnit> ExpiredDestroySnapshot = new();
     }
 
     /// <summary>

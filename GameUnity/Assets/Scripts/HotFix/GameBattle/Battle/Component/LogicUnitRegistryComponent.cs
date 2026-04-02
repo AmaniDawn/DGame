@@ -52,8 +52,7 @@ namespace GameBattle
         /// <param name="entityId">逻辑单位实体 ID。</param>
         /// <param name="logicUnit">查询结果。</param>
         /// <returns>找到时返回 <see langword="true"/>。</returns>
-        public bool TryGet(long entityId, out LogicUnit logicUnit)
-            => m_unitsById.TryGetValue(entityId, out logicUnit);
+        public bool TryGet(long entityId, out LogicUnit logicUnit) => m_unitsById.TryGetValue(entityId, out logicUnit);
 
         /// <summary>
         /// 遍历当前战斗中的全部逻辑单位。
@@ -75,7 +74,6 @@ namespace GameBattle
         /// <summary>
         /// 清空全部注册数据。
         /// </summary>
-        public void Clear()
-            => m_unitsById.Clear();
+        public void Clear() => m_unitsById.Clear();
     }
 }

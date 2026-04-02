@@ -35,27 +35,16 @@ namespace GameBattle
         public static int DelayDestroyCount(this LogicUnitLifecycleComponent self) => self?.DelayDestroyUnits.Count ?? 0;
 
         /// <summary>
-        /// 创建并接入一个新的逻辑单位。
-        /// </summary>
-        /// <param name="self">逻辑单位生命周期组件。</param>
-        /// <param name="unitType">要创建的逻辑单位类型。</param>
-        /// <returns>创建成功时返回逻辑单位实例，否则返回 null。</returns>
-        public static LogicUnit Spawn(this LogicUnitLifecycleComponent self, UnitType unitType)
-        {
-            var battleContext = self?.Parent as BattleContextComponent;
-            return battleContext?.LogicUnitFactoryComponent?.Create(unitType);
-        }
-
-        /// <summary>
         /// 将逻辑单位加入生命周期管理。
         /// </summary>
         /// <param name="self">逻辑单位生命周期组件。</param>
         /// <param name="logicUnit">待接入的逻辑单位。</param>
-        public static void AddUnit(this LogicUnitLifecycleComponent self, LogicUnit logicUnit)
+        /// <returns>成功加入时返回 true。</returns>
+        public static bool AddUnit(this LogicUnitLifecycleComponent self, LogicUnit logicUnit)
         {
             if (self == null || logicUnit == null)
             {
-                return;
+                return false;
             }
 
             var activeUnits = self.ActiveUnits;
@@ -63,13 +52,12 @@ namespace GameBattle
             {
                 if (activeUnits[i].IsSameUnit(logicUnit))
                 {
-                    return;
+                    return false;
                 }
             }
 
             activeUnits.Add(logicUnit);
-            var battleContext = self.Parent as BattleContextComponent;
-            battleContext?.PublishBattle(new LogicUnitSpawnedEvent(logicUnit));
+            return true;
         }
 
         /// <summary>
@@ -77,15 +65,17 @@ namespace GameBattle
         /// </summary>
         /// <param name="self">逻辑单位生命周期组件。</param>
         /// <param name="logicUnit">待移除的逻辑单位。</param>
-        public static void RemoveUnit(this LogicUnitLifecycleComponent self, LogicUnit logicUnit)
+        /// <returns>成功移除任一生命周期记录时返回 true。</returns>
+        public static bool RemoveUnit(this LogicUnitLifecycleComponent self, LogicUnit logicUnit)
         {
             if (self == null || logicUnit == null)
             {
-                return;
+                return false;
             }
 
-            RemoveActiveUnit(self.ActiveUnits, logicUnit);
-            RemoveDelayDestroyUnit(self.DelayDestroyUnits, logicUnit);
+            var removedActive = RemoveActiveUnit(self.ActiveUnits, logicUnit);
+            var removedDelay = RemoveDelayDestroyUnit(self.DelayDestroyUnits, logicUnit);
+            return removedActive || removedDelay;
         }
 
         /// <summary>
@@ -102,11 +92,6 @@ namespace GameBattle
             if (self == null || logicUnit == null || logicUnit.IsDisposed)
             {
                 return false;
-            }
-
-            if (destroyTime <= FixedPoint64.Zero)
-            {
-                return self.DestroyImmediately(logicUnit, reason);
             }
 
             var delayDestroyUnits = self.DelayDestroyUnits;
@@ -141,54 +126,20 @@ namespace GameBattle
         }
 
         /// <summary>
-        /// 立即销毁指定逻辑单位。
-        /// </summary>
-        /// <param name="self">逻辑单位生命周期组件。</param>
-        /// <param name="logicUnit">待销毁的逻辑单位。</param>
-        /// <param name="reason">销毁原因。</param>
-        /// <returns>执行销毁流程时返回 true；目标已无效时返回 false。</returns>
-        public static bool DestroyImmediately(this LogicUnitLifecycleComponent self, LogicUnit logicUnit, LogicUnitDestroyReason reason)
-        {
-            if (self == null || logicUnit == null)
-            {
-                return false;
-            }
-
-            self.RemoveUnit(logicUnit);
-            var battleContext = self.Parent as BattleContextComponent;
-            battleContext?.PublishBattle(new LogicUnitDestroyingEvent(logicUnit, reason));
-
-            if (logicUnit.IsDisposed)
-            {
-                return false;
-            }
-
-            logicUnit.Dispose();
-            return true;
-        }
-
-        /// <summary>
-        /// 推进待销毁逻辑单位列表的固定帧逻辑。
+        /// 收集当前固定帧内到期的延迟销毁单位快照。
         /// </summary>
         /// <param name="self">逻辑单位生命周期组件。</param>
         /// <param name="logicTime">当前战斗时间。</param>
-        public static void FixedUpdate(this LogicUnitLifecycleComponent self, FixedPoint64 logicTime)
+        /// <returns>到期待销毁单位快照；组件为空时返回 null。</returns>
+        public static List<DelayDestroyLogicUnit> BuildExpiredDestroySnapshot(this LogicUnitLifecycleComponent self, FixedPoint64 logicTime)
         {
             if (self == null)
             {
-                return;
+                return null;
             }
 
-            FixedUpdateDelayDestroyUnits(self, logicTime);
-        }
-
-        /// <summary>
-        /// 推进延迟销毁逻辑单位列表的固定帧逻辑。
-        /// </summary>
-        /// <param name="self">逻辑单位生命周期组件。</param>
-        /// <param name="logicTime">当前战斗时间。</param>
-        private static void FixedUpdateDelayDestroyUnits(LogicUnitLifecycleComponent self, FixedPoint64 logicTime)
-        {
+            var expiredSnapshot = self.ExpiredDestroySnapshot;
+            expiredSnapshot.Clear();
             var delayDestroyUnits = self.DelayDestroyUnits;
             for (int i = delayDestroyUnits.Count - 1; i >= 0; i--)
             {
@@ -206,8 +157,10 @@ namespace GameBattle
                 }
 
                 delayDestroyUnits.RemoveAt(i);
-                self.DestroyImmediately(logicUnit, delayData.Reason);
+                expiredSnapshot.Add(delayData);
             }
+
+            return expiredSnapshot;
         }
 
         /// <summary>
@@ -228,37 +181,6 @@ namespace GameBattle
             return snapshot;
         }
 
-        /// <summary>
-        /// 销毁当前全部活跃逻辑单位。
-        /// </summary>
-        /// <param name="self">逻辑单位生命周期组件。</param>
-        /// <param name="reason">统一使用的销毁原因。</param>
-        public static void DestroyAll(this LogicUnitLifecycleComponent self, LogicUnitDestroyReason reason)
-        {
-            if (self == null)
-            {
-                return;
-            }
-
-            var snapshot = self.BuildActiveSnapshot();
-            if (snapshot != null)
-            {
-                for (int i = 0; i < snapshot.Count; i++)
-                {
-                    var logicUnit = snapshot[i];
-                    if (logicUnit == null)
-                    {
-                        continue;
-                    }
-
-                    self.DestroyImmediately(logicUnit, reason);
-                }
-            }
-
-            self.Clear();
-        }
-
-        /// <summary>
         /// 清空生命周期组件内部缓存。
         /// </summary>
         /// <param name="self">逻辑单位生命周期组件。</param>
@@ -272,6 +194,7 @@ namespace GameBattle
             self.ActiveUnits.Clear();
             self.ActiveSnapshot.Clear();
             self.DelayDestroyUnits.Clear();
+            self.ExpiredDestroySnapshot.Clear();
         }
 
         /// <summary>
@@ -279,7 +202,7 @@ namespace GameBattle
         /// </summary>
         /// <param name="activeUnits">活跃逻辑单位列表。</param>
         /// <param name="logicUnit">待移除的逻辑单位。</param>
-        private static void RemoveActiveUnit(List<LogicUnit> activeUnits, LogicUnit logicUnit)
+        private static bool RemoveActiveUnit(List<LogicUnit> activeUnits, LogicUnit logicUnit)
         {
             for (int i = 0; i < activeUnits.Count; i++)
             {
@@ -287,9 +210,11 @@ namespace GameBattle
                 if (activeUnit != null && activeUnit.IsSameUnit(logicUnit))
                 {
                     activeUnits.RemoveAt(i);
-                    return;
+                    return true;
                 }
             }
+
+            return false;
         }
 
         /// <summary>
@@ -297,7 +222,7 @@ namespace GameBattle
         /// </summary>
         /// <param name="delayDestroyUnits">待销毁逻辑单位列表。</param>
         /// <param name="logicUnit">待移除的逻辑单位。</param>
-        private static void RemoveDelayDestroyUnit(List<DelayDestroyLogicUnit> delayDestroyUnits, LogicUnit logicUnit)
+        private static bool RemoveDelayDestroyUnit(List<DelayDestroyLogicUnit> delayDestroyUnits, LogicUnit logicUnit)
         {
             for (int i = 0; i < delayDestroyUnits.Count; i++)
             {
@@ -305,9 +230,11 @@ namespace GameBattle
                 if (delayUnit != null && delayUnit.IsSameUnit(logicUnit))
                 {
                     delayDestroyUnits.RemoveAt(i);
-                    return;
+                    return true;
                 }
             }
+
+            return false;
         }
     }
 }

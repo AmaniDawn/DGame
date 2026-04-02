@@ -85,7 +85,7 @@ namespace GameBattle
 
         #region 初始化
 
-        public bool Init(BattleContextComponent battleContextComponent)
+        internal bool Init(BattleContextComponent battleContextComponent)
         {
             BattleContext = battleContextComponent;
             StateSync = AddComponent<UnitStateSyncComponent>();
@@ -96,29 +96,28 @@ namespace GameBattle
                 return false;
             }
 
-            var registered = false;
+            var initSucceeded = false;
             try
             {
-                battleContextComponent.LogicUnitRegistry?.Register(this);
-                registered = true;
                 CreateRenderUnit(battleContextComponent);
                 if (!AfterInit())
                 {
                     return false;
                 }
 
-                battleContextComponent.LogicUnitLifecycle?.AddUnit(this);
+                initSucceeded = true;
                 return true;
             }
             catch
             {
-                if (registered)
-                {
-                    battleContextComponent.LogicUnitRegistry?.Unregister(this);
-                }
-
-                DestroyRenderUnit();
                 return false;
+            }
+            finally
+            {
+                if (!initSucceeded)
+                {
+                    DestroyRenderUnit();
+                }
             }
         }
 
@@ -132,7 +131,7 @@ namespace GameBattle
             return true;
         }
 
-        public void CreateRenderUnit(BattleContextComponent battleContextComponent)
+        private void CreateRenderUnit(BattleContextComponent battleContextComponent)
         {
             RenderUnit = battleContextComponent.CreateRenderUnit(this);
         }
@@ -170,8 +169,7 @@ namespace GameBattle
             }
 
             var battleContext = BattleContext;
-            battleContext?.LogicUnitLifecycle?.RemoveUnit(this);
-            battleContext?.LogicUnitRegistry?.Unregister(this);
+            battleContext?.DetachLogicUnit(this);
             OnDestroy();
             IsDestroyed = true;
             DestroyRenderUnit();

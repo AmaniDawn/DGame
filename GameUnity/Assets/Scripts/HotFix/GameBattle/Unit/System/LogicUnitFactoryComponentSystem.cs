@@ -81,12 +81,13 @@ namespace GameBattle
 
         /// <summary>
         /// 创建指定类型的逻辑单位。
+        /// <remarks>原始创建入口，仅供 BattleContextComponent 编排使用。</remarks>
         /// </summary>
         /// <param name="self">逻辑单位工厂组件实例。</param>
         /// <param name="unitType">单位类型枚举。</param>
         /// <returns>创建的逻辑单位实例。</returns>
         /// <exception cref="NotSupportedException">当单位类型未注册时抛出。</exception>
-        public static LogicUnit Create(this LogicUnitFactoryComponent self, UnitType unitType)
+        internal static LogicUnit Create(this LogicUnitFactoryComponent self, UnitType unitType)
         {
             if (self.LogicUnitCreators.TryGetValue(unitType, out var creator))
             {
