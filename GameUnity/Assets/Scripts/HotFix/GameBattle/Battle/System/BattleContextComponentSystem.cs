@@ -89,8 +89,8 @@ namespace GameBattle
                     return null;
                 }
 
-                var configData = BuildLogicUnitConfigData(createData);
-                if (configData == null)
+                var geometryData = BuildLogicUnitGeometryData(createData);
+                if (geometryData == null)
                 {
                     return null;
                 }
@@ -104,7 +104,7 @@ namespace GameBattle
                     }
 
                     logicUnit.UnitID = self.AllocateLogicUnitId(createData.UnitId);
-                    if (logicUnit.UnitID == 0 || !logicUnit.ApplyCreateData(createData, configData) || !logicUnit.Init(self))
+                    if (logicUnit.UnitID == 0 || !logicUnit.ApplyCreateData(createData, geometryData) || !logicUnit.Init(self))
                     {
                         logicUnit.Dispose();
                         return null;
@@ -141,7 +141,7 @@ namespace GameBattle
                 }
                 finally
                 {
-                    MemoryPool.Release(configData);
+                    MemoryPool.Release(geometryData);
                 }
             }
             finally
@@ -270,29 +270,29 @@ namespace GameBattle
 
         #endregion
 
-        #region 逻辑单位配置构建
+        #region 逻辑单位几何构建
 
         /// <summary>
-        /// 根据创建输入构建逻辑单位运行时配置。
+        /// 根据创建输入构建逻辑单位运行时几何数据。
         /// </summary>
-        private static LogicUnitConfigData BuildLogicUnitConfigData(LogicUnitCreateData createData)
+        private static LogicUnitGeometryData BuildLogicUnitGeometryData(LogicUnitCreateData createData)
         {
             if (createData == null)
             {
                 return null;
             }
 
-            var configData = LogicUnitConfigData.Create();
-            ApplyDefaultLogicUnitConfig(configData);
+            var geometryData = LogicUnitGeometryData.Create();
+            ApplyDefaultLogicUnitGeometry(geometryData);
 
             var modelConfig = GetLogicUnitModelConfig(createData.ConfigId);
             if (modelConfig != null)
             {
-                ApplyModelConfig(configData, modelConfig);
+                ApplyModelGeometry(geometryData, modelConfig);
             }
 
-            ApplyWeaponConfig(configData, createData);
-            return configData;
+            ApplyWeaponGeometry(geometryData, createData);
+            return geometryData;
         }
 
         #endregion
@@ -396,7 +396,7 @@ namespace GameBattle
 
         #endregion
 
-        #region 模型配置应用
+        #region 模型几何应用
 
         private static ModelConfig GetLogicUnitModelConfig(uint configId)
         {
@@ -408,18 +408,18 @@ namespace GameBattle
             return ModelConfigMgr.Instance.GetModelOrDefault((int)configId);
         }
 
-        private static void ApplyDefaultLogicUnitConfig(LogicUnitConfigData configData)
+        private static void ApplyDefaultLogicUnitGeometry(LogicUnitGeometryData geometryData)
         {
-            configData.Clear();
-            configData.EnableCollision = true;
-            configData.CollisionShapeType = UnitCollisionShapeType.AABB;
+            geometryData.Clear();
+            geometryData.EnableCollision = true;
+            geometryData.CollisionShapeType = UnitCollisionShapeType.AABB;
         }
 
-        private static void ApplyModelConfig(LogicUnitConfigData configData, ModelConfig modelConfig)
+        private static void ApplyModelGeometry(LogicUnitGeometryData geometryData, ModelConfig modelConfig)
         {
             var modelScale = modelConfig.ModelScale > 0 ? modelConfig.ModelScale : FixedPoint64.One;
-            configData.ModelScale = new FixedPointVector3(modelScale, modelScale, modelScale);
-            configData.EnableCollision = modelConfig.EnableCollision;
+            geometryData.ModelScale = new FixedPointVector3(modelScale, modelScale, modelScale);
+            geometryData.EnableCollision = modelConfig.EnableCollision;
 
             var capsuleRadius = modelConfig.CapsuleRadius > 0
                 ? modelConfig.CapsuleRadius : FixedPoint64.Zero;
@@ -428,27 +428,27 @@ namespace GameBattle
 
             if (modelConfig.UseAabbCollision)
             {
-                configData.CollisionShapeType = UnitCollisionShapeType.AABB;
-                configData.AabbHalfExtents = new FixedPointVector3
+                geometryData.CollisionShapeType = UnitCollisionShapeType.AABB;
+                geometryData.AabbHalfExtents = new FixedPointVector3
                 (
                     capsuleRadius,
                     capsuleHeight * FixedPoint64.Half,
                     capsuleRadius
                 );
-                configData.UseAabbOverlap = true;
-                configData.CapsuleRadius = FixedPoint64.Zero;
-                configData.CapsuleHeight = FixedPoint64.Zero;
+                geometryData.UseAabbOverlap = true;
+                geometryData.CapsuleRadius = FixedPoint64.Zero;
+                geometryData.CapsuleHeight = FixedPoint64.Zero;
                 return;
             }
 
-            configData.CollisionShapeType = UnitCollisionShapeType.Capsule;
-            configData.CapsuleRadius = capsuleRadius;
-            configData.CapsuleHeight = capsuleHeight;
-            configData.AabbHalfExtents = FixedPointVector3.zero;
-            configData.UseAabbOverlap = false;
+            geometryData.CollisionShapeType = UnitCollisionShapeType.Capsule;
+            geometryData.CapsuleRadius = capsuleRadius;
+            geometryData.CapsuleHeight = capsuleHeight;
+            geometryData.AabbHalfExtents = FixedPointVector3.zero;
+            geometryData.UseAabbOverlap = false;
         }
 
-        private static void ApplyWeaponConfig(LogicUnitConfigData configData, LogicUnitCreateData createData)
+        private static void ApplyWeaponGeometry(LogicUnitGeometryData geometryData, LogicUnitCreateData createData)
         {
             if (!createData.TryGetPayload<PlayerUnitCreatePayload>(out var playerPayload))
             {
@@ -466,7 +466,7 @@ namespace GameBattle
                 return;
             }
 
-            configData.FireOffset =
+            geometryData.FireOffset =
                 new FixedPointVector3(FixedPoint64.Zero, FixedPoint64.Zero, weaponConfig.FirePosLen);
         }
 

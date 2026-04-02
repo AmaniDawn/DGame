@@ -4,28 +4,28 @@ using Fantasy.Entitas.Interface;
 namespace GameBattle
 {
     /// <summary>
-    /// 逻辑单位运行时配置组件销毁系统。
+    /// 逻辑单位运行时几何组件销毁系统。
     /// </summary>
-    public sealed class LogicUnitConfigComponentDestroySystem : DestroySystem<LogicUnitConfigComponent>
+    public sealed class LogicUnitGeometryComponentDestroySystem : DestroySystem<LogicUnitGeometryComponent>
     {
         /// <summary>
-        /// 销毁逻辑单位运行时配置组件。
+        /// 销毁逻辑单位运行时几何组件。
         /// </summary>
-        protected override void Destroy(LogicUnitConfigComponent self)
+        protected override void Destroy(LogicUnitGeometryComponent self)
         {
             self.Clear();
         }
     }
 
     /// <summary>
-    /// 逻辑单位运行时配置组件扩展方法。
+    /// 逻辑单位运行时几何组件扩展方法。
     /// </summary>
-    public static class LogicUnitConfigComponentSystem
+    public static class LogicUnitGeometryComponentSystem
     {
         /// <summary>
-        /// 使用配置数据初始化单位运行时配置。
+        /// 使用几何数据初始化单位运行时配置。
         /// </summary>
-        public static void Init(this LogicUnitConfigComponent self, LogicUnit owner, LogicUnitConfigData configData,
+        public static void Init(this LogicUnitGeometryComponent self, LogicUnit owner, LogicUnitGeometryData geometryData,
             FixedPointVector3 spawnScale)
         {
             if (self == null)
@@ -34,41 +34,41 @@ namespace GameBattle
             }
 
             self.Owner = owner;
-            self.ApplyBaseConfig(configData);
+            self.ApplyBaseGeometry(geometryData);
             self.SetSpawnScale(spawnScale);
         }
 
         /// <summary>
-        /// 应用一份基础配置数据。
+        /// 应用一份基础几何数据。
         /// </summary>
-        public static void ApplyBaseConfig(this LogicUnitConfigComponent self, LogicUnitConfigData configData)
+        public static void ApplyBaseGeometry(this LogicUnitGeometryComponent self, LogicUnitGeometryData geometryData)
         {
             if (self == null)
             {
                 return;
             }
 
-            if (configData == null)
+            if (geometryData == null)
             {
                 self.Clear();
                 return;
             }
 
-            self.CollisionShapeType = configData.CollisionShapeType;
-            self.CapsuleRadius = configData.CapsuleRadius;
-            self.CapsuleHeight = configData.CapsuleHeight;
-            self.AabbHalfExtents = configData.AabbHalfExtents;
-            self.BaseModelScale = NormalizeScaleVector(configData.ModelScale);
-            self.FireOffset = configData.FireOffset;
-            self.EnableCollision = configData.EnableCollision;
-            self.UseAabbOverlap = configData.UseAabbOverlap;
+            self.CollisionShapeType = geometryData.CollisionShapeType;
+            self.CapsuleRadius = geometryData.CapsuleRadius;
+            self.CapsuleHeight = geometryData.CapsuleHeight;
+            self.AabbHalfExtents = geometryData.AabbHalfExtents;
+            self.BaseModelScale = NormalizeScaleVector(geometryData.ModelScale);
+            self.FireOffset = geometryData.FireOffset;
+            self.EnableCollision = geometryData.EnableCollision;
+            self.UseAabbOverlap = geometryData.UseAabbOverlap;
             self.RefreshRuntimeConfig();
         }
 
         /// <summary>
         /// 设置出生缩放并刷新运行时派生配置。
         /// </summary>
-        public static void SetSpawnScale(this LogicUnitConfigComponent self, FixedPointVector3 spawnScale)
+        public static void SetSpawnScale(this LogicUnitGeometryComponent self, FixedPointVector3 spawnScale)
         {
             if (self == null)
             {
@@ -82,7 +82,7 @@ namespace GameBattle
         /// <summary>
         /// 刷新运行时派生配置。
         /// </summary>
-        public static void RefreshRuntimeConfig(this LogicUnitConfigComponent self)
+        public static void RefreshRuntimeConfig(this LogicUnitGeometryComponent self)
         {
             if (self == null)
             {
@@ -102,18 +102,18 @@ namespace GameBattle
         /// 获取逻辑单位当前碰撞半径。
         /// </summary>
         public static FixedPoint64 GetCapsuleRadius(this LogicUnit self)
-            => self?.Config?.RuntimeCapsuleRadius ?? FixedPoint64.Zero;
+            => self?.Geometry?.RuntimeCapsuleRadius ?? FixedPoint64.Zero;
 
         /// <summary>
         /// 获取逻辑单位当前碰撞高度。
         /// </summary>
         public static FixedPoint64 GetCapsuleHeight(this LogicUnit self)
-            => self?.Config?.RuntimeCapsuleHeight ?? FixedPoint64.Zero;
+            => self?.Geometry?.RuntimeCapsuleHeight ?? FixedPoint64.Zero;
 
         /// <summary>
         /// 清空运行时配置组件。
         /// </summary>
-        public static void Clear(this LogicUnitConfigComponent self)
+        public static void Clear(this LogicUnitGeometryComponent self)
         {
             if (self == null)
             {

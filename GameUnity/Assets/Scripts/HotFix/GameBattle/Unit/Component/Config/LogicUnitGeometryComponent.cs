@@ -4,13 +4,13 @@ using Fantasy.Entitas;
 namespace GameBattle
 {
     /// <summary>
-    /// 逻辑单位运行时配置组件。
+    /// 逻辑单位运行时几何组件。
     /// <remarks>
     /// 负责承载碰撞体、体型、缩放和挂点偏移等几何配置，
     /// 不承载战斗属性与运行时血量状态。
     /// </remarks>
     /// </summary>
-    public sealed class LogicUnitConfigComponent : Entity
+    public sealed class LogicUnitGeometryComponent : Entity
     {
         /// <summary>
         /// 当前配置组件所属的逻辑单位。

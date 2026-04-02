@@ -23,7 +23,7 @@ namespace GameBattle
         /// <summary>
         /// 单位运行时几何配置组件。
         /// </summary>
-        public LogicUnitConfigComponent Config { get; private set; }
+        public LogicUnitGeometryComponent Geometry { get; private set; }
 
         #endregion
 
@@ -121,9 +121,9 @@ namespace GameBattle
 
         #region 初始化
 
-        internal bool ApplyCreateData(LogicUnitCreateData createData, LogicUnitConfigData configData)
+        internal bool ApplyCreateData(LogicUnitCreateData createData, LogicUnitGeometryData geometryData)
         {
-            if (createData == null || configData == null || createData.UnitType == UnitType.None)
+            if (createData == null || geometryData == null || createData.UnitType == UnitType.None)
             {
                 return false;
             }
@@ -141,8 +141,8 @@ namespace GameBattle
             Attr.Owner = this;
             Attr.InitBaseAttr(createData.BaseAttr);
 
-            Config ??= AddComponent<LogicUnitConfigComponent>();
-            Config.Init(this, configData, createData.BornScale);
+            Geometry ??= AddComponent<LogicUnitGeometryComponent>();
+            Geometry.Init(this, geometryData, createData.BornScale);
 
             if (HasBornPose && !BornForward.IsNearlyZero())
             {
@@ -161,9 +161,9 @@ namespace GameBattle
             {
                 Attr.Owner = this;
             }
-            if (Config != null)
+            if (Geometry != null)
             {
-                Config.Owner = this;
+                Geometry.Owner = this;
             }
 
             if (!OnInit())
@@ -247,7 +247,7 @@ namespace GameBattle
                 return;
             }
 
-            transform.localScale = Config?.RuntimeModelScale ?? BornScale;
+            transform.localScale = Geometry?.RuntimeModelScale ?? BornScale;
 
             if (!HasBornPose)
             {
@@ -321,7 +321,7 @@ namespace GameBattle
             TranslatePos = FixedPointVector3.zero;
             m_waitDestroyTime = FixedPoint64.Zero;
             Attr = null;
-            Config = null;
+            Geometry = null;
             BattleContext = null;
         }
 

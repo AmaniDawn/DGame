@@ -3,9 +3,9 @@ using DGame;
 namespace GameBattle
 {
     /// <summary>
-    /// 逻辑单位运行时配置初始化数据。
+    /// 逻辑单位运行时几何初始化数据。
     /// </summary>
-    public sealed class LogicUnitConfigData : MemoryObject
+    public sealed class LogicUnitGeometryData : MemoryObject
     {
         /// <summary>
         /// 碰撞形状类型。
@@ -50,7 +50,7 @@ namespace GameBattle
         /// <summary>
         /// 从对象池创建一份单位配置数据。
         /// </summary>
-        public static LogicUnitConfigData Create() => Spawn<LogicUnitConfigData>();
+        public static LogicUnitGeometryData Create() => Spawn<LogicUnitGeometryData>();
 
         /// <summary>
         /// 清空全部配置数据。
@@ -70,7 +70,7 @@ namespace GameBattle
         /// <summary>
         /// 复制另一份单位配置数据。
         /// </summary>
-        public void CopyFrom(LogicUnitConfigData other)
+        public void CopyFrom(LogicUnitGeometryData other)
         {
             if (other == null)
             {
