@@ -30,7 +30,7 @@ namespace GameLogic
                 return;
             }
 
-            if (m_unitsById.TryGetValue(renderUnit.Id, out var oldUnit) && !oldUnit.IsSameUnit(renderUnit))
+            if (m_unitsById.TryGetValue(renderUnit.Id, out var oldUnit) && !oldUnit.IsSameUnitId(renderUnit))
             {
                 m_units.Remove(oldUnit);
             }
@@ -53,7 +53,7 @@ namespace GameLogic
                 return;
             }
 
-            if (m_unitsById.TryGetValue(renderUnit.Id, out var currentUnit) && currentUnit.IsSameUnit(renderUnit))
+            if (m_unitsById.TryGetValue(renderUnit.Id, out var currentUnit) && currentUnit.IsSameUnitId(renderUnit))
             {
                 m_unitsById.Remove(renderUnit.Id);
             }

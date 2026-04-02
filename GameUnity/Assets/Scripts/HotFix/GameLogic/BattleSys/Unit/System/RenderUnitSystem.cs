@@ -48,12 +48,24 @@ namespace GameLogic
         public static ulong GetPlayerID(this RenderUnit self) => self?.LogicUnit?.OwnerUnitID ?? 0;
 
         /// <summary>
-        /// 判断两个渲染单位是否表示同一运行时实例。
+        /// 判断两个渲染单位是否具有相同的渲染单位 ID。
+        /// 该比较基于 <see cref="RenderUnit.UnitID"/>，适用于战斗内单位主键判断、
+        /// 回放、追帧以及跨层数据关联，不表示两者一定是同一个运行时实例。
         /// </summary>
         /// <param name="self">当前渲染单位。</param>
         /// <param name="other">待比较的渲染单位。</param>
-        /// <returns>两者均有效且 RuntimeId 相同时返回 true。</returns>
-        public static bool IsSameUnit(this RenderUnit self, RenderUnit other) => self?.RuntimeId == other?.RuntimeId;
+        /// <returns>两者具有相同的渲染单位 ID 时返回 <see langword="true"/>。</returns>
+        public static bool IsSameUnitId(this RenderUnit self, RenderUnit other) => self?.UnitID == other?.UnitID;
+
+        /// <summary>
+        /// 判断两个渲染单位引用是否指向同一个运行时实例。
+        /// 该比较基于 <see cref="Entity.RuntimeId"/>，只适用于实例级身份判断，
+        /// 不用于回放、追帧或跨层渲染关联中的单位主键比较。
+        /// </summary>
+        /// <param name="self">当前渲染单位。</param>
+        /// <param name="other">待比较的渲染单位。</param>
+        /// <returns>两者指向同一运行时实例时返回 <see langword="true"/>。</returns>
+        public static bool IsSameUnitInstance(this RenderUnit self, RenderUnit other) => self?.RuntimeId == other?.RuntimeId;
 
         /// <summary>
         /// 注册一个跟随渲染单位作用域自动释放的逻辑单位事件监听。

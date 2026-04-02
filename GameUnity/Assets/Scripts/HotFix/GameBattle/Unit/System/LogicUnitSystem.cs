@@ -115,11 +115,23 @@ namespace GameBattle
         }
 
         /// <summary>
-        /// 判断两个逻辑单位是否表示同一个运行时实例。
+        /// 判断两个逻辑单位是否具有相同的逻辑单位 ID。
+        /// 该比较基于 <see cref="LogicUnit.UnitID"/>，适用于战斗内单位主键判断、
+        /// 回放、追帧以及跨层数据关联，不表示两者一定是同一个运行时实例。
         /// </summary>
-        /// <param name="self"></param>
+        /// <param name="self">当前逻辑单位。</param>
         /// <param name="other">待比较的逻辑单位。</param>
-        /// <returns>是同一个有效运行时实例时返回 <see langword="true"/>。</returns>
-        public static bool IsSameUnit(this LogicUnit self, LogicUnit other) => self?.RuntimeId == other?.RuntimeId;
+        /// <returns>两者具有相同的逻辑单位 ID 时返回 <see langword="true"/>。</returns>
+        public static bool IsSameUnitId(this LogicUnit self, LogicUnit other) => self?.UnitID == other?.UnitID;
+
+        /// <summary>
+        /// 判断两个逻辑单位引用是否指向同一个运行时实例。
+        /// 该比较基于 <see cref="Entity.RuntimeId"/>，只适用于实例级身份判断，
+        /// 不用于回放、追帧或跨层逻辑关联中的单位主键比较。
+        /// </summary>
+        /// <param name="self">当前逻辑单位。</param>
+        /// <param name="other">待比较的逻辑单位。</param>
+        /// <returns>两者指向同一运行时实例时返回 <see langword="true"/>。</returns>
+        public static bool IsSameUnitInstance(this LogicUnit self, LogicUnit other) => self?.RuntimeId == other?.RuntimeId;
     }
 }

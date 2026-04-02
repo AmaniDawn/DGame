@@ -50,7 +50,7 @@ namespace GameBattle
             var activeUnits = self.ActiveUnits;
             for (int i = 0; i < activeUnits.Count; i++)
             {
-                if (activeUnits[i].IsSameUnit(logicUnit))
+                if (activeUnits[i].IsSameUnitId(logicUnit))
                 {
                     return false;
                 }
@@ -104,7 +104,7 @@ namespace GameBattle
                     continue;
                 }
 
-                if (!delayUnit.IsSameUnit(logicUnit))
+                if (!delayUnit.IsSameUnitId(logicUnit))
                 {
                     continue;
                 }
@@ -207,7 +207,7 @@ namespace GameBattle
             for (int i = 0; i < activeUnits.Count; i++)
             {
                 var activeUnit = activeUnits[i];
-                if (activeUnit != null && activeUnit.IsSameUnit(logicUnit))
+                if (activeUnit != null && activeUnit.IsSameUnitId(logicUnit))
                 {
                     activeUnits.RemoveAt(i);
                     return true;
@@ -227,7 +227,7 @@ namespace GameBattle
             for (int i = 0; i < delayDestroyUnits.Count; i++)
             {
                 var delayUnit = delayDestroyUnits[i].Unit.Value;
-                if (delayUnit != null && delayUnit.IsSameUnit(logicUnit))
+                if (delayUnit != null && delayUnit.IsSameUnitId(logicUnit))
                 {
                     delayDestroyUnits.RemoveAt(i);
                     return true;
