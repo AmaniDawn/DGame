@@ -193,23 +193,17 @@ namespace GameBattle
         /// </summary>
         public static bool DestroyLogicUnitImmediately(this BattleContextComponent self, LogicUnit logicUnit, LogicUnitDestroyReason reason)
         {
-            if (self == null || logicUnit == null)
+            if (self == null || logicUnit == null || logicUnit.IsDisposed)
             {
                 return false;
             }
-
-            var removed = self.RemoveLogicUnit(logicUnit);
-            if (removed)
-            {
-                self.PublishBattle(new LogicUnitDestroyingEvent(logicUnit, reason));
-            }
-
-            if (logicUnit.IsDisposed)
-            {
-                return false;
-            }
-
+            self.RemoveLogicUnit(logicUnit);
+            self.PublishBattle(new LogicUnitDestroyingEvent(logicUnit, reason));
+            var entityId = logicUnit.Id;
+            var unitId = logicUnit.UnitID;
+            var unitType = logicUnit.UnitType;
             logicUnit.Dispose();
+            self.PublishBattle(new LogicUnitDestroyedEvent(entityId, unitId, unitType, reason));
             return true;
         }
 

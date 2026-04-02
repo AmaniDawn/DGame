@@ -12,12 +12,12 @@ namespace GameLogic
         /// <summary>
         /// 创建完成的模型对象。
         /// </summary>
-        public readonly GameObject ModelGo;
+        public GameObject ModelGo { get; }
 
         /// <summary>
         /// 创建完成的模型部位类型。
         /// </summary>
-        public readonly UnitModelType UnitModelType;
+        public UnitModelType UnitModelType { get; }
 
         /// <summary>
         /// 构造一个模型创建完成事件。
@@ -40,7 +40,7 @@ namespace GameLogic
         /// <summary>
         /// 即将销毁的模型部位类型。
         /// </summary>
-        public readonly UnitModelType UnitModelType;
+        public UnitModelType UnitModelType { get; }
 
         /// <summary>
         /// 构造一个模型销毁前事件。
@@ -61,7 +61,7 @@ namespace GameLogic
         /// <summary>
         /// 已销毁的模型部位类型。
         /// </summary>
-        public readonly UnitModelType UnitModelType;
+        public UnitModelType UnitModelType { get; }
 
         /// <summary>
         /// 构造一个模型销毁完成事件。

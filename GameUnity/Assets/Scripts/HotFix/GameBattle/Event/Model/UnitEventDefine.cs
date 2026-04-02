@@ -8,17 +8,17 @@ namespace GameBattle
         /// <summary>
         /// 获取受伤单位 ID。
         /// </summary>
-        public readonly ulong UnitID;
+        public ulong UnitID { get; }
 
         /// <summary>
         /// 获取施加伤害的单位 ID。
         /// </summary>
-        public readonly ulong CasterUnitId;
+        public ulong CasterUnitId { get; }
 
         /// <summary>
         /// 获取伤害值。
         /// </summary>
-        public readonly int DamageValue;
+        public int DamageValue { get; }
 
         /// <summary>
         /// 初始化单位受伤事件。

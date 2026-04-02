@@ -10,7 +10,7 @@ namespace GameBattle
             LogicUnit = logicUnit;
         }
 
-        public readonly LogicUnit LogicUnit { get; }
+        public LogicUnit LogicUnit { get; }
     }
 
     /// <summary>
@@ -24,8 +24,30 @@ namespace GameBattle
             Reason = reason;
         }
 
-        public readonly LogicUnit LogicUnit { get; }
+        public LogicUnit LogicUnit { get; }
 
-        public readonly LogicUnitDestroyReason Reason { get; }
+        public LogicUnitDestroyReason Reason { get; }
+    }
+
+    /// <summary>
+    /// 逻辑单位销毁后发布的战斗事件。
+    /// </summary>
+    public readonly struct LogicUnitDestroyedEvent : IBattleEvent
+    {
+        public LogicUnitDestroyedEvent(long entityId, ulong unitId, UnitType unitType, LogicUnitDestroyReason reason)
+        {
+            EntityId = entityId;
+            UnitId = unitId;
+            UnitType = unitType;
+            Reason = reason;
+        }
+
+        public long EntityId { get; }
+
+        public ulong UnitId { get; }
+
+        public UnitType UnitType { get; }
+
+        public LogicUnitDestroyReason Reason { get; }
     }
 }

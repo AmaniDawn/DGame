@@ -39,17 +39,17 @@ namespace GameLogic
         /// <summary>
         /// 同步前的旧属性快照。
         /// </summary>
-        public readonly UnitAttributeSnapshot Previous;
+        public UnitAttributeSnapshot Previous { get; }
 
         /// <summary>
         /// 同步后的新属性快照。
         /// </summary>
-        public readonly UnitAttributeSnapshot Current;
+        public UnitAttributeSnapshot Current { get; }
 
         /// <summary>
         /// 本次发生变化的属性域标记。
         /// </summary>
-        public readonly UnitAttributeChangeFlags ChangeFlags;
+        public UnitAttributeChangeFlags ChangeFlags { get; }
 
         /// <summary>
         /// 构造一个单位属性变化事件。
