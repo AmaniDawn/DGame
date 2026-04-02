@@ -29,7 +29,5 @@ namespace GameBattle
         public static readonly NullRenderUnit Instance = new NullRenderUnit();
 
         private NullRenderUnit() { }
-
-        public void SyncFromLogic() { }
     }
 }

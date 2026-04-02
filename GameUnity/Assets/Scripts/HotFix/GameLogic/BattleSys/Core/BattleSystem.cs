@@ -99,7 +99,7 @@ namespace GameLogic
                     continue;
                 }
 
-                renderUnit.SyncFromLogic();
+                renderUnit.UpdateUnit();
             }
         }
 

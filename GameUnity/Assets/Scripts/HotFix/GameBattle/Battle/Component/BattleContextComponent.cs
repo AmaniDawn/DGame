@@ -9,6 +9,8 @@ namespace GameBattle
     /// </summary>
     public sealed class BattleContextComponent : Entity
     {
+        #region Components
+
         /// <summary>
         /// 获取帧同步管理组件。
         /// </summary>
@@ -43,6 +45,8 @@ namespace GameBattle
         /// 获取或设置渲染单位工厂。
         /// </summary>
         internal IRenderUnitFactory RenderUnitFactory { get; set; }
+
+        #endregion
 
         /// <summary>
         /// 创建战斗上下文组件并挂载到指定子场景。

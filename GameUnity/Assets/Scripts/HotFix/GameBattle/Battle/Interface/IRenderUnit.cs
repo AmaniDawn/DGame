@@ -4,11 +4,5 @@ namespace GameBattle
     /// 渲染层单位接口。
     /// <remarks>定义渲染层单位与逻辑层快照同步的能力。</remarks>
     /// </summary>
-    public interface IRenderUnit
-    {
-        /// <summary>
-        /// 从 LogicUnit 同步快照数据。
-        /// </summary>
-        void SyncFromLogic();
-    }
+    public interface IRenderUnit { }
 }

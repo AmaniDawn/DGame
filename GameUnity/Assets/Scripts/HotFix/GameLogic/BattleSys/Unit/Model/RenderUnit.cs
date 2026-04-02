@@ -241,7 +241,7 @@ namespace GameLogic
 
         #region Sync 相关
 
-        public virtual void SyncFromLogic()
+        public void UpdateUnit()
         {
             if (LogicUnit == null || LogicUnit.StateSync == null)
             {
@@ -249,38 +249,47 @@ namespace GameLogic
             }
 
             var stateSync = LogicUnit.StateSync;
+
+            #region Transform
+
             if (StateSyncVersion.LastTransformVersion != stateSync.TransformVersion)
             {
                 StateSyncVersion.LastTransformVersion = stateSync.TransformVersion;
                 TransformSync?.NotifyLogicTransformChanged();
             }
-
             TransformSync?.Sync(Time.deltaTime);
-            
+
+            #endregion
+
+            #region State
+
             if (StateSyncVersion.LastStateVersion != stateSync.StateVersion)
             {
                 StateSyncVersion.LastStateVersion = stateSync.StateVersion;
                 SyncState();
             }
+
+            #endregion
             
+            #region Attr
+
             if (StateSyncVersion.LastAttrVersion != stateSync.AttrVersion)
             {
                 StateSyncVersion.LastAttrVersion = stateSync.AttrVersion;
+                AttributeDisplay?.Sync(LogicUnit.StateSync.Snapshot);
                 SyncAttr();
             }
+
+            #endregion
+
+            OnUpdateUnit();
         }
 
         protected virtual void SyncState() { }
         
-        protected virtual void SyncAttr()
-        {
-            if (LogicUnit?.StateSync == null)
-            {
-                return;
-            }
+        protected virtual void SyncAttr() { }
 
-            AttributeDisplay?.Sync(LogicUnit.StateSync.Snapshot);
-        }
+        protected virtual void OnUpdateUnit() { }
 
         #endregion
 
