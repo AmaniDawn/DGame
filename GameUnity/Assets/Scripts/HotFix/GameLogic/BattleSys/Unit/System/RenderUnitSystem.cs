@@ -45,7 +45,7 @@ namespace GameLogic
         /// </summary>
         /// <param name="self">渲染单位实例。</param>
         /// <returns>逻辑单位存在时返回其 UnitID，否则返回 0。</returns>
-        public static ulong GetPlayerID(this RenderUnit self) => self?.LogicUnit?.UnitID ?? 0;
+        public static ulong GetPlayerID(this RenderUnit self) => self?.LogicUnit?.OwnerUnitID ?? 0;
 
         /// <summary>
         /// 判断两个渲染单位是否表示同一运行时实例。
