@@ -30,6 +30,14 @@ MonoBehaviour:
       AssetTags: 
       ActiveRuleName: EnableGroup
       Collectors:
+      - CollectPath: Assets/BundleAssets/Actor
+        CollectorGUID: e8bd7513dd6972e40a4b6ba4be51b415
+        CollectorType: 0
+        AddressRuleName: AddressByFileName
+        PackRuleName: PackSeparately
+        FilterRuleName: CollectAll
+        AssetTags: 
+        UserData: 
       - CollectPath: Assets/BundleAssets/Prefabs
         CollectorGUID: 2e3223f270d9ec849a5881c70f35f294
         CollectorType: 0

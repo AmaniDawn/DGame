@@ -64,6 +64,7 @@ public sealed class C2G_CreateRoomRequestHandler : MessageRPC<C2G_CreateRoomRequ
         {
             RoomId = createRoomResponse.RoomId,
             RoomSeq = createRoomResponse.RoomSeq,
+            CaptainRoleId = (ulong)createRoomResponse.CaptainRoleId,
         };
         response.PlayerCount = createRoomResponse.PlayerCount;
         response.PlayerInfos = createRoomResponse.PlayerInfos.ToCSRoomPlayerInfos();

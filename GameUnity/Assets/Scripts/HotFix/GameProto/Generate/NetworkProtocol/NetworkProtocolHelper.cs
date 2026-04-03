@@ -98,6 +98,28 @@ namespace Fantasy
 			return (S2C_StartBattleResponse)await session.Call(C2S_StartBattleRequest_request);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void S2C_NotifyBattleLoading(this Session session, S2C_NotifyBattleLoading S2C_NotifyBattleLoading_message)
+		{
+			session.Send(S2C_NotifyBattleLoading_message);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void S2C_NotifyBattleLoading(this Session session)
+		{
+			using var message = Fantasy.S2C_NotifyBattleLoading.Create();
+			session.Send(message);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static async FTask<S2C_BattleLoadDoneResponse> C2S_BattleLoadDoneRequest(this Session session, C2S_BattleLoadDoneRequest C2S_BattleLoadDoneRequest_request)
+		{
+			return (S2C_BattleLoadDoneResponse)await session.Call(C2S_BattleLoadDoneRequest_request);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static async FTask<S2C_BattleLoadDoneResponse> C2S_BattleLoadDoneRequest(this Session session)
+		{
+			using var C2S_BattleLoadDoneRequest_request = Fantasy.C2S_BattleLoadDoneRequest.Create();
+			return (S2C_BattleLoadDoneResponse)await session.Call(C2S_BattleLoadDoneRequest_request);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void S2C_NotifyEnterBattle(this Session session, S2C_NotifyEnterBattle S2C_NotifyEnterBattle_message)
 		{
 			session.Send(S2C_NotifyEnterBattle_message);

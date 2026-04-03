@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Fantasy.Entitas;
 
 namespace Fantasy;
@@ -7,29 +8,19 @@ namespace Fantasy;
 /// </summary>
 public sealed class RoomComponent : Entity
 {
-    /// <summary>
-    /// 业务房间 ID。
-    /// </summary>
     public int RoomId;
 
-    /// <summary>
-    /// 房间序号。
-    /// </summary>
     public int RoomSeq;
 
-    /// <summary>
-    /// 房间最大玩家数量。
-    /// </summary>
+    public long CaptainRoleId;
+
     public int MaxPlayerCount;
 
-    /// <summary>
-    /// 房间创建时间。
-    /// </summary>
     public long CreateTime;
 
-    /// <summary>
-    /// 当前房间玩家信息。
-    /// Key: RoleId。
-    /// </summary>
+    public bool IsBattleStarted;
+
+    public bool IsBattleEntered;
+
     public readonly Dictionary<long, RoomPlayerInfo> PlayerInfos = new Dictionary<long, RoomPlayerInfo>();
 }

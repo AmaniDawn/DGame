@@ -5,9 +5,6 @@ using Fantasy.Network.Interface;
 
 namespace Hotfix;
 
-/// <summary>
-/// 处理 Gate 转发到 GameScene 的离开房间请求。
-/// </summary>
 public sealed class G2Game_LeaveRoomRequestHandler : AddressRPC<Scene, G2Game_LeaveRoomRequest, G2Game_LeaveRoomResponse>
 {
     protected override async FTask Run(Scene entity, G2Game_LeaveRoomRequest request, G2Game_LeaveRoomResponse response, Action reply)
@@ -28,6 +25,15 @@ public sealed class G2Game_LeaveRoomRequestHandler : AddressRPC<Scene, G2Game_Le
         if (roomComponent == null)
         {
             response.ErrorCode = ErrorCode.SUCCESS;
+            return;
+        }
+
+        if (roomComponent.CaptainRoleId == request.RoleId)
+        {
+            entity.BroadcastRoomDismissed(roomComponent);
+            entity.RemoveRoom(request.RoomId);
+            response.ErrorCode = ErrorCode.SUCCESS;
+            await FTask.CompletedTask;
             return;
         }
 

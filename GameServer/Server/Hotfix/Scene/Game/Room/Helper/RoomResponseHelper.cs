@@ -19,6 +19,7 @@ public static class RoomResponseHelper
         response.RoomId = roomComponent.RoomId;
         response.RoomSeq = roomComponent.RoomSeq;
         response.PlayerCount = roomComponent.GetPlayerCount();
+        response.CaptainRoleId = roomComponent.CaptainRoleId;
         response.PlayerInfos = new List<InnerRoomPlayerInfo>();
 
         foreach (var playerInfo in roomComponent.GetOrderedPlayers())
@@ -37,6 +38,7 @@ public static class RoomResponseHelper
         response.RoomId = roomComponent.RoomId;
         response.RoomSeq = roomComponent.RoomSeq;
         response.PlayerCount = roomComponent.GetPlayerCount();
+        response.CaptainRoleId = roomComponent.CaptainRoleId;
         response.PlayerInfos = new List<InnerRoomPlayerInfo>();
 
         foreach (var playerInfo in roomComponent.GetOrderedPlayers())

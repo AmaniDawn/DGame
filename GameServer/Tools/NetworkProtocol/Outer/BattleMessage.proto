@@ -1,261 +1,230 @@
 syntax = "proto3";
 package Fantasy.Network.Message;
 
-// 协议分为:
-// ProtoBuf:可以在Outer和Inner文件里使用。
-// MemoryPack:可以在Outer和Inner文件里使用。
-
-// 目前工具支持以下几种特殊用法:
-// 在message协议上方添加// Protocol+空格+协议名字
-// 例如: // Protocol ProtoBuf 或 // Protocol MemoryPack
-
-// 分别代表使用Protobuf序列化或使用MemoryPack序列化
-// 通过添加 // using 导出时添加自定义命名空间
-// 例如: // using System.Runtime // using System.Reflection
-
-/// 帧命令类型
 enum FrameCmdType
 {
-	FRAME_CMD_GM, 	/// GM命令
-    FRAME_CMD_PLAYER_MOVE, 	/// 玩家移动命令
+    FRAME_CMD_GM,
+    FRAME_CMD_PLAYER_MOVE,
 }
 
-/// 创建房间请求
 message C2G_CreateRoomRequest // IRequest,G2C_CreateRoomResponse
 {
-	int PlayerCount = 1; /// 房间初始玩家数量
+    int PlayerCount = 1;
 }
 
-/// 创建房间返回
 message G2C_CreateRoomResponse // IResponse
 {
-	CSRoomInfo RoomInfo = 1; /// 创建出的房间信息
-	int PlayerCount = 2; /// 当前房间玩家数量
-	repeated CSRoomPlayerInfo PlayerInfos = 3; /// 当前房间玩家信息
+    CSRoomInfo RoomInfo = 1;
+    int PlayerCount = 2;
+    repeated CSRoomPlayerInfo PlayerInfos = 3;
 }
 
-/// 加入房间请求
 message C2G_JoinRoomRequest // IRequest,G2C_JoinRoomResponse
 {
-	int RoomId = 1; /// 要加入的房间ID
+    int RoomId = 1;
 }
 
-/// 加入房间返回
 message G2C_JoinRoomResponse // IResponse
 {
-	CSRoomInfo RoomInfo = 1; /// 当前房间信息
-	int PlayerCount = 2; /// 当前房间玩家数量
-	repeated CSRoomPlayerInfo PlayerInfos = 3; /// 当前房间玩家信息
+    CSRoomInfo RoomInfo = 1;
+    int PlayerCount = 2;
+    repeated CSRoomPlayerInfo PlayerInfos = 3;
 }
 
-/// 离开房间请求
 message C2G_LeaveRoomRequest // IRequest,G2C_LeaveRoomResponse
 {
 }
 
-/// 离开房间返回
 message G2C_LeaveRoomResponse // IResponse
 {
 }
 
-/// 房间玩家信息变更通知
 message G2C_RoomPlayerInfoChangedNotify // IMessage
 {
-	CSRoomInfo RoomInfo = 1; /// 当前房间信息
-	int PlayerCount = 2; /// 当前房间玩家数量
-	repeated CSRoomPlayerInfo PlayerInfos = 3; /// 当前房间玩家信息
+    CSRoomInfo RoomInfo = 1;
+    int PlayerCount = 2;
+    repeated CSRoomPlayerInfo PlayerInfos = 3;
 }
 
-/// 客户端同步帧数据
 message C2S_SyncFrameDataReq // IMessage
 {
-	int ForecastFrameId = 1; /// 客户端预测帧ID
-	int RevClientFrameId = 2; /// 接收到的客户端帧ID
-	CSRoomInfo RoomInfo = 3; /// 房间信息
-	int RoomPlayerId = 4; /// 房间玩家ID
-	CSOnePlayerFrameCmd FrameData = 5; /// 帧数据
+    int ForecastFrameId = 1;
+    int RevClientFrameId = 2;
+    CSRoomInfo RoomInfo = 3;
+    int RoomPlayerId = 4;
+    CSOnePlayerFrameCmd FrameData = 5;
 }
 
-/// 客户端结束战斗 上报数据
 message S2C_BattleFinClientDataReq // IMessage
 {
-	CSBattleStartParam StartParam = 1; /// 关卡的初始化数据，用于和服务器校验
-	uint DurationTime = 2; /// 持续时间
+    CSBattleStartParam StartParam = 1;
+    uint DurationTime = 2;
 }
 
-/// 开始一场战斗的参数
 message CSBattleStartParam
 {
-	int RandSeed = 1; /// 随机种子
-	int Fps = 2; /// 模拟帧率
-	int PlayerCount = 3; /// 玩家个数
-	int BattleStatus = 4; /// 战斗状态
-	byte IsGuide = 5; /// 是否有新手引导
-	uint StartTime = 6; /// 战斗开始时间
-	ulong BattleGID = 7; /// 战斗GID
-	byte MultiPlayerBattle = 8; /// 是否多人开始战斗
-	ulong CaptainPlayerId = 9; /// 队长ID
-	uint LastOnlyBattleTime = 10; /// 剩余战斗时间
+    int RandSeed = 1;
+    int Fps = 2;
+    int PlayerCount = 3;
+    int BattleStatus = 4;
+    byte IsGuide = 5;
+    uint StartTime = 6;
+    ulong BattleGID = 7;
+    byte MultiPlayerBattle = 8;
+    ulong CaptainPlayerId = 9;
+    uint LastOnlyBattleTime = 10;
 }
 
-/// 客户端开始战斗请求
 message C2S_StartBattleRequest // IRequest,S2C_StartBattleResponse
 {
-  
 }
 
-/// 客户端开始战斗请求返回
 message S2C_StartBattleResponse // IResponse
 {
-  
 }
 
-/// 服务器通知进入战斗
+message S2C_NotifyBattleLoading // IMessage
+{
+}
+
+message C2S_BattleLoadDoneRequest // IRequest,S2C_BattleLoadDoneResponse
+{
+}
+
+message S2C_BattleLoadDoneResponse // IResponse
+{
+}
+
 message S2C_NotifyEnterBattle // IMessage
 {
-	int RandSeed = 1; /// 随机种子
-	int PlayerCount = 2; /// 玩家个数
-	byte IsHaveRoomInfo = 3; /// 是否有房间信息
-	CSRoomInfo RoomInfoList = 4; /// 房间数据信息
-	int BattleStatus = 5; /// 战斗状态
-	byte IsGuide = 6; /// 是否有新手引导
-	uint StartTime = 7; /// 战斗开始时间
-	ulong BattleGID = 8; /// 战斗GID
-	byte MultiPlayerBattle = 9; /// 是否多人开始战斗
-	ulong CaptainPlayerId = 10; /// 队长ID
-    repeated CSLevelPlayerData PlayerDataList = 11; /// 进入关卡的玩家数据
-    CSChapterInfo Chapter = 12; ///章节ID
-    int Stage = 13; ///当前stage
-    int MapID = 14; //地图ID
+    int RandSeed = 1;
+    int PlayerCount = 2;
+    byte IsHaveRoomInfo = 3;
+    CSRoomInfo RoomInfoList = 4;
+    int BattleStatus = 5;
+    byte IsGuide = 6;
+    uint StartTime = 7;
+    ulong BattleGID = 8;
+    byte MultiPlayerBattle = 9;
+    ulong CaptainPlayerId = 10;
+    repeated CSLevelPlayerData PlayerDataList = 11;
+    CSChapterInfo Chapter = 12;
+    int Stage = 13;
+    int MapID = 14;
 }
 
-
-/// 章节信息
 message CSChapterInfo // IMessage
 {
-  int ChapterID = 1; /// 章节ID
-  int Difficult = 2; /// 难度
+    int ChapterID = 1;
+    int Difficult = 2;
 }
 
-/// 服务器同步帧数据
 message S2C_BroadcastFrameData // IMessage
 {
-	CSRoomInfo RoomInfo = 1; /// 房间信息
-	int SveFrameId = 2; /// 服务器帧ID
-	int FrameCount = 3; /// 帧数量（最多十帧）
-	repeated CSSyncOneFrameData FrameDataList = 4; ///帧数据列表
+    CSRoomInfo RoomInfo = 1;
+    int SveFrameId = 2;
+    int FrameCount = 3;
+    repeated CSSyncOneFrameData FrameDataList = 4;
 }
 
-/// 进入关卡的玩家数据
 message CSLevelPlayerData
 {
-  CSMiniRoleBaseShowData PlayerShowData = 1; ///局内表现相关数据,与战斗无关
-  CSBattlePlayerData PlayerBattleData = 2; ///战斗相关数据
+    CSMiniRoleBaseShowData PlayerShowData = 1;
+    CSBattlePlayerData PlayerBattleData = 2;
 }
 
-/// 标识玩家的基础显示数据
 message CSMiniRoleBaseShowData
 {
-  uint Uin = 1; ///Uin
-  ulong RoleID = 2; ///RoleID
-  uint WorldID = 3; ///服ID
-  byte Online = 4; ///在线状态
-  ulong FightVal = 5; ///战力
-  uint VIPLevel = 6; ///Vip等级
-  string RoleName = 7; ///角色名称
-  byte Sex = 8; ///性别
-  uint Head = 9; ///头像
-  byte HeadSex = 10; ///头像性别
-  string HeadURL = 11; ///头像URL
-  uint HeadFrame = 12; ///头像框ID
+    uint Uin = 1;
+    ulong RoleID = 2;
+    uint WorldID = 3;
+    byte Online = 4;
+    ulong FightVal = 5;
+    uint VIPLevel = 6;
+    string RoleName = 7;
+    byte Sex = 8;
+    uint Head = 9;
+    byte HeadSex = 10;
+    string HeadURL = 11;
+    uint HeadFrame = 12;
 }
 
-/// 开始一场战斗里玩家的数据
 message CSBattlePlayerData
 {
-  ulong RoleID = 1; ///RoleID
-  CSBattlePlayerBaseData PlayerBaseData = 2; ///玩家外围基础数据
-  CSLevelUnitRunData PlayerRunData = 3; ///玩家动态数据
+    ulong RoleID = 1;
+    CSBattlePlayerBaseData PlayerBaseData = 2;
+    CSLevelUnitRunData PlayerRunData = 3;
 }
 
-/// 玩家动态数据
 message CSLevelUnitRunData
 {
-  int Hp = 1; ///玩家当前血量
-  int Level = 2; ///等级
-  int Exp = 3; ///经验
-  int Gold = 4; ///金币
+    int Hp = 1;
+    int Level = 2;
+    int Exp = 3;
+    int Gold = 4;
 }
 
-/// 玩家与战斗关联的外围系统数据
 message CSBattlePlayerBaseData
 {
-  int PlayerLevel = 1; ///玩家等级
-  byte BodyType = 2; ///体型
-  uint FashionID = 3; ///时装ID
-  uint WeaponFashionID = 4; ///武器时装ID
-  int CreateRoleDays = 5; ///创角天数
-  int FailureCount = 6; ///累计失败次数
-  CSUnitBattleAttrData AttrData = 7; ///属性数据
+    int PlayerLevel = 1;
+    byte BodyType = 2;
+    uint FashionID = 3;
+    uint WeaponFashionID = 4;
+    int CreateRoleDays = 5;
+    int FailureCount = 6;
+    CSUnitBattleAttrData AttrData = 7;
 }
 
-/// 玩家战斗属性数据
 message CSUnitBattleAttrData
 {
-  int Atk = 1; ///攻击
-  int Hp = 2; ///生命
-  int MaxHp = 3; ///最大生命
-  int MoveSpeed = 4; ///移动速度
+    int Atk = 1;
+    int Hp = 2;
+    int MaxHp = 3;
+    int MoveSpeed = 4;
 }
 
-/// 房间信息
 message CSRoomInfo
 {
-	int RoomId = 1;
-	int RoomSeq = 2;
+    int RoomId = 1;
+    int RoomSeq = 2;
+    ulong CaptainRoleId = 3;
 }
 
-/// 房间玩家信息
 message CSRoomPlayerInfo
 {
-	ulong RoleId = 1; /// 角色ID
-	string RoleName = 2; /// 角色名称
-	uint Level = 3; /// 等级
-	uint FightValue = 4; /// 战斗力
+    ulong RoleId = 1;
+    string RoleName = 2;
+    uint Level = 3;
+    uint FightValue = 4;
 }
 
-/// 单帧数据
 message CSSyncOneFrameData
 {
-	int FrameId = 1; /// 帧ID
-	int SpeedUp = 2; /// 加速倍率
-	int PlayerCount = 3; /// 玩家数量
-	repeated CSOnePlayerFrameCmd PlayerFrameData = 4; /// 每个玩家的操作数据
+    int FrameId = 1;
+    int SpeedUp = 2;
+    int PlayerCount = 3;
+    repeated CSOnePlayerFrameCmd PlayerFrameData = 4;
 }
 
-/// 单玩家帧操作数据
 message CSOnePlayerFrameCmd
 {
-	int PlayerId = 1; /// 玩家ID
-	int FrameCmdCount = 2; /// 命令数量
-	repeated CSFrameCmd FrameDataList = 4; /// 命令列表
+    int PlayerId = 1;
+    int FrameCmdCount = 2;
+    repeated CSFrameCmd FrameDataList = 4;
 }
 
-/// 帧命令
 message CSFrameCmd
 {
-	byte Type = 1; /// 命令类型
-	CSFrameData Data = 2; /// 命令数据
+    byte Type = 1;
+    CSFrameData Data = 2;
 }
 
-/// 帧命令
 message CSFrameData
 {
-	CSFrameCmdGmInfo Gm = 1;
+    CSFrameCmdGmInfo Gm = 1;
 }
 
-/// GM命令
 message CSFrameCmdGmInfo
 {
-	string GmString = 1;
+    string GmString = 1;
 }

@@ -147,6 +147,7 @@ namespace GameLogic
 
             GameClient.Instance.StartHeartbeat();
             GameClient.Instance.Status = GameClientStatus.StatusEnter;
+            _ = BattleNetMgr.Instance;
             DataCenterSys.Instance.SetCurPlayerData(response.PlayerData);
             GameEvent.Get<ILoginUI>().OnLoginGateSuccess();
         }

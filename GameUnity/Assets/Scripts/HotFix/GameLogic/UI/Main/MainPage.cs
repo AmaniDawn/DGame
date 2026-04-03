@@ -35,6 +35,13 @@ namespace GameLogic
 
 		private partial void OnClickStartBtn()
 		{
+			if (!IsRoomOwner())
+			{
+				GameModule.UIModule.ShowTipsUI(G.R("只有房主可以开始战斗"));
+				return;
+			}
+
+			BattleNetMgr.Instance.StartBattleRequest().Coroutine();
 		}
 
 		private partial void OnClickJoinBtn()
@@ -56,9 +63,6 @@ namespace GameLogic
 
 		#region Private
 
-		/// <summary>
-		/// 创建一个双人房间。
-		/// </summary>
 		private async FTask CreateRoom()
 		{
 			if (!await RoomNetMgr.Instance.CreateRoomRequest(2))
@@ -75,9 +79,6 @@ namespace GameLogic
 			RefreshRoomPlayerTexts();
 		}
 
-		/// <summary>
-		/// 根据输入框中的房间 ID 加入房间。
-		/// </summary>
 		private async FTask JoinRoom()
 		{
 			if (!int.TryParse(m_inputRoomId.text, out var roomId) || roomId <= 0)
@@ -94,9 +95,6 @@ namespace GameLogic
 			RefreshRoomPlayerTexts();
 		}
 
-		/// <summary>
-		/// 离开当前房间。
-		/// </summary>
 		private async FTask LeaveRoom()
 		{
 			if (!RoomDataMgr.Instance.HasRoom)
@@ -113,29 +111,51 @@ namespace GameLogic
 			RefreshRoomPlayerTexts();
 		}
 
-		/// <summary>
-		/// 刷新房间玩家文本显示。
-		/// </summary>
 		private void RefreshRoomPlayerTexts()
 		{
 			if (!RoomDataMgr.Instance.HasRoom)
 			{
 				m_textRoomId.text = "房间号：暂无";
-				m_textPlayer1.text = "暂未加入房间";
-				m_textPlayer2.text = "暂未加入房间";
+				m_textPlayer1.text = "暂无房主";
+				m_textPlayer2.text = "暂无队员";
+				m_btnStart.SetActive(false);
 				return;
 			}
 
 			var roomInfo = RoomDataMgr.Instance.CurrentRoomInfo;
 			m_textRoomId.text = roomInfo == null ? "房间号：暂无" : $"房间号：{roomInfo.RoomId}";
 
+			var captainRoleId = roomInfo?.CaptainRoleId ?? 0;
+			var ownerName = "暂无房主";
+			var memberName = "暂无队员";
 			var playerInfos = RoomDataMgr.Instance.PlayerInfos;
-			m_textPlayer1.text = playerInfos.Count > 0
-				? $"玩家1：{playerInfos[0].RoleName}"
-				: "暂未加入房间";
-			m_textPlayer2.text = playerInfos.Count > 1
-				? $"玩家2：{playerInfos[1].RoleName}"
-				: "暂未加入玩家";
+			for (var i = 0; i < playerInfos.Count; i++)
+			{
+				var playerInfo = playerInfos[i];
+				if (playerInfo == null)
+				{
+					continue;
+				}
+
+				if (playerInfo.RoleId == captainRoleId)
+				{
+					ownerName = $"房主：{playerInfo.RoleName}";
+				}
+				else
+				{
+					memberName = $"队员：{playerInfo.RoleName}";
+				}
+			}
+
+			m_textPlayer1.text = ownerName;
+			m_textPlayer2.text = memberName;
+			m_btnStart.SetActive(IsRoomOwner());
+		}
+
+		private bool IsRoomOwner()
+		{
+			var roomInfo = RoomDataMgr.Instance.CurrentRoomInfo;
+			return roomInfo != null && roomInfo.CaptainRoleId > 0 && roomInfo.CaptainRoleId == DataCenterSys.Instance.CurRoleID;
 		}
 
 		#endregion

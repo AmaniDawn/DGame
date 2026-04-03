@@ -23,8 +23,8 @@
     "UnlockLevel": 1,
     "FirstPassBootyID": 0,
     "FailBootyID": 0,
-    "CanMultiPlayer": false,
-    "MultiPlayerCnt": 0,
+    "CanMultiPlayer": true,
+    "MultiPlayerCnt": 2,
     "PassChapterCurrency": [
       {
         "CurrencyType": 4,

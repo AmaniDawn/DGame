@@ -93,9 +93,6 @@ namespace Fantasy
         [ProtoMember(5)]
         public uint DelayTime { get; set; }
     }
-    /// <summary>
-    /// 创建房间请求
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class C2G_CreateRoomRequest : AMessage, IRequest
@@ -136,15 +133,9 @@ namespace Fantasy
         public uint OpCode() { return OuterOpcode.C2G_CreateRoomRequest; } 
         [ProtoIgnore]
         public G2C_CreateRoomResponse ResponseType { get; set; }
-        /// <summary>
-        /// 房间初始玩家数量
-        /// </summary>
         [ProtoMember(1)]
         public int PlayerCount { get; set; }
     }
-    /// <summary>
-    /// 创建房间返回
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class G2C_CreateRoomResponse : AMessage, IResponse
@@ -192,25 +183,13 @@ namespace Fantasy
         public uint OpCode() { return OuterOpcode.G2C_CreateRoomResponse; } 
         [ProtoMember(1)]
         public uint ErrorCode { get; set; }
-        /// <summary>
-        /// 创建出的房间信息
-        /// </summary>
         [ProtoMember(2)]
         public CSRoomInfo RoomInfo { get; set; }
-        /// <summary>
-        /// 当前房间玩家数量
-        /// </summary>
         [ProtoMember(3)]
         public int PlayerCount { get; set; }
-        /// <summary>
-        /// 当前房间玩家信息
-        /// </summary>
         [ProtoMember(4)]
         public List<CSRoomPlayerInfo> PlayerInfos { get; set; } = new List<CSRoomPlayerInfo>();
     }
-    /// <summary>
-    /// 加入房间请求
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class C2G_JoinRoomRequest : AMessage, IRequest
@@ -251,15 +230,9 @@ namespace Fantasy
         public uint OpCode() { return OuterOpcode.C2G_JoinRoomRequest; } 
         [ProtoIgnore]
         public G2C_JoinRoomResponse ResponseType { get; set; }
-        /// <summary>
-        /// 要加入的房间ID
-        /// </summary>
         [ProtoMember(1)]
         public int RoomId { get; set; }
     }
-    /// <summary>
-    /// 加入房间返回
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class G2C_JoinRoomResponse : AMessage, IResponse
@@ -307,25 +280,13 @@ namespace Fantasy
         public uint OpCode() { return OuterOpcode.G2C_JoinRoomResponse; } 
         [ProtoMember(1)]
         public uint ErrorCode { get; set; }
-        /// <summary>
-        /// 当前房间信息
-        /// </summary>
         [ProtoMember(2)]
         public CSRoomInfo RoomInfo { get; set; }
-        /// <summary>
-        /// 当前房间玩家数量
-        /// </summary>
         [ProtoMember(3)]
         public int PlayerCount { get; set; }
-        /// <summary>
-        /// 当前房间玩家信息
-        /// </summary>
         [ProtoMember(4)]
         public List<CSRoomPlayerInfo> PlayerInfos { get; set; } = new List<CSRoomPlayerInfo>();
     }
-    /// <summary>
-    /// 离开房间请求
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class C2G_LeaveRoomRequest : AMessage, IRequest
@@ -366,9 +327,6 @@ namespace Fantasy
         [ProtoIgnore]
         public G2C_LeaveRoomResponse ResponseType { get; set; }
     }
-    /// <summary>
-    /// 离开房间返回
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class G2C_LeaveRoomResponse : AMessage, IResponse
@@ -410,9 +368,6 @@ namespace Fantasy
         [ProtoMember(1)]
         public uint ErrorCode { get; set; }
     }
-    /// <summary>
-    /// 房间玩家信息变更通知
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class G2C_RoomPlayerInfoChangedNotify : AMessage, IMessage
@@ -457,25 +412,13 @@ namespace Fantasy
             MessageObjectPool<G2C_RoomPlayerInfoChangedNotify>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.G2C_RoomPlayerInfoChangedNotify; } 
-        /// <summary>
-        /// 当前房间信息
-        /// </summary>
         [ProtoMember(1)]
         public CSRoomInfo RoomInfo { get; set; }
-        /// <summary>
-        /// 当前房间玩家数量
-        /// </summary>
         [ProtoMember(2)]
         public int PlayerCount { get; set; }
-        /// <summary>
-        /// 当前房间玩家信息
-        /// </summary>
         [ProtoMember(3)]
         public List<CSRoomPlayerInfo> PlayerInfos { get; set; } = new List<CSRoomPlayerInfo>();
     }
-    /// <summary>
-    /// 客户端同步帧数据
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class C2S_SyncFrameDataReq : AMessage, IMessage
@@ -526,35 +469,17 @@ namespace Fantasy
             MessageObjectPool<C2S_SyncFrameDataReq>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.C2S_SyncFrameDataReq; } 
-        /// <summary>
-        /// 客户端预测帧ID
-        /// </summary>
         [ProtoMember(1)]
         public int ForecastFrameId { get; set; }
-        /// <summary>
-        /// 接收到的客户端帧ID
-        /// </summary>
         [ProtoMember(2)]
         public int RevClientFrameId { get; set; }
-        /// <summary>
-        /// 房间信息
-        /// </summary>
         [ProtoMember(3)]
         public CSRoomInfo RoomInfo { get; set; }
-        /// <summary>
-        /// 房间玩家ID
-        /// </summary>
         [ProtoMember(4)]
         public int RoomPlayerId { get; set; }
-        /// <summary>
-        /// 帧数据
-        /// </summary>
         [ProtoMember(5)]
         public CSOnePlayerFrameCmd FrameData { get; set; }
     }
-    /// <summary>
-    /// 客户端结束战斗 上报数据
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class S2C_BattleFinClientDataReq : AMessage, IMessage
@@ -598,20 +523,11 @@ namespace Fantasy
             MessageObjectPool<S2C_BattleFinClientDataReq>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.S2C_BattleFinClientDataReq; } 
-        /// <summary>
-        /// 关卡的初始化数据，用于和服务器校验
-        /// </summary>
         [ProtoMember(1)]
         public CSBattleStartParam StartParam { get; set; }
-        /// <summary>
-        /// 持续时间
-        /// </summary>
         [ProtoMember(2)]
         public uint DurationTime { get; set; }
     }
-    /// <summary>
-    /// 开始一场战斗的参数
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSBattleStartParam : AMessage, IDisposable
@@ -658,60 +574,27 @@ namespace Fantasy
             LastOnlyBattleTime = default;
             MessageObjectPool<CSBattleStartParam>.Return(this);
         }
-        /// <summary>
-        /// 随机种子
-        /// </summary>
         [ProtoMember(1)]
         public int RandSeed { get; set; }
-        /// <summary>
-        /// 模拟帧率
-        /// </summary>
         [ProtoMember(2)]
         public int Fps { get; set; }
-        /// <summary>
-        /// 玩家个数
-        /// </summary>
         [ProtoMember(3)]
         public int PlayerCount { get; set; }
-        /// <summary>
-        /// 战斗状态
-        /// </summary>
         [ProtoMember(4)]
         public int BattleStatus { get; set; }
-        /// <summary>
-        /// 是否有新手引导
-        /// </summary>
         [ProtoMember(5)]
         public byte IsGuide { get; set; }
-        /// <summary>
-        /// 战斗开始时间
-        /// </summary>
         [ProtoMember(6)]
         public uint StartTime { get; set; }
-        /// <summary>
-        /// 战斗GID
-        /// </summary>
         [ProtoMember(7)]
         public ulong BattleGID { get; set; }
-        /// <summary>
-        /// 是否多人开始战斗
-        /// </summary>
         [ProtoMember(8)]
         public byte MultiPlayerBattle { get; set; }
-        /// <summary>
-        /// 队长ID
-        /// </summary>
         [ProtoMember(9)]
         public ulong CaptainPlayerId { get; set; }
-        /// <summary>
-        /// 剩余战斗时间
-        /// </summary>
         [ProtoMember(10)]
         public uint LastOnlyBattleTime { get; set; }
     }
-    /// <summary>
-    /// 客户端开始战斗请求
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class C2S_StartBattleRequest : AMessage, IRequest
@@ -752,9 +635,6 @@ namespace Fantasy
         [ProtoIgnore]
         public S2C_StartBattleResponse ResponseType { get; set; }
     }
-    /// <summary>
-    /// 客户端开始战斗请求返回
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class S2C_StartBattleResponse : AMessage, IResponse
@@ -796,9 +676,125 @@ namespace Fantasy
         [ProtoMember(1)]
         public uint ErrorCode { get; set; }
     }
-    /// <summary>
-    /// 服务器通知进入战斗
-    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class S2C_NotifyBattleLoading : AMessage, IMessage
+    {
+        public static S2C_NotifyBattleLoading Create(bool autoReturn = true)
+        {
+            var s2C_NotifyBattleLoading = MessageObjectPool<S2C_NotifyBattleLoading>.Rent();
+            s2C_NotifyBattleLoading.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                s2C_NotifyBattleLoading.SetIsPool(false);
+            }
+            
+            return s2C_NotifyBattleLoading;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            MessageObjectPool<S2C_NotifyBattleLoading>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.S2C_NotifyBattleLoading; } 
+    }
+    [Serializable]
+    [ProtoContract]
+    public partial class C2S_BattleLoadDoneRequest : AMessage, IRequest
+    {
+        public static C2S_BattleLoadDoneRequest Create(bool autoReturn = true)
+        {
+            var c2S_BattleLoadDoneRequest = MessageObjectPool<C2S_BattleLoadDoneRequest>.Rent();
+            c2S_BattleLoadDoneRequest.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                c2S_BattleLoadDoneRequest.SetIsPool(false);
+            }
+            
+            return c2S_BattleLoadDoneRequest;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            MessageObjectPool<C2S_BattleLoadDoneRequest>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.C2S_BattleLoadDoneRequest; } 
+        [ProtoIgnore]
+        public S2C_BattleLoadDoneResponse ResponseType { get; set; }
+    }
+    [Serializable]
+    [ProtoContract]
+    public partial class S2C_BattleLoadDoneResponse : AMessage, IResponse
+    {
+        public static S2C_BattleLoadDoneResponse Create(bool autoReturn = true)
+        {
+            var s2C_BattleLoadDoneResponse = MessageObjectPool<S2C_BattleLoadDoneResponse>.Rent();
+            s2C_BattleLoadDoneResponse.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                s2C_BattleLoadDoneResponse.SetIsPool(false);
+            }
+            
+            return s2C_BattleLoadDoneResponse;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            ErrorCode = 0;
+            MessageObjectPool<S2C_BattleLoadDoneResponse>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.S2C_BattleLoadDoneResponse; } 
+        [ProtoMember(1)]
+        public uint ErrorCode { get; set; }
+    }
     [Serializable]
     [ProtoContract]
     public partial class S2C_NotifyEnterBattle : AMessage, IMessage
@@ -858,77 +854,35 @@ namespace Fantasy
             MessageObjectPool<S2C_NotifyEnterBattle>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.S2C_NotifyEnterBattle; } 
-        /// <summary>
-        /// 随机种子
-        /// </summary>
         [ProtoMember(1)]
         public int RandSeed { get; set; }
-        /// <summary>
-        /// 玩家个数
-        /// </summary>
         [ProtoMember(2)]
         public int PlayerCount { get; set; }
-        /// <summary>
-        /// 是否有房间信息
-        /// </summary>
         [ProtoMember(3)]
         public byte IsHaveRoomInfo { get; set; }
-        /// <summary>
-        /// 房间数据信息
-        /// </summary>
         [ProtoMember(4)]
         public CSRoomInfo RoomInfoList { get; set; }
-        /// <summary>
-        /// 战斗状态
-        /// </summary>
         [ProtoMember(5)]
         public int BattleStatus { get; set; }
-        /// <summary>
-        /// 是否有新手引导
-        /// </summary>
         [ProtoMember(6)]
         public byte IsGuide { get; set; }
-        /// <summary>
-        /// 战斗开始时间
-        /// </summary>
         [ProtoMember(7)]
         public uint StartTime { get; set; }
-        /// <summary>
-        /// 战斗GID
-        /// </summary>
         [ProtoMember(8)]
         public ulong BattleGID { get; set; }
-        /// <summary>
-        /// 是否多人开始战斗
-        /// </summary>
         [ProtoMember(9)]
         public byte MultiPlayerBattle { get; set; }
-        /// <summary>
-        /// 队长ID
-        /// </summary>
         [ProtoMember(10)]
         public ulong CaptainPlayerId { get; set; }
-        /// <summary>
-        /// 进入关卡的玩家数据
-        /// </summary>
         [ProtoMember(11)]
         public List<CSLevelPlayerData> PlayerDataList { get; set; } = new List<CSLevelPlayerData>();
-        /// <summary>
-        /// 章节ID
-        /// </summary>
         [ProtoMember(12)]
         public CSChapterInfo Chapter { get; set; }
-        /// <summary>
-        /// 当前stage
-        /// </summary>
         [ProtoMember(13)]
         public int Stage { get; set; }
         [ProtoMember(14)]
         public int MapID { get; set; }
     }
-    /// <summary>
-    /// 章节信息
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSChapterInfo : AMessage, IMessage
@@ -968,20 +922,11 @@ namespace Fantasy
             MessageObjectPool<CSChapterInfo>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.CSChapterInfo; } 
-        /// <summary>
-        /// 章节ID
-        /// </summary>
         [ProtoMember(1)]
         public int ChapterID { get; set; }
-        /// <summary>
-        /// 难度
-        /// </summary>
         [ProtoMember(2)]
         public int Difficult { get; set; }
     }
-    /// <summary>
-    /// 服务器同步帧数据
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class S2C_BroadcastFrameData : AMessage, IMessage
@@ -1027,30 +972,15 @@ namespace Fantasy
             MessageObjectPool<S2C_BroadcastFrameData>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.S2C_BroadcastFrameData; } 
-        /// <summary>
-        /// 房间信息
-        /// </summary>
         [ProtoMember(1)]
         public CSRoomInfo RoomInfo { get; set; }
-        /// <summary>
-        /// 服务器帧ID
-        /// </summary>
         [ProtoMember(2)]
         public int SveFrameId { get; set; }
-        /// <summary>
-        /// 帧数量（最多十帧）
-        /// </summary>
         [ProtoMember(3)]
         public int FrameCount { get; set; }
-        /// <summary>
-        /// 帧数据列表
-        /// </summary>
         [ProtoMember(4)]
         public List<CSSyncOneFrameData> FrameDataList { get; set; } = new List<CSSyncOneFrameData>();
     }
-    /// <summary>
-    /// 进入关卡的玩家数据
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSLevelPlayerData : AMessage, IDisposable
@@ -1097,20 +1027,11 @@ namespace Fantasy
             }
             MessageObjectPool<CSLevelPlayerData>.Return(this);
         }
-        /// <summary>
-        /// 局内表现相关数据,与战斗无关
-        /// </summary>
         [ProtoMember(1)]
         public CSMiniRoleBaseShowData PlayerShowData { get; set; }
-        /// <summary>
-        /// 战斗相关数据
-        /// </summary>
         [ProtoMember(2)]
         public CSBattlePlayerData PlayerBattleData { get; set; }
     }
-    /// <summary>
-    /// 标识玩家的基础显示数据
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSMiniRoleBaseShowData : AMessage, IDisposable
@@ -1159,70 +1080,31 @@ namespace Fantasy
             HeadFrame = default;
             MessageObjectPool<CSMiniRoleBaseShowData>.Return(this);
         }
-        /// <summary>
-        /// Uin
-        /// </summary>
         [ProtoMember(1)]
         public uint Uin { get; set; }
-        /// <summary>
-        /// RoleID
-        /// </summary>
         [ProtoMember(2)]
         public ulong RoleID { get; set; }
-        /// <summary>
-        /// 服ID
-        /// </summary>
         [ProtoMember(3)]
         public uint WorldID { get; set; }
-        /// <summary>
-        /// 在线状态
-        /// </summary>
         [ProtoMember(4)]
         public byte Online { get; set; }
-        /// <summary>
-        /// 战力
-        /// </summary>
         [ProtoMember(5)]
         public ulong FightVal { get; set; }
-        /// <summary>
-        /// Vip等级
-        /// </summary>
         [ProtoMember(6)]
         public uint VIPLevel { get; set; }
-        /// <summary>
-        /// 角色名称
-        /// </summary>
         [ProtoMember(7)]
         public string RoleName { get; set; }
-        /// <summary>
-        /// 性别
-        /// </summary>
         [ProtoMember(8)]
         public byte Sex { get; set; }
-        /// <summary>
-        /// 头像
-        /// </summary>
         [ProtoMember(9)]
         public uint Head { get; set; }
-        /// <summary>
-        /// 头像性别
-        /// </summary>
         [ProtoMember(10)]
         public byte HeadSex { get; set; }
-        /// <summary>
-        /// 头像URL
-        /// </summary>
         [ProtoMember(11)]
         public string HeadURL { get; set; }
-        /// <summary>
-        /// 头像框ID
-        /// </summary>
         [ProtoMember(12)]
         public uint HeadFrame { get; set; }
     }
-    /// <summary>
-    /// 开始一场战斗里玩家的数据
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSBattlePlayerData : AMessage, IDisposable
@@ -1270,25 +1152,13 @@ namespace Fantasy
             }
             MessageObjectPool<CSBattlePlayerData>.Return(this);
         }
-        /// <summary>
-        /// RoleID
-        /// </summary>
         [ProtoMember(1)]
         public ulong RoleID { get; set; }
-        /// <summary>
-        /// 玩家外围基础数据
-        /// </summary>
         [ProtoMember(2)]
         public CSBattlePlayerBaseData PlayerBaseData { get; set; }
-        /// <summary>
-        /// 玩家动态数据
-        /// </summary>
         [ProtoMember(3)]
         public CSLevelUnitRunData PlayerRunData { get; set; }
     }
-    /// <summary>
-    /// 玩家动态数据
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSLevelUnitRunData : AMessage, IDisposable
@@ -1329,30 +1199,15 @@ namespace Fantasy
             Gold = default;
             MessageObjectPool<CSLevelUnitRunData>.Return(this);
         }
-        /// <summary>
-        /// 玩家当前血量
-        /// </summary>
         [ProtoMember(1)]
         public int Hp { get; set; }
-        /// <summary>
-        /// 等级
-        /// </summary>
         [ProtoMember(2)]
         public int Level { get; set; }
-        /// <summary>
-        /// 经验
-        /// </summary>
         [ProtoMember(3)]
         public int Exp { get; set; }
-        /// <summary>
-        /// 金币
-        /// </summary>
         [ProtoMember(4)]
         public int Gold { get; set; }
     }
-    /// <summary>
-    /// 玩家与战斗关联的外围系统数据
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSBattlePlayerBaseData : AMessage, IDisposable
@@ -1400,45 +1255,21 @@ namespace Fantasy
             }
             MessageObjectPool<CSBattlePlayerBaseData>.Return(this);
         }
-        /// <summary>
-        /// 玩家等级
-        /// </summary>
         [ProtoMember(1)]
         public int PlayerLevel { get; set; }
-        /// <summary>
-        /// 体型
-        /// </summary>
         [ProtoMember(2)]
         public byte BodyType { get; set; }
-        /// <summary>
-        /// 时装ID
-        /// </summary>
         [ProtoMember(3)]
         public uint FashionID { get; set; }
-        /// <summary>
-        /// 武器时装ID
-        /// </summary>
         [ProtoMember(4)]
         public uint WeaponFashionID { get; set; }
-        /// <summary>
-        /// 创角天数
-        /// </summary>
         [ProtoMember(5)]
         public int CreateRoleDays { get; set; }
-        /// <summary>
-        /// 累计失败次数
-        /// </summary>
         [ProtoMember(6)]
         public int FailureCount { get; set; }
-        /// <summary>
-        /// 属性数据
-        /// </summary>
         [ProtoMember(7)]
         public CSUnitBattleAttrData AttrData { get; set; }
     }
-    /// <summary>
-    /// 玩家战斗属性数据
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSUnitBattleAttrData : AMessage, IDisposable
@@ -1479,30 +1310,15 @@ namespace Fantasy
             MoveSpeed = default;
             MessageObjectPool<CSUnitBattleAttrData>.Return(this);
         }
-        /// <summary>
-        /// 攻击
-        /// </summary>
         [ProtoMember(1)]
         public int Atk { get; set; }
-        /// <summary>
-        /// 生命
-        /// </summary>
         [ProtoMember(2)]
         public int Hp { get; set; }
-        /// <summary>
-        /// 最大生命
-        /// </summary>
         [ProtoMember(3)]
         public int MaxHp { get; set; }
-        /// <summary>
-        /// 移动速度
-        /// </summary>
         [ProtoMember(4)]
         public int MoveSpeed { get; set; }
     }
-    /// <summary>
-    /// 房间信息
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSRoomInfo : AMessage, IDisposable
@@ -1539,16 +1355,16 @@ namespace Fantasy
             if (!IsPool()) return; 
             RoomId = default;
             RoomSeq = default;
+            CaptainRoleId = default;
             MessageObjectPool<CSRoomInfo>.Return(this);
         }
         [ProtoMember(1)]
         public int RoomId { get; set; }
         [ProtoMember(2)]
         public int RoomSeq { get; set; }
+        [ProtoMember(3)]
+        public ulong CaptainRoleId { get; set; }
     }
-    /// <summary>
-    /// 房间玩家信息
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSRoomPlayerInfo : AMessage, IDisposable
@@ -1589,30 +1405,15 @@ namespace Fantasy
             FightValue = default;
             MessageObjectPool<CSRoomPlayerInfo>.Return(this);
         }
-        /// <summary>
-        /// 角色ID
-        /// </summary>
         [ProtoMember(1)]
         public ulong RoleId { get; set; }
-        /// <summary>
-        /// 角色名称
-        /// </summary>
         [ProtoMember(2)]
         public string RoleName { get; set; }
-        /// <summary>
-        /// 等级
-        /// </summary>
         [ProtoMember(3)]
         public uint Level { get; set; }
-        /// <summary>
-        /// 战斗力
-        /// </summary>
         [ProtoMember(4)]
         public uint FightValue { get; set; }
     }
-    /// <summary>
-    /// 单帧数据
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSSyncOneFrameData : AMessage, IDisposable
@@ -1653,30 +1454,15 @@ namespace Fantasy
             PlayerFrameData.Clear();
             MessageObjectPool<CSSyncOneFrameData>.Return(this);
         }
-        /// <summary>
-        /// 帧ID
-        /// </summary>
         [ProtoMember(1)]
         public int FrameId { get; set; }
-        /// <summary>
-        /// 加速倍率
-        /// </summary>
         [ProtoMember(2)]
         public int SpeedUp { get; set; }
-        /// <summary>
-        /// 玩家数量
-        /// </summary>
         [ProtoMember(3)]
         public int PlayerCount { get; set; }
-        /// <summary>
-        /// 每个玩家的操作数据
-        /// </summary>
         [ProtoMember(4)]
         public List<CSOnePlayerFrameCmd> PlayerFrameData { get; set; } = new List<CSOnePlayerFrameCmd>();
     }
-    /// <summary>
-    /// 单玩家帧操作数据
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSOnePlayerFrameCmd : AMessage, IDisposable
@@ -1716,25 +1502,13 @@ namespace Fantasy
             FrameDataList.Clear();
             MessageObjectPool<CSOnePlayerFrameCmd>.Return(this);
         }
-        /// <summary>
-        /// 玩家ID
-        /// </summary>
         [ProtoMember(1)]
         public int PlayerId { get; set; }
-        /// <summary>
-        /// 命令数量
-        /// </summary>
         [ProtoMember(2)]
         public int FrameCmdCount { get; set; }
-        /// <summary>
-        /// 命令列表
-        /// </summary>
         [ProtoMember(3)]
         public List<CSFrameCmd> FrameDataList { get; set; } = new List<CSFrameCmd>();
     }
-    /// <summary>
-    /// 帧命令
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSFrameCmd : AMessage, IDisposable
@@ -1777,20 +1551,11 @@ namespace Fantasy
             }
             MessageObjectPool<CSFrameCmd>.Return(this);
         }
-        /// <summary>
-        /// 命令类型
-        /// </summary>
         [ProtoMember(1)]
         public byte Type { get; set; }
-        /// <summary>
-        /// 命令数据
-        /// </summary>
         [ProtoMember(2)]
         public CSFrameData Data { get; set; }
     }
-    /// <summary>
-    /// 帧命令
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSFrameData : AMessage, IDisposable
@@ -1835,9 +1600,6 @@ namespace Fantasy
         [ProtoMember(1)]
         public CSFrameCmdGmInfo Gm { get; set; }
     }
-    /// <summary>
-    /// GM命令
-    /// </summary>
     [Serializable]
     [ProtoContract]
     public partial class CSFrameCmdGmInfo : AMessage, IDisposable

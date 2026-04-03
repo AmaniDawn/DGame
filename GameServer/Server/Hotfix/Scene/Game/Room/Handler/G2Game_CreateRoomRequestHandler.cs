@@ -6,9 +6,6 @@ using Fantasy.Network.Interface;
 
 namespace Hotfix;
 
-/// <summary>
-/// 处理 Gate 转发到 GameScene 的创建房间请求。
-/// </summary>
 public sealed class G2Game_CreateRoomRequestHandler : AddressRPC<Scene, G2Game_CreateRoomRequest, G2Game_CreateRoomResponse>
 {
     protected override async FTask Run(Scene entity, G2Game_CreateRoomRequest request, G2Game_CreateRoomResponse response, Action reply)
@@ -26,6 +23,8 @@ public sealed class G2Game_CreateRoomRequestHandler : AddressRPC<Scene, G2Game_C
             response.ErrorCode = ErrorCode.ROOM_CREATE_FAILED;
             return;
         }
+
+        roomComponent.CaptainRoleId = request.RoleId;
 
         var playerInfo = request.ToRoomPlayerInfo();
         playerInfo.JoinTime = TimeHelper.Now;

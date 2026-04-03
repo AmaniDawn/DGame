@@ -64,6 +64,7 @@ public sealed class C2G_JoinRoomRequestHandler : MessageRPC<C2G_JoinRoomRequest,
         {
             RoomId = joinRoomResponse.RoomId,
             RoomSeq = joinRoomResponse.RoomSeq,
+            CaptainRoleId = (ulong)joinRoomResponse.CaptainRoleId,
         };
         response.PlayerCount = joinRoomResponse.PlayerCount;
         response.PlayerInfos = joinRoomResponse.PlayerInfos.ToCSRoomPlayerInfos();

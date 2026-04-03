@@ -57,7 +57,10 @@ public static class RoomRuntimeHelper
     public static void AddOrUpdatePlayer(this RoomComponent roomComponent, RoomPlayerInfo playerInfo)
     {
         ArgumentNullException.ThrowIfNull(playerInfo);
+        playerInfo.IsBattleReady = false;
+        playerInfo.IsBattleLoaded = false;
         roomComponent.PlayerInfos[playerInfo.RoleId] = playerInfo;
+        roomComponent.ClearBattleProgress();
         roomComponent.SyncFramePlayerCount();
     }
 

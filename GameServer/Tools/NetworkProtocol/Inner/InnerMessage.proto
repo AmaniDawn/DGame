@@ -1,93 +1,107 @@
 syntax = "proto3";
 package Sining.Message;
 
-// 协议分为:
-// ProtoBuf:可以在Outer和Inner文件里使用。
-// MemoryPack:可以在Outer和Inner文件里使用。
-
-// 目前工具支持以下几种特殊用法:
-// 在message协议上方添加// Protocol+空格+协议名字
-// 例如: // Protocol ProtoBuf 或 // Protocol MemoryPack
-
-// 分别代表使用Protobuf序列化或使用MemoryPack序列化
-// 通过添加 // using 导出时添加自定义命名空间
-// 例如: // using System.Runtime // using System.Reflection
-
-/// Gate 请求 Game 创建房间
 message G2Game_CreateRoomRequest // IAddressRequest,G2Game_CreateRoomResponse
 {
-    long RoleId = 1; /// 角色ID
-    long AccountId = 2; /// 账号ID
-    int ServerId = 3; /// 服务器ID
-    long SessionRuntimeId = 4; /// Session运行时ID
-    string RoleName = 5; /// 角色名称
-    int HeadId = 6; /// 头像ID
-    byte Sex = 7; /// 性别
-    uint Level = 8; /// 等级
-    uint FightValue = 9; /// 战斗力
-    int PlayerCount = 10; /// 房间最大玩家数量
+    long RoleId = 1;
+    long AccountId = 2;
+    int ServerId = 3;
+    long SessionRuntimeId = 4;
+    string RoleName = 5;
+    int HeadId = 6;
+    byte Sex = 7;
+    uint Level = 8;
+    uint FightValue = 9;
+    int PlayerCount = 10;
 }
 
-/// Game 创建房间返回
 message G2Game_CreateRoomResponse // IAddressResponse
 {
-    int RoomId = 1; /// 房间ID
-    int RoomSeq = 2; /// 房间序号
-    int PlayerCount = 3; /// 当前房间玩家数量
-    repeated InnerRoomPlayerInfo PlayerInfos = 4; /// 当前房间玩家列表
+    int RoomId = 1;
+    int RoomSeq = 2;
+    int PlayerCount = 3;
+    repeated InnerRoomPlayerInfo PlayerInfos = 4;
+    long CaptainRoleId = 5;
 }
 
-/// Gate 请求 Game 加入房间
 message G2Game_JoinRoomRequest // IAddressRequest,G2Game_JoinRoomResponse
 {
-    int RoomId = 1; /// 房间ID
-    long RoleId = 2; /// 角色ID
-    long AccountId = 3; /// 账号ID
-    int ServerId = 4; /// 服务器ID
-    long SessionRuntimeId = 5; /// Session运行时ID
-    string RoleName = 6; /// 角色名称
-    int HeadId = 7; /// 头像ID
-    byte Sex = 8; /// 性别
-    uint Level = 9; /// 等级
-    uint FightValue = 10; /// 战斗力
+    int RoomId = 1;
+    long RoleId = 2;
+    long AccountId = 3;
+    int ServerId = 4;
+    long SessionRuntimeId = 5;
+    string RoleName = 6;
+    int HeadId = 7;
+    byte Sex = 8;
+    uint Level = 9;
+    uint FightValue = 10;
 }
 
-/// Game 加入房间返回
 message G2Game_JoinRoomResponse // IAddressResponse
 {
-    int RoomId = 1; /// 房间ID
-    int RoomSeq = 2; /// 房间序号
-    int PlayerCount = 3; /// 当前房间玩家数量
-    repeated InnerRoomPlayerInfo PlayerInfos = 4; /// 当前房间玩家列表
+    int RoomId = 1;
+    int RoomSeq = 2;
+    int PlayerCount = 3;
+    repeated InnerRoomPlayerInfo PlayerInfos = 4;
+    long CaptainRoleId = 5;
 }
 
-/// Gate 请求 Game 离开房间
 message G2Game_LeaveRoomRequest // IAddressRequest,G2Game_LeaveRoomResponse
 {
-    int RoomId = 1; /// 房间ID
-    long RoleId = 2; /// 角色ID
+    int RoomId = 1;
+    long RoleId = 2;
 }
 
-/// Game 离开房间返回
 message G2Game_LeaveRoomResponse // IAddressResponse
 {
 }
 
-/// Game 通知 Gate 推送房间成员变化
-message G2Gate_RoomPlayerInfoChangedMessage // IAddressMessage
+message G2Game_StartBattleRequest // IAddressRequest,G2Game_StartBattleResponse
 {
-    repeated long SessionRuntimeIds = 1; /// 要通知的会话列表
-    int RoomId = 2; /// 房间ID
-    int RoomSeq = 3; /// 房间序号
-    int PlayerCount = 4; /// 当前房间玩家数量
-    repeated InnerRoomPlayerInfo PlayerInfos = 5; /// 当前房间玩家列表
+    int RoomId = 1;
+    long RoleId = 2;
 }
 
-/// 房间玩家快照
+message G2Game_BattleLoadDoneRequest // IAddressRequest,G2Game_StartBattleResponse
+{
+    int RoomId = 1;
+    long RoleId = 2;
+}
+
+message G2Game_StartBattleResponse // IAddressResponse
+{
+    repeated long SessionRuntimeIds = 1;
+    int RoomId = 2;
+    int RoomSeq = 3;
+    int RandSeed = 4;
+    int PlayerCount = 5;
+    int BattleStatus = 6;
+    byte IsGuide = 7;
+    uint StartTime = 8;
+    ulong BattleGID = 9;
+    byte MultiPlayerBattle = 10;
+    ulong CaptainPlayerId = 11;
+    repeated CSLevelPlayerData PlayerDataList = 12;
+    CSChapterInfo Chapter = 13;
+    int Stage = 14;
+    int MapID = 15;
+}
+
+message G2Gate_RoomPlayerInfoChangedMessage // IAddressMessage
+{
+    repeated long SessionRuntimeIds = 1;
+    int RoomId = 2;
+    int RoomSeq = 3;
+    int PlayerCount = 4;
+    repeated InnerRoomPlayerInfo PlayerInfos = 5;
+    long CaptainRoleId = 6;
+}
+
 message InnerRoomPlayerInfo
 {
-    long RoleId = 1; /// 角色ID
-    string RoleName = 2; /// 角色名称
-    uint Level = 3; /// 等级
-    uint FightValue = 4; /// 战斗力
+    long RoleId = 1;
+    string RoleName = 2;
+    uint Level = 3;
+    uint FightValue = 4;
 }

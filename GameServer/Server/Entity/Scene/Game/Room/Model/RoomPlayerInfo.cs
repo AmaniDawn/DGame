@@ -54,4 +54,11 @@ public sealed class RoomPlayerInfo
     /// 加入房间时间。
     /// </summary>
     public long JoinTime { get; set; }
+
+    /// <summary>
+    /// 玩家是否已完成开始战斗准备。
+    /// </summary>
+    public bool IsBattleReady { get; set; }
+
+    public bool IsBattleLoaded { get; set; }
 }
