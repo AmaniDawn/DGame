@@ -405,36 +405,142 @@ namespace Fantasy
             RandSeed = default;
             PlayerCount = default;
             IsHaveRoomInfo = default;
-            RoomInfoList.Clear();
+            if (RoomInfoList != null)
+            {
+                RoomInfoList.Dispose();
+                RoomInfoList = null;
+            }
             BattleStatus = default;
             IsGuide = default;
             StartTime = default;
             BattleGID = default;
             MultiPlayerBattle = default;
             CaptainPlayerId = default;
+            PlayerDataList.Clear();
+            if (Chapter != null)
+            {
+                Chapter.Dispose();
+                Chapter = null;
+            }
+            Stage = default;
+            MapID = default;
             MessageObjectPool<S2C_NotifyEnterBattle>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.S2C_NotifyEnterBattle; } 
+        /// <summary>
+        /// 随机种子
+        /// </summary>
         [ProtoMember(1)]
         public int RandSeed { get; set; }
+        /// <summary>
+        /// 玩家个数
+        /// </summary>
         [ProtoMember(2)]
         public int PlayerCount { get; set; }
+        /// <summary>
+        /// 是否有房间信息
+        /// </summary>
         [ProtoMember(3)]
         public byte IsHaveRoomInfo { get; set; }
+        /// <summary>
+        /// 房间数据信息
+        /// </summary>
         [ProtoMember(4)]
-        public List<CSRoomInfo> RoomInfoList { get; set; } = new List<CSRoomInfo>();
+        public CSRoomInfo RoomInfoList { get; set; }
+        /// <summary>
+        /// 战斗状态
+        /// </summary>
         [ProtoMember(5)]
         public int BattleStatus { get; set; }
+        /// <summary>
+        /// 是否有新手引导
+        /// </summary>
         [ProtoMember(6)]
         public byte IsGuide { get; set; }
+        /// <summary>
+        /// 战斗开始时间
+        /// </summary>
         [ProtoMember(7)]
         public uint StartTime { get; set; }
+        /// <summary>
+        /// 战斗GID
+        /// </summary>
         [ProtoMember(8)]
         public ulong BattleGID { get; set; }
+        /// <summary>
+        /// 是否多人开始战斗
+        /// </summary>
         [ProtoMember(9)]
         public byte MultiPlayerBattle { get; set; }
+        /// <summary>
+        /// 队长ID
+        /// </summary>
         [ProtoMember(10)]
         public ulong CaptainPlayerId { get; set; }
+        /// <summary>
+        /// 进入关卡的玩家数据
+        /// </summary>
+        [ProtoMember(11)]
+        public List<CSLevelPlayerData> PlayerDataList { get; set; } = new List<CSLevelPlayerData>();
+        /// <summary>
+        /// 章节ID
+        /// </summary>
+        [ProtoMember(12)]
+        public CSChapterInfo Chapter { get; set; }
+        /// <summary>
+        /// 当前stage
+        /// </summary>
+        [ProtoMember(13)]
+        public int Stage { get; set; }
+        [ProtoMember(14)]
+        public int MapID { get; set; }
+    }
+    /// <summary>
+    /// 章节信息
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class CSChapterInfo : AMessage, IMessage
+    {
+        public static CSChapterInfo Create(bool autoReturn = true)
+        {
+            var cSChapterInfo = MessageObjectPool<CSChapterInfo>.Rent();
+            cSChapterInfo.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                cSChapterInfo.SetIsPool(false);
+            }
+            
+            return cSChapterInfo;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            ChapterID = default;
+            Difficult = default;
+            MessageObjectPool<CSChapterInfo>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.CSChapterInfo; } 
+        [ProtoMember(1)]
+        public int ChapterID { get; set; }
+        [ProtoMember(2)]
+        public int Difficult { get; set; }
     }
     /// <summary>
     /// 服务器同步帧数据
@@ -492,6 +598,446 @@ namespace Fantasy
         public int FrameCount { get; set; }
         [ProtoMember(4)]
         public List<CSSyncOneFrameData> FrameDataList { get; set; } = new List<CSSyncOneFrameData>();
+    }
+    /// <summary>
+    /// 进入关卡的玩家数据
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class CSLevelPlayerData : AMessage, IDisposable
+    {
+        public static CSLevelPlayerData Create(bool autoReturn = true)
+        {
+            var cSLevelPlayerData = MessageObjectPool<CSLevelPlayerData>.Rent();
+            cSLevelPlayerData.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                cSLevelPlayerData.SetIsPool(false);
+            }
+            
+            return cSLevelPlayerData;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            if (PlayerShowData != null)
+            {
+                PlayerShowData.Dispose();
+                PlayerShowData = null;
+            }
+            if (PlayerBattleData != null)
+            {
+                PlayerBattleData.Dispose();
+                PlayerBattleData = null;
+            }
+            MessageObjectPool<CSLevelPlayerData>.Return(this);
+        }
+        /// <summary>
+        /// 局内表现相关数据,与战斗无关
+        /// </summary>
+        [ProtoMember(1)]
+        public CSMiniRoleBaseShowData PlayerShowData { get; set; }
+        /// <summary>
+        /// 战斗相关数据
+        /// </summary>
+        [ProtoMember(2)]
+        public CSBattlePlayerData PlayerBattleData { get; set; }
+    }
+    /// <summary>
+    /// 标识玩家的基础显示数据
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class CSMiniRoleBaseShowData : AMessage, IDisposable
+    {
+        public static CSMiniRoleBaseShowData Create(bool autoReturn = true)
+        {
+            var cSMiniRoleBaseShowData = MessageObjectPool<CSMiniRoleBaseShowData>.Rent();
+            cSMiniRoleBaseShowData.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                cSMiniRoleBaseShowData.SetIsPool(false);
+            }
+            
+            return cSMiniRoleBaseShowData;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            Uin = default;
+            RoleID = default;
+            WorldID = default;
+            Online = default;
+            FightVal = default;
+            VIPLevel = default;
+            RoleName = default;
+            Sex = default;
+            Head = default;
+            HeadSex = default;
+            HeadURL = default;
+            HeadFrame = default;
+            MessageObjectPool<CSMiniRoleBaseShowData>.Return(this);
+        }
+        /// <summary>
+        /// Uin
+        /// </summary>
+        [ProtoMember(1)]
+        public uint Uin { get; set; }
+        /// <summary>
+        /// RoleID
+        /// </summary>
+        [ProtoMember(2)]
+        public ulong RoleID { get; set; }
+        /// <summary>
+        /// 服ID
+        /// </summary>
+        [ProtoMember(3)]
+        public uint WorldID { get; set; }
+        /// <summary>
+        /// 在线状态
+        /// </summary>
+        [ProtoMember(4)]
+        public byte Online { get; set; }
+        /// <summary>
+        /// 战力
+        /// </summary>
+        [ProtoMember(5)]
+        public ulong FightVal { get; set; }
+        /// <summary>
+        /// Vip等级
+        /// </summary>
+        [ProtoMember(6)]
+        public uint VIPLevel { get; set; }
+        /// <summary>
+        /// 角色名称
+        /// </summary>
+        [ProtoMember(7)]
+        public string RoleName { get; set; }
+        /// <summary>
+        /// 性别
+        /// </summary>
+        [ProtoMember(8)]
+        public byte Sex { get; set; }
+        /// <summary>
+        /// 头像
+        /// </summary>
+        [ProtoMember(9)]
+        public uint Head { get; set; }
+        /// <summary>
+        /// 头像性别
+        /// </summary>
+        [ProtoMember(10)]
+        public byte HeadSex { get; set; }
+        /// <summary>
+        /// 头像URL
+        /// </summary>
+        [ProtoMember(11)]
+        public string HeadURL { get; set; }
+        /// <summary>
+        /// 头像框ID
+        /// </summary>
+        [ProtoMember(12)]
+        public uint HeadFrame { get; set; }
+    }
+    /// <summary>
+    /// 开始一场战斗里玩家的数据
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class CSBattlePlayerData : AMessage, IDisposable
+    {
+        public static CSBattlePlayerData Create(bool autoReturn = true)
+        {
+            var cSBattlePlayerData = MessageObjectPool<CSBattlePlayerData>.Rent();
+            cSBattlePlayerData.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                cSBattlePlayerData.SetIsPool(false);
+            }
+            
+            return cSBattlePlayerData;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            RoleID = default;
+            if (PlayerBaseData != null)
+            {
+                PlayerBaseData.Dispose();
+                PlayerBaseData = null;
+            }
+            if (PlayerRunData != null)
+            {
+                PlayerRunData.Dispose();
+                PlayerRunData = null;
+            }
+            MessageObjectPool<CSBattlePlayerData>.Return(this);
+        }
+        /// <summary>
+        /// RoleID
+        /// </summary>
+        [ProtoMember(1)]
+        public ulong RoleID { get; set; }
+        /// <summary>
+        /// 玩家外围基础数据
+        /// </summary>
+        [ProtoMember(2)]
+        public CSBattlePlayerBaseData PlayerBaseData { get; set; }
+        /// <summary>
+        /// 玩家动态数据
+        /// </summary>
+        [ProtoMember(3)]
+        public CSLevelUnitRunData PlayerRunData { get; set; }
+    }
+    /// <summary>
+    /// 玩家动态数据
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class CSLevelUnitRunData : AMessage, IDisposable
+    {
+        public static CSLevelUnitRunData Create(bool autoReturn = true)
+        {
+            var cSLevelUnitRunData = MessageObjectPool<CSLevelUnitRunData>.Rent();
+            cSLevelUnitRunData.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                cSLevelUnitRunData.SetIsPool(false);
+            }
+            
+            return cSLevelUnitRunData;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            Hp = default;
+            Level = default;
+            Exp = default;
+            Gold = default;
+            MessageObjectPool<CSLevelUnitRunData>.Return(this);
+        }
+        /// <summary>
+        /// 玩家当前血量
+        /// </summary>
+        [ProtoMember(1)]
+        public int Hp { get; set; }
+        /// <summary>
+        /// 等级
+        /// </summary>
+        [ProtoMember(2)]
+        public int Level { get; set; }
+        /// <summary>
+        /// 经验
+        /// </summary>
+        [ProtoMember(3)]
+        public int Exp { get; set; }
+        /// <summary>
+        /// 金币
+        /// </summary>
+        [ProtoMember(4)]
+        public int Gold { get; set; }
+    }
+    /// <summary>
+    /// 玩家与战斗关联的外围系统数据
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class CSBattlePlayerBaseData : AMessage, IDisposable
+    {
+        public static CSBattlePlayerBaseData Create(bool autoReturn = true)
+        {
+            var cSBattlePlayerBaseData = MessageObjectPool<CSBattlePlayerBaseData>.Rent();
+            cSBattlePlayerBaseData.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                cSBattlePlayerBaseData.SetIsPool(false);
+            }
+            
+            return cSBattlePlayerBaseData;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            PlayerLevel = default;
+            BodyType = default;
+            FashionID = default;
+            WeaponFashionID = default;
+            CreateRoleDays = default;
+            FailureCount = default;
+            if (AttrData != null)
+            {
+                AttrData.Dispose();
+                AttrData = null;
+            }
+            MessageObjectPool<CSBattlePlayerBaseData>.Return(this);
+        }
+        /// <summary>
+        /// 玩家等级
+        /// </summary>
+        [ProtoMember(1)]
+        public int PlayerLevel { get; set; }
+        /// <summary>
+        /// 体型
+        /// </summary>
+        [ProtoMember(2)]
+        public byte BodyType { get; set; }
+        /// <summary>
+        /// 时装ID
+        /// </summary>
+        [ProtoMember(3)]
+        public uint FashionID { get; set; }
+        /// <summary>
+        /// 武器时装ID
+        /// </summary>
+        [ProtoMember(4)]
+        public uint WeaponFashionID { get; set; }
+        /// <summary>
+        /// 创角天数
+        /// </summary>
+        [ProtoMember(5)]
+        public int CreateRoleDays { get; set; }
+        /// <summary>
+        /// 累计失败次数
+        /// </summary>
+        [ProtoMember(6)]
+        public int FailureCount { get; set; }
+        /// <summary>
+        /// 属性数据
+        /// </summary>
+        [ProtoMember(7)]
+        public CSUnitBattleAttrData AttrData { get; set; }
+    }
+    /// <summary>
+    /// 玩家战斗属性数据
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class CSUnitBattleAttrData : AMessage, IDisposable
+    {
+        public static CSUnitBattleAttrData Create(bool autoReturn = true)
+        {
+            var cSUnitBattleAttrData = MessageObjectPool<CSUnitBattleAttrData>.Rent();
+            cSUnitBattleAttrData.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                cSUnitBattleAttrData.SetIsPool(false);
+            }
+            
+            return cSUnitBattleAttrData;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            Atk = default;
+            Hp = default;
+            MaxHp = default;
+            MoveSpeed = default;
+            MessageObjectPool<CSUnitBattleAttrData>.Return(this);
+        }
+        [ProtoMember(1)]
+        public int Atk { get; set; }
+        [ProtoMember(2)]
+        public int Hp { get; set; }
+        [ProtoMember(3)]
+        public int MaxHp { get; set; }
+        [ProtoMember(4)]
+        public int MoveSpeed { get; set; }
     }
     /// <summary>
     /// 房间信息

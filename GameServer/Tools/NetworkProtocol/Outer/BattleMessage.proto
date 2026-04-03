@@ -66,16 +66,28 @@ message S2C_StartBattleResponse // IResponse
 /// 服务器通知进入战斗
 message S2C_NotifyEnterBattle // IMessage
 {
-	int RandSeed = 1; // 随机种子
-	int PlayerCount = 2; // 玩家个数
-	byte IsHaveRoomInfo = 3; // 是否有房间信息
-	repeated CSRoomInfo RoomInfoList = 4; // 房间数据信息
-	int BattleStatus = 5; // 战斗状态
-	byte IsGuide = 6; // 是否有新手引导
-	uint StartTime = 7; // 战斗开始时间
-	ulong BattleGID = 8; // 战斗GID
-	byte MultiPlayerBattle = 9; // 是否多人开始战斗
-	ulong CaptainPlayerId = 10; // 队长ID
+	int RandSeed = 1; /// 随机种子
+	int PlayerCount = 2; /// 玩家个数
+	byte IsHaveRoomInfo = 3; /// 是否有房间信息
+	CSRoomInfo RoomInfoList = 4; /// 房间数据信息
+	int BattleStatus = 5; /// 战斗状态
+	byte IsGuide = 6; /// 是否有新手引导
+	uint StartTime = 7; /// 战斗开始时间
+	ulong BattleGID = 8; /// 战斗GID
+	byte MultiPlayerBattle = 9; /// 是否多人开始战斗
+	ulong CaptainPlayerId = 10; /// 队长ID
+    repeated CSLevelPlayerData PlayerDataList = 11; /// 进入关卡的玩家数据
+    CSChapterInfo Chapter = 12; ///章节ID
+    int Stage = 13; ///当前stage
+    int MapID = 14; //地图ID
+}
+
+
+/// 章节信息
+message CSChapterInfo // IMessage
+{
+  int ChapterID = 1; // 章节ID
+  int Difficult = 2; // 难度
 }
 
 /// 服务器同步帧数据
@@ -85,6 +97,68 @@ message S2C_BroadcastFrameData // IMessage
 	int SveFrameId = 2; // 服务器帧ID
 	int FrameCount = 3; // 帧数量（最多十帧）
 	repeated CSSyncOneFrameData FrameDataList = 4; //帧数据列表
+}
+
+/// 进入关卡的玩家数据
+message CSLevelPlayerData
+{
+  CSMiniRoleBaseShowData PlayerShowData = 1; ///局内表现相关数据,与战斗无关
+  CSBattlePlayerData PlayerBattleData = 2; ///战斗相关数据
+}
+
+/// 标识玩家的基础显示数据
+message CSMiniRoleBaseShowData
+{
+  uint Uin = 1; ///Uin
+  ulong RoleID = 2; ///RoleID
+  uint WorldID = 3; ///服ID
+  byte Online = 4; ///在线状态
+  ulong FightVal = 5; ///战力
+  uint VIPLevel = 6; ///Vip等级
+  string RoleName = 7; ///角色名称
+  byte Sex = 8; ///性别
+  uint Head = 9; ///头像
+  byte HeadSex = 10; ///头像性别
+  string HeadURL = 11; ///头像URL
+  uint HeadFrame = 12; ///头像框ID
+}
+
+/// 开始一场战斗里玩家的数据
+message CSBattlePlayerData
+{
+  ulong RoleID = 1; ///RoleID
+  CSBattlePlayerBaseData PlayerBaseData = 2; ///玩家外围基础数据
+  CSLevelUnitRunData PlayerRunData = 3; ///玩家动态数据
+}
+
+/// 玩家动态数据
+message CSLevelUnitRunData
+{
+  int Hp = 1; ///玩家当前血量
+  int Level = 2; ///等级
+  int Exp = 3; ///经验
+  int Gold = 4; ///金币
+}
+
+/// 玩家与战斗关联的外围系统数据
+message CSBattlePlayerBaseData
+{
+  int PlayerLevel = 1; ///玩家等级
+  byte BodyType = 2; ///体型
+  uint FashionID = 3; ///时装ID
+  uint WeaponFashionID = 4; ///武器时装ID
+  int CreateRoleDays = 5; ///创角天数
+  int FailureCount = 6; ///累计失败次数
+  CSUnitBattleAttrData AttrData = 7; ///属性数据
+}
+
+/// 玩家战斗属性数据
+message CSUnitBattleAttrData
+{
+  int Atk = 1; //攻击
+  int Hp = 2; //生命
+  int MaxHp = 3; //最大生命
+  int MoveSpeed = 4; //移动速度
 }
 
 /// 房间信息

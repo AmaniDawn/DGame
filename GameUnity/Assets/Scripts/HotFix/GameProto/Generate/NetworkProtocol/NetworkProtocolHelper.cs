@@ -54,7 +54,7 @@ namespace Fantasy
 			session.Send(S2C_NotifyEnterBattle_message);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
-		public static void S2C_NotifyEnterBattle(this Session session, int randSeed, int playerCount, byte isHaveRoomInfo, List<CSRoomInfo> roomInfoList, int battleStatus, byte isGuide, uint startTime, ulong battleGID, byte multiPlayerBattle, ulong captainPlayerId)
+		public static void S2C_NotifyEnterBattle(this Session session, int randSeed, int playerCount, byte isHaveRoomInfo, CSRoomInfo roomInfoList, int battleStatus, byte isGuide, uint startTime, ulong battleGID, byte multiPlayerBattle, ulong captainPlayerId, List<CSLevelPlayerData> playerDataList, CSChapterInfo chapter, int stage, int mapID)
 		{
 			using var S2C_NotifyEnterBattle_message = Fantasy.S2C_NotifyEnterBattle.Create();
 			S2C_NotifyEnterBattle_message.RandSeed = randSeed;
@@ -67,7 +67,24 @@ namespace Fantasy
 			S2C_NotifyEnterBattle_message.BattleGID = battleGID;
 			S2C_NotifyEnterBattle_message.MultiPlayerBattle = multiPlayerBattle;
 			S2C_NotifyEnterBattle_message.CaptainPlayerId = captainPlayerId;
+			S2C_NotifyEnterBattle_message.PlayerDataList = playerDataList;
+			S2C_NotifyEnterBattle_message.Chapter = chapter;
+			S2C_NotifyEnterBattle_message.Stage = stage;
+			S2C_NotifyEnterBattle_message.MapID = mapID;
 			session.Send(S2C_NotifyEnterBattle_message);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void CSChapterInfo(this Session session, CSChapterInfo CSChapterInfo_message)
+		{
+			session.Send(CSChapterInfo_message);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void CSChapterInfo(this Session session, int chapterID, int difficult)
+		{
+			using var CSChapterInfo_message = Fantasy.CSChapterInfo.Create();
+			CSChapterInfo_message.ChapterID = chapterID;
+			CSChapterInfo_message.Difficult = difficult;
+			session.Send(CSChapterInfo_message);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void S2C_BroadcastFrameData(this Session session, S2C_BroadcastFrameData S2C_BroadcastFrameData_message)
