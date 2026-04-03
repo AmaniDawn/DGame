@@ -95,11 +95,12 @@ public partial class {{__name}}
     public System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<{{declaring_type_name value_type}}>> _groupedDataMap;
     public static System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<{{declaring_type_name value_type}}>> GroupedDataMap => Instance._groupedDataMap;
 
-    public System.Collections.Generic.List<{{declaring_type_name value_type}}> GetListBy{{__table.tags.group_by}}(int groupID)
-        => _groupedDataMap.TryGetValue(groupID, out var list) ? list : null;
+    public static System.Collections.Generic.List<{{declaring_type_name value_type}}> GetListBy{{__table.tags.group_by}}(int groupID)
+        => Instance._groupedDataMap.TryGetValue(groupID, out var list) ? list : null;
 
     #endregion
     {{~ end ~}}
+
     public void ResolveRef({{__manager_name}} tables)
     {
         {{~if is_bean_need_resolve_ref value_type ~}}
