@@ -1,3 +1,4 @@
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using GameBattle;
 using GameProto;
@@ -9,10 +10,13 @@ namespace GameLogic
     /// </summary>
     public sealed class PlayerRender : RenderUnit
     {
-        protected override bool OnInit(LogicUnit logicUnit)
+        /// <summary>
+        /// 主显示初始化完成后刷新武器模型。
+        /// </summary>
+        /// <param name="ct">初始化取消令牌。</param>
+        protected override async UniTask OnDisplayReadyAsync(CancellationToken ct)
         {
-            UnitDisplay.RefreshWeaponModelAsync(GetWeaponModelID()).Forget();
-            return base.OnInit(logicUnit);
+            await UnitDisplay.RefreshWeaponModelAsync(GetWeaponModelID(), ct);
         }
 
         /// <summary>

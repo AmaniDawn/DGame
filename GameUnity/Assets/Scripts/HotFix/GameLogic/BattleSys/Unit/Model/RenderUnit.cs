@@ -1,4 +1,6 @@
+using System;
 using System.Threading;
+using Cysharp.Threading.Tasks;
 using Fantasy.Entitas;
 using GameBattle;
 using UnityEngine;
@@ -7,6 +9,37 @@ using UnityEngine;
 
 namespace GameLogic
 {
+    /// <summary>
+    /// 渲染显示初始化状态。
+    /// </summary>
+    public enum RenderDisplayInitState
+    {
+        /// <summary>
+        /// 尚未开始初始化。
+        /// </summary>
+        None = 0,
+
+        /// <summary>
+        /// 显示初始化中。
+        /// </summary>
+        Loading = 1,
+
+        /// <summary>
+        /// 显示已初始化完成。
+        /// </summary>
+        Ready = 2,
+
+        /// <summary>
+        /// 显示初始化失败。
+        /// </summary>
+        Failed = 3,
+
+        /// <summary>
+        /// 显示初始化被取消。
+        /// </summary>
+        Canceled = 4,
+    }
+
     /// <summary>
     /// 渲染层单位基类。
     /// </summary>
@@ -102,6 +135,16 @@ namespace GameLogic
         /// <returns>默认返回 <see langword="false"/>。</returns>
         public virtual bool IsBoss() => false;
 
+        /// <summary>
+        /// 当前显示初始化状态。
+        /// </summary>
+        public RenderDisplayInitState DisplayInitState { get; private set; }
+
+        /// <summary>
+        /// 当前显示是否已经初始化完成。
+        /// </summary>
+        public bool IsDisplayReady => DisplayInitState == RenderDisplayInitState.Ready;
+
         private CancellationTokenSource m_initModelCancelTokenSource;
 
         #endregion
@@ -115,6 +158,7 @@ namespace GameLogic
         /// <returns>初始化成功时返回 <see langword="true"/>。</returns>
         public bool Init(LogicUnit logicUnit)
         {
+            CancelInitModel();
             m_initModelCancelTokenSource = new CancellationTokenSource();
             UnitID = logicUnit.UnitID;
             LogicUnit = logicUnit;
@@ -122,6 +166,7 @@ namespace GameLogic
             UnitName = logicUnit.UnitName;
             Visible = true;
             IsDestroyed = false;
+            DisplayInitState = RenderDisplayInitState.None;
             InitModel(CreateGameObject());
             UnitEventHub = AddComponent<UnitEventHubComponent>();
             StateSyncVersion = AddComponent<UnitStateSyncVersionComponent>();
@@ -142,8 +187,9 @@ namespace GameLogic
                 return false;
             }
 
+            RegisterRuntimeEvents();
             BattleSystem.Instance.RenderUnits.Register(this);
-            UnitDisplay.InitAsync(m_initModelCancelTokenSource.Token).Forget();
+            StartDisplayInit();
             return true;
         }
 
@@ -177,12 +223,99 @@ namespace GameLogic
         public void Awake()
         {
             OnAwake();
-            RegisterEvent();
         }
 
         protected virtual void OnAwake() { }
 
-        protected virtual void RegisterEvent() { }
+        /// <summary>
+        /// 注册渲染单位运行时事件。
+        /// </summary>
+        protected virtual void RegisterRuntimeEvents() { }
+
+        /// <summary>
+        /// 显示初始化完成后的异步扩展点。
+        /// </summary>
+        /// <param name="ct">初始化取消令牌。</param>
+        protected virtual UniTask OnDisplayReadyAsync(CancellationToken ct) => UniTask.CompletedTask;
+
+        /// <summary>
+        /// 显示初始化失败后的扩展点。
+        /// </summary>
+        protected virtual void OnDisplayInitFailed() { }
+
+        /// <summary>
+        /// 显示初始化被取消后的扩展点。
+        /// </summary>
+        protected virtual void OnDisplayInitCanceled() { }
+
+        /// <summary>
+        /// 启动显示初始化流程。
+        /// </summary>
+        private void StartDisplayInit()
+        {
+            var ct = m_initModelCancelTokenSource != null
+                ? m_initModelCancelTokenSource.Token
+                : CancellationToken.None;
+            InitDisplayAsync(ct).Forget();
+        }
+
+        /// <summary>
+        /// 异步初始化显示层资源。
+        /// </summary>
+        /// <param name="ct">初始化取消令牌。</param>
+        private async UniTaskVoid InitDisplayAsync(CancellationToken ct)
+        {
+            if (UnitDisplay == null)
+            {
+                DisplayInitState = RenderDisplayInitState.Failed;
+                OnDisplayInitFailed();
+                return;
+            }
+
+            DisplayInitState = RenderDisplayInitState.Loading;
+
+            try
+            {
+                if (!await UnitDisplay.InitAsync(this, ct))
+                {
+                    DisplayInitState = RenderDisplayInitState.Failed;
+                    OnDisplayInitFailed();
+                    return;
+                }
+
+                await OnDisplayReadyAsync(ct);
+
+                if (IsDisposed || IsDestroyed)
+                {
+                    return;
+                }
+
+                DisplayInitState = RenderDisplayInitState.Ready;
+            }
+            catch (OperationCanceledException)
+            {
+                if (IsDisposed || IsDestroyed)
+                {
+                    return;
+                }
+
+                DisplayInitState = RenderDisplayInitState.Canceled;
+                UnitDisplay?.Clear();
+                OnDisplayInitCanceled();
+            }
+            catch (Exception e)
+            {
+                if (IsDisposed || IsDestroyed)
+                {
+                    return;
+                }
+
+                Debug.LogError($"RenderUnit display init failed: {e}");
+                DisplayInitState = RenderDisplayInitState.Failed;
+                UnitDisplay?.Clear();
+                OnDisplayInitFailed();
+            }
+        }
 
         #endregion
 
@@ -219,6 +352,7 @@ namespace GameLogic
             UnitType = UnitType.None;
             Visible = true;
             WaitDestroyTime = 0;
+            DisplayInitState = RenderDisplayInitState.None;
         }
 
         private void CancelInitModel()
@@ -232,7 +366,7 @@ namespace GameLogic
         {
             if (UnitRoot != null)
             {
-                Object.Destroy(UnitRoot);
+                UnityEngine.Object.Destroy(UnitRoot);
                 UnitRoot = null;
                 UnitRootTransform = null;
             }

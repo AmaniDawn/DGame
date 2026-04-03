@@ -31,44 +31,37 @@ namespace GameLogic
         /// 初始化显示组件，并在渲染单位根节点下创建 DisplayRoot。
         /// </summary>
         /// <param name="self">单位显示组件。</param>
+        /// <param name="ownerUnit">渲染单位。</param>
         /// <param name="ct">模型初始化的取消令牌。</param>
-        public static async UniTaskVoid InitAsync(this UnitDisplayComponent self, CancellationToken ct = default)
+        /// <returns>主显示初始化成功返回 <see langword="true"/>。</returns>
+        public static async UniTask<bool> InitAsync(this UnitDisplayComponent self, RenderUnit ownerUnit, CancellationToken ct = default)
         {
-            try
+            self.OwnerUnit = ownerUnit;
+            if (self.OwnerUnit == null || self.OwnerUnit.UnitRootTransform == null)
             {
-                self.OwnerUnit = self.Parent as RenderUnit;
-                if (self.OwnerUnit == null || self.OwnerUnit.UnitRootTransform == null)
-                {
-                    return;
-                }
-
-                if (self.DisplayRoot == null)
-                {
-                    self.DisplayRoot = new GameObject(UnitHelper.DisplayRootName);
-                }
-
-                var displayTransform = self.DisplayRoot.transform;
-                displayTransform.SetParent(self.OwnerUnit.UnitRootTransform, false);
-                displayTransform.ResetLocalPosScaleRot();
-                self.SubscribeRenderScoped<UnitModelCreatedEvent>(self.OnUnitModelCreated);
-                self.ApplySorting();
-
-                self.UnitModel ??= new UnitModel(self);
-                var isSuccess = await self.RefreshMainModelAsync(self.OwnerUnit.GetModelID(), ct);
-                if (!isSuccess)
-                {
-                    self.Clear();
-                }
+                return false;
             }
-            catch (OperationCanceledException)
+
+            if (self.DisplayRoot == null)
+            {
+                self.DisplayRoot = new GameObject(UnitHelper.DisplayRootName);
+            }
+
+            var displayTransform = self.DisplayRoot.transform;
+            displayTransform.SetParent(self.OwnerUnit.UnitRootTransform, false);
+            displayTransform.ResetLocalPosScaleRot();
+            self.SubscribeRenderScoped<UnitModelCreatedEvent>(self.OnUnitModelCreated);
+            self.ApplySorting();
+
+            self.UnitModel ??= new UnitModel(self);
+            var isSuccess = await self.RefreshMainModelAsync(self.OwnerUnit.GetModelID(), ct);
+            if (!isSuccess)
             {
                 self.Clear();
+                return false;
             }
-            catch (Exception e)
-            {
-                DLogger.Error($"UnitDisplayComponent init failed: {e}");
-                self.Clear();
-            }
+
+            return true;
         }
 
         /// <summary>
