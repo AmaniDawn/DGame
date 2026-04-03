@@ -333,6 +333,27 @@ namespace GameProto
             }
         }
         /// <summary>
+        /// 角色模型配对表
+        /// </summary>
+        private TbPlayerModelPairConfig m_TbPlayerModelPairConfig;
+        public TbPlayerModelPairConfig TbPlayerModelPairConfig 
+        {
+            get
+            {
+                if (m_TbPlayerModelPairConfig == null)
+                {
+                    m_TbPlayerModelPairConfig = new TbPlayerModelPairConfig(m_defaultLoader("tbplayermodelpairconfig"));
+                    m_TbPlayerModelPairConfig.ResolveRef(this);
+                }
+                return m_TbPlayerModelPairConfig;
+            }
+            set
+            {
+                m_TbPlayerModelPairConfig = value;
+                m_TbPlayerModelPairConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
         /// 服务器配置表
         /// </summary>
         private TbServerConfig m_TbServerConfig;
@@ -469,6 +490,7 @@ namespace GameProto
             m_TbMonsterConfig = null;
             m_TbMapConfig = null;
             m_TbPathConfig = null;
+            m_TbPlayerModelPairConfig = null;
             m_TbServerConfig = null;
             m_TbServerStateConfig = null;
             m_TbActivityOpenConfig = null;

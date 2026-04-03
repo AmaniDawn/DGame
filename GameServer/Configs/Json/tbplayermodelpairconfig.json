@@ -1,0 +1,62 @@
+[
+  {
+    "RoleBodyType": 1,
+    "ClothID": 11000,
+    "ModelID": 11000
+  },
+  {
+    "RoleBodyType": 1,
+    "ClothID": 71001,
+    "ModelID": 11001
+  },
+  {
+    "RoleBodyType": 1,
+    "ClothID": 71002,
+    "ModelID": 11002
+  },
+  {
+    "RoleBodyType": 1,
+    "ClothID": 71003,
+    "ModelID": 11003
+  },
+  {
+    "RoleBodyType": 1,
+    "ClothID": 71004,
+    "ModelID": 11004
+  },
+  {
+    "RoleBodyType": 1,
+    "ClothID": 71005,
+    "ModelID": 11005
+  },
+  {
+    "RoleBodyType": 2,
+    "ClothID": 11000,
+    "ModelID": 21000
+  },
+  {
+    "RoleBodyType": 2,
+    "ClothID": 71001,
+    "ModelID": 21001
+  },
+  {
+    "RoleBodyType": 2,
+    "ClothID": 71002,
+    "ModelID": 21002
+  },
+  {
+    "RoleBodyType": 2,
+    "ClothID": 71003,
+    "ModelID": 21003
+  },
+  {
+    "RoleBodyType": 2,
+    "ClothID": 71004,
+    "ModelID": 21004
+  },
+  {
+    "RoleBodyType": 2,
+    "ClothID": 71005,
+    "ModelID": 21005
+  }
+]

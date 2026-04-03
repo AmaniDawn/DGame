@@ -7,23 +7,23 @@ namespace GameLogic
     {
         #region 地图配置表
 
-        public MapConfig GetModelOrDefault(int modelID) => TbMapConfig.GetOrDefault(modelID);
+        public MapConfig GetMapConfigOrDefault(int mapID) => TbMapConfig.GetOrDefault(mapID);
 
-        public bool TryGetModelCfg(int modelID, out MapConfig cfg) => TbMapConfig.TryGetValue(modelID, out cfg);
+        public bool TryGetMapConfig(int mapID, out MapConfig cfg) => TbMapConfig.TryGetValue(mapID, out cfg);
 
-        public bool ContainsModelId(int modelID) => TbMapConfig.ContainsKey(modelID);
+        public bool ContainsMapId(int mapID) => TbMapConfig.ContainsKey(mapID);
 
         #endregion
 
         #region 路径配置表
 
-        public PathConfig GetPathModelOrDefault(int modelID) => TbPathConfig.GetOrDefault(modelID);
+        public PathConfig GetPathConfigOrDefault(int pathID) => TbPathConfig.GetOrDefault(pathID);
 
-        public bool TryGetPathModelCfg(int modelID, out PathConfig cfg) => TbPathConfig.TryGetValue(modelID, out cfg);
+        public bool TryGetPathConfig(int pathID, out PathConfig cfg) => TbPathConfig.TryGetValue(pathID, out cfg);
 
-        public bool ContainsPathModelId(int modelID) => TbPathConfig.ContainsKey(modelID);
+        public bool ContainsPathId(int pathID) => TbPathConfig.ContainsKey(pathID);
 
-        public List<PathConfig> GetListByGroupID(int groupID) => TbPathConfig.GetListByGroupID(groupID);
+        public List<PathConfig> GetPathCfgListByGroupID(int groupID) => TbPathConfig.GetListByGroupID(groupID);
 
         #endregion
     }

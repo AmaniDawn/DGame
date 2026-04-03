@@ -119,6 +119,10 @@ namespace GameBattle
         /// </summary>
         public bool IsDied => IsDestroyed || UnitState == UnitState.Die;
 
+        public LogicUnitCreateData CreateData { get; private set; }
+
+        public LogicUnitGeometryData GeometryData { get; private set; }
+
         #region 初始化
 
         internal bool ApplyCreateData(LogicUnitCreateData createData, LogicUnitGeometryData geometryData)
@@ -127,7 +131,8 @@ namespace GameBattle
             {
                 return false;
             }
-
+            CreateData = createData;
+            GeometryData = geometryData;
             UnitType = createData.UnitType;
             UnitName = createData.UnitName;
             OwnerUnitID = createData.OwnerUnitId;

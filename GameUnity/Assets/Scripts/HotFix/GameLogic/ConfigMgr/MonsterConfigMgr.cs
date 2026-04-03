@@ -4,10 +4,10 @@ namespace GameLogic
 {
     public class MonsterConfigMgr : Singleton<MonsterConfigMgr>
     {
-        public MonsterConfig GetModelOrDefault(int modelID) => TbMonsterConfig.GetOrDefault(modelID);
+        public MonsterConfig GetOrDefault(int monsterID) => TbMonsterConfig.GetOrDefault(monsterID);
 
-        public bool TryGetModelCfg(int modelID, out MonsterConfig cfg) => TbMonsterConfig.TryGetValue(modelID, out cfg);
+        public bool TryGetMonsterConfig(int monsterID, out MonsterConfig cfg) => TbMonsterConfig.TryGetValue(monsterID, out cfg);
 
-        public bool ContainsModelId(int modelID) => TbMonsterConfig.ContainsKey(modelID);
+        public bool ContainsMonsterId(int monsterID) => TbMonsterConfig.ContainsKey(monsterID);
     }
 }
