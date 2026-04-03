@@ -33,6 +33,10 @@ public sealed class OnSceneCreate_Init : AsyncEventSystem<OnCreateScene>
                 // 添加账号数据管理组件
                 scene.AddComponent<PlayerManagerComponent>();
                 break;
+            case SceneType.Game:
+                // Game 场景挂房间管理组件。
+                scene.AddComponent<RoomManagerComponent>();
+                break;
         }
 
         await FTask.CompletedTask;

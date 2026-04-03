@@ -19,4 +19,9 @@ public static class CoroutineLockType
     /// 角色名生成/创建协程锁类型
     /// </summary>
     public const long PlayerRoleNameLock = 3;
+
+    /// <summary>
+    /// 房间创建协程锁类型
+    /// </summary>
+    public const long RoomCreateLock = 4;
 }
