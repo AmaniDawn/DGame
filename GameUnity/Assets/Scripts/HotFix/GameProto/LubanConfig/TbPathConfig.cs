@@ -25,12 +25,20 @@ public partial class TbPathConfig
         int n = _buf.ReadSize();
         _dataMap = new System.Collections.Generic.Dictionary<int, PathConfig>(n);
         _dataList = new System.Collections.Generic.List<PathConfig>(n);
+        _groupedDataMap = new System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<PathConfig>>();
         for(int i = n ; i > 0 ; --i)
         {
             PathConfig _v;
             _v = global::GameProto.PathConfig.DeserializePathConfig(_buf);
             _dataList.Add(_v);
             _dataMap.Add(_v.ID, _v);
+            int gid = _v.GroupID;
+            if (!_groupedDataMap.TryGetValue(gid, out var list))
+            {
+                list = new System.Collections.Generic.List<PathConfig>();
+                _groupedDataMap[gid] = list;
+            }
+            list.Add(_v);
         }
     }
 
@@ -53,6 +61,16 @@ public partial class TbPathConfig
     public PathConfig Get(int key) => _dataMap[key];
     public PathConfig this[int key] => _dataMap[key];
 
+    #region GroupId 生成按组分配的字典数据
+
+    public System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<PathConfig>> _groupedDataMap;
+    public static System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<PathConfig>> GroupedDataMap => Instance._groupedDataMap;
+
+    public static System.Collections.Generic.List<PathConfig> GetListByGroupID(int groupID)
+        => Instance._groupedDataMap.TryGetValue(groupID, out var list) ? list : null;
+
+    #endregion
+    
     public void ResolveRef(Tables tables)
     {
         foreach(var _v in _dataList)
