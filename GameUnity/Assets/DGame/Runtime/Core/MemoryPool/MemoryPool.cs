@@ -111,7 +111,7 @@ namespace DGame
         {
             if (memory == null)
             {
-                DLogger.Warning("内存对象类型无效");
+                // DLogger.Warning("内存对象类型无效");
                 return;
             }
 
