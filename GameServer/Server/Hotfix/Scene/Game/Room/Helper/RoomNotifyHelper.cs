@@ -25,7 +25,7 @@ public static class RoomNotifyHelper
         var roomPlayerInfos = players.Select(static player => player.ToInnerRoomPlayerInfo()).ToList();
         foreach (var player in players)
         {
-            if (player.SessionRuntimeId <= 0)
+            if (player.SessionRuntimeId == 0)
             {
                 continue;
             }
