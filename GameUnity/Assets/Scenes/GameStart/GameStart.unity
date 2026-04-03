@@ -259,11 +259,6 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!20 &1145363996 stripped
-Camera:
-  m_CorrespondingSourceObject: {fileID: 3662584843330752890, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
-  m_PrefabInstance: {fileID: 3662584843660349293}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &3662584843660349293
 PrefabInstance:
   m_ObjectHideFlags: 0
@@ -272,34 +267,30 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 0}
     m_Modifications:
-    - target: {fileID: 1082004401330594309, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
+    - target: {fileID: 2496608731308305960, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: _scale.x._serializedValue
-      value: 32196160
+      value: 4294967296
       objectReference: {fileID: 0}
-    - target: {fileID: 1082004401330594309, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
+    - target: {fileID: 2496608731308305960, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: _scale.y._serializedValue
-      value: 32196160
+      value: 4294967296
       objectReference: {fileID: 0}
-    - target: {fileID: 1082004401330594309, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
+    - target: {fileID: 2496608731308305960, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: _scale.z._serializedValue
-      value: 32196160
+      value: 4294967296
       objectReference: {fileID: 0}
-    - target: {fileID: 1082004401330594309, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
+    - target: {fileID: 2496608731308305960, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: _position.x._serializedValue
-      value: 0
+      value: 1610612736000
       objectReference: {fileID: 0}
-    - target: {fileID: 1082004401330594309, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
+    - target: {fileID: 2496608731308305960, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: _position.y._serializedValue
+      value: 2864743186432
+      objectReference: {fileID: 0}
+    - target: {fileID: 2496608731308305960, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
+      propertyPath: _position.z._serializedValue
       value: 0
       objectReference: {fileID: 0}
-    - target: {fileID: 1082004401330594309, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
-      propertyPath: _position.z._serializedValue
-      value: 429496729600
-      objectReference: {fileID: 0}
-    - target: {fileID: 3662584844970858470, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
-      propertyPath: m_Camera
-      value: 
-      objectReference: {fileID: 1145363996}
     - target: {fileID: 3662584845349564628, guid: 3983b8718d4c6cf4bae119ef45daef58, type: 3}
       propertyPath: m_LocalPosition.x
       value: 0
