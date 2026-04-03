@@ -12,4 +12,9 @@
     <ProjectReference Include="..\Entity\Entity.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Folder Include="Scene\Game\FrameSync\Handler\" />
+    <Folder Include="Scene\Game\FrameSync\Helper\" />
+  </ItemGroup>
+
 </Project>

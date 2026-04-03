@@ -146,14 +146,29 @@ namespace Fantasy
             MessageObjectPool<C2S_SyncFrameDataReq>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.C2S_SyncFrameDataReq; } 
+        /// <summary>
+        /// 客户端预测帧ID
+        /// </summary>
         [ProtoMember(1)]
         public int ForecastFrameId { get; set; }
+        /// <summary>
+        /// 接收到的客户端帧ID
+        /// </summary>
         [ProtoMember(2)]
         public int RevClientFrameId { get; set; }
+        /// <summary>
+        /// 房间信息
+        /// </summary>
         [ProtoMember(3)]
         public CSRoomInfo RoomInfo { get; set; }
+        /// <summary>
+        /// 房间玩家ID
+        /// </summary>
         [ProtoMember(4)]
         public int RoomPlayerId { get; set; }
+        /// <summary>
+        /// 帧数据
+        /// </summary>
         [ProtoMember(5)]
         public CSOnePlayerFrameCmd FrameData { get; set; }
     }
@@ -203,8 +218,14 @@ namespace Fantasy
             MessageObjectPool<S2C_BattleFinClientDataReq>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.S2C_BattleFinClientDataReq; } 
+        /// <summary>
+        /// 关卡的初始化数据，用于和服务器校验
+        /// </summary>
         [ProtoMember(1)]
         public CSBattleStartParam StartParam { get; set; }
+        /// <summary>
+        /// 持续时间
+        /// </summary>
         [ProtoMember(2)]
         public uint DurationTime { get; set; }
     }
@@ -257,24 +278,54 @@ namespace Fantasy
             LastOnlyBattleTime = default;
             MessageObjectPool<CSBattleStartParam>.Return(this);
         }
+        /// <summary>
+        /// 随机种子
+        /// </summary>
         [ProtoMember(1)]
         public int RandSeed { get; set; }
+        /// <summary>
+        /// 模拟帧率
+        /// </summary>
         [ProtoMember(2)]
         public int Fps { get; set; }
+        /// <summary>
+        /// 玩家个数
+        /// </summary>
         [ProtoMember(3)]
         public int PlayerCount { get; set; }
+        /// <summary>
+        /// 战斗状态
+        /// </summary>
         [ProtoMember(4)]
         public int BattleStatus { get; set; }
+        /// <summary>
+        /// 是否有新手引导
+        /// </summary>
         [ProtoMember(5)]
         public byte IsGuide { get; set; }
+        /// <summary>
+        /// 战斗开始时间
+        /// </summary>
         [ProtoMember(6)]
         public uint StartTime { get; set; }
+        /// <summary>
+        /// 战斗GID
+        /// </summary>
         [ProtoMember(7)]
         public ulong BattleGID { get; set; }
+        /// <summary>
+        /// 是否多人开始战斗
+        /// </summary>
         [ProtoMember(8)]
         public byte MultiPlayerBattle { get; set; }
+        /// <summary>
+        /// 队长ID
+        /// </summary>
         [ProtoMember(9)]
         public ulong CaptainPlayerId { get; set; }
+        /// <summary>
+        /// 剩余战斗时间
+        /// </summary>
         [ProtoMember(10)]
         public uint LastOnlyBattleTime { get; set; }
     }
@@ -537,8 +588,14 @@ namespace Fantasy
             MessageObjectPool<CSChapterInfo>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.CSChapterInfo; } 
+        /// <summary>
+        /// 章节ID
+        /// </summary>
         [ProtoMember(1)]
         public int ChapterID { get; set; }
+        /// <summary>
+        /// 难度
+        /// </summary>
         [ProtoMember(2)]
         public int Difficult { get; set; }
     }
@@ -590,12 +647,24 @@ namespace Fantasy
             MessageObjectPool<S2C_BroadcastFrameData>.Return(this);
         }
         public uint OpCode() { return OuterOpcode.S2C_BroadcastFrameData; } 
+        /// <summary>
+        /// 房间信息
+        /// </summary>
         [ProtoMember(1)]
         public CSRoomInfo RoomInfo { get; set; }
+        /// <summary>
+        /// 服务器帧ID
+        /// </summary>
         [ProtoMember(2)]
         public int SveFrameId { get; set; }
+        /// <summary>
+        /// 帧数量（最多十帧）
+        /// </summary>
         [ProtoMember(3)]
         public int FrameCount { get; set; }
+        /// <summary>
+        /// 帧数据列表
+        /// </summary>
         [ProtoMember(4)]
         public List<CSSyncOneFrameData> FrameDataList { get; set; } = new List<CSSyncOneFrameData>();
     }
@@ -1030,12 +1099,24 @@ namespace Fantasy
             MoveSpeed = default;
             MessageObjectPool<CSUnitBattleAttrData>.Return(this);
         }
+        /// <summary>
+        /// 攻击
+        /// </summary>
         [ProtoMember(1)]
         public int Atk { get; set; }
+        /// <summary>
+        /// 生命
+        /// </summary>
         [ProtoMember(2)]
         public int Hp { get; set; }
+        /// <summary>
+        /// 最大生命
+        /// </summary>
         [ProtoMember(3)]
         public int MaxHp { get; set; }
+        /// <summary>
+        /// 移动速度
+        /// </summary>
         [ProtoMember(4)]
         public int MoveSpeed { get; set; }
     }
@@ -1128,12 +1209,24 @@ namespace Fantasy
             PlayerFrameData.Clear();
             MessageObjectPool<CSSyncOneFrameData>.Return(this);
         }
+        /// <summary>
+        /// 帧ID
+        /// </summary>
         [ProtoMember(1)]
         public int FrameId { get; set; }
+        /// <summary>
+        /// 加速倍率
+        /// </summary>
         [ProtoMember(2)]
         public int SpeedUp { get; set; }
+        /// <summary>
+        /// 玩家数量
+        /// </summary>
         [ProtoMember(3)]
         public int PlayerCount { get; set; }
+        /// <summary>
+        /// 每个玩家的操作数据
+        /// </summary>
         [ProtoMember(4)]
         public List<CSOnePlayerFrameCmd> PlayerFrameData { get; set; } = new List<CSOnePlayerFrameCmd>();
     }
@@ -1179,10 +1272,19 @@ namespace Fantasy
             FrameDataList.Clear();
             MessageObjectPool<CSOnePlayerFrameCmd>.Return(this);
         }
+        /// <summary>
+        /// 玩家ID
+        /// </summary>
         [ProtoMember(1)]
         public int PlayerId { get; set; }
+        /// <summary>
+        /// 命令数量
+        /// </summary>
         [ProtoMember(2)]
         public int FrameCmdCount { get; set; }
+        /// <summary>
+        /// 命令列表
+        /// </summary>
         [ProtoMember(3)]
         public List<CSFrameCmd> FrameDataList { get; set; } = new List<CSFrameCmd>();
     }
@@ -1231,8 +1333,14 @@ namespace Fantasy
             }
             MessageObjectPool<CSFrameCmd>.Return(this);
         }
+        /// <summary>
+        /// 命令类型
+        /// </summary>
         [ProtoMember(1)]
         public byte Type { get; set; }
+        /// <summary>
+        /// 命令数据
+        /// </summary>
         [ProtoMember(2)]
         public CSFrameData Data { get; set; }
     }
