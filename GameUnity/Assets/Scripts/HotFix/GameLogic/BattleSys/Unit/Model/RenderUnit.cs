@@ -297,6 +297,10 @@ namespace GameLogic
 
         public abstract int GetModelID();
 
+        public uint GetConfigId() => LogicUnit?.ConfigID ?? 0;
+
+        public ulong GetOwnerUnitId() => LogicUnit?.OwnerUnitID ?? 0;
+
         protected void InitModel(GameObject root)
         {
             UnitRoot = root;

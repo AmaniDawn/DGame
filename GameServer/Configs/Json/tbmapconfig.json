@@ -1,0 +1,20 @@
+[
+  {
+    "MapID": 10011,
+    "MapResPath": "Battleground/Bkg_1_1_nongchang",
+    "GridResPath": "",
+    "GridIcon": "",
+    "BornPosEffID": 0,
+    "WaveTipPos": {
+      "X": 0,
+      "Y": 4.35
+    },
+    "BattleCenter": {
+      "X": 0,
+      "Y": 0
+    },
+    "PathList": [
+      1001100
+    ]
+  }
+]

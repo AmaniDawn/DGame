@@ -103,7 +103,7 @@ public sealed partial class ChapterConfig : Luban.BeanBase
     /// </summary>
     public string IconName;
     /// <summary>
-    /// 章节模型ID
+    /// 章节模型
     /// </summary>
     public string ModelPath;
     /// <summary>

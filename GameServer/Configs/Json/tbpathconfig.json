@@ -1,0 +1,341 @@
+[
+  {
+    "ID": 1001100,
+    "GroupID": 100110,
+    "MonsterPos": {
+      "X": 2.8,
+      "Y": 4.1
+    },
+    "MonsterFlagPos": {
+      "X": 2.8,
+      "Y": 4.4
+    },
+    "PortalPos": {
+      "X": 2.8,
+      "Y": 4.4
+    },
+    "WaveArrowPos": {
+      "X": 1.8,
+      "Y": 4.4
+    },
+    "WaveArrowRot": 90,
+    "MaxRadius": 0,
+    "PathCnt": 3,
+    "PathList": [
+      {
+        "X": -2.65,
+        "Y": 4.1
+      },
+      {
+        "X": -2.65,
+        "Y": -3.45
+      },
+      {
+        "X": 2.8,
+        "Y": -3.45
+      }
+    ],
+    "NextID": 0,
+    "PrevID": 0
+  },
+  {
+    "ID": 1001101,
+    "GroupID": 100110,
+    "MonsterPos": {
+      "X": 2.8,
+      "Y": 4.1
+    },
+    "MonsterFlagPos": {
+      "X": 2.8,
+      "Y": 4.4
+    },
+    "PortalPos": {
+      "X": 2.8,
+      "Y": 4.4
+    },
+    "WaveArrowPos": {
+      "X": 1.8,
+      "Y": 4.4
+    },
+    "WaveArrowRot": 90,
+    "MaxRadius": 0.1,
+    "PathCnt": 3,
+    "PathList": [
+      {
+        "X": -2.65,
+        "Y": 4.1
+      },
+      {
+        "X": -2.65,
+        "Y": -3.45
+      },
+      {
+        "X": 2.8,
+        "Y": -3.45
+      }
+    ],
+    "NextID": 0,
+    "PrevID": 0
+  },
+  {
+    "ID": 1001102,
+    "GroupID": 100110,
+    "MonsterPos": {
+      "X": 2.8,
+      "Y": 4.1
+    },
+    "MonsterFlagPos": {
+      "X": 2.8,
+      "Y": 4.4
+    },
+    "PortalPos": {
+      "X": 2.8,
+      "Y": 4.4
+    },
+    "WaveArrowPos": {
+      "X": 1.8,
+      "Y": 4.4
+    },
+    "WaveArrowRot": 90,
+    "MaxRadius": 0,
+    "PathCnt": 3,
+    "PathList": [
+      {
+        "X": -2.65,
+        "Y": 4.1
+      },
+      {
+        "X": -2.65,
+        "Y": -3.45
+      },
+      {
+        "X": 2.8,
+        "Y": -3.45
+      }
+    ],
+    "NextID": 0,
+    "PrevID": 0
+  },
+  {
+    "ID": 1001200,
+    "GroupID": 100120,
+    "MonsterPos": {
+      "X": 2.8,
+      "Y": 4.1
+    },
+    "MonsterFlagPos": {
+      "X": 2.8,
+      "Y": 4.4
+    },
+    "PortalPos": {
+      "X": 2.8,
+      "Y": 4.4
+    },
+    "WaveArrowPos": {
+      "X": 1.8,
+      "Y": 4.4
+    },
+    "WaveArrowRot": 90,
+    "MaxRadius": 0,
+    "PathCnt": 3,
+    "PathList": [
+      {
+        "X": -2.65,
+        "Y": 4.1
+      },
+      {
+        "X": -2.65,
+        "Y": -3.45
+      },
+      {
+        "X": 2.8,
+        "Y": -3.45
+      }
+    ],
+    "NextID": 0,
+    "PrevID": 0
+  },
+  {
+    "ID": 1001201,
+    "GroupID": 100120,
+    "MonsterPos": {
+      "X": 2.8,
+      "Y": 4.1
+    },
+    "MonsterFlagPos": {
+      "X": 2.8,
+      "Y": 4.4
+    },
+    "PortalPos": {
+      "X": 2.8,
+      "Y": 4.4
+    },
+    "WaveArrowPos": {
+      "X": 1.8,
+      "Y": 4.4
+    },
+    "WaveArrowRot": 90,
+    "MaxRadius": 0.1,
+    "PathCnt": 3,
+    "PathList": [
+      {
+        "X": -2.65,
+        "Y": 4.1
+      },
+      {
+        "X": -2.65,
+        "Y": -3.45
+      },
+      {
+        "X": 2.8,
+        "Y": -3.45
+      }
+    ],
+    "NextID": 0,
+    "PrevID": 0
+  },
+  {
+    "ID": 1001202,
+    "GroupID": 100120,
+    "MonsterPos": {
+      "X": 2.8,
+      "Y": 4.1
+    },
+    "MonsterFlagPos": {
+      "X": 2.8,
+      "Y": 4.4
+    },
+    "PortalPos": {
+      "X": 2.8,
+      "Y": 4.4
+    },
+    "WaveArrowPos": {
+      "X": 1.8,
+      "Y": 4.4
+    },
+    "WaveArrowRot": 90,
+    "MaxRadius": 0,
+    "PathCnt": 3,
+    "PathList": [
+      {
+        "X": -2.65,
+        "Y": 4.1
+      },
+      {
+        "X": -2.65,
+        "Y": -3.45
+      },
+      {
+        "X": 2.8,
+        "Y": -3.45
+      }
+    ],
+    "NextID": 0,
+    "PrevID": 0
+  },
+  {
+    "ID": 1001210,
+    "GroupID": 100121,
+    "MonsterPos": {
+      "X": -2.65,
+      "Y": 5.1
+    },
+    "MonsterFlagPos": {
+      "X": -2.65,
+      "Y": 5.1
+    },
+    "PortalPos": {
+      "X": -2.65,
+      "Y": 5.1
+    },
+    "WaveArrowPos": {
+      "X": -2.65,
+      "Y": 4.1
+    },
+    "WaveArrowRot": 180,
+    "MaxRadius": 0,
+    "PathCnt": 2,
+    "PathList": [
+      {
+        "X": -2.65,
+        "Y": -3.45
+      },
+      {
+        "X": 3,
+        "Y": -3.45
+      }
+    ],
+    "NextID": 0,
+    "PrevID": 0
+  },
+  {
+    "ID": 1001211,
+    "GroupID": 100121,
+    "MonsterPos": {
+      "X": -2.65,
+      "Y": 5.1
+    },
+    "MonsterFlagPos": {
+      "X": -2.65,
+      "Y": 5.1
+    },
+    "PortalPos": {
+      "X": -2.65,
+      "Y": 5.1
+    },
+    "WaveArrowPos": {
+      "X": -2.65,
+      "Y": 4.1
+    },
+    "WaveArrowRot": 180,
+    "MaxRadius": 0.1,
+    "PathCnt": 2,
+    "PathList": [
+      {
+        "X": -2.65,
+        "Y": -3.45
+      },
+      {
+        "X": 3,
+        "Y": -3.45
+      }
+    ],
+    "NextID": 0,
+    "PrevID": 0
+  },
+  {
+    "ID": 1001212,
+    "GroupID": 100121,
+    "MonsterPos": {
+      "X": -2.65,
+      "Y": 5.1
+    },
+    "MonsterFlagPos": {
+      "X": -2.65,
+      "Y": 5.1
+    },
+    "PortalPos": {
+      "X": -2.65,
+      "Y": 5.1
+    },
+    "WaveArrowPos": {
+      "X": -2.65,
+      "Y": 4.1
+    },
+    "WaveArrowRot": 180,
+    "MaxRadius": 0,
+    "PathCnt": 2,
+    "PathList": [
+      {
+        "X": -2.65,
+        "Y": -3.45
+      },
+      {
+        "X": 3,
+        "Y": -3.45
+      }
+    ],
+    "NextID": 0,
+    "PrevID": 0
+  }
+]

@@ -1,1 +1,74 @@
-[]
+[
+  {
+    "ChapterID": 10011,
+    "ChapterType": 1,
+    "Difficult": 1,
+    "GroupID": 1,
+    "ChapterNum": 1,
+    "MapID": 10011,
+    "ChapterNameID": 0,
+    "IconName": "shapan_001",
+    "ModelPath": "nongchang",
+    "GridIconName": "main_gezi1",
+    "ChapterDescID": 0,
+    "StageCount": 5,
+    "MaxReliveCount": 1,
+    "CreateDay": 0,
+    "CreateDayCoef": 0,
+    "FailureCount": 0,
+    "FailureDecayCoef": 0,
+    "FailureDecayCount": 0,
+    "StartCostStam": 5,
+    "IsSaoDangNeedFinChapter": true,
+    "UnlockLevel": 1,
+    "FirstPassBootyID": 0,
+    "FailBootyID": 0,
+    "CanMultiPlayer": false,
+    "MultiPlayerCnt": 0,
+    "PassChapterCurrency": [
+      {
+        "CurrencyType": 4,
+        "BaseNum": 25,
+        "ExtraNum": 1
+      },
+      {
+        "CurrencyType": 2,
+        "BaseNum": 560,
+        "ExtraNum": 24
+      }
+    ],
+    "ShowBootyID": 0,
+    "FinMaxGold": 10000,
+    "ChapterHangDropItem": [
+      {
+        "ItemID": 99002,
+        "Num": 16
+      },
+      {
+        "ItemID": 5001,
+        "Num": 5
+      }
+    ],
+    "GuaJiBootyID": 100114,
+    "TourCostStam": 5,
+    "TourBootyID": 100115,
+    "UnlockDescID": 0,
+    "IsLocked": false,
+    "UnlockChapterCodition": [
+      10012
+    ],
+    "NextChapterList": [],
+    "RandomLibID": 0,
+    "LvUpLibID": 1,
+    "IsContinue": true,
+    "IsUseItem": true,
+    "IsPassContinue": true,
+    "supportSpeedSwitching": true,
+    "IsSupportAd": true,
+    "MainPlayerPos": {
+      "X": 3,
+      "Y": -3.5
+    },
+    "RefreshRequiredGoldNum": 15
+  }
+]

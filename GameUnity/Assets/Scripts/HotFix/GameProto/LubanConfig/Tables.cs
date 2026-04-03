@@ -270,6 +270,69 @@ namespace GameProto
             }
         }
         /// <summary>
+        /// 怪物配置表
+        /// </summary>
+        private TbMonsterConfig m_TbMonsterConfig;
+        public TbMonsterConfig TbMonsterConfig 
+        {
+            get
+            {
+                if (m_TbMonsterConfig == null)
+                {
+                    m_TbMonsterConfig = new TbMonsterConfig(m_defaultLoader("tbmonsterconfig"));
+                    m_TbMonsterConfig.ResolveRef(this);
+                }
+                return m_TbMonsterConfig;
+            }
+            set
+            {
+                m_TbMonsterConfig = value;
+                m_TbMonsterConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
+        /// 地图配置表
+        /// </summary>
+        private TbMapConfig m_TbMapConfig;
+        public TbMapConfig TbMapConfig 
+        {
+            get
+            {
+                if (m_TbMapConfig == null)
+                {
+                    m_TbMapConfig = new TbMapConfig(m_defaultLoader("tbmapconfig"));
+                    m_TbMapConfig.ResolveRef(this);
+                }
+                return m_TbMapConfig;
+            }
+            set
+            {
+                m_TbMapConfig = value;
+                m_TbMapConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
+        /// 路径点配置表
+        /// </summary>
+        private TbPathConfig m_TbPathConfig;
+        public TbPathConfig TbPathConfig 
+        {
+            get
+            {
+                if (m_TbPathConfig == null)
+                {
+                    m_TbPathConfig = new TbPathConfig(m_defaultLoader("tbpathconfig"));
+                    m_TbPathConfig.ResolveRef(this);
+                }
+                return m_TbPathConfig;
+            }
+            set
+            {
+                m_TbPathConfig = value;
+                m_TbPathConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
         /// 服务器状态配置表
         /// </summary>
         private TbServerStateConfig m_TbServerStateConfig;
@@ -319,6 +382,9 @@ namespace GameProto
             m_TbFuncOpenConfig = null;
             m_TbFuncParamConfig = null;
             m_TbChapterConfig = null;
+            m_TbMonsterConfig = null;
+            m_TbMapConfig = null;
+            m_TbPathConfig = null;
             m_TbServerStateConfig = null;
         }
 

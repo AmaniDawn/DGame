@@ -1,0 +1,33 @@
+[
+  {
+    "MonsterID": 9001,
+    "ModelID": 100111,
+    "AttrID": 38,
+    "Type": 1,
+    "ModelScale": 1,
+    "DiedDestroyTime": 1,
+    "Level": 1,
+    "Atk": 25,
+    "Hp": 10000,
+    "IsShowHp": false,
+    "HpCount": 1,
+    "MoveSpeed": 0.8,
+    "DropExp": 0,
+    "DropItemID": 0,
+    "DamageReduction": 0,
+    "HpLengthRatio": 0,
+    "DefaultAttr": [
+      {
+        "AttrType": 2,
+        "ModifyMode": 1,
+        "Value": 10
+      }
+    ],
+    "Skills": [],
+    "AttachSkill": 0,
+    "AutoPlaySkill": 0,
+    "AITaskID": 0,
+    "OutLineWidth": 0,
+    "OutLineColor": "bf4646"
+  }
+]

@@ -47,6 +47,11 @@ public sealed partial class ModelConfig : Luban.BeanBase
         HitFlashTime = _buf.ReadFloat();
         DeathFadeOutDurTime = _buf.ReadFloat();
         DeathEffectSoundID = _buf.ReadInt();
+        WeaponModelBaseParam = global::GameProto.WeaponModelBaseParam.DeserializeWeaponModelBaseParam(_buf);
+        UIWeaponModelBaseParam = global::GameProto.WeaponModelBaseParam.DeserializeWeaponModelBaseParam(_buf);
+        UIStandbyAction = _buf.ReadString();
+        WeaponOffsetX = _buf.ReadFloat();
+        WeaponOffsetY = _buf.ReadFloat();
     }
 
     public static ModelConfig DeserializeModelConfig(ByteBuf _buf)
@@ -170,12 +175,34 @@ public sealed partial class ModelConfig : Luban.BeanBase
     /// 死亡音效ID
     /// </summary>
     public int DeathEffectSoundID;
+    /// <summary>
+    /// 武器基础_偏移X
+    /// </summary>
+    public WeaponModelBaseParam WeaponModelBaseParam;
+    /// <summary>
+    /// 武器基础_偏移X
+    /// </summary>
+    public WeaponModelBaseParam UIWeaponModelBaseParam;
+    /// <summary>
+    /// 局外待机动作
+    /// </summary>
+    public string UIStandbyAction;
+    /// <summary>
+    /// 手握武器X偏移
+    /// </summary>
+    public float WeaponOffsetX;
+    /// <summary>
+    /// 手握武器Y偏移
+    /// </summary>
+    public float WeaponOffsetY;
 
     public const int __ID__ = 1694060459;
     public override int GetTypeId() => __ID__;
 
     public  void ResolveRef(Tables tables)
     {
+        WeaponModelBaseParam?.ResolveRef(tables);
+        UIWeaponModelBaseParam?.ResolveRef(tables);
     }
 
 
@@ -214,6 +241,11 @@ public sealed partial class ModelConfig : Luban.BeanBase
         other.HitFlashTime = HitFlashTime;
         other.DeathFadeOutDurTime = DeathFadeOutDurTime;
         other.DeathEffectSoundID = DeathEffectSoundID;
+        other.WeaponModelBaseParam = WeaponModelBaseParam;
+        other.UIWeaponModelBaseParam = UIWeaponModelBaseParam;
+        other.UIStandbyAction = UIStandbyAction;
+        other.WeaponOffsetX = WeaponOffsetX;
+        other.WeaponOffsetY = WeaponOffsetY;
     }
     
     public override string ToString()
@@ -248,6 +280,11 @@ public sealed partial class ModelConfig : Luban.BeanBase
         + "HitFlashTime:" + HitFlashTime + ","
         + "DeathFadeOutDurTime:" + DeathFadeOutDurTime + ","
         + "DeathEffectSoundID:" + DeathEffectSoundID + ","
+        + "WeaponModelBaseParam:" + WeaponModelBaseParam + ","
+        + "UIWeaponModelBaseParam:" + UIWeaponModelBaseParam + ","
+        + "UIStandbyAction:" + UIStandbyAction + ","
+        + "WeaponOffsetX:" + WeaponOffsetX + ","
+        + "WeaponOffsetY:" + WeaponOffsetY + ","
         + "}";
     }
 }
