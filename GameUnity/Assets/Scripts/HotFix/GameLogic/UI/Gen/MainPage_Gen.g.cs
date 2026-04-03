@@ -22,9 +22,11 @@ namespace GameLogic
 		private Button m_btnStart;
 		private InputField m_inputRoomId;
 		private Button m_btnJoin;
+		private Button m_btnCreate;
 		private Button m_btnLeave;
 		private Text m_textPlayer1;
 		private Text m_textPlayer2;
+		private Text m_textRoomId;
 
 		protected override void ScriptGenerator()
 		{
@@ -33,11 +35,14 @@ namespace GameLogic
 			m_btnStart = m_bindComponent.GetComponent<Button>(1);
 			m_inputRoomId = m_bindComponent.GetComponent<InputField>(2);
 			m_btnJoin = m_bindComponent.GetComponent<Button>(3);
-			m_btnLeave = m_bindComponent.GetComponent<Button>(4);
-			m_textPlayer1 = m_bindComponent.GetComponent<Text>(5);
-			m_textPlayer2 = m_bindComponent.GetComponent<Text>(6);
+			m_btnCreate = m_bindComponent.GetComponent<Button>(4);
+			m_btnLeave = m_bindComponent.GetComponent<Button>(5);
+			m_textPlayer1 = m_bindComponent.GetComponent<Text>(6);
+			m_textPlayer2 = m_bindComponent.GetComponent<Text>(7);
+			m_textRoomId = m_bindComponent.GetComponent<Text>(8);
 			m_btnStart.onClick.AddListener(OnClickStartBtn);
 			m_btnJoin.onClick.AddListener(OnClickJoinBtn);
+			m_btnCreate.onClick.AddListener(OnClickCreateBtn);
 			m_btnLeave.onClick.AddListener(OnClickLeaveBtn);
 		}
 
@@ -48,6 +53,8 @@ namespace GameLogic
 		private partial void OnClickStartBtn();
 
 		private partial void OnClickJoinBtn();
+
+		private partial void OnClickCreateBtn();
 
 		private partial void OnClickLeaveBtn();
 

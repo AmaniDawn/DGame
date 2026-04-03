@@ -58,6 +58,14 @@ message G2C_LeaveRoomResponse // IResponse
 {
 }
 
+/// 房间玩家信息变更通知
+message G2C_RoomPlayerInfoChangedNotify // IMessage
+{
+	CSRoomInfo RoomInfo = 1; /// 当前房间信息
+	int PlayerCount = 2; /// 当前房间玩家数量
+	repeated CSRoomPlayerInfo PlayerInfos = 3; /// 当前房间玩家信息
+}
+
 /// 客户端同步帧数据
 message C2S_SyncFrameDataReq // IMessage
 {

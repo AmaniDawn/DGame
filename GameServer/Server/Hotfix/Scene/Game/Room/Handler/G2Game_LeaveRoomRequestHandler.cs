@@ -36,6 +36,10 @@ public sealed class G2Game_LeaveRoomRequestHandler : AddressRPC<Scene, G2Game_Le
         {
             entity.RemoveRoom(request.RoomId);
         }
+        else
+        {
+            entity.BroadcastRoomPlayerInfos(roomComponent);
+        }
 
         response.ErrorCode = ErrorCode.SUCCESS;
         await FTask.CompletedTask;

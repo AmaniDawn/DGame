@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using DGame;
 using Fantasy;
 using GameProto;
 
@@ -45,6 +46,7 @@ namespace GameLogic
             CurrentRoomInfo = null;
             PlayerCount = 0;
             PlayerInfos.Clear();
+            GameEvent.Get<IRoomLogicEvent>().OnRoomDataChange();
         }
 
         /// <summary>
@@ -90,6 +92,8 @@ namespace GameLogic
                     FightValue = playerInfo.FightValue
                 });
             }
+
+            GameEvent.Get<IRoomLogicEvent>().OnRoomDataChange();
         }
     }
 }

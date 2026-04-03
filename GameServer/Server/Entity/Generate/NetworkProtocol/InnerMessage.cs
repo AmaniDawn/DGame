@@ -466,6 +466,77 @@ namespace Fantasy
         public uint ErrorCode { get; set; }
     }
     /// <summary>
+    /// Game 通知 Gate 推送房间成员变化
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class G2Gate_RoomPlayerInfoChangedMessage : AMessage, IAddressMessage
+    {
+        public static G2Gate_RoomPlayerInfoChangedMessage Create(bool autoReturn = true)
+        {
+            var g2Gate_RoomPlayerInfoChangedMessage = MessageObjectPool<G2Gate_RoomPlayerInfoChangedMessage>.Rent();
+            g2Gate_RoomPlayerInfoChangedMessage.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                g2Gate_RoomPlayerInfoChangedMessage.SetIsPool(false);
+            }
+            
+            return g2Gate_RoomPlayerInfoChangedMessage;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            SessionRuntimeIds.Clear();
+            RoomId = default;
+            RoomSeq = default;
+            PlayerCount = default;
+            PlayerInfos.Clear();
+            MessageObjectPool<G2Gate_RoomPlayerInfoChangedMessage>.Return(this);
+        }
+        public uint OpCode() { return InnerOpcode.G2Gate_RoomPlayerInfoChangedMessage; } 
+        /// <summary>
+        /// 要通知的会话列表
+        /// </summary>
+        [ProtoMember(1)]
+        public List<long> SessionRuntimeIds { get; set; } = new List<long>();
+        /// <summary>
+        /// 房间ID
+        /// </summary>
+        [ProtoMember(2)]
+        public int RoomId { get; set; }
+        /// <summary>
+        /// 房间序号
+        /// </summary>
+        [ProtoMember(3)]
+        public int RoomSeq { get; set; }
+        /// <summary>
+        /// 当前房间玩家数量
+        /// </summary>
+        [ProtoMember(4)]
+        public int PlayerCount { get; set; }
+        /// <summary>
+        /// 当前房间玩家列表
+        /// </summary>
+        [ProtoMember(5)]
+        public List<InnerRoomPlayerInfo> PlayerInfos { get; set; } = new List<InnerRoomPlayerInfo>();
+    }
+    /// <summary>
     /// 房间玩家快照
     /// </summary>
     [Serializable]

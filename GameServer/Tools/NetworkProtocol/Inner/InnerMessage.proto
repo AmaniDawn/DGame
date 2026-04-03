@@ -73,6 +73,16 @@ message G2Game_LeaveRoomResponse // IAddressResponse
 {
 }
 
+/// Game 通知 Gate 推送房间成员变化
+message G2Gate_RoomPlayerInfoChangedMessage // IAddressMessage
+{
+    repeated long SessionRuntimeIds = 1; /// 要通知的会话列表
+    int RoomId = 2; /// 房间ID
+    int RoomSeq = 3; /// 房间序号
+    int PlayerCount = 4; /// 当前房间玩家数量
+    repeated InnerRoomPlayerInfo PlayerInfos = 5; /// 当前房间玩家列表
+}
+
 /// 房间玩家快照
 message InnerRoomPlayerInfo
 {

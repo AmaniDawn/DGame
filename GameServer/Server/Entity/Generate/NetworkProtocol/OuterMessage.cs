@@ -411,6 +411,69 @@ namespace Fantasy
         public uint ErrorCode { get; set; }
     }
     /// <summary>
+    /// 房间玩家信息变更通知
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class G2C_RoomPlayerInfoChangedNotify : AMessage, IMessage
+    {
+        public static G2C_RoomPlayerInfoChangedNotify Create(bool autoReturn = true)
+        {
+            var g2C_RoomPlayerInfoChangedNotify = MessageObjectPool<G2C_RoomPlayerInfoChangedNotify>.Rent();
+            g2C_RoomPlayerInfoChangedNotify.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                g2C_RoomPlayerInfoChangedNotify.SetIsPool(false);
+            }
+            
+            return g2C_RoomPlayerInfoChangedNotify;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            if (RoomInfo != null)
+            {
+                RoomInfo.Dispose();
+                RoomInfo = null;
+            }
+            PlayerCount = default;
+            PlayerInfos.Clear();
+            MessageObjectPool<G2C_RoomPlayerInfoChangedNotify>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.G2C_RoomPlayerInfoChangedNotify; } 
+        /// <summary>
+        /// 当前房间信息
+        /// </summary>
+        [ProtoMember(1)]
+        public CSRoomInfo RoomInfo { get; set; }
+        /// <summary>
+        /// 当前房间玩家数量
+        /// </summary>
+        [ProtoMember(2)]
+        public int PlayerCount { get; set; }
+        /// <summary>
+        /// 当前房间玩家信息
+        /// </summary>
+        [ProtoMember(3)]
+        public List<CSRoomPlayerInfo> PlayerInfos { get; set; } = new List<CSRoomPlayerInfo>();
+    }
+    /// <summary>
     /// 客户端同步帧数据
     /// </summary>
     [Serializable]

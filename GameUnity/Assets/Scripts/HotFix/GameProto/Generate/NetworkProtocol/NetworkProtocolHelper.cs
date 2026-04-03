@@ -44,6 +44,20 @@ namespace Fantasy
 			return (G2C_LeaveRoomResponse)await session.Call(C2G_LeaveRoomRequest_request);
 		}
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void G2C_RoomPlayerInfoChangedNotify(this Session session, G2C_RoomPlayerInfoChangedNotify G2C_RoomPlayerInfoChangedNotify_message)
+		{
+			session.Send(G2C_RoomPlayerInfoChangedNotify_message);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static void G2C_RoomPlayerInfoChangedNotify(this Session session, CSRoomInfo roomInfo, int playerCount, List<CSRoomPlayerInfo> playerInfos)
+		{
+			using var G2C_RoomPlayerInfoChangedNotify_message = Fantasy.G2C_RoomPlayerInfoChangedNotify.Create();
+			G2C_RoomPlayerInfoChangedNotify_message.RoomInfo = roomInfo;
+			G2C_RoomPlayerInfoChangedNotify_message.PlayerCount = playerCount;
+			G2C_RoomPlayerInfoChangedNotify_message.PlayerInfos = playerInfos;
+			session.Send(G2C_RoomPlayerInfoChangedNotify_message);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void C2S_SyncFrameDataReq(this Session session, C2S_SyncFrameDataReq C2S_SyncFrameDataReq_message)
 		{
 			session.Send(C2S_SyncFrameDataReq_message);

@@ -33,5 +33,6 @@ public sealed class G2Game_CreateRoomRequestHandler : AddressRPC<Scene, G2Game_C
 
         response.ErrorCode = ErrorCode.SUCCESS;
         response.Fill(roomComponent);
+        entity.BroadcastRoomPlayerInfos(roomComponent);
     }
 }

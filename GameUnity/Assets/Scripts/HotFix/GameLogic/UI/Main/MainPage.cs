@@ -7,6 +7,11 @@ namespace GameLogic
 	{
 		#region Override
 
+		protected override void RegisterEvent()
+		{
+			AddUIEvent(IRoomLogicEvent_Event.OnRoomDataChange, RefreshRoomPlayerTexts);
+		}
+
 		protected override void OnRefresh()
 		{
 			RefreshRoomPlayerTexts();
@@ -30,7 +35,6 @@ namespace GameLogic
 
 		private partial void OnClickStartBtn()
 		{
-			CreateRoom().Coroutine();
 		}
 
 		private partial void OnClickJoinBtn()
@@ -41,6 +45,11 @@ namespace GameLogic
 		private partial void OnClickLeaveBtn()
 		{
 			LeaveRoom().Coroutine();
+		}
+
+		private partial void OnClickCreateBtn()
+		{
+			CreateRoom().Coroutine();
 		}
 
 		#endregion
@@ -111,17 +120,21 @@ namespace GameLogic
 		{
 			if (!RoomDataMgr.Instance.HasRoom)
 			{
+				m_textRoomId.text = "房间号：暂无";
 				m_textPlayer1.text = "暂未加入房间";
 				m_textPlayer2.text = "暂未加入房间";
 				return;
 			}
 
+			var roomInfo = RoomDataMgr.Instance.CurrentRoomInfo;
+			m_textRoomId.text = roomInfo == null ? "房间号：暂无" : $"房间号：{roomInfo.RoomId}";
+
 			var playerInfos = RoomDataMgr.Instance.PlayerInfos;
 			m_textPlayer1.text = playerInfos.Count > 0
-				? $"玩家1：{playerInfos[0].RoleId}"
+				? $"玩家1：{playerInfos[0].RoleName}"
 				: "暂未加入房间";
 			m_textPlayer2.text = playerInfos.Count > 1
-				? $"玩家2：{playerInfos[1].RoleId}"
+				? $"玩家2：{playerInfos[1].RoleName}"
 				: "暂未加入玩家";
 		}
 

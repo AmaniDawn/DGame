@@ -1,6 +1,7 @@
 using DGame;
 using Fantasy;
 using Fantasy.Async;
+using Fantasy.Network.Interface;
 using GameProto;
 
 namespace GameLogic
@@ -8,8 +9,16 @@ namespace GameLogic
     /// <summary>
     /// 房间相关网络请求管理器。
     /// </summary>
-    public sealed class RoomNetMgr : Singleton<RoomNetMgr>
+    public sealed class RoomNetMgr : DataCenterModule<RoomNetMgr>
     {
+        /// <summary>
+        /// 初始化房间网络消息监听。
+        /// </summary>
+        public override void OnInit()
+        {
+            GameClient.Instance.RegisterMsgHandler(OuterOpcode.G2C_RoomPlayerInfoChangedNotify, OnRoomPlayerInfoChangedNotify);
+        }
+
         /// <summary>
         /// 请求创建房间。
         /// </summary>
@@ -84,6 +93,20 @@ namespace GameLogic
 
             RoomDataMgr.Instance.Clear();
             return true;
+        }
+
+        /// <summary>
+        /// 房间玩家信息变更推送。
+        /// </summary>
+        /// <param name="message">服务器推送消息。</param>
+        private void OnRoomPlayerInfoChangedNotify(IMessage message)
+        {
+            if (message is not G2C_RoomPlayerInfoChangedNotify notify)
+            {
+                return;
+            }
+
+            RoomDataMgr.Instance.SyncRoom(notify.RoomInfo, notify.PlayerCount, notify.PlayerInfos);
         }
     }
 }

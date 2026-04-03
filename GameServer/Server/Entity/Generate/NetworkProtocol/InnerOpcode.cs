@@ -12,5 +12,6 @@ namespace Fantasy
         public const uint G2Game_JoinRoomResponse = 1207969554;
         public const uint G2Game_LeaveRoomRequest = 1073751827;
         public const uint G2Game_LeaveRoomResponse = 1207969555;
+        public const uint G2Gate_RoomPlayerInfoChangedMessage = 939534097;
     }
 }

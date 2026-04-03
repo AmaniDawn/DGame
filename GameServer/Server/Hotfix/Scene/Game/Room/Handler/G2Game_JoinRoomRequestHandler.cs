@@ -50,6 +50,7 @@ public sealed class G2Game_JoinRoomRequestHandler : AddressRPC<Scene, G2Game_Joi
 
         response.ErrorCode = ErrorCode.SUCCESS;
         response.Fill(roomComponent);
+        entity.BroadcastRoomPlayerInfos(roomComponent);
         await FTask.CompletedTask;
     }
 }
