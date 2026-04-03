@@ -1,8 +1,6 @@
 using System.Collections.Generic;
 using System.Linq;
 using Fantasy;
-using Fantasy.IdFactory;
-using Fantasy.Platform.Net;
 
 namespace Hotfix;
 
@@ -24,7 +22,7 @@ public static class RoomNotifyHelper
             return;
         }
 
-        var gateSceneSessions = new Dictionary<long, List<long>>();
+        var roomPlayerInfos = players.Select(static player => player.ToInnerRoomPlayerInfo()).ToList();
         foreach (var player in players)
         {
             if (player.SessionRuntimeId <= 0)
@@ -32,32 +30,9 @@ public static class RoomNotifyHelper
                 continue;
             }
 
-            var gateSceneId = IdFactoryHelper.RuntimeIdTool.GetSceneId(player.SessionRuntimeId);
-            if (!SceneConfigData.Instance.TryGet(gateSceneId, out var gateSceneConfig))
+            scene.Send(player.SessionRuntimeId, new G2Gate_RoomPlayerInfoChangedMessage
             {
-                continue;
-            }
-
-            if (!gateSceneSessions.TryGetValue(gateSceneConfig.Address, out var sessionRuntimeIds))
-            {
-                sessionRuntimeIds = new List<long>();
-                gateSceneSessions.Add(gateSceneConfig.Address, sessionRuntimeIds);
-            }
-
-            sessionRuntimeIds.Add(player.SessionRuntimeId);
-        }
-
-        if (gateSceneSessions.Count <= 0)
-        {
-            return;
-        }
-
-        var roomPlayerInfos = players.Select(static player => player.ToInnerRoomPlayerInfo()).ToList();
-        foreach (var gateSceneSession in gateSceneSessions)
-        {
-            scene.Send(gateSceneSession.Key, new G2Gate_RoomPlayerInfoChangedMessage
-            {
-                SessionRuntimeIds = gateSceneSession.Value,
+                SessionRuntimeIds = new List<long> { player.SessionRuntimeId },
                 RoomId = roomComponent.RoomId,
                 RoomSeq = roomComponent.RoomSeq,
                 PlayerCount = roomComponent.GetPlayerCount(),
