@@ -50,7 +50,7 @@ namespace GameLogic
                 var displayTransform = self.DisplayRoot.transform;
                 displayTransform.SetParent(self.OwnerUnit.UnitRootTransform, false);
                 displayTransform.ResetLocalPosScaleRot();
-                self.SubscribeRenderScoped<UnitModelCreatedEvent>(eventData => self.OnUnitModelCreated(eventData));
+                self.SubscribeRenderScoped<UnitModelCreatedEvent>(self.OnUnitModelCreated);
                 self.ApplySorting();
 
                 self.UnitModel ??= new UnitModel(self);
@@ -119,6 +119,24 @@ namespace GameLogic
             }
 
             return await self.UnitModel.RefreshMainModelAsync(modelId, ct);
+        }
+
+        /// <summary>
+        /// 刷新主模型。
+        /// 这是显示组件对外暴露的主模型切换入口。
+        /// </summary>
+        /// <param name="self">单位显示组件。</param>
+        /// <param name="weaponModelId">武器模型 ID。</param>
+        /// <param name="ct">模型刷新时使用的取消令牌。</param>
+        /// <returns>刷新成功返回 true。</returns>
+        public static async UniTask<bool> RefreshWeaponModelAsync(this UnitDisplayComponent self,
+            int weaponModelId, CancellationToken ct = default)
+        {
+            if (self.UnitModel == null)
+            {
+                return false;
+            }
+            return await self.UnitModel.RefreshWeaponModelAsync(weaponModelId, ct);
         }
 
         /// <summary>

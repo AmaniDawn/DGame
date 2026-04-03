@@ -19,6 +19,9 @@
     "RoleNameDigitMinCount": 4,
     "RoleNameDigitMaxCount": 12,
     "AuthenticationAddress": "127.0.0.1",
-    "AuthenticationPort": 20001
+    "AuthenticationPort": 20001,
+    "DefaultMaleModelID": 11000,
+    "DefaultFemaleModelID": 21000,
+    "DefaultGunFashionID": 72000
   }
 ]

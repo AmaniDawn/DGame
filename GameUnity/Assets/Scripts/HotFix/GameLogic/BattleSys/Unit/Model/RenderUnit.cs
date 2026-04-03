@@ -159,6 +159,7 @@ namespace GameLogic
 
         protected virtual bool OnInit(LogicUnit logicUnit)
         {
+            Visible = true;
             return true;
         }
 

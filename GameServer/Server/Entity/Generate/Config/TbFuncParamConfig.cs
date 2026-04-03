@@ -116,6 +116,18 @@ public partial class TbFuncParamConfig
     /// 鉴权服务器端口号
     /// </summary>
      public static int AuthenticationPort => Instance._data.AuthenticationPort;
+    /// <summary>
+    /// 男角色默认模型ID
+    /// </summary>
+     public static int DefaultMaleModelID => Instance._data.DefaultMaleModelID;
+    /// <summary>
+    /// 女角色默认模型ID
+    /// </summary>
+     public static int DefaultFemaleModelID => Instance._data.DefaultFemaleModelID;
+    /// <summary>
+    /// 默认武器ID
+    /// </summary>
+     public static int DefaultGunFashionID => Instance._data.DefaultGunFashionID;
     
     public void ResolveRef(Tables tables)
     {

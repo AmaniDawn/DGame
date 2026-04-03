@@ -38,6 +38,9 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         RoleNameDigitMaxCount = _buf.ReadInt();
         AuthenticationAddress = _buf.ReadString();
         AuthenticationPort = _buf.ReadInt();
+        DefaultMaleModelID = _buf.ReadInt();
+        DefaultFemaleModelID = _buf.ReadInt();
+        DefaultGunFashionID = _buf.ReadInt();
     }
 
     public static FuncParamConfig DeserializeFuncParamConfig(ByteBuf _buf)
@@ -125,6 +128,18 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
     /// 鉴权服务器端口号
     /// </summary>
     public int AuthenticationPort;
+    /// <summary>
+    /// 男角色默认模型ID
+    /// </summary>
+    public int DefaultMaleModelID;
+    /// <summary>
+    /// 女角色默认模型ID
+    /// </summary>
+    public int DefaultFemaleModelID;
+    /// <summary>
+    /// 默认武器ID
+    /// </summary>
+    public int DefaultGunFashionID;
 
     public const int __ID__ = -1155611477;
     public override int GetTypeId() => __ID__;
@@ -160,6 +175,9 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         other.RoleNameDigitMaxCount = RoleNameDigitMaxCount;
         other.AuthenticationAddress = AuthenticationAddress;
         other.AuthenticationPort = AuthenticationPort;
+        other.DefaultMaleModelID = DefaultMaleModelID;
+        other.DefaultFemaleModelID = DefaultFemaleModelID;
+        other.DefaultGunFashionID = DefaultGunFashionID;
     }
     
     public override string ToString()
@@ -185,6 +203,9 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         + "RoleNameDigitMaxCount:" + RoleNameDigitMaxCount + ","
         + "AuthenticationAddress:" + AuthenticationAddress + ","
         + "AuthenticationPort:" + AuthenticationPort + ","
+        + "DefaultMaleModelID:" + DefaultMaleModelID + ","
+        + "DefaultFemaleModelID:" + DefaultFemaleModelID + ","
+        + "DefaultGunFashionID:" + DefaultGunFashionID + ","
         + "}";
     }
 }
