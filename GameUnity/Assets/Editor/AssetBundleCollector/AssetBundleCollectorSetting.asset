@@ -62,7 +62,7 @@ MonoBehaviour:
         AddressRuleName: AddressByFileName
         PackRuleName: PackSeparately
         FilterRuleName: CollectAll
-        AssetTags: 
+        AssetTags: WEBGL_PRELOAD
         UserData: 
     - GroupName: DLL
       GroupDesc: 
