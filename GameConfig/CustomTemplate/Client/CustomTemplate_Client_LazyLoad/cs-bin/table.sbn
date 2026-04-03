@@ -96,7 +96,7 @@ public partial class {{__name}}
     public static System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<{{declaring_type_name value_type}}>> GroupedDataMap => Instance._groupedDataMap;
 
     public static System.Collections.Generic.List<{{declaring_type_name value_type}}> GetListBy{{__table.tags.group_by}}(int groupID)
-        => _groupedDataMap.TryGetValue(groupID, out var list) ? list : null;
+        => Instance._groupedDataMap.TryGetValue(groupID, out var list) ? list : null;
 
     #endregion
     {{~ end ~}}
