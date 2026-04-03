@@ -33,4 +33,10 @@ public static class ErrorCode
     public const uint ROLE_NAME_CHAR_INVALID = 2009; // 角色名字含有非法字符
     
     public const uint FUNC_QUERY_ERROR = 3001; // 系统开放查询错误
+
+    public const uint ROOM_INVALID_PARAMETER = 4001; // 房间参数无效
+    public const uint ROOM_NOT_FOUND = 4002; // 房间不存在
+    public const uint ROOM_ALREADY_JOINED = 4003; // 玩家已在房间中
+    public const uint ROOM_PLAYER_COUNT_INVALID = 4004; // 房间玩家数量配置无效
+    public const uint ROOM_CREATE_FAILED = 4005; // 房间创建失败
 }

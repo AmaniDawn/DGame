@@ -20,13 +20,25 @@ namespace GameLogic
 		private UIBindComponent m_bindComponent;
 		private RectTransform m_rectContainer;
 		private Button m_btnStart;
+		private InputField m_inputRoomId;
+		private Button m_btnJoin;
+		private Button m_btnLeave;
+		private Text m_textPlayer1;
+		private Text m_textPlayer2;
 
 		protected override void ScriptGenerator()
 		{
 			m_bindComponent = gameObject.GetComponent<UIBindComponent>();
 			m_rectContainer = m_bindComponent.GetComponent<RectTransform>(0);
 			m_btnStart = m_bindComponent.GetComponent<Button>(1);
+			m_inputRoomId = m_bindComponent.GetComponent<InputField>(2);
+			m_btnJoin = m_bindComponent.GetComponent<Button>(3);
+			m_btnLeave = m_bindComponent.GetComponent<Button>(4);
+			m_textPlayer1 = m_bindComponent.GetComponent<Text>(5);
+			m_textPlayer2 = m_bindComponent.GetComponent<Text>(6);
 			m_btnStart.onClick.AddListener(OnClickStartBtn);
+			m_btnJoin.onClick.AddListener(OnClickJoinBtn);
+			m_btnLeave.onClick.AddListener(OnClickLeaveBtn);
 		}
 
 		#endregion
@@ -34,6 +46,10 @@ namespace GameLogic
 		#region 事件
 
 		private partial void OnClickStartBtn();
+
+		private partial void OnClickJoinBtn();
+
+		private partial void OnClickLeaveBtn();
 
 		#endregion
 	}

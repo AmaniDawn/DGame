@@ -20,6 +20,44 @@ enum FrameCmdType
     FRAME_CMD_PLAYER_MOVE, 	/// 玩家移动命令
 }
 
+/// 创建房间请求
+message C2G_CreateRoomRequest // IRequest,G2C_CreateRoomResponse
+{
+	int PlayerCount = 1; /// 房间初始玩家数量
+}
+
+/// 创建房间返回
+message G2C_CreateRoomResponse // IResponse
+{
+	CSRoomInfo RoomInfo = 1; /// 创建出的房间信息
+	int PlayerCount = 2; /// 当前房间玩家数量
+	repeated CSRoomPlayerInfo PlayerInfos = 3; /// 当前房间玩家信息
+}
+
+/// 加入房间请求
+message C2G_JoinRoomRequest // IRequest,G2C_JoinRoomResponse
+{
+	int RoomId = 1; /// 要加入的房间ID
+}
+
+/// 加入房间返回
+message G2C_JoinRoomResponse // IResponse
+{
+	CSRoomInfo RoomInfo = 1; /// 当前房间信息
+	int PlayerCount = 2; /// 当前房间玩家数量
+	repeated CSRoomPlayerInfo PlayerInfos = 3; /// 当前房间玩家信息
+}
+
+/// 离开房间请求
+message C2G_LeaveRoomRequest // IRequest,G2C_LeaveRoomResponse
+{
+}
+
+/// 离开房间返回
+message G2C_LeaveRoomResponse // IResponse
+{
+}
+
 /// 客户端同步帧数据
 message C2S_SyncFrameDataReq // IMessage
 {
@@ -167,6 +205,15 @@ message CSRoomInfo
 {
 	int RoomId = 1;
 	int RoomSeq = 2;
+}
+
+/// 房间玩家信息
+message CSRoomPlayerInfo
+{
+	ulong RoleId = 1; /// 角色ID
+	string RoleName = 2; /// 角色名称
+	uint Level = 3; /// 等级
+	uint FightValue = 4; /// 战斗力
 }
 
 /// 单帧数据

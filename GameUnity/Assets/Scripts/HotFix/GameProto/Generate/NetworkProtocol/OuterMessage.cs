@@ -94,6 +94,323 @@ namespace Fantasy
         public uint DelayTime { get; set; }
     }
     /// <summary>
+    /// 创建房间请求
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class C2G_CreateRoomRequest : AMessage, IRequest
+    {
+        public static C2G_CreateRoomRequest Create(bool autoReturn = true)
+        {
+            var c2G_CreateRoomRequest = MessageObjectPool<C2G_CreateRoomRequest>.Rent();
+            c2G_CreateRoomRequest.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                c2G_CreateRoomRequest.SetIsPool(false);
+            }
+            
+            return c2G_CreateRoomRequest;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            PlayerCount = default;
+            MessageObjectPool<C2G_CreateRoomRequest>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.C2G_CreateRoomRequest; } 
+        [ProtoIgnore]
+        public G2C_CreateRoomResponse ResponseType { get; set; }
+        /// <summary>
+        /// 房间初始玩家数量
+        /// </summary>
+        [ProtoMember(1)]
+        public int PlayerCount { get; set; }
+    }
+    /// <summary>
+    /// 创建房间返回
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class G2C_CreateRoomResponse : AMessage, IResponse
+    {
+        public static G2C_CreateRoomResponse Create(bool autoReturn = true)
+        {
+            var g2C_CreateRoomResponse = MessageObjectPool<G2C_CreateRoomResponse>.Rent();
+            g2C_CreateRoomResponse.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                g2C_CreateRoomResponse.SetIsPool(false);
+            }
+            
+            return g2C_CreateRoomResponse;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            ErrorCode = 0;
+            if (RoomInfo != null)
+            {
+                RoomInfo.Dispose();
+                RoomInfo = null;
+            }
+            PlayerCount = default;
+            PlayerInfos.Clear();
+            MessageObjectPool<G2C_CreateRoomResponse>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.G2C_CreateRoomResponse; } 
+        [ProtoMember(1)]
+        public uint ErrorCode { get; set; }
+        /// <summary>
+        /// 创建出的房间信息
+        /// </summary>
+        [ProtoMember(2)]
+        public CSRoomInfo RoomInfo { get; set; }
+        /// <summary>
+        /// 当前房间玩家数量
+        /// </summary>
+        [ProtoMember(3)]
+        public int PlayerCount { get; set; }
+        /// <summary>
+        /// 当前房间玩家信息
+        /// </summary>
+        [ProtoMember(4)]
+        public List<CSRoomPlayerInfo> PlayerInfos { get; set; } = new List<CSRoomPlayerInfo>();
+    }
+    /// <summary>
+    /// 加入房间请求
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class C2G_JoinRoomRequest : AMessage, IRequest
+    {
+        public static C2G_JoinRoomRequest Create(bool autoReturn = true)
+        {
+            var c2G_JoinRoomRequest = MessageObjectPool<C2G_JoinRoomRequest>.Rent();
+            c2G_JoinRoomRequest.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                c2G_JoinRoomRequest.SetIsPool(false);
+            }
+            
+            return c2G_JoinRoomRequest;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            RoomId = default;
+            MessageObjectPool<C2G_JoinRoomRequest>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.C2G_JoinRoomRequest; } 
+        [ProtoIgnore]
+        public G2C_JoinRoomResponse ResponseType { get; set; }
+        /// <summary>
+        /// 要加入的房间ID
+        /// </summary>
+        [ProtoMember(1)]
+        public int RoomId { get; set; }
+    }
+    /// <summary>
+    /// 加入房间返回
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class G2C_JoinRoomResponse : AMessage, IResponse
+    {
+        public static G2C_JoinRoomResponse Create(bool autoReturn = true)
+        {
+            var g2C_JoinRoomResponse = MessageObjectPool<G2C_JoinRoomResponse>.Rent();
+            g2C_JoinRoomResponse.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                g2C_JoinRoomResponse.SetIsPool(false);
+            }
+            
+            return g2C_JoinRoomResponse;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            ErrorCode = 0;
+            if (RoomInfo != null)
+            {
+                RoomInfo.Dispose();
+                RoomInfo = null;
+            }
+            PlayerCount = default;
+            PlayerInfos.Clear();
+            MessageObjectPool<G2C_JoinRoomResponse>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.G2C_JoinRoomResponse; } 
+        [ProtoMember(1)]
+        public uint ErrorCode { get; set; }
+        /// <summary>
+        /// 当前房间信息
+        /// </summary>
+        [ProtoMember(2)]
+        public CSRoomInfo RoomInfo { get; set; }
+        /// <summary>
+        /// 当前房间玩家数量
+        /// </summary>
+        [ProtoMember(3)]
+        public int PlayerCount { get; set; }
+        /// <summary>
+        /// 当前房间玩家信息
+        /// </summary>
+        [ProtoMember(4)]
+        public List<CSRoomPlayerInfo> PlayerInfos { get; set; } = new List<CSRoomPlayerInfo>();
+    }
+    /// <summary>
+    /// 离开房间请求
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class C2G_LeaveRoomRequest : AMessage, IRequest
+    {
+        public static C2G_LeaveRoomRequest Create(bool autoReturn = true)
+        {
+            var c2G_LeaveRoomRequest = MessageObjectPool<C2G_LeaveRoomRequest>.Rent();
+            c2G_LeaveRoomRequest.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                c2G_LeaveRoomRequest.SetIsPool(false);
+            }
+            
+            return c2G_LeaveRoomRequest;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            MessageObjectPool<C2G_LeaveRoomRequest>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.C2G_LeaveRoomRequest; } 
+        [ProtoIgnore]
+        public G2C_LeaveRoomResponse ResponseType { get; set; }
+    }
+    /// <summary>
+    /// 离开房间返回
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class G2C_LeaveRoomResponse : AMessage, IResponse
+    {
+        public static G2C_LeaveRoomResponse Create(bool autoReturn = true)
+        {
+            var g2C_LeaveRoomResponse = MessageObjectPool<G2C_LeaveRoomResponse>.Rent();
+            g2C_LeaveRoomResponse.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                g2C_LeaveRoomResponse.SetIsPool(false);
+            }
+            
+            return g2C_LeaveRoomResponse;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            ErrorCode = 0;
+            MessageObjectPool<G2C_LeaveRoomResponse>.Return(this);
+        }
+        public uint OpCode() { return OuterOpcode.G2C_LeaveRoomResponse; } 
+        [ProtoMember(1)]
+        public uint ErrorCode { get; set; }
+    }
+    /// <summary>
     /// 客户端同步帧数据
     /// </summary>
     [Serializable]
@@ -1165,6 +1482,70 @@ namespace Fantasy
         public int RoomId { get; set; }
         [ProtoMember(2)]
         public int RoomSeq { get; set; }
+    }
+    /// <summary>
+    /// 房间玩家信息
+    /// </summary>
+    [Serializable]
+    [ProtoContract]
+    public partial class CSRoomPlayerInfo : AMessage, IDisposable
+    {
+        public static CSRoomPlayerInfo Create(bool autoReturn = true)
+        {
+            var cSRoomPlayerInfo = MessageObjectPool<CSRoomPlayerInfo>.Rent();
+            cSRoomPlayerInfo.AutoReturn = autoReturn;
+            
+            if (!autoReturn)
+            {
+                cSRoomPlayerInfo.SetIsPool(false);
+            }
+            
+            return cSRoomPlayerInfo;
+        }
+        
+        public void Return()
+        {
+            if (!AutoReturn)
+            {
+                SetIsPool(true);
+                AutoReturn = true;
+            }
+            else if (!IsPool())
+            {
+                return;
+            }
+            Dispose();
+        }
+
+        public void Dispose()
+        {
+            if (!IsPool()) return; 
+            RoleId = default;
+            RoleName = default;
+            Level = default;
+            FightValue = default;
+            MessageObjectPool<CSRoomPlayerInfo>.Return(this);
+        }
+        /// <summary>
+        /// 角色ID
+        /// </summary>
+        [ProtoMember(1)]
+        public ulong RoleId { get; set; }
+        /// <summary>
+        /// 角色名称
+        /// </summary>
+        [ProtoMember(2)]
+        public string RoleName { get; set; }
+        /// <summary>
+        /// 等级
+        /// </summary>
+        [ProtoMember(3)]
+        public uint Level { get; set; }
+        /// <summary>
+        /// 战斗力
+        /// </summary>
+        [ProtoMember(4)]
+        public uint FightValue { get; set; }
     }
     /// <summary>
     /// 单帧数据

@@ -9,6 +9,41 @@ namespace Fantasy
    public static class NetworkProtocolHelper
    {
 		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static async FTask<G2C_CreateRoomResponse> C2G_CreateRoomRequest(this Session session, C2G_CreateRoomRequest C2G_CreateRoomRequest_request)
+		{
+			return (G2C_CreateRoomResponse)await session.Call(C2G_CreateRoomRequest_request);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static async FTask<G2C_CreateRoomResponse> C2G_CreateRoomRequest(this Session session, int playerCount)
+		{
+			using var C2G_CreateRoomRequest_request = Fantasy.C2G_CreateRoomRequest.Create();
+			C2G_CreateRoomRequest_request.PlayerCount = playerCount;
+			return (G2C_CreateRoomResponse)await session.Call(C2G_CreateRoomRequest_request);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static async FTask<G2C_JoinRoomResponse> C2G_JoinRoomRequest(this Session session, C2G_JoinRoomRequest C2G_JoinRoomRequest_request)
+		{
+			return (G2C_JoinRoomResponse)await session.Call(C2G_JoinRoomRequest_request);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static async FTask<G2C_JoinRoomResponse> C2G_JoinRoomRequest(this Session session, int roomId)
+		{
+			using var C2G_JoinRoomRequest_request = Fantasy.C2G_JoinRoomRequest.Create();
+			C2G_JoinRoomRequest_request.RoomId = roomId;
+			return (G2C_JoinRoomResponse)await session.Call(C2G_JoinRoomRequest_request);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static async FTask<G2C_LeaveRoomResponse> C2G_LeaveRoomRequest(this Session session, C2G_LeaveRoomRequest C2G_LeaveRoomRequest_request)
+		{
+			return (G2C_LeaveRoomResponse)await session.Call(C2G_LeaveRoomRequest_request);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
+		public static async FTask<G2C_LeaveRoomResponse> C2G_LeaveRoomRequest(this Session session)
+		{
+			using var C2G_LeaveRoomRequest_request = Fantasy.C2G_LeaveRoomRequest.Create();
+			return (G2C_LeaveRoomResponse)await session.Call(C2G_LeaveRoomRequest_request);
+		}
+		[MethodImpl(MethodImplOptions.AggressiveInlining)]
 		public static void C2S_SyncFrameDataReq(this Session session, C2S_SyncFrameDataReq C2S_SyncFrameDataReq_message)
 		{
 			session.Send(C2S_SyncFrameDataReq_message);

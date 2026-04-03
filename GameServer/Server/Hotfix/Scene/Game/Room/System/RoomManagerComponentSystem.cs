@@ -25,6 +25,32 @@ public sealed class RoomManagerComponentDestroySystem : DestroySystem<RoomManage
 public static class RoomManagerComponentSystem
 {
     /// <summary>
+    /// 创建一个自动分配房间 ID 的房间子场景。
+    /// </summary>
+    /// <param name="self">房间管理组件。</param>
+    /// <param name="playerCount">房间初始玩家数量。</param>
+    /// <returns>新创建的房间子场景。</returns>
+    public static async FTask<SubScene> CreateRoom(this RoomManagerComponent self, int playerCount)
+    {
+        if (playerCount <= 0)
+        {
+            throw new ArgumentOutOfRangeException(nameof(playerCount), playerCount, "playerCount must be greater than zero.");
+        }
+
+        var roomSeq = self.NextRoomId;
+        var sceneConfigId = self.Scene.SceneConfigId;
+        var roomId = RoomIdHelper.CreateRoomId(sceneConfigId, roomSeq);
+        while (self.RoomScenes.ContainsKey(roomId))
+        {
+            roomSeq++;
+            roomId = RoomIdHelper.CreateRoomId(sceneConfigId, roomSeq);
+        }
+
+        self.NextRoomId = roomSeq + 1;
+        return await self.CreateRoom(roomId, playerCount);
+    }
+
+    /// <summary>
     /// 获取指定房间的子场景。
     /// </summary>
     /// <param name="self">房间管理组件。</param>
@@ -80,16 +106,23 @@ public static class RoomManagerComponentSystem
             {
                 var roomComponent = subScene.AddComponent<RoomComponent>();
                 roomComponent.RoomId = roomId;
+                roomComponent.RoomSeq = RoomIdHelper.GetRoomSeq(roomId);
+                roomComponent.MaxPlayerCount = playerCount;
                 roomComponent.CreateTime = TimeHelper.Now;
 
                 var frameSyncComponent = subScene.AddComponent<FrameSyncComponent>();
                 frameSyncComponent.FrameID = 0;
-                frameSyncComponent.PlayerCount = playerCount;
+                frameSyncComponent.PlayerCount = 0;
 
                 await FTask.CompletedTask;
             });
 
             self.RoomScenes.Add(roomId, roomScene);
+            var roomSeq = RoomIdHelper.GetRoomSeq(roomId);
+            if (self.NextRoomId <= roomSeq)
+            {
+                self.NextRoomId = roomSeq + 1;
+            }
             return roomScene;
         }
     }

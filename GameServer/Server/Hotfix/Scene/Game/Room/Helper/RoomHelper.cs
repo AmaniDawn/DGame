@@ -9,6 +9,15 @@ namespace Hotfix;
 public static class RoomHelper
 {
     /// <summary>
+    /// 在根 GameScene 下创建一个带自动分配房间 ID 的房间子场景。
+    /// </summary>
+    /// <param name="scene">根 GameScene。</param>
+    /// <param name="playerCount">房间初始玩家数量。</param>
+    /// <returns>创建完成的房间子场景。</returns>
+    public static FTask<SubScene> CreateRoom(this Scene scene, int playerCount)
+        => scene.GetComponent<RoomManagerComponent>().CreateRoom(playerCount);
+
+    /// <summary>
     /// 在根 GameScene 下创建一个房间子场景。
     /// </summary>
     /// <param name="scene">根 GameScene。</param>

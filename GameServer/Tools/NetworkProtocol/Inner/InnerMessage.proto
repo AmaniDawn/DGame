@@ -13,3 +13,71 @@ package Sining.Message;
 // 通过添加 // using 导出时添加自定义命名空间
 // 例如: // using System.Runtime // using System.Reflection
 
+/// Gate 请求 Game 创建房间
+message G2Game_CreateRoomRequest // IAddressRequest,G2Game_CreateRoomResponse
+{
+    long RoleId = 1; /// 角色ID
+    long AccountId = 2; /// 账号ID
+    int ServerId = 3; /// 服务器ID
+    long SessionRuntimeId = 4; /// Session运行时ID
+    string RoleName = 5; /// 角色名称
+    int HeadId = 6; /// 头像ID
+    byte Sex = 7; /// 性别
+    uint Level = 8; /// 等级
+    uint FightValue = 9; /// 战斗力
+    int PlayerCount = 10; /// 房间最大玩家数量
+}
+
+/// Game 创建房间返回
+message G2Game_CreateRoomResponse // IAddressResponse
+{
+    int RoomId = 1; /// 房间ID
+    int RoomSeq = 2; /// 房间序号
+    int PlayerCount = 3; /// 当前房间玩家数量
+    repeated InnerRoomPlayerInfo PlayerInfos = 4; /// 当前房间玩家列表
+}
+
+/// Gate 请求 Game 加入房间
+message G2Game_JoinRoomRequest // IAddressRequest,G2Game_JoinRoomResponse
+{
+    int RoomId = 1; /// 房间ID
+    long RoleId = 2; /// 角色ID
+    long AccountId = 3; /// 账号ID
+    int ServerId = 4; /// 服务器ID
+    long SessionRuntimeId = 5; /// Session运行时ID
+    string RoleName = 6; /// 角色名称
+    int HeadId = 7; /// 头像ID
+    byte Sex = 8; /// 性别
+    uint Level = 9; /// 等级
+    uint FightValue = 10; /// 战斗力
+}
+
+/// Game 加入房间返回
+message G2Game_JoinRoomResponse // IAddressResponse
+{
+    int RoomId = 1; /// 房间ID
+    int RoomSeq = 2; /// 房间序号
+    int PlayerCount = 3; /// 当前房间玩家数量
+    repeated InnerRoomPlayerInfo PlayerInfos = 4; /// 当前房间玩家列表
+}
+
+/// Gate 请求 Game 离开房间
+message G2Game_LeaveRoomRequest // IAddressRequest,G2Game_LeaveRoomResponse
+{
+    int RoomId = 1; /// 房间ID
+    long RoleId = 2; /// 角色ID
+}
+
+/// Game 离开房间返回
+message G2Game_LeaveRoomResponse // IAddressResponse
+{
+}
+
+/// 房间玩家快照
+message InnerRoomPlayerInfo
+{
+    long RoleId = 1; /// 角色ID
+    string RoleName = 2; /// 角色名称
+    uint Level = 3; /// 等级
+    uint FightValue = 4; /// 战斗力
+}

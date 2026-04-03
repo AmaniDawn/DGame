@@ -55,13 +55,22 @@ public sealed class C2G_LoginRequestHandler : MessageRPC<C2G_LoginRequest, G2C_L
 
             if (scene.TryGetEntity<Session>(playerData.SessionRuntimeId, out var oldSession))
             {
+                var oldPlayerDataFlagComponent = oldSession.GetComponent<PlayerDataFlagComponent>();
                 // 2.客户端断线重连
                 // 3.顶号
                 // 先给旧的客户端通知重登消息 再给
                 // 旧客户端连接设置一个延迟销毁
-                oldSession.GetComponent<PlayerDataFlagComponent>().SetPlayerData(null);
+                oldPlayerDataFlagComponent?.SetPlayerData(null);
                 oldSession.Send(new G2C_RepeatLogin());
                 oldSession.SetLifeTime(TbFuncParamConfig.OldSessionLifeTime);
+
+                var newPlayerDataFlagComponent = session.AddComponent<PlayerDataFlagComponent>();
+                newPlayerDataFlagComponent.SetPlayerData(playerData);
+                newPlayerDataFlagComponent.CopyRoomState(oldPlayerDataFlagComponent);
+            }
+            else
+            {
+                session.AddComponent<PlayerDataFlagComponent>().SetPlayerData(playerData);
             }
         }
         else
@@ -85,7 +94,11 @@ public sealed class C2G_LoginRequestHandler : MessageRPC<C2G_LoginRequest, G2C_L
         playerData.LastLoginTime = TimeHelper.Now;
         // 记录客户端的Session
         playerData.RecordSession(session.RuntimeId);
-        // 给当前客户端的Session添加一个组件 当Session异常断开的时候 进行玩家账号数据下线逻辑
-        session.AddComponent<PlayerDataFlagComponent>().SetPlayerData(playerData);
+
+        if (session.GetComponent<PlayerDataFlagComponent>() == null)
+        {
+            // 给当前客户端的Session添加一个组件 当Session异常断开的时候 进行玩家账号数据下线逻辑
+            session.AddComponent<PlayerDataFlagComponent>().SetPlayerData(playerData);
+        }
     }
 }
