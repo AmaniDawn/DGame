@@ -83,7 +83,7 @@ namespace GameLogic
                 renderUnit.Dispose();
                 throw new InvalidOperationException($"Init render unit failed: {typeof(T).Name}");
             }
-
+            BattleSystem.Instance.RegisterRenderUnit(renderUnit)
             return renderUnit;
         }
     }

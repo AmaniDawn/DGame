@@ -188,7 +188,6 @@ namespace GameLogic
             }
 
             RegisterRuntimeEvents();
-            BattleSystem.Instance.RenderUnits.Register(this);
             StartDisplayInit();
             return true;
         }
@@ -337,7 +336,7 @@ namespace GameLogic
 
             if (BattleSystem.IsValid)
             {
-                BattleSystem.Instance.RenderUnits.Unregister(this);
+                BattleSystem.Instance.UnregisterRenderUnit(this);
             }
             
             OnDestroy();
