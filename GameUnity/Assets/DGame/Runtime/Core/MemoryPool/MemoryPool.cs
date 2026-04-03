@@ -111,7 +111,8 @@ namespace DGame
         {
             if (memory == null)
             {
-                throw new DGameException("内存对象类型无效");
+                DLogger.Warning("内存对象类型无效");
+                return;
             }
 
             Type memoryType = memory.GetType();
