@@ -1,4 +1,6 @@
-﻿namespace GameLogic
+﻿#if ENABLE_INPUT_SYSTEM
+
+namespace GameLogic
 {
     public class ActorInputContextLayer : IInputContextLayer
     {
@@ -36,3 +38,5 @@
         }
     }
 }
+
+#endif

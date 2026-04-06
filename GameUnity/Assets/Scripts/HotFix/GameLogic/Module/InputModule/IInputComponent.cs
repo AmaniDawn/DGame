@@ -1,8 +1,8 @@
-﻿using DGame;
+﻿#if ENABLE_INPUT_SYSTEM
 
 namespace GameLogic
 {
-    public interface IInputComponent : IMemory
+    public interface IInputComponent : DGame.IMemory
     {
         /// <summary>
         /// 接收输入事件
@@ -34,3 +34,5 @@ namespace GameLogic
         void PostProcessInput(float elapseSeconds, float realElapseSeconds);
     }
 }
+
+#endif
