@@ -1,3 +1,6 @@
+#if ENABLE_INPUT_SYSTEM
+
+using System;
 using System.Collections.Generic;
 
 namespace GameLogic
@@ -70,5 +73,57 @@ namespace GameLogic
         /// 禁用输入系统
         /// </summary>
         void Disable();
+
+        /// <summary>
+        /// 当前是否处于改键中
+        /// </summary>
+        bool IsRebinding { get; }
+
+        /// <summary>
+        /// 获取指定动作的所有绑定信息
+        /// </summary>
+        /// <param name="actionName">输入动作名称，例如 <c>Jump</c> 或 <c>Move</c></param>
+        /// <param name="includeComposite">是否包含组合绑定本身，例如 <c>2DVector</c> 或 <c>Dpad</c> 节点</param>
+        /// <returns>动作当前的绑定信息列表</returns>
+        List<InputBindingInfo> GetActionBindings(string actionName, bool includeComposite = false);
+
+        /// <summary>
+        /// 获取指定绑定的人类可读名称
+        /// </summary>
+        /// <param name="actionName">输入动作名称</param>
+        /// <param name="bindingIndex">动作内的绑定索引</param>
+        /// <returns>显示给玩家的按键名称。若绑定无效则返回空字符串</returns>
+        string GetBindingDisplayString(string actionName, int bindingIndex);
+
+        /// <summary>
+        /// 开始交互式改键
+        /// </summary>
+        /// <param name="actionName">输入动作名称</param>
+        /// <param name="bindingIndex">动作内的绑定索引</param>
+        /// <param name="onComplete">改键完成后的回调</param>
+        /// <param name="onCancel">改键取消后的回调</param>
+        /// <param name="excludeMouse">是否排除鼠标输入，避免误绑定鼠标移动</param>
+        /// <returns>是否成功开始改键。若动作或索引无效，或当前已有改键进行中，则返回 <see langword="false"/></returns>
+        bool StartInteractiveRebind(string actionName, int bindingIndex, Action onComplete = null,
+            Action onCancel = null, bool excludeMouse = true);
+
+        /// <summary>
+        /// 取消当前改键
+        /// </summary>
+        void CancelInteractiveRebind();
+
+        /// <summary>
+        /// 重置单个绑定覆盖
+        /// </summary>
+        /// <param name="actionName">输入动作名称</param>
+        /// <param name="bindingIndex">动作内的绑定索引</param>
+        void ResetBindingOverride(string actionName, int bindingIndex);
+
+        /// <summary>
+        /// 重置所有绑定覆盖
+        /// </summary>
+        void ResetAllBindingOverrides();
     }
 }
+
+#endif

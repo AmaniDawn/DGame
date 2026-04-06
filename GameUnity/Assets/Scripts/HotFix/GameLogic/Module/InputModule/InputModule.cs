@@ -1,24 +1,25 @@
-﻿using System.Collections.Generic;
-using DGame;
+﻿#if ENABLE_INPUT_SYSTEM
+
+using System.Collections.Generic;
 
 namespace GameLogic
 {
-    internal sealed class InputModule : Module, IInputModule, IUpdateModule
+    internal sealed class InputModule : DGame.Module, IInputModule, DGame.IUpdateModule
     {
         /// <summary>
         /// 输入组件列表
         /// </summary>
-        private List<IInputComponent> m_inputComponents;
+        private List<IInputComponent> m_inputComponents; // 输入组件列表
 
         /// <summary>
         /// 实体ID映射输入上下文解析器
         /// </summary>
-        private Dictionary<int, List<IInputContextLayer>> m_inputContextLayerDict;
+        private Dictionary<int, List<IInputContextLayer>> m_inputContextLayerDict; // 实体ID映射的输入上下文层
 
         /// <summary>
         /// 输入轴值字典
         /// </summary>
-        private readonly Dictionary<InputAxisType, float> m_inputAxisDict = new Dictionary<InputAxisType, float>();
+        private readonly Dictionary<InputAxisType, float> m_inputAxisDict = new Dictionary<InputAxisType, float>(); // 当前输入轴值缓存
 
         public override void OnCreate()
         {
@@ -29,6 +30,7 @@ namespace GameLogic
 
         public override void OnDestroy()
         {
+            InputDefine.Dispose();
             Clear();
         }
 
@@ -40,14 +42,14 @@ namespace GameLogic
             {
                 foreach (var layer in layers)
                 {
-                    MemoryPool.Release(layer);
+                    DGame.MemoryPool.Release(layer);
                 }
                 layers.Clear();
             }
 
             foreach (var component in m_inputComponents)
             {
-                MemoryPool.Release(component);
+                DGame.MemoryPool.Release(component);
             }
             m_inputComponents.Clear();
             m_inputContextLayerDict.Clear();
@@ -59,7 +61,7 @@ namespace GameLogic
 
         public T AddInputComponent<T>() where T : class, IInputComponent, new()
         {
-            var component = MemoryPool.Spawn<T>();
+            var component = DGame.MemoryPool.Spawn<T>();
             m_inputComponents.Add(component);
             return component;
         }
@@ -72,7 +74,7 @@ namespace GameLogic
                 if (component is T)
                 {
                     m_inputComponents.RemoveAt(i);
-                    MemoryPool.Release(component);
+                    DGame.MemoryPool.Release(component);
                     break;
                 }
             }
@@ -80,7 +82,7 @@ namespace GameLogic
 
         public T AddInputContextLayer<T>(int entityID) where T : class, IInputContextLayer, new()
         {
-            var contextLayer = MemoryPool.Spawn<T>();
+            var contextLayer = DGame.MemoryPool.Spawn<T>();
             if (m_inputContextLayerDict.TryGetValue(entityID, out var contextLayers))
             {
                 InsertContextLayer(contextLayers, contextLayer);
@@ -116,7 +118,7 @@ namespace GameLogic
 
                     if (contextLayer is T)
                     {
-                        MemoryPool.Release(contextLayer);
+                        DGame.MemoryPool.Release(contextLayer);
                         contextLayers.RemoveAt(i);
                         break;
                     }
@@ -155,5 +157,26 @@ namespace GameLogic
         public void Enable() => InputDefine.Enable();
 
         public void Disable() => InputDefine.Disable();
+
+        public bool IsRebinding => InputDefine.IsRebinding;
+
+        public List<InputBindingInfo> GetActionBindings(string actionName, bool includeComposite = false)
+            => InputDefine.GetActionBindings(actionName, includeComposite);
+
+        public string GetBindingDisplayString(string actionName, int bindingIndex)
+            => InputDefine.GetBindingDisplayString(actionName, bindingIndex);
+
+        public bool StartInteractiveRebind(string actionName, int bindingIndex, System.Action onComplete = null,
+            System.Action onCancel = null, bool excludeMouse = true)
+            => InputDefine.StartInteractiveRebind(actionName, bindingIndex, onComplete, onCancel, excludeMouse);
+
+        public void CancelInteractiveRebind() => InputDefine.CancelInteractiveRebind();
+
+        public void ResetBindingOverride(string actionName, int bindingIndex)
+            => InputDefine.ResetBindingOverride(actionName, bindingIndex);
+
+        public void ResetAllBindingOverrides() => InputDefine.ResetAllBindingOverrides();
     }
 }
+
+#endif
