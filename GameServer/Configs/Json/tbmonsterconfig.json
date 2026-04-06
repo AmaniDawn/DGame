@@ -2,6 +2,7 @@
   {
     "MonsterID": 9001,
     "ModelID": 100111,
+    "MonsterNameId": 10300001,
     "AttrID": 38,
     "Type": 1,
     "ModelScale": 1,

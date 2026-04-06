@@ -20,6 +20,7 @@ public sealed partial class MonsterConfig : Luban.BeanBase
     {
         MonsterID = _buf.ReadInt();
         ModelID = _buf.ReadInt();
+        MonsterNameId = _buf.ReadInt();
         AttrID = _buf.ReadInt();
         Type = _buf.ReadByte();
         ModelScale = _buf.ReadFloat();
@@ -56,6 +57,10 @@ public sealed partial class MonsterConfig : Luban.BeanBase
     /// 模型ID
     /// </summary>
     public int ModelID;
+    /// <summary>
+    /// 模型名称
+    /// </summary>
+    public int MonsterNameId;
     /// <summary>
     /// 属性角标
     /// </summary>
@@ -158,6 +163,7 @@ public sealed partial class MonsterConfig : Luban.BeanBase
         }
         other.MonsterID = MonsterID;
         other.ModelID = ModelID;
+        other.MonsterNameId = MonsterNameId;
         other.AttrID = AttrID;
         other.Type = Type;
         other.ModelScale = ModelScale;
@@ -186,6 +192,7 @@ public sealed partial class MonsterConfig : Luban.BeanBase
         return "{ "
         + "MonsterID:" + MonsterID + ","
         + "ModelID:" + ModelID + ","
+        + "MonsterNameId:" + MonsterNameId + ","
         + "AttrID:" + AttrID + ","
         + "Type:" + Type + ","
         + "ModelScale:" + ModelScale + ","

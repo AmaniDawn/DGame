@@ -6,11 +6,11 @@
     "GroupID": 1,
     "ChapterNum": 1,
     "MapID": 10011,
-    "ChapterNameID": 0,
+    "ChapterNameID": 10200001,
     "IconName": "shapan_001",
     "ModelPath": "nongchang",
     "GridIconName": "main_gezi1",
-    "ChapterDescID": 0,
+    "ChapterDescID": 10200002,
     "StageCount": 5,
     "MaxReliveCount": 1,
     "CreateDay": 0,
@@ -52,7 +52,7 @@
     "GuaJiBootyID": 100114,
     "TourCostStam": 5,
     "TourBootyID": 100115,
-    "UnlockDescID": 0,
+    "UnlockDescID": 11000003,
     "IsLocked": false,
     "UnlockChapterCodition": [
       10012
