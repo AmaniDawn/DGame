@@ -3,7 +3,7 @@ using UnityEngine;
 
 namespace GameLogic
 {
-    public sealed class GameModule
+    public static class GameModule
     {
         #region 模块
 
@@ -152,6 +152,7 @@ namespace GameLogic
             m_resourceModule = null;
             m_fsmModule = null;
             m_inputModule = null;
+            m_input = null;
             m_localizationModule = null;
             m_gameObjectPool = null;
             m_sensitiveWordModule = null;

@@ -1,11 +1,11 @@
-﻿using DGame;
+﻿#if ENABLE_INPUT_SYSTEM
 
 namespace GameLogic
 {
     /// <summary>
     /// 输入上下文解析器接口
     /// </summary>
-    public interface IInputContextLayer : IMemory
+    public interface IInputContextLayer : DGame.IMemory
     {
         /// <summary>
         /// 优先级
@@ -47,3 +47,5 @@ namespace GameLogic
         void OnCanceled();
     }
 }
+
+#endif
