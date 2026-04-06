@@ -1,4 +1,6 @@
-﻿using System;
+﻿#if ENABLE_INPUT_SYSTEM
+
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -294,3 +296,5 @@ namespace GameLogic
         }
     }
 }
+
+#endif

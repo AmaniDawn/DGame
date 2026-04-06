@@ -34,6 +34,11 @@
             "name": "com.esotericsoftware.spine.spine-csharp",
             "expression": "4.2",
             "define": "SPINE_CSHARP"
+        },
+        {
+            "name": "com.unity.inputsystem",
+            "expression": "",
+            "define": "ENABLE_INPUT_SYSTEM"
         }
     ],
     "noEngineReferences": false
