@@ -10,4 +10,5 @@ public static class Definition
     public const string TargetEnumName = "InputEventType";
     public const string TargetInputDefineClassName = "InputDefine";
     public const string InputDefineFileName = "InputDefine_Gen.g.cs";
+    public const string InputEnableDefineName = "ENABLE_INPUT_SYSTEM";
 }
