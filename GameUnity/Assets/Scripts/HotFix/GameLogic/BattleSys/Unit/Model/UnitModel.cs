@@ -163,7 +163,7 @@ namespace GameLogic
                 return false;
             }
 
-            var isSuccess = await MainModelPart.LoadModelAsync(MainModelCfg.ModelLocation, ModelRootTransform, ct);
+            var isSuccess = await MainModelPart.RefreshModel(MainModelCfg, ModelRootTransform, ct);
             if (!isSuccess)
             {
                 MainModelPart.Destroy();

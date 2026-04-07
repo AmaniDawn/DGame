@@ -1,5 +1,7 @@
 ﻿using System;
+using System.Threading;
 using Cysharp.Threading.Tasks;
+using GameBattle;
 using GameProto;
 using UnityEngine;
 
@@ -43,8 +45,9 @@ namespace GameLogic
         /// </summary>
         /// <param name="modelConfig">主模型配置。</param>
         /// <param name="parent">主模型挂载父节点。</param>
+        /// <param name="ct">模型加载取消令牌。</param>
         /// <returns>刷新成功返回 <see langword="true"/>。</returns>
-        public async UniTask<bool> RefreshModel(ModelConfig modelConfig, Transform parent)
+        public async UniTask<bool> RefreshModel(ModelConfig modelConfig, Transform parent, CancellationToken ct = default)
         {
             ModelConfig = modelConfig;
             if (ModelConfig == null || string.IsNullOrEmpty(ModelConfig.ModelLocation))
@@ -55,7 +58,7 @@ namespace GameLogic
             }
 
             SetParent(parent);
-            return await LoadModelAsync(ModelConfig.ModelLocation, parent);
+            return await LoadModelAsync(ModelConfig.ModelLocation, parent, ct);
         }
         
         /// <summary>
@@ -70,6 +73,36 @@ namespace GameLogic
             }
 
             m_owner?.UnitDummy?.Refresh(Transform);
+        }
+
+        /// <summary>
+        /// 怪物主模型优先走游戏对象池，减少重复实例化成本。
+        /// </summary>
+        protected override bool UseGameObjectPool(string location)
+            => m_owner?.OwnerUnit?.UnitType == UnitType.Monster;
+
+        /// <summary>
+        /// 对象池复用实例时重置 Animator，避免残留上一次播放状态。
+        /// </summary>
+        protected override void OnModelSpawned()
+        {
+            if (Transform == null)
+            {
+                return;
+            }
+
+            var animators = Transform.GetComponentsInChildren<Animator>(true);
+            for (int i = 0; i < animators.Length; i++)
+            {
+                var animator = animators[i];
+                if (animator == null)
+                {
+                    continue;
+                }
+
+                animator.Rebind();
+                animator.Update(0f);
+            }
         }
         
         /// <summary>

@@ -55,6 +55,13 @@ namespace GameLogic
     /// </summary>
     public abstract class UnitModelPart
     {
+        private enum ModelInstanceSource
+        {
+            None = 0,
+            ResourceModule = 1,
+            GameObjectPool = 2
+        }
+
         /// <summary>
         /// 当前实例化出的模型对象。
         /// </summary>
@@ -69,6 +76,11 @@ namespace GameLogic
         /// 当前父节点。
         /// </summary>
         private Transform m_parent;
+
+        /// <summary>
+        /// 当前模型实例来源。
+        /// </summary>
+        private ModelInstanceSource m_modelInstanceSource;
 
         /// <summary>
         /// 当前模型对象。
@@ -156,15 +168,25 @@ namespace GameLogic
 
             m_parent = parent;
             m_location = location;
-            m_modelGo = await GameModule.ResourceModule.LoadGameObjectAsync(location, parent, ct);
+            m_modelGo = await SpawnModelAsync(location, parent, ct);
             if (m_modelGo == null)
             {
+                ClearSpawnState();
+                m_parent = null;
+                m_location = string.Empty;
+                return false;
+            }
+
+            if (ct.IsCancellationRequested)
+            {
+                ReleaseModelInstance();
                 m_parent = null;
                 m_location = string.Empty;
                 return false;
             }
 
             m_modelGo.transform.ResetLocalPosScaleRot();
+            OnModelSpawned();
             OnModelLoaded();
             m_onCreate?.Invoke(ModelGo, ModelType);
             return true;
@@ -182,9 +204,68 @@ namespace GameLogic
         protected virtual void OnModelLoaded() { }
 
         /// <summary>
+        /// 模型实例创建完成后的扩展钩子。
+        /// <remarks>适合处理对象池复用后的状态重置。</remarks>
+        /// </summary>
+        protected virtual void OnModelSpawned() { }
+
+        /// <summary>
         /// 模型销毁前的扩展钩子。
         /// </summary>
         protected virtual void OnBeforeDestroy() { }
+
+        /// <summary>
+        /// 是否使用游戏对象池创建当前模型实例。
+        /// </summary>
+        /// <param name="location">资源地址。</param>
+        /// <returns>使用对象池返回 <see langword="true"/>。</returns>
+        protected virtual bool UseGameObjectPool(string location) => false;
+
+        /// <summary>
+        /// 生成模型实例。
+        /// <remarks>默认走资源模块，子类可按需切换到游戏对象池。</remarks>
+        /// </summary>
+        protected virtual async UniTask<GameObject> SpawnModelAsync(string location, Transform parent,
+            CancellationToken ct)
+        {
+            if (UseGameObjectPool(location))
+            {
+                m_modelInstanceSource = ModelInstanceSource.GameObjectPool;
+                return await GameModule.GameObjectPool.SpawnAsync(location, parent, ct);
+            }
+
+            m_modelInstanceSource = ModelInstanceSource.ResourceModule;
+            return await GameModule.ResourceModule.LoadGameObjectAsync(location, parent, ct);
+        }
+
+        /// <summary>
+        /// 释放当前模型实例。
+        /// <remarks>对象池实例回收到池中，普通实例走销毁。</remarks>
+        /// </summary>
+        protected virtual void ReleaseModelInstance()
+        {
+            if (m_modelGo == null)
+            {
+                ClearSpawnState();
+                return;
+            }
+
+            switch (m_modelInstanceSource)
+            {
+                case ModelInstanceSource.GameObjectPool:
+                    GameModule.GameObjectPool.Recycle(m_modelGo);
+                    break;
+
+                default:
+                    Object.Destroy(m_modelGo);
+                    break;
+            }
+
+            m_modelGo = null;
+            ClearSpawnState();
+        }
+
+        private void ClearSpawnState() => m_modelInstanceSource = ModelInstanceSource.None;
 
         /// <summary>
         /// 销毁当前模型实例并清空部件状态。
@@ -195,8 +276,7 @@ namespace GameLogic
             OnBeforeDestroy();
             if (m_modelGo != null)
             {
-                Object.Destroy(m_modelGo);
-                m_modelGo = null;
+                ReleaseModelInstance();
             }
             m_onDestroy?.Invoke(ModelType);
             m_location = string.Empty;
