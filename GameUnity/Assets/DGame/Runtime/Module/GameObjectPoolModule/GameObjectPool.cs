@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 namespace DGame
 {
@@ -80,7 +81,7 @@ namespace DGame
             GameObjectPool pool = MemoryObject.Spawn<GameObjectPool>();
             pool.IsDestroyed = false;
             pool.m_destroyCancellationTokenSource = new CancellationTokenSource();
-            pool.m_parent = new GameObject($"{location}_Object_Pool");
+            pool.m_parent = new GameObject($"POOL-[{location}]");
             pool.m_parent.transform.SetParent(poolRoot, false);
             pool.Location = location;
             pool.m_initCapacity = initCapacity;
@@ -201,6 +202,10 @@ namespace DGame
             }
 
             go.transform.SetParent(parent, false);
+            if (parent == null)
+            {
+                SceneManager.MoveGameObjectToScene(go, SceneManager.GetActiveScene());
+            }
             go.transform.SetLocalPositionAndRotation(position, rotation);
             go.SetActive(true);
             m_spawnedPool.AddLast(go);
