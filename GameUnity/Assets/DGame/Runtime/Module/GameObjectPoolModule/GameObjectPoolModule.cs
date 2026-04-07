@@ -1,5 +1,6 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
+using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
@@ -25,13 +26,13 @@ namespace DGame
 
         public async UniTask<GameObjectPool> CreateGameObjectPoolAsync(string location,
             int initCapacity = 0, int maxCapacity = Int32.MaxValue, float autoDestroyTime = -1,
-            bool dontDestroy = false, bool allowMultiSpawn = false)
-            => await CreateGameObjectPoolAsyncInternal(PoolRoot.transform, location, initCapacity, maxCapacity,
-                autoDestroyTime, dontDestroy, allowMultiSpawn);
+            bool dontDestroy = false, bool allowMultiSpawn = false, CancellationToken ct = default)
+            => await CreateGameObjectPoolAsyncInternal(location, initCapacity, maxCapacity,
+                autoDestroyTime, dontDestroy, allowMultiSpawn, ct);
 
-        private async UniTask<GameObjectPool> CreateGameObjectPoolAsyncInternal(Transform poolRoot, string location,
+        private async UniTask<GameObjectPool> CreateGameObjectPoolAsyncInternal(string location,
             int initCapacity, int maxCapacity, float autoDestroyTime,
-            bool dontDestroy, bool allowMultiSpawn)
+            bool dontDestroy, bool allowMultiSpawn, CancellationToken ct)
         {
             if (maxCapacity < initCapacity)
             {
@@ -44,38 +45,13 @@ namespace DGame
             {
                 pool = GameObjectPool.Create(PoolRoot.transform, location, initCapacity,
                     maxCapacity, autoDestroyTime, dontDestroy, allowMultiSpawn);
-                await pool.CreatePoolAsync();
-                m_poolDict[location] = pool;
-            }
-            else
-            {
-                DLogger.Warning($"对象池重复创建: {location}");
-            }
+                await pool.CreatePoolAsync(ct);
+                if (ct.IsCancellationRequested || pool.IsDestroyed)
+                {
+                    pool.Destroy();
+                    return null;
+                }
 
-            return pool;
-        }
-
-        public GameObjectPool CreateGameObjectPool(string location, int initCapacity = 0,
-            int maxCapacity = Int32.MaxValue, float autoDestroyTime = -1, bool dontDestroy = false,
-            bool allowMultiSpawn = false)
-            => CreateGameObjectPoolInternal(PoolRoot.transform, location, initCapacity,
-                maxCapacity, autoDestroyTime, dontDestroy, allowMultiSpawn);
-
-        private GameObjectPool CreateGameObjectPoolInternal(Transform poolRoot, string location,
-            int initCapacity, int maxCapacity, float autoDestroyTime, bool dontDestroy,
-            bool allowMultiSpawn)
-        {
-            if (maxCapacity < initCapacity)
-            {
-                throw new DGameException("The max capacity value must be greater the init capacity value.");
-            }
-
-            GameObjectPool pool = GetGameObjectPool(location);
-            if (pool == null)
-            {
-                pool = GameObjectPool.Create(PoolRoot.transform, location, initCapacity,
-                    maxCapacity, autoDestroyTime, dontDestroy, allowMultiSpawn);
-                pool.CreatePool().Forget();
                 m_poolDict[location] = pool;
             }
             else
@@ -90,20 +66,18 @@ namespace DGame
         /// 异步实例化一个游戏对象
         /// </summary>
         /// <param name="location">资源定位地址</param>
-        /// <param name="forceClone">强制克隆游戏对象，忽略缓存池里的对象</param>
-        public async UniTask<GameObject> SpawnAsync(string location, bool forceClone = false)
-            => await SpawnInternalAsync(location, null, Vector3.zero, Quaternion.identity,
-                forceClone);
+        /// <param name="ct">取消令牌</param>
+        public async UniTask<GameObject> SpawnAsync(string location, CancellationToken ct = default)
+            => await SpawnInternalAsync(location, null, Vector3.zero, Quaternion.identity, ct);
 
         /// <summary>
         /// 异步实例化一个游戏对象
         /// </summary>
         /// <param name="location">资源定位地址</param>
         /// <param name="parent">父物体</param>
-        /// <param name="forceClone">强制克隆游戏对象，忽略缓存池里的对象</param>
-        public async UniTask<GameObject> SpawnAsync(string location, Transform parent, bool forceClone = false)
-            => await SpawnInternalAsync(location, parent, Vector3.zero, Quaternion.identity,
-                forceClone);
+        /// <param name="ct">取消令牌</param>
+        public async UniTask<GameObject> SpawnAsync(string location, Transform parent, CancellationToken ct = default)
+            => await SpawnInternalAsync(location, parent, Vector3.zero, Quaternion.identity, ct);
 
         /// <summary>
         /// 异步实例化一个游戏对象
@@ -112,43 +86,14 @@ namespace DGame
         /// <param name="parent">父物体</param>
         /// <param name="position">世界坐标</param>
         /// <param name="rotation">世界角度</param>
-        /// <param name="forceClone">强制克隆游戏对象，忽略缓存池里的对象</param>
+        /// <param name="ct">取消令牌</param>
         public async UniTask<GameObject> SpawnAsync(string location, Transform parent, Vector3 position,
-            Quaternion rotation, bool forceClone = false)
-            => await SpawnInternalAsync(location, parent, position, rotation, forceClone);
-
-        /// <summary>
-        /// 同步实例化一个游戏对象
-        /// </summary>
-        /// <param name="location">资源定位地址</param>
-        /// <param name="forceClone">强制克隆游戏对象，忽略缓存池里的对象</param>
-        public GameObject SpawnSync(string location, bool forceClone = false)
-            => SpawnInternal(location, null, Vector3.zero, Quaternion.identity, forceClone);
-
-        /// <summary>
-        /// 同步实例化一个游戏对象
-        /// </summary>
-        /// <param name="location">资源定位地址</param>
-        /// <param name="parent">父物体</param>
-        /// <param name="forceClone">强制克隆游戏对象，忽略缓存池里的对象</param>
-        public GameObject SpawnSync(string location, Transform parent, bool forceClone = false)
-            => SpawnInternal(location, parent, Vector3.zero, Quaternion.identity, forceClone);
-
-        /// <summary>
-        /// 同步实例化一个游戏对象
-        /// </summary>
-        /// <param name="location">资源定位地址</param>
-        /// <param name="parent">父物体</param>
-        /// <param name="position">世界坐标</param>
-        /// <param name="rotation">世界角度</param>
-        /// <param name="forceClone">强制克隆游戏对象，忽略缓存池里的对象</param>
-        public GameObject SpawnSync(string location, Transform parent, Vector3 position,
-            Quaternion rotation, bool forceClone = false)
-            => SpawnInternal(location, parent, position, rotation, forceClone);
+            Quaternion rotation, CancellationToken ct = default)
+            => await SpawnInternalAsync(location, parent, position, rotation, ct);
 
         public void Recycle(GameObject gameObject)
         {
-            if (TryGetGameObjectPool(gameObject.name, out var pool))
+            if (TryResolvePool(gameObject, out var pool))
             {
                 pool.Recycle(gameObject);
             }
@@ -160,7 +105,7 @@ namespace DGame
 
         public void Remove(GameObject gameObject)
         {
-            if (TryGetGameObjectPool(gameObject.name, out var pool))
+            if (TryResolvePool(gameObject, out var pool))
             {
                 pool.Remove(gameObject);
             }
@@ -170,35 +115,43 @@ namespace DGame
             }
         }
 
-        private GameObject SpawnInternal(string location, Transform parent,
-            Vector3 position, Quaternion rotation, bool forceClone)
-        {
-            var pool = GetGameObjectPool(location);
-
-            if (pool == null)
-            {
-                pool = GameObjectPool.Create(PoolRoot.transform, location);
-                pool.CreatePool().Forget();
-                m_poolDict[location] = pool;
-            }
-            return pool.SpawnSync(parent, position, rotation, forceClone);
-        }
-
         private async UniTask<GameObject> SpawnInternalAsync(string location, Transform parent,
-            Vector3 position, Quaternion rotation, bool forceClone)
+            Vector3 position, Quaternion rotation, CancellationToken ct)
         {
             var pool = GetGameObjectPool(location);
 
             if (pool == null)
             {
-                pool = GameObjectPool.Create(PoolRoot.transform, location);
-                await pool.CreatePoolAsync();
+                pool = GameObjectPool.Create(PoolRoot.transform, location, allowMultiSpawn: false);
+                await pool.CreatePoolAsync(ct);
+                if (ct.IsCancellationRequested || pool.IsDestroyed)
+                {
+                    pool.Destroy();
+                    return null;
+                }
+
                 m_poolDict[location] = pool;
             }
 
-            return await pool.SpawnAsync(parent, position, rotation, forceClone);
+            return await pool.SpawnAsync(parent, position, rotation, ct);
         }
 
+        private bool TryResolvePool(GameObject gameObject, out GameObjectPool pool)
+        {
+            pool = null;
+            if (gameObject == null)
+            {
+                return false;
+            }
+
+            if (gameObject.TryGetComponent<GameObjectPoolIdentity>(out var identity)
+                && !string.IsNullOrEmpty(identity.PoolKey))
+            {
+                return TryGetGameObjectPool(identity.PoolKey, out pool);
+            }
+
+            return TryGetGameObjectPool(gameObject.name, out pool);
+        }
 
         public GameObjectPool GetGameObjectPool(string location)
             => m_poolDict.GetValueOrDefault(location);
