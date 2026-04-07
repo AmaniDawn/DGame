@@ -31,6 +31,7 @@ namespace DGame
             if (PoolRoot == null)
             {
                 PoolRoot = new GameObject("[GAME_OBJECT_POOL_ROOT]");
+                UnityEngine.Object.DontDestroyOnLoad(PoolRoot);
             }
         }
 
