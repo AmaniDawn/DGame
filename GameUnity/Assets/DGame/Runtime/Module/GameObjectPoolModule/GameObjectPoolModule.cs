@@ -21,25 +21,37 @@ namespace DGame
         private readonly Dictionary<string, PoolCreateLock> m_poolCreateLocks
             = new Dictionary<string, PoolCreateLock>(100);
         private readonly List<string> m_removeList = new List<string>(100);
+        private bool m_isShuttingDown;
 
         public GameObject PoolRoot { get; private set; }
 
         public override void OnCreate()
         {
+            m_isShuttingDown = false;
             if (PoolRoot == null)
             {
                 PoolRoot = new GameObject("[GAME_OBJECT_POOL_ROOT]");
             }
         }
 
-        public override void OnDestroy() => DestroyAllPool(true);
+        public override void OnDestroy()
+        {
+            m_isShuttingDown = true;
+            DestroyAllPool(true);
+
+            if (PoolRoot != null)
+            {
+                UnityEngine.Object.Destroy(PoolRoot);
+                PoolRoot = null;
+            }
+        }
 
         public async UniTask<GameObjectPool> CreateGameObjectPoolAsync(string location,
             int initCapacity = 0, int maxCapacity = Int32.MaxValue, float autoDestroyTime = -1,
             bool dontDestroy = false, bool allowMultiSpawn = false, CancellationToken ct = default)
         {
             var pool = await GetOrCreatePoolAsync(location, initCapacity, maxCapacity, autoDestroyTime,
-                dontDestroy, allowMultiSpawn, ct);
+                dontDestroy, allowMultiSpawn, ct, true);
             if (pool == null)
             {
                 DLogger.Warning($"对象池创建失败或已被标记销毁: {location}");
@@ -70,8 +82,8 @@ namespace DGame
         /// </summary>
         /// <param name="location">资源定位地址</param>
         /// <param name="parent">父物体</param>
-        /// <param name="position">世界坐标</param>
-        /// <param name="rotation">世界角度</param>
+        /// <param name="position">本地坐标</param>
+        /// <param name="rotation">本地角度</param>
         /// <param name="ct">取消令牌</param>
         public async UniTask<GameObject> SpawnAsync(string location, Transform parent, Vector3 position,
             Quaternion rotation, CancellationToken ct = default)
@@ -85,7 +97,7 @@ namespace DGame
             }
             else
             {
-                DLogger.Warning($"没有找到该对象的对象池: {gameObject.name}");
+                HandleDetachedObject(gameObject);
             }
         }
 
@@ -97,14 +109,20 @@ namespace DGame
             }
             else
             {
-                DLogger.Warning($"没有找到该对象的对象池: {gameObject.name}");
+                HandleDetachedObject(gameObject);
             }
         }
 
         private async UniTask<GameObject> SpawnInternalAsync(string location, Transform parent,
             Vector3 position, Quaternion rotation, CancellationToken ct)
         {
-            var pool = await GetOrCreatePoolAsync(location, 0, Int32.MaxValue, -1f, false, false, ct);
+            if (m_isShuttingDown)
+            {
+                return null;
+            }
+
+            var pool = await GetOrCreatePoolAsync(location, 0, Int32.MaxValue,
+                -1f, false, false, ct, false);
             if (pool == null || pool.MarkedForDestroy || pool.IsDestroyed)
             {
                 return null;
@@ -112,15 +130,22 @@ namespace DGame
 
             return await pool.SpawnAsync(parent, position, rotation, ct);
         }
+
         private async UniTask<GameObjectPool> GetOrCreatePoolAsync(string location, int initCapacity,
-            int maxCapacity, float autoDestroyTime, bool dontDestroy, bool allowMultiSpawn, CancellationToken ct)
+            int maxCapacity, float autoDestroyTime, bool dontDestroy, bool allowMultiSpawn,
+            CancellationToken ct, bool applyConfiguration)
         {
             if (string.IsNullOrEmpty(location))
             {
                 throw new DGameException("对象池 location 无效");
             }
 
-            if (TryGetGameObjectPool(location, out var pool))
+            if (m_isShuttingDown)
+            {
+                return null;
+            }
+
+            if (!applyConfiguration && TryGetGameObjectPool(location, out var pool))
             {
                 return pool.MarkedForDestroy || pool.IsDestroyed ? null : pool;
             }
@@ -132,8 +157,19 @@ namespace DGame
                 await poolCreateLock.Semaphore.WaitAsync(ct);
                 lockTaken = true;
 
+                if (m_isShuttingDown || PoolRoot == null)
+                {
+                    return null;
+                }
+
                 if (TryGetGameObjectPool(location, out pool))
                 {
+                    if (applyConfiguration && !pool.MarkedForDestroy && !pool.IsDestroyed)
+                    {
+                        await pool.ConfigureAsync(initCapacity, maxCapacity, autoDestroyTime, dontDestroy,
+                            allowMultiSpawn, ct);
+                    }
+
                     return pool.MarkedForDestroy || pool.IsDestroyed ? null : pool;
                 }
 
@@ -202,16 +238,30 @@ namespace DGame
             }
         }
 
-        private void ClearCreateLocks()
+        private void ClearIdleCreateLocks()
         {
+            List<string> removeKeys = new List<string>();
             lock (m_poolCreateLocks)
             {
-                foreach (var poolCreateLock in m_poolCreateLocks.Values)
+                foreach (var item in m_poolCreateLocks)
                 {
-                    poolCreateLock.Dispose();
+                    if (item.Value.RefCount > 0)
+                    {
+                        continue;
+                    }
+
+                    removeKeys.Add(item.Key);
                 }
 
-                m_poolCreateLocks.Clear();
+                foreach (var key in removeKeys)
+                {
+                    if (!m_poolCreateLocks.Remove(key, out var poolCreateLock))
+                    {
+                        continue;
+                    }
+
+                    poolCreateLock.Dispose();
+                }
             }
         }
 
@@ -230,6 +280,18 @@ namespace DGame
             }
 
             return false;
+        }
+
+        private static void HandleDetachedObject(GameObject gameObject)
+        {
+            if (gameObject == null)
+            {
+                DLogger.Warning("对象池操作目标无效");
+                return;
+            }
+
+            DLogger.Warning($"没有找到该对象的对象池，直接销毁对象: {gameObject.name}");
+            UnityEngine.Object.Destroy(gameObject);
         }
 
         public GameObjectPool GetGameObjectPool(string location)
@@ -257,7 +319,7 @@ namespace DGame
                     pool.Destroy();
                 }
                 m_poolDict.Clear();
-                ClearCreateLocks();
+                ClearIdleCreateLocks();
             }
             else
             {

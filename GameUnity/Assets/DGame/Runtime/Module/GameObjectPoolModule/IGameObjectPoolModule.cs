@@ -43,8 +43,8 @@ namespace DGame
         /// </summary>
         /// <param name="location">资源定位地址</param>
         /// <param name="parent">父物体</param>
-        /// <param name="position">世界坐标</param>
-        /// <param name="rotation">世界角度</param>
+        /// <param name="position">本地坐标</param>
+        /// <param name="rotation">本地角度</param>
         /// <param name="ct">取消令牌</param>
         UniTask<GameObject> SpawnAsync(string location, Transform parent, Vector3 position,
             Quaternion rotation, CancellationToken ct = default);
