@@ -94,27 +94,48 @@ namespace DGame
             return pool;
         }
 
-        public async UniTask CreatePoolAsync(CancellationToken ct = default)
+        public async UniTask<bool> CreatePoolAsync(CancellationToken ct = default)
             => await EnsureCapacityAsync(m_initCapacity, ct);
 
-        public async UniTask ConfigureAsync(int initCapacity, int maxCapacity, float autoDestroyTime,
+        public async UniTask<bool> ConfigureAsync(int initCapacity, int maxCapacity, float autoDestroyTime,
             bool dontDestroy, bool allowMultiSpawn, CancellationToken ct = default)
         {
             NormalizeCapacity(ref initCapacity, ref maxCapacity);
+
+            var oldInitCapacity = m_initCapacity;
+            var oldMaxCapacity = m_maxCapacity;
+            var oldAutoDestroyTime = m_autoDestroyTime;
+            var oldDontDestroy = DontDestroy;
+            var oldAllowMultiSpawn = m_allowMultiSpawn;
+
             m_initCapacity = initCapacity;
             m_maxCapacity = maxCapacity;
             m_autoDestroyTime = autoDestroyTime;
             DontDestroy = dontDestroy;
             m_allowMultiSpawn = allowMultiSpawn;
+
             TrimInactiveObjectsToCapacity();
-            await EnsureCapacityAsync(m_initCapacity, ct);
+
+            var success = await EnsureCapacityAsync(m_initCapacity, ct);
+            if (success)
+            {
+                return true;
+            }
+
+            m_initCapacity = oldInitCapacity;
+            m_maxCapacity = oldMaxCapacity;
+            m_autoDestroyTime = oldAutoDestroyTime;
+            DontDestroy = oldDontDestroy;
+            m_allowMultiSpawn = oldAllowMultiSpawn;
+            TrimInactiveObjectsToCapacity();
+            return false;
         }
 
-        private async UniTask EnsureCapacityAsync(int targetCapacity, CancellationToken ct)
+        private async UniTask<bool> EnsureCapacityAsync(int targetCapacity, CancellationToken ct)
         {
             if (IsDestroyed || MarkedForDestroy)
             {
-                return;
+                return false;
             }
 
             targetCapacity = Mathf.Clamp(targetCapacity, 0, m_maxCapacity);
@@ -124,12 +145,15 @@ namespace DGame
                 var go = await LoadPoolGameObjectAsync(ct);
                 if (go == null)
                 {
-                    return;
+                    DLogger.Warning($"对象池初始化未完全成功: {Location}。目前对象池容量: {Count}/{targetCapacity}");
+                    return false;
                 }
 
                 go.SetActive(false);
                 m_goPool.Enqueue(go);
             }
+            MarkIdleTimeIfNeeded();
+            return true;
         }
 
         public async UniTask<GameObject> SpawnAsync(Transform parent, Vector3 position,
@@ -204,10 +228,6 @@ namespace DGame
                 DLogger.Warning($"对象不在已生成列表中，可能已回收: {go.name}");
                 return;
             }
-            if (SpawnedCount <= 0)
-            {
-                m_lastRecycleTime = Time.realtimeSinceStartup;
-            }
 
             if (!MarkedForDestroy && Count < m_maxCapacity)
             {
@@ -220,6 +240,7 @@ namespace DGame
             {
                 DestroyGameObject(go);
             }
+            MarkIdleTimeIfNeeded();
         }
 
         /// <summary>
@@ -245,11 +266,16 @@ namespace DGame
                 return;
             }
 
+            MarkIdleTimeIfNeeded();
+            DestroyGameObject(go);
+        }
+
+        private void MarkIdleTimeIfNeeded()
+        {
             if (SpawnedCount <= 0)
             {
                 m_lastRecycleTime = Time.realtimeSinceStartup;
             }
-            DestroyGameObject(go);
         }
 
         /// <summary>

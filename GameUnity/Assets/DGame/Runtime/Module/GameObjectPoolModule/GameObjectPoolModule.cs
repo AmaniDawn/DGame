@@ -97,7 +97,7 @@ namespace DGame
             }
             else
             {
-                HandleDetachedObject(gameObject);
+                DLogger.Warning($"对象不属于有效对象池，忽略回收: {gameObject?.name}");
             }
         }
 
@@ -109,7 +109,7 @@ namespace DGame
             }
             else
             {
-                HandleDetachedObject(gameObject);
+                DLogger.Warning($"对象不属于有效对象池，忽略回收: {gameObject?.name}");
             }
         }
 
@@ -166,8 +166,13 @@ namespace DGame
                 {
                     if (applyConfiguration && !pool.MarkedForDestroy && !pool.IsDestroyed)
                     {
-                        await pool.ConfigureAsync(initCapacity, maxCapacity, autoDestroyTime, dontDestroy,
+                        var success = await pool.ConfigureAsync(initCapacity, maxCapacity, autoDestroyTime, dontDestroy,
                             allowMultiSpawn, ct);
+                        if (!success)
+                        {
+                            DLogger.Warning($"对象池重配置失败，保留旧池配置: {location}");
+                            return null;
+                        }
                     }
 
                     return pool.MarkedForDestroy || pool.IsDestroyed ? null : pool;
@@ -178,9 +183,24 @@ namespace DGame
 
                 try
                 {
-                    await pool.CreatePoolAsync(ct);
-                    if (ct.IsCancellationRequested || pool.IsDestroyed || pool.MarkedForDestroy)
+                    var success = await pool.CreatePoolAsync(ct);
+                    if (!success)
                     {
+                        DLogger.Warning($"对象池预热失败，创建对象池失败: {location}");
+                        pool.Destroy();
+                        return null;
+                    }
+
+                    if (ct.IsCancellationRequested)
+                    {
+                        DLogger.Warning($"对象池创建被取消: {location}");
+                        pool.Destroy();
+                        return null;
+                    }
+
+                    if (pool.IsDestroyed || pool.MarkedForDestroy)
+                    {
+                        DLogger.Warning($"对象池创建过程中池已失效: {location}");
                         pool.Destroy();
                         return null;
                     }
@@ -280,18 +300,6 @@ namespace DGame
             }
 
             return false;
-        }
-
-        private static void HandleDetachedObject(GameObject gameObject)
-        {
-            if (gameObject == null)
-            {
-                DLogger.Warning("对象池操作目标无效");
-                return;
-            }
-
-            DLogger.Warning($"没有找到该对象的对象池，直接销毁对象: {gameObject.name}");
-            UnityEngine.Object.Destroy(gameObject);
         }
 
         public GameObjectPool GetGameObjectPool(string location)
