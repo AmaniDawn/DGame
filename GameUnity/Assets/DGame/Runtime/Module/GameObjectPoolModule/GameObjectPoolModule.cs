@@ -112,7 +112,6 @@ namespace DGame
 
             return await pool.SpawnAsync(parent, position, rotation, ct);
         }
-
         private async UniTask<GameObjectPool> GetOrCreatePoolAsync(string location, int initCapacity,
             int maxCapacity, float autoDestroyTime, bool dontDestroy, bool allowMultiSpawn, CancellationToken ct)
         {
@@ -127,9 +126,12 @@ namespace DGame
             }
 
             var poolCreateLock = AcquireCreateLock(location);
-            await poolCreateLock.Semaphore.WaitAsync(ct);
+            var lockTaken = false;
             try
             {
+                await poolCreateLock.Semaphore.WaitAsync(ct);
+                lockTaken = true;
+
                 if (TryGetGameObjectPool(location, out pool))
                 {
                     return pool.MarkedForDestroy || pool.IsDestroyed ? null : pool;
@@ -153,12 +155,16 @@ namespace DGame
                 catch
                 {
                     pool.Destroy();
-                    throw;
+                    return null;
                 }
             }
             finally
             {
-                poolCreateLock.Semaphore.Release();
+                if (lockTaken)
+                {
+                    poolCreateLock.Semaphore.Release();
+                }
+
                 ReleaseCreateLock(location);
             }
         }
@@ -196,6 +202,19 @@ namespace DGame
             }
         }
 
+        private void ClearCreateLocks()
+        {
+            lock (m_poolCreateLocks)
+            {
+                foreach (var poolCreateLock in m_poolCreateLocks.Values)
+                {
+                    poolCreateLock.Dispose();
+                }
+
+                m_poolCreateLocks.Clear();
+            }
+        }
+
         private bool TryResolvePool(GameObject gameObject, out GameObjectPool pool)
         {
             pool = null;
@@ -214,20 +233,14 @@ namespace DGame
         }
 
         public GameObjectPool GetGameObjectPool(string location)
-            => m_poolDict.GetValueOrDefault(location);
+            => m_poolDict.GetValueOrDefault(location, null);
 
         public bool TryGetGameObjectPool(string location, out GameObjectPool pool)
-        {
-            if (m_poolDict.TryGetValue(location, out pool))
-            {
-                return true;
-            }
-            return false;
-        }
+            => m_poolDict.TryGetValue(location, out pool);
 
         public void DestroyPool(string location)
         {
-            if (m_poolDict.TryGetValue(location, out var pool))
+            if (TryGetGameObjectPool(location, out var pool))
             {
                 pool.MarkedForDestroy = true;
             }
@@ -244,6 +257,7 @@ namespace DGame
                     pool.Destroy();
                 }
                 m_poolDict.Clear();
+                ClearCreateLocks();
             }
             else
             {
@@ -258,7 +272,7 @@ namespace DGame
 
                 foreach (var poolKey in m_removeList)
                 {
-                    if (!m_poolDict.TryGetValue(poolKey, out var pool))
+                    if (!TryGetGameObjectPool(poolKey, out var pool))
                     {
                         continue;
                     }
@@ -286,7 +300,7 @@ namespace DGame
 
             foreach (var poolKey in m_removeList)
             {
-                if (!m_poolDict.TryGetValue(poolKey, out var pool))
+                if (!TryGetGameObjectPool(poolKey, out var pool))
                 {
                     continue;
                 }

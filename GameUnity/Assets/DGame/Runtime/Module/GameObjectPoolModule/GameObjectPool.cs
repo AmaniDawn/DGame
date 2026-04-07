@@ -37,17 +37,17 @@ namespace DGame
         /// <summary>
         /// 对象池总容量
         /// </summary>
-        public int Count => m_goPool.Count + m_spawnedPool.Count;
+        public int Count => m_goPool != null && m_spawnedPool != null ? m_goPool.Count + m_spawnedPool.Count : 0;
 
         /// <summary>
         /// 正在被使用的游戏对象个数
         /// </summary>
-        public int SpawnedCount => m_spawnedPool.Count;
+        public int SpawnedCount => m_spawnedPool?.Count ?? 0;
 
         /// <summary>
         /// 没在使用的游戏对象个数
         /// </summary>
-        public int NoSpawnCount => m_goPool.Count;
+        public int NoSpawnCount => m_goPool?.Count ?? 0;
 
         /// <summary>
         /// 持久化对象池
@@ -148,11 +148,12 @@ namespace DGame
                 {
                     DestroyGameObject(go);
                 }
+
                 return null;
             }
 
             go.transform.SetParent(parent, false);
-            go.transform.SetPositionAndRotation(position, rotation);
+            go.transform.SetLocalPositionAndRotation(position, rotation);
             go.SetActive(true);
             m_spawnedPool.AddLast(go);
             return go;
@@ -188,7 +189,7 @@ namespace DGame
             {
                 go.SetActive(false);
                 go.transform.SetParent(m_parent.transform, false);
-                go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+                go.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
                 m_goPool.Enqueue(go);
             }
             else
@@ -340,6 +341,12 @@ namespace DGame
 
         private void DestroyAllGameObject()
         {
+            if (m_goPool == null)
+            {
+                m_spawnedPool.Clear();
+                return;
+            }
+
             while (m_goPool.Count > 0)
             {
                 var go = m_goPool.Dequeue();
