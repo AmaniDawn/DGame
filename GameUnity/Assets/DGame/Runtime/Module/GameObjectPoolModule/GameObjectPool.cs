@@ -57,7 +57,7 @@ namespace DGame
         /// <summary>
         /// 手动标记销毁
         /// </summary>
-        public bool ManualDestroy { get; set; }
+        public bool MarkedForDestroy { get; set; }
 
         /// <summary>
         /// 对象池最大容量
@@ -86,7 +86,7 @@ namespace DGame
             pool.m_maxCapacity = maxCapacity;
             pool.m_autoDestroyTime = autoDestroyTime;
             pool.DontDestroy = dontDestroy;
-            pool.ManualDestroy = false;
+            pool.MarkedForDestroy = false;
             pool.m_goPool = new Queue<GameObject>(initCapacity);
             pool.m_resourceModule = ModuleSystem.GetModule<IResourceModule>();
             pool.m_allowMultiSpawn = allowMultiSpawn;
@@ -104,7 +104,6 @@ namespace DGame
                 }
 
                 go.SetActive(false);
-                MarkPooledObject(go);
                 m_goPool.Enqueue(go);
             }
         }
@@ -112,7 +111,7 @@ namespace DGame
         public async UniTask<GameObject> SpawnAsync(Transform parent, Vector3 position,
             Quaternion rotation, CancellationToken ct = default)
         {
-            if (IsDestroyed || ManualDestroy)
+            if (IsDestroyed || MarkedForDestroy)
             {
                 return null;
             }
@@ -143,7 +142,7 @@ namespace DGame
                 go = await LoadPoolGameObjectAsync(ct);
             }
 
-            if (go == null || IsDestroyed || ManualDestroy)
+            if (go == null || IsDestroyed || MarkedForDestroy)
             {
                 if (go != null)
                 {
@@ -152,7 +151,6 @@ namespace DGame
                 return null;
             }
 
-            MarkPooledObject(go);
             go.transform.SetParent(parent, false);
             go.transform.SetPositionAndRotation(position, rotation);
             go.SetActive(true);
@@ -186,7 +184,7 @@ namespace DGame
                 m_lastRecycleTime = Time.realtimeSinceStartup;
             }
 
-            if (!ManualDestroy && m_goPool.Count < m_maxCapacity)
+            if (!MarkedForDestroy && m_goPool.Count < m_maxCapacity)
             {
                 go.SetActive(false);
                 go.transform.SetParent(m_parent.transform, false);
@@ -240,7 +238,7 @@ namespace DGame
                 return false;
             }
 
-            if (ManualDestroy)
+            if (MarkedForDestroy)
             {
                 return SpawnedCount <= 0;
             }
@@ -295,6 +293,7 @@ namespace DGame
                     return null;
                 }
 
+                MarkPooledObject(go);
                 return go;
             }
             finally
@@ -387,7 +386,7 @@ namespace DGame
             m_allowMultiSpawn = false;
             Location = null;
             DontDestroy = false;
-            ManualDestroy = false;
+            MarkedForDestroy = false;
         }
     }
 }

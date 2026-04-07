@@ -8,8 +8,18 @@ namespace DGame
 {
     internal sealed class GameObjectPoolModule : Module, IGameObjectPoolModule, IUpdateModule
     {
+        private sealed class PoolCreateLock
+        {
+            public readonly SemaphoreSlim Semaphore = new SemaphoreSlim(1, 1);
+            public int RefCount;
+
+            public void Dispose() => Semaphore.Dispose();
+        }
+
         private readonly Dictionary<string, GameObjectPool> m_poolDict
             = new Dictionary<string, GameObjectPool>(100);
+        private readonly Dictionary<string, PoolCreateLock> m_poolCreateLocks
+            = new Dictionary<string, PoolCreateLock>(100);
         private readonly List<string> m_removeList = new List<string>(100);
 
         public GameObject PoolRoot { get; private set; }
@@ -27,36 +37,12 @@ namespace DGame
         public async UniTask<GameObjectPool> CreateGameObjectPoolAsync(string location,
             int initCapacity = 0, int maxCapacity = Int32.MaxValue, float autoDestroyTime = -1,
             bool dontDestroy = false, bool allowMultiSpawn = false, CancellationToken ct = default)
-            => await CreateGameObjectPoolAsyncInternal(location, initCapacity, maxCapacity,
-                autoDestroyTime, dontDestroy, allowMultiSpawn, ct);
-
-        private async UniTask<GameObjectPool> CreateGameObjectPoolAsyncInternal(string location,
-            int initCapacity, int maxCapacity, float autoDestroyTime,
-            bool dontDestroy, bool allowMultiSpawn, CancellationToken ct)
         {
-            if (maxCapacity < initCapacity)
-            {
-                throw new DGameException("The max capacity value must be greater the init capacity value.");
-            }
-
-            GameObjectPool pool = GetGameObjectPool(location);
-
+            var pool = await GetOrCreatePoolAsync(location, initCapacity, maxCapacity, autoDestroyTime,
+                dontDestroy, allowMultiSpawn, ct);
             if (pool == null)
             {
-                pool = GameObjectPool.Create(PoolRoot.transform, location, initCapacity,
-                    maxCapacity, autoDestroyTime, dontDestroy, allowMultiSpawn);
-                await pool.CreatePoolAsync(ct);
-                if (ct.IsCancellationRequested || pool.IsDestroyed)
-                {
-                    pool.Destroy();
-                    return null;
-                }
-
-                m_poolDict[location] = pool;
-            }
-            else
-            {
-                DLogger.Warning($"对象池重复创建: {location}");
+                DLogger.Warning($"对象池创建失败或已被标记销毁: {location}");
             }
 
             return pool;
@@ -118,22 +104,96 @@ namespace DGame
         private async UniTask<GameObject> SpawnInternalAsync(string location, Transform parent,
             Vector3 position, Quaternion rotation, CancellationToken ct)
         {
-            var pool = GetGameObjectPool(location);
-
-            if (pool == null)
+            var pool = await GetOrCreatePoolAsync(location, 0, Int32.MaxValue, -1f, false, false, ct);
+            if (pool == null || pool.MarkedForDestroy || pool.IsDestroyed)
             {
-                pool = GameObjectPool.Create(PoolRoot.transform, location, allowMultiSpawn: false);
-                await pool.CreatePoolAsync(ct);
-                if (ct.IsCancellationRequested || pool.IsDestroyed)
-                {
-                    pool.Destroy();
-                    return null;
-                }
-
-                m_poolDict[location] = pool;
+                return null;
             }
 
             return await pool.SpawnAsync(parent, position, rotation, ct);
+        }
+
+        private async UniTask<GameObjectPool> GetOrCreatePoolAsync(string location, int initCapacity,
+            int maxCapacity, float autoDestroyTime, bool dontDestroy, bool allowMultiSpawn, CancellationToken ct)
+        {
+            if (string.IsNullOrEmpty(location))
+            {
+                throw new DGameException("对象池 location 无效");
+            }
+
+            if (TryGetGameObjectPool(location, out var pool))
+            {
+                return pool.MarkedForDestroy || pool.IsDestroyed ? null : pool;
+            }
+
+            var poolCreateLock = AcquireCreateLock(location);
+            await poolCreateLock.Semaphore.WaitAsync(ct);
+            try
+            {
+                if (TryGetGameObjectPool(location, out pool))
+                {
+                    return pool.MarkedForDestroy || pool.IsDestroyed ? null : pool;
+                }
+
+                pool = GameObjectPool.Create(PoolRoot.transform, location, initCapacity,
+                    maxCapacity, autoDestroyTime, dontDestroy, allowMultiSpawn);
+
+                try
+                {
+                    await pool.CreatePoolAsync(ct);
+                    if (ct.IsCancellationRequested || pool.IsDestroyed || pool.MarkedForDestroy)
+                    {
+                        pool.Destroy();
+                        return null;
+                    }
+
+                    m_poolDict[location] = pool;
+                    return pool;
+                }
+                catch
+                {
+                    pool.Destroy();
+                    throw;
+                }
+            }
+            finally
+            {
+                poolCreateLock.Semaphore.Release();
+                ReleaseCreateLock(location);
+            }
+        }
+
+        private PoolCreateLock AcquireCreateLock(string location)
+        {
+            lock (m_poolCreateLocks)
+            {
+                if (!m_poolCreateLocks.TryGetValue(location, out var poolCreateLock))
+                {
+                    poolCreateLock = new PoolCreateLock();
+                    m_poolCreateLocks.Add(location, poolCreateLock);
+                }
+
+                poolCreateLock.RefCount++;
+                return poolCreateLock;
+            }
+        }
+
+        private void ReleaseCreateLock(string location)
+        {
+            lock (m_poolCreateLocks)
+            {
+                if (!m_poolCreateLocks.TryGetValue(location, out var poolCreateLock))
+                {
+                    return;
+                }
+
+                poolCreateLock.RefCount--;
+                if (poolCreateLock.RefCount <= 0)
+                {
+                    m_poolCreateLocks.Remove(location);
+                    poolCreateLock.Dispose();
+                }
+            }
         }
 
         private bool TryResolvePool(GameObject gameObject, out GameObjectPool pool)
@@ -150,7 +210,7 @@ namespace DGame
                 return TryGetGameObjectPool(identity.PoolKey, out pool);
             }
 
-            return TryGetGameObjectPool(gameObject.name, out pool);
+            return false;
         }
 
         public GameObjectPool GetGameObjectPool(string location)
@@ -169,12 +229,14 @@ namespace DGame
         {
             if (m_poolDict.TryGetValue(location, out var pool))
             {
-                pool.ManualDestroy = true;
+                pool.MarkedForDestroy = true;
             }
         }
 
         public void DestroyAllPool(bool includeAll)
         {
+            m_removeList.Clear();
+
             if (includeAll)
             {
                 foreach (var pool in m_poolDict.Values)
@@ -189,15 +251,23 @@ namespace DGame
                 {
                     if (!item.Value.DontDestroy)
                     {
+                        item.Value.MarkedForDestroy = true;
                         m_removeList.Add(item.Key);
                     }
                 }
 
                 foreach (var poolKey in m_removeList)
                 {
-                    var pool = m_poolDict[poolKey];
-                    pool.Destroy();
-                    m_poolDict.Remove(poolKey);
+                    if (!m_poolDict.TryGetValue(poolKey, out var pool))
+                    {
+                        continue;
+                    }
+
+                    if (pool.SpawnedCount <= 0)
+                    {
+                        pool.Destroy();
+                        m_poolDict.Remove(poolKey);
+                    }
                 }
             }
         }
@@ -216,7 +286,11 @@ namespace DGame
 
             foreach (var poolKey in m_removeList)
             {
-                var pool = m_poolDict[poolKey];
+                if (!m_poolDict.TryGetValue(poolKey, out var pool))
+                {
+                    continue;
+                }
+
                 pool.Destroy();
                 m_poolDict.Remove(poolKey);
             }
