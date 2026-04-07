@@ -1,4 +1,5 @@
-﻿using Cysharp.Threading.Tasks;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace DGame
@@ -16,39 +17,26 @@ namespace DGame
         /// <param name="autoDestroyTime">自动销毁时间</param>
         /// <param name="dontDestroy">持久化</param>
         /// <param name="allowMultiSpawn">是否允许重复获取</param>
+        /// <param name="ct">取消令牌</param>
         /// <returns></returns>
         UniTask<GameObjectPool> CreateGameObjectPoolAsync(string location, int initCapacity = 0,
             int maxCapacity = int.MaxValue, float autoDestroyTime = -1f, bool dontDestroy = false,
-            bool allowMultiSpawn = false);
-
-        /// <summary>
-        /// 预创建GameObjectPool
-        /// </summary>
-        /// <param name="location">资源定位地址</param>
-        /// <param name="initCapacity">初始容量</param>
-        /// <param name="maxCapacity">最大容量</param>
-        /// <param name="autoDestroyTime">自动销毁时间</param>
-        /// <param name="dontDestroy">持久化</param>
-        /// <param name="allowMultiSpawn">是否允许重复获取</param>
-        /// <returns></returns>
-        GameObjectPool CreateGameObjectPool(string location, int initCapacity = 0,
-            int maxCapacity = int.MaxValue, float autoDestroyTime = -1f, bool dontDestroy = false,
-            bool allowMultiSpawn = false);
+            bool allowMultiSpawn = false, CancellationToken ct = default);
 
         /// <summary>
         /// 异步实例化一个游戏对象
         /// </summary>
         /// <param name="location">资源定位地址</param>
-        /// <param name="forceClone">强制克隆游戏对象，忽略缓存池里的对象</param>
-        UniTask<GameObject> SpawnAsync(string location, bool forceClone = false);
+        /// <param name="ct">取消令牌</param>
+        UniTask<GameObject> SpawnAsync(string location, CancellationToken ct = default);
 
         /// <summary>
         /// 异步实例化一个游戏对象
         /// </summary>
         /// <param name="location">资源定位地址</param>
         /// <param name="parent">父物体</param>
-        /// <param name="forceClone">强制克隆游戏对象，忽略缓存池里的对象</param>
-        UniTask<GameObject> SpawnAsync(string location, Transform parent, bool forceClone = false);
+        /// <param name="ct">取消令牌</param>
+        UniTask<GameObject> SpawnAsync(string location, Transform parent, CancellationToken ct = default);
 
         /// <summary>
         /// 异步实例化一个游戏对象
@@ -57,35 +45,9 @@ namespace DGame
         /// <param name="parent">父物体</param>
         /// <param name="position">世界坐标</param>
         /// <param name="rotation">世界角度</param>
-        /// <param name="forceClone">强制克隆游戏对象，忽略缓存池里的对象</param>
+        /// <param name="ct">取消令牌</param>
         UniTask<GameObject> SpawnAsync(string location, Transform parent, Vector3 position,
-            Quaternion rotation, bool forceClone = false);
-
-        /// <summary>
-        /// 同步实例化一个游戏对象
-        /// </summary>
-        /// <param name="location">资源定位地址</param>
-        /// <param name="forceClone">强制克隆游戏对象，忽略缓存池里的对象</param>
-        GameObject SpawnSync(string location, bool forceClone = false);
-
-        /// <summary>
-        /// 同步实例化一个游戏对象
-        /// </summary>
-        /// <param name="location">资源定位地址</param>
-        /// <param name="parent">父物体</param>
-        /// <param name="forceClone">强制克隆游戏对象，忽略缓存池里的对象</param>
-        GameObject SpawnSync(string location, Transform parent, bool forceClone = false);
-
-        /// <summary>
-        /// 同步实例化一个游戏对象
-        /// </summary>
-        /// <param name="location">资源定位地址</param>
-        /// <param name="parent">父物体</param>
-        /// <param name="position">世界坐标</param>
-        /// <param name="rotation">世界角度</param>
-        /// <param name="forceClone">强制克隆游戏对象，忽略缓存池里的对象</param>
-        GameObject SpawnSync(string location, Transform parent, Vector3 position,
-            Quaternion rotation, bool forceClone = false);
+            Quaternion rotation, CancellationToken ct = default);
 
         /// <summary>
         /// 回收对象
