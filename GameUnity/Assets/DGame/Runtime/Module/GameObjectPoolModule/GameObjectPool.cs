@@ -37,17 +37,17 @@ namespace DGame
         /// <summary>
         /// 对象池总容量
         /// </summary>
-        public int Count => m_goPool.Count + m_spawnedPool.Count;
+        public int Count => m_goPool != null && m_spawnedPool != null ? m_goPool.Count + m_spawnedPool.Count : 0;
 
         /// <summary>
         /// 正在被使用的游戏对象个数
         /// </summary>
-        public int SpawnedCount => m_spawnedPool.Count;
+        public int SpawnedCount => m_spawnedPool?.Count ?? 0;
 
         /// <summary>
         /// 没在使用的游戏对象个数
         /// </summary>
-        public int NoSpawnCount => m_goPool.Count;
+        public int NoSpawnCount => m_goPool?.Count ?? 0;
 
         /// <summary>
         /// 持久化对象池
@@ -76,6 +76,7 @@ namespace DGame
             int maxCapacity = int.MaxValue, float autoDestroyTime = -1f, bool dontDestroy = false,
             bool allowMultiSpawn = false)
         {
+            NormalizeCapacity(ref initCapacity, ref maxCapacity);
             GameObjectPool pool = MemoryObject.Spawn<GameObjectPool>();
             pool.IsDestroyed = false;
             pool.m_destroyCancellationTokenSource = new CancellationTokenSource();
@@ -93,19 +94,66 @@ namespace DGame
             return pool;
         }
 
-        public async UniTask CreatePoolAsync(CancellationToken ct = default)
+        public async UniTask<bool> CreatePoolAsync(CancellationToken ct = default)
+            => await EnsureCapacityAsync(m_initCapacity, ct);
+
+        public async UniTask<bool> ConfigureAsync(int initCapacity, int maxCapacity, float autoDestroyTime,
+            bool dontDestroy, bool allowMultiSpawn, CancellationToken ct = default)
         {
-            for (int i = 0; i < m_initCapacity; i++)
+            NormalizeCapacity(ref initCapacity, ref maxCapacity);
+
+            var oldInitCapacity = m_initCapacity;
+            var oldMaxCapacity = m_maxCapacity;
+            var oldAutoDestroyTime = m_autoDestroyTime;
+            var oldDontDestroy = DontDestroy;
+            var oldAllowMultiSpawn = m_allowMultiSpawn;
+
+            m_initCapacity = initCapacity;
+            m_maxCapacity = maxCapacity;
+            m_autoDestroyTime = autoDestroyTime;
+            DontDestroy = dontDestroy;
+            m_allowMultiSpawn = allowMultiSpawn;
+
+            TrimInactiveObjectsToCapacity();
+
+            var success = await EnsureCapacityAsync(m_initCapacity, ct);
+            if (success)
+            {
+                return true;
+            }
+
+            m_initCapacity = oldInitCapacity;
+            m_maxCapacity = oldMaxCapacity;
+            m_autoDestroyTime = oldAutoDestroyTime;
+            DontDestroy = oldDontDestroy;
+            m_allowMultiSpawn = oldAllowMultiSpawn;
+            TrimInactiveObjectsToCapacity();
+            return false;
+        }
+
+        private async UniTask<bool> EnsureCapacityAsync(int targetCapacity, CancellationToken ct)
+        {
+            if (IsDestroyed || MarkedForDestroy)
+            {
+                return false;
+            }
+
+            targetCapacity = Mathf.Clamp(targetCapacity, 0, m_maxCapacity);
+
+            while (Count < targetCapacity)
             {
                 var go = await LoadPoolGameObjectAsync(ct);
                 if (go == null)
                 {
-                    return;
+                    DLogger.Warning($"对象池初始化未完全成功: {Location}。目前对象池容量: {Count}/{targetCapacity}");
+                    return false;
                 }
 
                 go.SetActive(false);
                 m_goPool.Enqueue(go);
             }
+            MarkIdleTimeIfNeeded();
+            return true;
         }
 
         public async UniTask<GameObject> SpawnAsync(Transform parent, Vector3 position,
@@ -148,11 +196,12 @@ namespace DGame
                 {
                     DestroyGameObject(go);
                 }
+
                 return null;
             }
 
             go.transform.SetParent(parent, false);
-            go.transform.SetPositionAndRotation(position, rotation);
+            go.transform.SetLocalPositionAndRotation(position, rotation);
             go.SetActive(true);
             m_spawnedPool.AddLast(go);
             return go;
@@ -179,22 +228,19 @@ namespace DGame
                 DLogger.Warning($"对象不在已生成列表中，可能已回收: {go.name}");
                 return;
             }
-            if (SpawnedCount <= 0)
-            {
-                m_lastRecycleTime = Time.realtimeSinceStartup;
-            }
 
-            if (!MarkedForDestroy && m_goPool.Count < m_maxCapacity)
+            if (!MarkedForDestroy && Count < m_maxCapacity)
             {
                 go.SetActive(false);
                 go.transform.SetParent(m_parent.transform, false);
-                go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
+                go.transform.SetLocalPositionAndRotation(Vector3.zero, Quaternion.identity);
                 m_goPool.Enqueue(go);
             }
             else
             {
                 DestroyGameObject(go);
             }
+            MarkIdleTimeIfNeeded();
         }
 
         /// <summary>
@@ -220,11 +266,16 @@ namespace DGame
                 return;
             }
 
+            MarkIdleTimeIfNeeded();
+            DestroyGameObject(go);
+        }
+
+        private void MarkIdleTimeIfNeeded()
+        {
             if (SpawnedCount <= 0)
             {
                 m_lastRecycleTime = Time.realtimeSinceStartup;
             }
-            DestroyGameObject(go);
         }
 
         /// <summary>
@@ -340,6 +391,12 @@ namespace DGame
 
         private void DestroyAllGameObject()
         {
+            if (m_goPool == null)
+            {
+                m_spawnedPool.Clear();
+                return;
+            }
+
             while (m_goPool.Count > 0)
             {
                 var go = m_goPool.Dequeue();
@@ -369,6 +426,31 @@ namespace DGame
 
             var identity = DGame.Utility.UnityUtil.AddMonoBehaviour<GameObjectPoolIdentity>(go);
             identity.PoolKey = Location;
+        }
+
+        private void TrimInactiveObjectsToCapacity()
+        {
+            if (m_goPool == null)
+            {
+                return;
+            }
+
+            int targetInactiveCount = Mathf.Max(0, m_maxCapacity - SpawnedCount);
+            while (m_goPool.Count > targetInactiveCount)
+            {
+                DestroyGameObject(m_goPool.Dequeue());
+            }
+        }
+
+        private static void NormalizeCapacity(ref int initCapacity, ref int maxCapacity)
+        {
+            initCapacity = Mathf.Max(0, initCapacity);
+            maxCapacity = Mathf.Max(0, maxCapacity);
+
+            if (initCapacity > maxCapacity)
+            {
+                initCapacity = maxCapacity;
+            }
         }
 
         public override void OnRelease()

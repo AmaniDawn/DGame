@@ -80,6 +80,11 @@ namespace DGame
 
         private void OnDestroy()
         {
+            if (s_originalRefs.TryGetValue(gameObject, out var reference) && reference == this)
+            {
+                s_originalRefs.Remove(gameObject);
+            }
+
             CheckInit();
 
             if (sourceGameObject != null)
@@ -114,13 +119,12 @@ namespace DGame
                 throw new DGameException("游戏对象已经存在此场景中");
             }
 
-            s_resourceModule = resourceModule;
-            sourceGameObject = source;
-
-            if (!s_originalRefs.ContainsKey(gameObject))
+            if (resourceModule != null)
             {
-                s_originalRefs.Add(gameObject, this);
+                s_resourceModule = resourceModule;
             }
+            sourceGameObject = source;
+            s_originalRefs[gameObject] = this;
             return this;
         }
 
@@ -138,7 +142,10 @@ namespace DGame
                 throw new DGameException("资源是无效的");
             }
 
-            s_resourceModule = resourceModule;
+            if (resourceModule != null)
+            {
+                s_resourceModule = resourceModule;
+            }
 
             if (refInfos == null)
             {
