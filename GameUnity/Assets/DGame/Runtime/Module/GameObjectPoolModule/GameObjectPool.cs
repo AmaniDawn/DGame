@@ -76,6 +76,7 @@ namespace DGame
             int maxCapacity = int.MaxValue, float autoDestroyTime = -1f, bool dontDestroy = false,
             bool allowMultiSpawn = false)
         {
+            NormalizeCapacity(ref initCapacity, ref maxCapacity);
             GameObjectPool pool = MemoryObject.Spawn<GameObjectPool>();
             pool.IsDestroyed = false;
             pool.m_destroyCancellationTokenSource = new CancellationTokenSource();
@@ -94,8 +95,31 @@ namespace DGame
         }
 
         public async UniTask CreatePoolAsync(CancellationToken ct = default)
+            => await EnsureCapacityAsync(m_initCapacity, ct);
+
+        public async UniTask ConfigureAsync(int initCapacity, int maxCapacity, float autoDestroyTime,
+            bool dontDestroy, bool allowMultiSpawn, CancellationToken ct = default)
         {
-            for (int i = 0; i < m_initCapacity; i++)
+            NormalizeCapacity(ref initCapacity, ref maxCapacity);
+            m_initCapacity = initCapacity;
+            m_maxCapacity = maxCapacity;
+            m_autoDestroyTime = autoDestroyTime;
+            DontDestroy = dontDestroy;
+            m_allowMultiSpawn = allowMultiSpawn;
+            TrimInactiveObjectsToCapacity();
+            await EnsureCapacityAsync(m_initCapacity, ct);
+        }
+
+        private async UniTask EnsureCapacityAsync(int targetCapacity, CancellationToken ct)
+        {
+            if (IsDestroyed || MarkedForDestroy)
+            {
+                return;
+            }
+
+            targetCapacity = Mathf.Clamp(targetCapacity, 0, m_maxCapacity);
+
+            while (Count < targetCapacity)
             {
                 var go = await LoadPoolGameObjectAsync(ct);
                 if (go == null)
@@ -185,7 +209,7 @@ namespace DGame
                 m_lastRecycleTime = Time.realtimeSinceStartup;
             }
 
-            if (!MarkedForDestroy && m_goPool.Count < m_maxCapacity)
+            if (!MarkedForDestroy && Count < m_maxCapacity)
             {
                 go.SetActive(false);
                 go.transform.SetParent(m_parent.transform, false);
@@ -376,6 +400,31 @@ namespace DGame
 
             var identity = DGame.Utility.UnityUtil.AddMonoBehaviour<GameObjectPoolIdentity>(go);
             identity.PoolKey = Location;
+        }
+
+        private void TrimInactiveObjectsToCapacity()
+        {
+            if (m_goPool == null)
+            {
+                return;
+            }
+
+            int targetInactiveCount = Mathf.Max(0, m_maxCapacity - SpawnedCount);
+            while (m_goPool.Count > targetInactiveCount)
+            {
+                DestroyGameObject(m_goPool.Dequeue());
+            }
+        }
+
+        private static void NormalizeCapacity(ref int initCapacity, ref int maxCapacity)
+        {
+            initCapacity = Mathf.Max(0, initCapacity);
+            maxCapacity = Mathf.Max(0, maxCapacity);
+
+            if (initCapacity > maxCapacity)
+            {
+                initCapacity = maxCapacity;
+            }
         }
 
         public override void OnRelease()
