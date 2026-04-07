@@ -1,10 +1,16 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using UnityEngine;
 
 namespace DGame
 {
+    [DisallowMultipleComponent]
+    internal sealed class GameObjectPoolIdentity : MonoBehaviour
+    {
+        public string PoolKey;
+    }
+
     public sealed class GameObjectPool : MemoryObject
     {
         private Queue<GameObject> m_goPool;
@@ -16,11 +22,7 @@ namespace DGame
         private float m_lastRecycleTime = -1f;
         private bool m_allowMultiSpawn;
         private IResourceModule m_resourceModule;
-
-        /// <summary>
-        /// 每帧最大实例化对象数量，用于分帧处理避免卡顿
-        /// </summary>
-        private int m_maxProcessPerFrame = 50;
+        private CancellationTokenSource m_destroyCancellationTokenSource;
 
         /// <summary>
         /// 自动销毁时间
@@ -67,12 +69,16 @@ namespace DGame
         /// </summary>
         public bool IsDestroyed { get; private set; }
 
+        private CancellationToken DestroyToken
+            => m_destroyCancellationTokenSource != null ? m_destroyCancellationTokenSource.Token : CancellationToken.None;
+
         public static GameObjectPool Create(Transform poolRoot, string location, int initCapacity = 0,
             int maxCapacity = int.MaxValue, float autoDestroyTime = -1f, bool dontDestroy = false,
-            bool allowMultiSpawn = true)
+            bool allowMultiSpawn = false)
         {
             GameObjectPool pool = MemoryObject.Spawn<GameObjectPool>();
             pool.IsDestroyed = false;
+            pool.m_destroyCancellationTokenSource = new CancellationTokenSource();
             pool.m_parent = new GameObject($"{location}_Object_Pool");
             pool.m_parent.transform.SetParent(poolRoot, false);
             pool.Location = location;
@@ -80,146 +86,77 @@ namespace DGame
             pool.m_maxCapacity = maxCapacity;
             pool.m_autoDestroyTime = autoDestroyTime;
             pool.DontDestroy = dontDestroy;
+            pool.ManualDestroy = false;
             pool.m_goPool = new Queue<GameObject>(initCapacity);
             pool.m_resourceModule = ModuleSystem.GetModule<IResourceModule>();
             pool.m_allowMultiSpawn = allowMultiSpawn;
             return pool;
         }
 
-        public async UniTaskVoid CreatePool(CancellationToken ct = default)
-        {
-            for (int i = 0; i < m_initCapacity; i++)
-            {
-                var go = m_resourceModule.LoadGameObject(Location, m_parent.transform);
-                if (go == null)
-                {
-                    DLogger.Error($"创建对象池失败，加载资源失败: {Location}");
-                    return;
-                }
-                go.SetActive(false);
-                go.name = Location;
-                m_goPool.Enqueue(go);
-                // 每 N 个实例等待一帧，避免卡顿
-                if ((i + 1) % m_maxProcessPerFrame == 0)
-                {
-                    await UniTask.Yield(cancellationToken: ct);
-                }
-            }
-        }
-
-        /// <summary>
-        /// 异步分帧创建对象池
-        /// </summary>
-        /// <param name="ct"></param>
         public async UniTask CreatePoolAsync(CancellationToken ct = default)
         {
             for (int i = 0; i < m_initCapacity; i++)
             {
-                var go = await m_resourceModule.LoadGameObjectAsync(Location, m_parent.transform, ct);
-
+                var go = await LoadPoolGameObjectAsync(ct);
                 if (go == null)
                 {
-                    DLogger.Error($"创建对象池失败: {Location}");
                     return;
                 }
+
                 go.SetActive(false);
-                go.name = Location;
+                MarkPooledObject(go);
                 m_goPool.Enqueue(go);
             }
         }
 
-        /// <summary>
-        /// 获取对象
-        /// </summary>
-        /// <param name="parent">父节点</param>
-        /// <param name="position">位置</param>
-        /// <param name="rotation">旋转</param>
-        /// <param name="forceNew">是否强制实例化</param>
-        /// <returns></returns>
         public async UniTask<GameObject> SpawnAsync(Transform parent, Vector3 position,
-            Quaternion rotation, bool forceNew = false, CancellationToken ct = default)
+            Quaternion rotation, CancellationToken ct = default)
         {
+            if (IsDestroyed || ManualDestroy)
+            {
+                return null;
+            }
+
             GameObject go = null;
 
             if (m_goPool.Count > 0)
             {
-                if (!forceNew)
+                go = m_goPool.Dequeue();
+            }
+            else if (Count >= m_maxCapacity)
+            {
+                if (m_allowMultiSpawn && m_spawnedPool.Count > 0)
                 {
-                    go = m_goPool.Dequeue();
+                    go = m_spawnedPool.First.Value;
+                    m_spawnedPool.RemoveFirst();
+                    DLogger.Warning($"强制复用正在使用的对象: {go.name}");
                 }
-            }
-            else
-            {
-                if (Count >= m_maxCapacity)
+                else
                 {
-                    if (m_allowMultiSpawn && m_spawnedPool.Count > 0)
-                    {
-                        go = m_spawnedPool.First.Value;
-                        m_spawnedPool.RemoveFirst();
-                        DLogger.Warning($"强制复用正在使用的对象: {go.name}");
-                    }
+                    DLogger.Warning($"对象池容量已满，无法继续生成对象: {Location}");
+                    return null;
                 }
-            }
-            if(go == null)
-            {
-                go = await m_resourceModule.LoadGameObjectAsync(Location, m_parent.transform, ct);
-                go.name = Location;
-            }
-            if (go != null)
-            {
-                go.transform.SetParent(parent, false);
-                go.transform.SetPositionAndRotation(position, rotation);
-                go.SetActive(true);
-                m_spawnedPool.AddLast(go);
             }
 
-            return go;
-        }
+            if (go == null)
+            {
+                go = await LoadPoolGameObjectAsync(ct);
+            }
 
-        /// <summary>
-        /// 获取对象
-        /// </summary>
-        /// <param name="parent">父节点</param>
-        /// <param name="position">位置</param>
-        /// <param name="rotation">旋转</param>
-        /// <param name="forceNew">是否强制实例化</param>
-        /// <returns></returns>
-        public GameObject SpawnSync(Transform parent, Vector3 position,
-            Quaternion rotation, bool forceNew = false)
-        {
-            GameObject go = null;
+            if (go == null || IsDestroyed || ManualDestroy)
+            {
+                if (go != null)
+                {
+                    DestroyGameObject(go);
+                }
+                return null;
+            }
 
-            if (m_goPool.Count > 0)
-            {
-                if (!forceNew)
-                {
-                    go = m_goPool.Dequeue();
-                }
-            }
-            else
-            {
-                if (Count >= m_maxCapacity)
-                {
-                    if (m_allowMultiSpawn && m_spawnedPool.Count > 0)
-                    {
-                        go = m_spawnedPool.First.Value;
-                        m_spawnedPool.RemoveFirst();
-                        DLogger.Warning($"强制复用正在使用的对象: {go.name}");
-                    }
-                }
-            }
-            if(go == null)
-            {
-                go = m_resourceModule.LoadGameObject(Location, m_parent.transform);
-                go.name = Location;
-            }
-            if (go != null)
-            {
-                go.transform.SetParent(parent, false);
-                go.transform.SetPositionAndRotation(position, rotation);
-                go.SetActive(true);
-                m_spawnedPool.AddLast(go);
-            }
+            MarkPooledObject(go);
+            go.transform.SetParent(parent, false);
+            go.transform.SetPositionAndRotation(position, rotation);
+            go.SetActive(true);
+            m_spawnedPool.AddLast(go);
             return go;
         }
 
@@ -244,19 +181,16 @@ namespace DGame
                 DLogger.Warning($"对象不在已生成列表中，可能已回收: {go.name}");
                 return;
             }
-            if(SpawnedCount <= 0)
+            if (SpawnedCount <= 0)
             {
                 m_lastRecycleTime = Time.realtimeSinceStartup;
             }
 
-            if (m_goPool.Count < m_maxCapacity)
+            if (!ManualDestroy && m_goPool.Count < m_maxCapacity)
             {
-                if (go != null)
-                {
-                    go.SetActive(false);
-                    go.transform.SetParent(m_parent.transform, false);
-                    go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
-                }
+                go.SetActive(false);
+                go.transform.SetParent(m_parent.transform, false);
+                go.transform.SetPositionAndRotation(Vector3.zero, Quaternion.identity);
                 m_goPool.Enqueue(go);
             }
             else
@@ -288,7 +222,7 @@ namespace DGame
                 return;
             }
 
-            if(SpawnedCount <= 0)
+            if (SpawnedCount <= 0)
             {
                 m_lastRecycleTime = Time.realtimeSinceStartup;
             }
@@ -306,6 +240,11 @@ namespace DGame
                 return false;
             }
 
+            if (ManualDestroy)
+            {
+                return SpawnedCount <= 0;
+            }
+
             if (m_autoDestroyTime <= 0f)
             {
                 return false;
@@ -315,8 +254,7 @@ namespace DGame
             {
                 return Time.realtimeSinceStartup - m_lastRecycleTime > m_autoDestroyTime;
             }
-
-            return ManualDestroy && SpawnedCount <= 0;
+            return false;
         }
 
         /// <summary>
@@ -324,8 +262,72 @@ namespace DGame
         /// </summary>
         public void Destroy()
         {
+            if (IsDestroyed)
+            {
+                return;
+            }
+
             IsDestroyed = true;
+            CancelDestroyToken();
             MemoryObject.Release(this);
+        }
+
+        private async UniTask<GameObject> LoadPoolGameObjectAsync(CancellationToken externalToken)
+        {
+            var operationToken = CreateOperationToken(externalToken, out var linkedTokenSource);
+            try
+            {
+                var go = await m_resourceModule.LoadGameObjectAsync(Location, m_parent.transform, operationToken);
+                if (go == null)
+                {
+                    if (operationToken.IsCancellationRequested || IsDestroyed)
+                    {
+                        return null;
+                    }
+
+                    DLogger.Error($"创建对象池失败: {Location}");
+                    return null;
+                }
+
+                if (operationToken.IsCancellationRequested || IsDestroyed)
+                {
+                    DestroyGameObject(go);
+                    return null;
+                }
+
+                return go;
+            }
+            finally
+            {
+                linkedTokenSource?.Dispose();
+            }
+        }
+
+        private CancellationToken CreateOperationToken(CancellationToken externalToken,
+            out CancellationTokenSource linkedTokenSource)
+        {
+            linkedTokenSource = null;
+
+            if (!externalToken.CanBeCanceled)
+            {
+                return DestroyToken;
+            }
+
+            linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(externalToken, DestroyToken);
+            return linkedTokenSource.Token;
+        }
+
+        private void CancelDestroyToken()
+        {
+            if (m_destroyCancellationTokenSource == null)
+            {
+                return;
+            }
+
+            if (!m_destroyCancellationTokenSource.IsCancellationRequested)
+            {
+                m_destroyCancellationTokenSource.Cancel();
+            }
         }
 
         private void DestroyGameObject(GameObject go)
@@ -339,7 +341,7 @@ namespace DGame
 
         private void DestroyAllGameObject()
         {
-            for (int i = 0; i < m_goPool.Count; i++)
+            while (m_goPool.Count > 0)
             {
                 var go = m_goPool.Dequeue();
                 DestroyGameObject(go);
@@ -359,8 +361,21 @@ namespace DGame
             m_spawnedPool.Clear();
         }
 
+        private void MarkPooledObject(GameObject go)
+        {
+            if (go == null)
+            {
+                return;
+            }
+
+            var identity = DGame.Utility.UnityUtil.AddMonoBehaviour<GameObjectPoolIdentity>(go);
+            identity.PoolKey = Location;
+        }
+
         public override void OnRelease()
         {
+            m_destroyCancellationTokenSource?.Dispose();
+            m_destroyCancellationTokenSource = null;
             DestroyAllGameObject();
             UnityEngine.Object.Destroy(m_parent);
             m_parent = null;
@@ -370,6 +385,9 @@ namespace DGame
             m_maxCapacity = 0;
             m_resourceModule = null;
             m_allowMultiSpawn = false;
+            Location = null;
+            DontDestroy = false;
+            ManualDestroy = false;
         }
     }
 }
