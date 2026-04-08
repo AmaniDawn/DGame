@@ -152,6 +152,11 @@ namespace DGame
         /// 获取手动指定的 AB 包版本号
         /// </summary>
         public string GetManualBuildVersion() => m_manualBuildVersion;
+        
+        /// <summary>
+        /// 获取手动指定的 AB 包版本号
+        /// </summary>
+        public void SetManualBuildVersion(string version) => m_manualBuildVersion = version;
 
         /// <summary>
         /// 获取本次打包使用的资源包版本号
@@ -174,25 +179,38 @@ namespace DGame
         /// 是否使用可寻址资源代替资源路径
         /// <remarks>说明：开启此项可以节省运行时清单占用的内存！</remarks>
         /// </summary>
-        public bool GetReplaceAssetPathWithAddress()
-                => m_replaceAssetPathWithAddress;
+        public bool GetReplaceAssetPathWithAddress() => m_replaceAssetPathWithAddress;
 
         /// <summary>
         /// 是否打包的时候强制重新生成图集
         /// </summary>
         public bool ForceGenerateAtlas => m_forceGenerateAtlas;
 
+        public void SetResDownloadPath(string path) => m_resDownloadPath = path;
+
         /// <summary>
         /// 获取资源服务器地址。https://127.0.0.1:8081/Demo/Android
         /// </summary>
         public string GetResDownloadPath() =>
-                Path.Combine(m_resDownloadPath, projectName, GetPlatformName()).Replace("\\", "/");
+            m_packageVersionMode switch
+            {
+                PackageVersionMode.AutoTimestamp => Path.Combine(m_resDownloadPath, projectName, GetPlatformName()).Replace("\\", "/"),
+                PackageVersionMode.Manual => Path.Combine(m_resDownloadPath, projectName, GetPlatformName(), m_manualBuildVersion).Replace("\\", "/"),
+                _ => Path.Combine(m_resDownloadPath, projectName, GetPlatformName()).Replace("\\", "/")
+            };
+
+        public void SetFallbackResDownloadPath(string path) => m_fallbackResDownloadPath = path;
 
         /// <summary>
         /// 获取资源服务备用地址 https://127.0.0.1:8081/Demo/Android
         /// </summary>
-        public string GetFallbackResDownloadPath()
-                => Path.Combine(m_fallbackResDownloadPath, projectName, GetPlatformName()).Replace("\\", "/");
+        public string GetFallbackResDownloadPath() =>
+            m_packageVersionMode switch
+            {
+                PackageVersionMode.AutoTimestamp => Path.Combine(m_fallbackResDownloadPath, projectName, GetPlatformName()).Replace("\\", "/"),
+                PackageVersionMode.Manual => Path.Combine(m_fallbackResDownloadPath, projectName, GetPlatformName(), m_manualBuildVersion).Replace("\\", "/"),
+                _ => Path.Combine(m_fallbackResDownloadPath, projectName, GetPlatformName()).Replace("\\", "/")
+            };
 
         [SerializeField]
         public string packageName = "DefaultPackage";
