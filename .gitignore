@@ -14,3 +14,5 @@ GameConfig/Tools/LubanTools/
 Tools/Generata Tools/SourceGenerator/*/*bin
 Tools/Generata Tools/SourceGenerator/*/*obj
 Tools/Generata Tools/SourceGenerator/*.DotSettings.user
+
+path_define.bat
