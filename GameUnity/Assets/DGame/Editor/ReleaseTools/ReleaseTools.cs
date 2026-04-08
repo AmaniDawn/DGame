@@ -1,6 +1,4 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using UnityEditor;
@@ -8,7 +6,6 @@ using UnityEditor.Build.Reporting;
 using UnityEngine;
 using YooAsset;
 using YooAsset.Editor;
-using BuildResult = UnityEditor.Build.Reporting.BuildResult;
 
 namespace DGame
 {
@@ -406,7 +403,7 @@ namespace DGame
             var report = BuildPipeline.BuildPlayer(buildPlayerOptions);
             BuildSummary summary = report.summary;
 
-            if (summary.result == BuildResult.Succeeded)
+            if (summary.result == UnityEditor.Build.Reporting.BuildResult.Succeeded)
             {
                 Debug.Log($"Build {buildTarget.ToString()} Succeeded: {summary.totalSize / 1024 / 1024}MB");
             }

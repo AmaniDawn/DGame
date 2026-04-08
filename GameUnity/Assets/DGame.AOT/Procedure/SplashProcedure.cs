@@ -5,7 +5,6 @@ namespace Procedure
     /// </summary>
     public class SplashProcedure : ProcedureBase
     {
-
         public override bool UseNativeDialog => true;
 
         public override void OnEnter()
@@ -29,6 +28,5 @@ namespace Procedure
         public override void OnDestroy()
         {
         }
-
     }
 }
