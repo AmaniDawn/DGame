@@ -121,7 +121,7 @@
             {
 #if !UNITY_EDITOR
 #if UNITY_ANDROID || UNITY_IPHONE
-                Handheld.Vibrate();
+                UnityEngine.Handheld.Vibrate();
 #elif UNITY_WEBGL
 #endif
 #endif

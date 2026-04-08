@@ -14,6 +14,22 @@ namespace DGame
 {
     public static class ReleaseTools
     {
+        #region CommandLine Helper
+
+        private static string GetCommandLineArg(string argName)
+        {
+            string[] args = System.Environment.GetCommandLineArgs();
+            for (int i = 0; i < args.Length; i++)
+            {
+                if (args[i].Equals(argName) && i + 1 < args.Length)
+                {
+                    return args[i + 1];
+                }
+            }
+            return null;
+        }
+
+        #endregion
 
         #region Build AssetBundle
 
@@ -104,6 +120,16 @@ namespace DGame
         /// </summary>
         /// <returns></returns>
         private static string GetBuildPackageVersion()
+        {
+            if (Settings.UpdateSettings != null)
+            {
+                return Settings.UpdateSettings.GetBuildPackageVersion();
+            }
+
+            return GetAutoBuildPackageVersionFallback();
+        }
+
+        private static string GetAutoBuildPackageVersionFallback()
         {
             // 计算当天从0点开始的总分钟数，然后除以10得到段数
             int totalMinutes = DateTime.Now.Hour * 6 + DateTime.Now.Minute;
@@ -353,6 +379,74 @@ namespace DGame
             {
                 Debug.LogError($"Build {buildTarget.ToString()} Failed: {summary.result}");
             }
+        }
+
+        #endregion
+
+        #region Build AssetBundle by Command
+
+        /// <summary>
+        /// 打包安卓AB（自动版本号）
+        /// </summary>
+        public static void BuildAndroidAB()
+        {
+            BuildDllCommand.BuildAndCopyDlls();
+            BuildTarget target = BuildTarget.Android;
+            BuildInternal(target, Application.dataPath + "/../Bundles/Android", packageVersion: GetBuildPackageVersion());
+            AssetDatabase.Refresh();
+            CopyStreamingAssetsFiles();
+            Debug.Log("[BuildAndroidAB] Android AssetBundle build completed with auto version: " + GetBuildPackageVersion());
+        }
+
+        /// <summary>
+        /// 打包安卓AB（手动版本号，通过命令行参数 -version 传入）
+        /// </summary>
+        public static void BuildAndroidABWithVersion()
+        {
+            string version = GetCommandLineArg("-version");
+            if (string.IsNullOrEmpty(version))
+            {
+                Debug.LogError("[BuildAndroidABWithVersion] Please specify version using -version argument");
+                return;
+            }
+            BuildDllCommand.BuildAndCopyDlls();
+            BuildTarget target = BuildTarget.Android;
+            BuildInternal(target, Application.dataPath + "/../Bundles/Android", packageVersion: version);
+            AssetDatabase.Refresh();
+            CopyStreamingAssetsFiles();
+            Debug.Log("[BuildAndroidABWithVersion] Android AssetBundle build completed with manual version: " + version);
+        }
+
+        /// <summary>
+        /// 打包Windows AB（自动版本号）
+        /// </summary>
+        public static void BuildWindowsAB()
+        {
+            BuildDllCommand.BuildAndCopyDlls();
+            BuildTarget target = BuildTarget.StandaloneWindows64;
+            BuildInternal(target, Application.dataPath + "/../Bundles/Windows", packageVersion: GetBuildPackageVersion());
+            AssetDatabase.Refresh();
+            CopyStreamingAssetsFiles();
+            Debug.Log("[BuildWindowsAB] Windows AssetBundle build completed with auto version: " + GetBuildPackageVersion());
+        }
+
+        /// <summary>
+        /// 打包Windows AB（手动版本号，通过命令行参数 -version 传入）
+        /// </summary>
+        public static void BuildWindowsABWithVersion()
+        {
+            string version = GetCommandLineArg("-version");
+            if (string.IsNullOrEmpty(version))
+            {
+                Debug.LogError("[BuildWindowsABWithVersion] Please specify version using -version argument");
+                return;
+            }
+            BuildDllCommand.BuildAndCopyDlls();
+            BuildTarget target = BuildTarget.StandaloneWindows64;
+            BuildInternal(target, Application.dataPath + "/../Bundles/Windows", packageVersion: version);
+            AssetDatabase.Refresh();
+            CopyStreamingAssetsFiles();
+            Debug.Log("[BuildWindowsABWithVersion] Windows AssetBundle build completed with manual version: " + version);
         }
 
         #endregion
