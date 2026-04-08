@@ -322,7 +322,7 @@ namespace GameLogic
             m_connectTask?.SetResult(false);
             m_connectTask = null;
 
-            if (Status == GameClientStatus.StatusEnter)
+            if (Status == GameClientStatus.StatusEnter && UIModule.IsValid)
             {
                 GameModule.UIModule.ShowTipsUI(G.R("连接已断开"));
             }
