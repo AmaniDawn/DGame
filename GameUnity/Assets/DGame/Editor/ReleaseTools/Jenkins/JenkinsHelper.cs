@@ -1,10 +1,6 @@
 using System;
-using System.Collections;
-using System.Collections.Generic;
 using DGame;
-using Sirenix.Utilities.Editor;
 using UnityEditor;
-using UnityEngine;
 
 public static class JenkinsHelper
 {

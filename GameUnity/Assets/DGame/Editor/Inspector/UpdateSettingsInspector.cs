@@ -29,6 +29,8 @@ namespace DGame
         private SerializedProperty m_buildAddress;
         private SerializedProperty m_replaceAssetPathWithAddress;
         private SerializedProperty m_forceGenerateAtlas;
+        private SerializedProperty m_packageVersionMode;
+        private SerializedProperty m_manualBuildVersion;
         private SerializedProperty m_updateUIDefineConfigPath;
         private SerializedProperty m_enableAddressable;
         private SerializedProperty m_packageName;
@@ -72,6 +74,8 @@ namespace DGame
             m_buildAddress = serializedObject.FindProperty("m_buildAddress");
             m_replaceAssetPathWithAddress = serializedObject.FindProperty("m_replaceAssetPathWithAddress");
             m_forceGenerateAtlas = serializedObject.FindProperty("m_forceGenerateAtlas");
+            m_packageVersionMode = serializedObject.FindProperty("m_packageVersionMode");
+            m_manualBuildVersion = serializedObject.FindProperty("m_manualBuildVersion");
             m_updateUIDefineConfigPath = serializedObject.FindProperty("updateUIDefineConfigPath");
             m_enableAddressable = serializedObject.FindProperty("m_enableAddressable");
             m_packageName = serializedObject.FindProperty("packageName");
@@ -319,6 +323,17 @@ namespace DGame
 
                 EditorGUILayout.Space(3);
 
+                EditorGUILayout.PropertyField(m_packageVersionMode,
+                    new GUIContent("AB包版本模式", "自动使用时间戳或手动指定 YooAsset PackageVersion"));
+
+                if ((PackageVersionMode)m_packageVersionMode.enumValueIndex == PackageVersionMode.Manual)
+                {
+                    EditorGUILayout.PropertyField(m_manualBuildVersion,
+                        new GUIContent("手动AB包版本", "例如 1.1、1.2、1.2.3"));
+                }
+
+                EditorGUILayout.Space(3);
+
                 // 构建地址
                 EditorGUILayout.PropertyField(m_buildAddress,
                     new GUIContent("内嵌资源存放路径", "StreamingAssets资源文件复制目标地址"));
@@ -352,6 +367,23 @@ namespace DGame
                 else
                 {
                     tips += "\n打AB包前强制刷新所有图集：禁用";
+                }
+
+                if ((PackageVersionMode)m_packageVersionMode.enumValueIndex == PackageVersionMode.Manual)
+                {
+                    string manualBuildVersion = m_manualBuildVersion.stringValue?.Trim();
+                    if (string.IsNullOrEmpty(manualBuildVersion))
+                    {
+                        tips += "\nAB包版本模式：手动输入，但当前为空，打包时会回退到自动时间戳";
+                    }
+                    else
+                    {
+                        tips += $"\nAB包版本模式：手动输入，当前版本 = {manualBuildVersion}";
+                    }
+                }
+                else
+                {
+                    tips += $"\nAB包版本模式：自动时间戳，本次预期版本 = {updateSettings.GetBuildPackageVersion()}";
                 }
 
                 EditorGUILayout.HelpBox(tips, MessageType.Info);

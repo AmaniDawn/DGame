@@ -4,6 +4,9 @@ cd "$(dirname "$0")"
 
 source ./path_define.sh
 
+echo "========================================"
+echo "Building Android AssetBundle (Auto Version)"
+echo "========================================"
 echo "Log File: ${BUILD_LOGFILE}"
 
 "${UNITYEDITOR_PATH}/Unity" \
@@ -11,7 +14,7 @@ echo "Log File: ${BUILD_LOGFILE}"
   -batchmode \
   -quit \
   -logFile "${BUILD_LOGFILE}" \
-  -executeMethod DGame.ReleaseTools.AutoBuildAndroid \
+  -executeMethod DGame.ReleaseTools.BuildAndroidAB \
   "-CustomArgs:Language=en_US;${WORKSPACE}"
 
 status=$?
