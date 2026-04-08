@@ -14,7 +14,6 @@ namespace DGame
 {
     public static class ReleaseTools
     {
-
         #region Build AssetBundle
 
         [MenuItem("DGame Tools/Build/一键打包AB _F8", priority = 151)]
@@ -104,6 +103,16 @@ namespace DGame
         /// </summary>
         /// <returns></returns>
         private static string GetBuildPackageVersion()
+        {
+            if (Settings.UpdateSettings != null)
+            {
+                return Settings.UpdateSettings.GetBuildPackageVersion();
+            }
+
+            return GetAutoBuildPackageVersionFallback();
+        }
+
+        private static string GetAutoBuildPackageVersionFallback()
         {
             // 计算当天从0点开始的总分钟数，然后除以10得到段数
             int totalMinutes = DateTime.Now.Hour * 6 + DateTime.Now.Minute;

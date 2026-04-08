@@ -6,6 +6,24 @@ using UnityEngine;
 namespace DGame
 {
     /// <summary>
+    /// AssetBundle 包版本生成方式
+    /// </summary>
+    public enum PackageVersionMode
+    {
+        /// <summary>
+        /// 自动使用当前时间生成唯一版本号
+        /// </summary>
+        [InspectorName("自动时间戳")]
+        AutoTimestamp = 0,
+
+        /// <summary>
+        /// 手动指定版本号
+        /// </summary>
+        [InspectorName("手动输入")]
+        Manual = 1,
+    }
+
+    /// <summary>
     /// 强制更新类型
     /// </summary>
     public enum UpdateStyle
@@ -114,10 +132,43 @@ namespace DGame
         [SerializeField]
         private bool m_forceGenerateAtlas = false;
 
+        [SerializeField]
+        private PackageVersionMode m_packageVersionMode = PackageVersionMode.AutoTimestamp;
+
+        [SerializeField]
+        private string m_manualBuildVersion = "1.0";
+
         /// <summary>
         /// 打包程序资源缓存地址
         /// </summary>
         public string GetBuildAddress() => m_buildAddress;
+
+        /// <summary>
+        /// 获取 AB 包版本生成模式
+        /// </summary>
+        public PackageVersionMode GetPackageVersionMode() => m_packageVersionMode;
+
+        /// <summary>
+        /// 获取手动指定的 AB 包版本号
+        /// </summary>
+        public string GetManualBuildVersion() => m_manualBuildVersion;
+
+        /// <summary>
+        /// 获取本次打包使用的资源包版本号
+        /// </summary>
+        public string GetBuildPackageVersion()
+        {
+            if (m_packageVersionMode == PackageVersionMode.Manual)
+            {
+                string manualVersion = m_manualBuildVersion?.Trim();
+                if (!string.IsNullOrEmpty(manualVersion))
+                {
+                    return manualVersion;
+                }
+            }
+
+            return GetAutoBuildPackageVersion();
+        }
 
         /// <summary>
         /// 是否使用可寻址资源代替资源路径
@@ -164,6 +215,16 @@ namespace DGame
         /// AB资源是否支持可寻址
         /// </summary>
         public bool EnableAddressable => m_enableAddressable;
+
+        /// <summary>
+        /// 自动生成构建包版本号
+        /// 格式：yyyy-MM-dd-分钟段（每10分钟一个段）
+        /// </summary>
+        private static string GetAutoBuildPackageVersion()
+        {
+            int totalMinutes = DateTime.Now.Hour * 6 + DateTime.Now.Minute;
+            return DateTime.Now.ToString("yyyy-MM-dd") + "-" + totalMinutes;
+        }
 
         /// <summary>
         /// 获取当前平台名称
