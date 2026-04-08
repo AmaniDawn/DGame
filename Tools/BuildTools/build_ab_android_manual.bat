@@ -6,6 +6,7 @@ set VERSION=1.0
 echo ========================================
 echo Building Android AssetBundle (Manual Version: %VERSION%)
 echo ========================================
+echo Log File: %BUILD_LOGFILE%
 
 "%UNITYEDITOR_PATH%\Unity.exe" -projectPath "%WORKSPACE%" -batchmode -quit -logFile "%BUILD_LOGFILE%" -executeMethod DGame.ReleaseTools.BuildAndroidABWithVersion -version=%VERSION% -CustomArgs:Language=en_US;"%WORKSPACE%"
 
