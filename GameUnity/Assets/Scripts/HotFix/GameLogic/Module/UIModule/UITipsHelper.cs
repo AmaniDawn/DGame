@@ -49,5 +49,14 @@ namespace GameLogic
                 ShowWindowAsync<TipsUI>(msg);
             }
         }
+
+        public void ShowLogUI(string msg)
+        {
+            if (!DGame.Utility.PlatformUtil.IsPcOrEditorPlatform())
+            {
+                return;
+            }
+            ShowWindowAsync<LogUI>(msg);
+        }
     }
 }
