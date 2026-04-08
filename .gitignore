@@ -17,3 +17,5 @@ Tools/Generata Tools/SourceGenerator/*.DotSettings.user
 
 path_define.bat
 path_define.sh
+
+Tools/BuildTools/Log/
