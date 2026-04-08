@@ -16,3 +16,4 @@ Tools/Generata Tools/SourceGenerator/*/*obj
 Tools/Generata Tools/SourceGenerator/*.DotSettings.user
 
 path_define.bat
+path_define.sh
