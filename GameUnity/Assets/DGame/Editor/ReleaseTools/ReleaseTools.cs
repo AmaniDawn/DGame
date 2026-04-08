@@ -25,6 +25,12 @@ namespace DGame
                 {
                     return args[i + 1];
                 }
+                // 支持 -arg=value 格式
+                if (args[i].StartsWith(argName + "="))
+                {
+                    string value = args[i].Substring(argName.Length + 1);
+                    return value;
+                }
             }
             return null;
         }
@@ -313,6 +319,8 @@ namespace DGame
         [MenuItem("DGame Tools/Build/AutoBuildWindow", priority = 152)]
         public static void AutoBuildWindow()
         {
+            // 编译并复制热更新DLL文件
+            BuildDllCommand.BuildAndCopyDlls();
             BuildTarget target = BuildTarget.StandaloneWindows;
             AssetDatabase.Refresh();
             BuildInternal(target, Application.dataPath + "/../Bundles/Windows", packageVersion:GetBuildPackageVersion());
@@ -336,6 +344,8 @@ namespace DGame
         [MenuItem("DGame Tools/Build/AutoBuildAndroid", priority = 153)]
         public static void AutoBuildAndroid()
         {
+            // 编译并复制热更新DLL文件
+            BuildDllCommand.BuildAndCopyDlls();
             BuildTarget target = BuildTarget.Android;
             AssetDatabase.Refresh();
             BuildInternal(target, Application.dataPath + "/../Bundles/Android", packageVersion:GetBuildPackageVersion());
@@ -348,6 +358,8 @@ namespace DGame
         [MenuItem("DGame Tools/Build/AutoBuildIOS", priority = 154)]
         public static void AutoBuildIOS()
         {
+            // 编译并复制热更新DLL文件
+            BuildDllCommand.BuildAndCopyDlls();
             BuildTarget target = BuildTarget.iOS;
             AssetDatabase.Refresh();
             BuildInternal(target, Application.dataPath + "/../Bundles/IOS", packageVersion:GetBuildPackageVersion());
@@ -423,7 +435,7 @@ namespace DGame
         public static void BuildWindowsAB()
         {
             BuildDllCommand.BuildAndCopyDlls();
-            BuildTarget target = BuildTarget.StandaloneWindows64;
+            BuildTarget target = BuildTarget.StandaloneWindows;
             BuildInternal(target, Application.dataPath + "/../Bundles/Windows", packageVersion: GetBuildPackageVersion());
             AssetDatabase.Refresh();
             CopyStreamingAssetsFiles();
@@ -442,7 +454,7 @@ namespace DGame
                 return;
             }
             BuildDllCommand.BuildAndCopyDlls();
-            BuildTarget target = BuildTarget.StandaloneWindows64;
+            BuildTarget target = BuildTarget.StandaloneWindows;
             BuildInternal(target, Application.dataPath + "/../Bundles/Windows", packageVersion: version);
             AssetDatabase.Refresh();
             CopyStreamingAssetsFiles();

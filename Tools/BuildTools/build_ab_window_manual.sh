@@ -4,6 +4,11 @@ cd "$(dirname "$0")"
 
 source ./path_define.sh
 
+VERSION=1.5
+
+echo "========================================"
+echo "Building Windows AssetBundle (Manual Version: ${VERSION})"
+echo "========================================"
 echo "Log File: ${BUILD_LOGFILE}"
 
 "${UNITYEDITOR_PATH}/Unity" \
@@ -11,7 +16,8 @@ echo "Log File: ${BUILD_LOGFILE}"
   -batchmode \
   -quit \
   -logFile "${BUILD_LOGFILE}" \
-  -executeMethod DGame.ReleaseTools.AutoBuildAndroid \
+  -executeMethod DGame.ReleaseTools.BuildWindowsABWithVersion \
+  "-version=${VERSION}" \
   "-CustomArgs:Language=en_US;${WORKSPACE}"
 
 status=$?
