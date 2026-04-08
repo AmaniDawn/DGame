@@ -7,10 +7,6 @@ GameConfig/Tools/LubanTools/
 
 *.vs
 *.idea
-*.DotSettings
-#快捷方式
-*.lnk
-openspec
 *.dotnet
 
 
@@ -18,3 +14,6 @@ openspec
 Tools/Generata Tools/SourceGenerator/*/*bin
 Tools/Generata Tools/SourceGenerator/*/*obj
 Tools/Generata Tools/SourceGenerator/*.DotSettings.user
+
+path_define.bat
+path_define.sh
