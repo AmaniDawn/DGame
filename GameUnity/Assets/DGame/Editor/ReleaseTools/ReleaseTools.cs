@@ -19,12 +19,14 @@ namespace DGame
         private static string GetCommandLineArg(string argName)
         {
             string[] args = System.Environment.GetCommandLineArgs();
+
             for (int i = 0; i < args.Length; i++)
             {
                 if (args[i].Equals(argName) && i + 1 < args.Length)
                 {
                     return args[i + 1];
                 }
+
                 // 支持 -arg=value 格式
                 if (args[i].StartsWith(argName + "="))
                 {
@@ -32,6 +34,7 @@ namespace DGame
                     return value;
                 }
             }
+
             return null;
         }
 
@@ -47,7 +50,7 @@ namespace DGame
             // 获取当前构建目标平台
             BuildTarget target = EditorUserBuildSettings.activeBuildTarget;
             // 执行AssetBundle构建
-            BuildInternal(target, Application.dataPath + "/../Builds/", packageVersion:GetBuildPackageVersion());
+            BuildInternal(target, Application.dataPath + "/../Builds/", packageVersion: GetBuildPackageVersion());
             AssetDatabase.Refresh();
             //复制到打包后的StreamingAssets
             CopyStreamingAssetsFiles();
@@ -63,6 +66,7 @@ namespace DGame
                 Debug.Log("[CopyStreamingAssetsFiles] UpdateSettings.IsAutoAssetCopyToBuildAddress关闭，不会生产到打包目录中");
                 return;
             }
+
             // 获取StreamingAssets路径
             string streamingAssetsPath = Application.streamingAssetsPath;
             // 目标路径 可以是任何目录路径
@@ -71,7 +75,7 @@ namespace DGame
             if (!System.IO.Path.IsPathRooted(targetPath))
             {
                 // 如果是相对路径，结合 StreamingAssets 的路径进行合并
-                targetPath = System.IO.Path.Combine(streamingAssetsPath, targetPath).Replace("\\","/");
+                targetPath = System.IO.Path.Combine(streamingAssetsPath, targetPath).Replace("\\", "/");
             }
 
             if (!Directory.Exists(targetPath))
@@ -79,8 +83,10 @@ namespace DGame
                 Debug.LogError($"[CopyStreamingAssetsFiles] 打包目录不存在，检查UpdateSettings.m_buildAddress: {targetPath}");
                 return;
             }
+
             // 删除目标目录下的所有文件
             string[] deleteFiles = Directory.GetFiles(targetPath);
+
             foreach (var filePath in deleteFiles)
             {
                 File.Delete(filePath);
@@ -89,6 +95,7 @@ namespace DGame
 
             // 删除目录下的所有子目录
             string[] directories = Directory.GetDirectories(targetPath);
+
             foreach (var directory in directories)
             {
                 Directory.Delete(directory, true); // true：递归删除子目录及其内容
@@ -104,18 +111,22 @@ namespace DGame
                 {
                     continue;
                 }
+
                 // 获取相对路径 用于目标目录中创建相同的文件夹结构
                 string relativePath = file.Substring(streamingAssetsPath.Length + 1);
                 string destinationPath = Path.Combine(targetPath, relativePath);
                 // 确保目标文件夹存在
                 string destinationDir = Path.GetDirectoryName(destinationPath);
+
                 if (!Directory.Exists(destinationDir) && !string.IsNullOrEmpty(destinationDir))
                 {
                     Directory.CreateDirectory(destinationDir);
                 }
+
                 // 复制文件
                 File.Copy(file, destinationPath, true); // true：覆盖存在的文件
             }
+
             Debug.Log($"[CopyStreamingAssetsFiles] 复制文件成功: {targetPath}");
         }
 
@@ -182,11 +193,13 @@ namespace DGame
                 scriptableBuildParameters.CompressOption = ECompressOption.LZ4;
                 // 设置内置着色器资源包名称，避免重复打包着色器
                 scriptableBuildParameters.BuiltinShadersBundleName = GetBuiltinShaderBundleName("DefaultPackage");
-                scriptableBuildParameters.ReplaceAssetPathWithAddress = Settings.UpdateSettings.GetReplaceAssetPathWithAddress();
+                scriptableBuildParameters.ReplaceAssetPathWithAddress =
+                    Settings.UpdateSettings.GetReplaceAssetPathWithAddress();
             }
 
             // 配置构建参数
-            buildParameters.BuildOutputRoot = outputRoot; //AssetBundleBuilderHelper.GetDefaultBuildOutputRoot(); // 构建输出目录
+            buildParameters.BuildOutputRoot =
+                outputRoot; //AssetBundleBuilderHelper.GetDefaultBuildOutputRoot(); // 构建输出目录
             buildParameters.BuildinFileRoot = AssetBundleBuilderHelper.GetStreamingAssetsRoot(); // 内置文件根目录
             buildParameters.BuildPipeline = buildPipeline.ToString(); // 构建管线名称
             buildParameters.BuildTarget = buildTarget; // 目标平台
@@ -223,11 +236,13 @@ namespace DGame
         private static IEncryptionServices CreateEncryptionInstance(string packageName, EBuildPipeline buildPipeline)
         {
             // 从配置中获取加密类名
-            var encryptionClassName = AssetBundleBuilderSetting.GetPackageEncyptionServicesClassName(packageName, buildPipeline.ToString());
+            var encryptionClassName =
+                AssetBundleBuilderSetting.GetPackageEncyptionServicesClassName(packageName, buildPipeline.ToString());
             // 获取所有实现了IEncryptionServices接口的类型
             var encryptionClassTypes = EditorTools.GetAssignableTypes(typeof(IEncryptionServices));
             // 查找匹配的加密类
-            var classType = encryptionClassTypes.Find(x => x.FullName != null && x.FullName.Equals(encryptionClassName));
+            var classType =
+                encryptionClassTypes.Find(x => x.FullName != null && x.FullName.Equals(encryptionClassName));
 
             if (classType != null)
             {
@@ -246,6 +261,7 @@ namespace DGame
         {
             // 通过名字查找 GameEntry 预制体
             var guids = AssetDatabase.FindAssets("t:Prefab GameEntry");
+
             if (guids.Length == 0)
             {
                 Debug.LogWarning("[BuildInternal] Failed to find GameEntry.prefab");
@@ -254,6 +270,7 @@ namespace DGame
 
             var gameEntryPath = AssetDatabase.GUIDToAssetPath(guids[0]);
             var gameEntryPrefab = AssetDatabase.LoadAssetAtPath<GameObject>(gameEntryPath);
+
             if (gameEntryPrefab == null)
             {
                 Debug.LogWarning("[BuildInternal] Failed to load GameEntry.prefab");
@@ -261,6 +278,7 @@ namespace DGame
             }
 
             var resourceModuleDriver = gameEntryPrefab.GetComponentInChildren<ResourceModuleDriver>();
+
             if (resourceModuleDriver == null)
             {
                 Debug.LogWarning("[BuildInternal] ResourceModuleDriver not found in GameEntry.prefab");
@@ -323,22 +341,12 @@ namespace DGame
             BuildDllCommand.BuildAndCopyDlls();
             BuildTarget target = BuildTarget.StandaloneWindows;
             AssetDatabase.Refresh();
-            BuildInternal(target, Application.dataPath + "/../Bundles/Windows", packageVersion:GetBuildPackageVersion());
+            BuildInternal(target, Application.dataPath + "/../Bundles/Windows",
+                packageVersion: GetBuildPackageVersion());
             AssetDatabase.Refresh();
             var savePath = $"{Application.dataPath}/../Build/Windows/";
             BuildImp(BuildTargetGroup.Standalone, target, savePath + "Release_Windows.exe");
             OpenBuildSavePath(savePath);
-        }
-
-        private static void OpenBuildSavePath(string path)
-        {
-            if (!Directory.Exists(path))
-            {
-                Debug.LogWarning($"构建目录不存在: {path}");
-                return;
-            }
-            string absolutePath = Path.GetFullPath(path);
-            EditorUtility.RevealInFinder(absolutePath);
         }
 
         [MenuItem("DGame Tools/Build/AutoBuildAndroid", priority = 153)]
@@ -348,7 +356,8 @@ namespace DGame
             BuildDllCommand.BuildAndCopyDlls();
             BuildTarget target = BuildTarget.Android;
             AssetDatabase.Refresh();
-            BuildInternal(target, Application.dataPath + "/../Bundles/Android", packageVersion:GetBuildPackageVersion());
+            BuildInternal(target, Application.dataPath + "/../Bundles/Android",
+                packageVersion: GetBuildPackageVersion());
             AssetDatabase.Refresh();
             var savePath = $"{Application.dataPath}/../Build/Android/";
             BuildImp(BuildTargetGroup.Android, target, savePath + $"{GetBuildPackageVersion()}-Android.apk");
@@ -362,14 +371,27 @@ namespace DGame
             BuildDllCommand.BuildAndCopyDlls();
             BuildTarget target = BuildTarget.iOS;
             AssetDatabase.Refresh();
-            BuildInternal(target, Application.dataPath + "/../Bundles/IOS", packageVersion:GetBuildPackageVersion());
+            BuildInternal(target, Application.dataPath + "/../Bundles/IOS", packageVersion: GetBuildPackageVersion());
             AssetDatabase.Refresh();
             var savePath = $"{Application.dataPath}/../Build/IOS/";
             BuildImp(BuildTargetGroup.iOS, target, savePath + "XCode_Project");
             OpenBuildSavePath(savePath);
         }
 
-        private static void BuildImp(BuildTargetGroup buildTargetGroup, BuildTarget buildTarget, string locationPathName)
+        private static void OpenBuildSavePath(string path)
+        {
+            if (!Directory.Exists(path))
+            {
+                Debug.LogWarning($"构建目录不存在: {path}");
+                return;
+            }
+
+            string absolutePath = Path.GetFullPath(path);
+            EditorUtility.RevealInFinder(absolutePath);
+        }
+
+        private static void BuildImp(BuildTargetGroup buildTargetGroup, BuildTarget buildTarget,
+            string locationPathName)
         {
             EditorUserBuildSettings.SwitchActiveBuildTarget(buildTargetGroup, buildTarget);
             AssetDatabase.Refresh();
@@ -383,6 +405,7 @@ namespace DGame
             };
             var report = BuildPipeline.BuildPlayer(buildPlayerOptions);
             BuildSummary summary = report.summary;
+
             if (summary.result == BuildResult.Succeeded)
             {
                 Debug.Log($"Build {buildTarget.ToString()} Succeeded: {summary.totalSize / 1024 / 1024}MB");
@@ -397,6 +420,69 @@ namespace DGame
 
         #region Build AssetBundle by Command
 
+        public static void BuildWindowWithVersion()
+        {
+            string version = GetCommandLineArg("-version");
+
+            if (string.IsNullOrEmpty(version))
+            {
+                Debug.LogError("[BuildWindowWithVersion] Please specify version using -version argument");
+                return;
+            }
+
+            // 编译并复制热更新DLL文件
+            BuildDllCommand.BuildAndCopyDlls();
+            BuildTarget target = BuildTarget.StandaloneWindows;
+            AssetDatabase.Refresh();
+            BuildInternal(target, Application.dataPath + "/../Bundles/Windows", packageVersion: version);
+            AssetDatabase.Refresh();
+            var savePath = $"{Application.dataPath}/../Build/Windows/";
+            BuildImp(BuildTargetGroup.Standalone, target, savePath + "Release_Windows.exe");
+            OpenBuildSavePath(savePath);
+        }
+
+        public static void BuildAndroidWithVersion()
+        {
+            string version = GetCommandLineArg("-version");
+
+            if (string.IsNullOrEmpty(version))
+            {
+                Debug.LogError("[BuildAndroidWithVersion] Please specify version using -version argument");
+                return;
+            }
+
+            // 编译并复制热更新DLL文件
+            BuildDllCommand.BuildAndCopyDlls();
+            BuildTarget target = BuildTarget.Android;
+            AssetDatabase.Refresh();
+            BuildInternal(target, Application.dataPath + "/../Bundles/Android", packageVersion: version);
+            AssetDatabase.Refresh();
+            var savePath = $"{Application.dataPath}/../Build/Android/";
+            BuildImp(BuildTargetGroup.Android, target, savePath + $"{GetBuildPackageVersion()}-Android.apk");
+            OpenBuildSavePath(savePath);
+        }
+
+        public static void BuildIOSWithVersion()
+        {
+            string version = GetCommandLineArg("-version");
+
+            if (string.IsNullOrEmpty(version))
+            {
+                Debug.LogError("[BuildIOSWithVersion] Please specify version using -version argument");
+                return;
+            }
+
+            // 编译并复制热更新DLL文件
+            BuildDllCommand.BuildAndCopyDlls();
+            BuildTarget target = BuildTarget.iOS;
+            AssetDatabase.Refresh();
+            BuildInternal(target, Application.dataPath + "/../Bundles/IOS", packageVersion: version);
+            AssetDatabase.Refresh();
+            var savePath = $"{Application.dataPath}/../Build/IOS/";
+            BuildImp(BuildTargetGroup.iOS, target, savePath + "XCode_Project");
+            OpenBuildSavePath(savePath);
+        }
+
         /// <summary>
         /// 打包安卓AB（自动版本号）
         /// </summary>
@@ -404,7 +490,8 @@ namespace DGame
         {
             BuildDllCommand.BuildAndCopyDlls();
             BuildTarget target = BuildTarget.Android;
-            BuildInternal(target, Application.dataPath + "/../Bundles/Android", packageVersion: GetBuildPackageVersion());
+            BuildInternal(target, Application.dataPath + "/../Bundles/Android",
+                packageVersion: GetBuildPackageVersion());
             AssetDatabase.Refresh();
             CopyStreamingAssetsFiles();
             Debug.Log("[BuildAndroidAB] Android AssetBundle build completed with auto version: " + GetBuildPackageVersion());
@@ -416,17 +503,19 @@ namespace DGame
         public static void BuildAndroidABWithVersion()
         {
             string version = GetCommandLineArg("-version");
+
             if (string.IsNullOrEmpty(version))
             {
                 Debug.LogError("[BuildAndroidABWithVersion] Please specify version using -version argument");
                 return;
             }
+
             BuildDllCommand.BuildAndCopyDlls();
             BuildTarget target = BuildTarget.Android;
             BuildInternal(target, Application.dataPath + "/../Bundles/Android", packageVersion: version);
             AssetDatabase.Refresh();
             CopyStreamingAssetsFiles();
-            Debug.Log("[BuildAndroidABWithVersion] Android AssetBundle build completed with manual version: " + version);
+            Debug.Log($"[BuildAndroidABWithVersion] Android AssetBundle build completed with manual version: {version}");
         }
 
         /// <summary>
@@ -436,10 +525,11 @@ namespace DGame
         {
             BuildDllCommand.BuildAndCopyDlls();
             BuildTarget target = BuildTarget.StandaloneWindows;
-            BuildInternal(target, Application.dataPath + "/../Bundles/Windows", packageVersion: GetBuildPackageVersion());
+            BuildInternal(target, Application.dataPath + "/../Bundles/Windows",
+                packageVersion: GetBuildPackageVersion());
             AssetDatabase.Refresh();
             CopyStreamingAssetsFiles();
-            Debug.Log("[BuildWindowsAB] Windows AssetBundle build completed with auto version: " + GetBuildPackageVersion());
+            Debug.Log($"[BuildWindowsAB] Windows AssetBundle build completed with auto version: {GetBuildPackageVersion()}");
         }
 
         /// <summary>
@@ -448,17 +538,19 @@ namespace DGame
         public static void BuildWindowsABWithVersion()
         {
             string version = GetCommandLineArg("-version");
+
             if (string.IsNullOrEmpty(version))
             {
                 Debug.LogError("[BuildWindowsABWithVersion] Please specify version using -version argument");
                 return;
             }
+
             BuildDllCommand.BuildAndCopyDlls();
             BuildTarget target = BuildTarget.StandaloneWindows;
             BuildInternal(target, Application.dataPath + "/../Bundles/Windows", packageVersion: version);
             AssetDatabase.Refresh();
             CopyStreamingAssetsFiles();
-            Debug.Log("[BuildWindowsABWithVersion] Windows AssetBundle build completed with manual version: " + version);
+            Debug.Log($"[BuildWindowsABWithVersion] Windows AssetBundle build completed with manual version: {version}");
         }
 
         #endregion
