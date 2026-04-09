@@ -1,13 +1,16 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Net.NetworkInformation;
 using System.Reflection;
 using DGame;
 using Fantasy;
 using Fantasy.Async;
 using Fantasy.Helper;
+using Fantasy.InnerMessage;
 using Fantasy.Network;
 using Fantasy.Network.Interface;
+using Fantasy.Serialize;
 
 namespace GameLogic
 {
@@ -100,8 +103,58 @@ namespace GameLogic
         protected override void OnInit()
         {
             m_clientConnectWatcher = new ClientConnectWatcher(this);
+            ProtoBufHelper.OnReceiveMessage = OnReceiveMessage;
+            ProtoBufHelper.OnSendMessage = OnSendMessage;
         }
 
+        #region ProtocolLogHelper
+        
+        public bool EnableLogMessage { get; set; } = true;
+
+        private void OnSendMessage(Type type, object obj)
+        {
+            if (obj == null || type == null)
+            {
+                return;
+            }
+            
+            if (!IgnoreLogMessage(type))
+            {
+                Log.Debug($"[{DateTime.Now:HH:mm:ss}][c-s] Send {type.Name}\n{SafeToJson(obj)}");
+            }
+        }
+
+        private void OnReceiveMessage(Type type, object obj)
+        {
+            if (obj == null || type == null)
+            {
+                return;
+            }
+            
+            if (!IgnoreLogMessage(type))
+            {
+                Log.Debug($"[{DateTime.Now:HH:mm:ss}][s-c] Recv {type.Name}\n{SafeToJson(obj)}");
+            }
+        }
+        
+        private string SafeToJson(object obj)
+        {
+            try
+            {
+                return DGame.Utility.JsonUtil.ToJson(obj);
+            }
+            catch (Exception e)
+            {
+                return $"<ToJson Failed> {e.Message}";
+            }
+        }
+
+        private bool IgnoreLogMessage(Type type)
+            => !UnityEngine.Debug.isDebugBuild || !EnableLogMessage 
+                || type == typeof(PingRequest) || type == typeof(PingResponse);
+        
+        #endregion
+        
         /// <summary>
         /// 异步初始化 Fantasy 网络框架
         /// </summary>

@@ -196,21 +196,45 @@ public static void Error(string msg) { ... }
 
 ---
 
-## 使用示例
+### 5. ProtoBufHelper.cs - 添加协议消息日志回调支持
 
-### 客户端监听服务器消息
+**文件位置**: `Assets/Scripts/HotFix/Fantasy.Unity/Runtime/Core/Serialize/Pack/ProtoBufPack/ProtoBufHelper.cs`
+
+**修改内容**: 添加协议消息的收发日志回调，方便在运行时记录和监控网络协议数据。
+
+#### 5.1 添加 ProtocolLogHelper 区域（在文件末尾 `#endregion` 之前）
 
 ```csharp
-// 注册消息监听
-GameClient.Instance.RegisterMsgHandler.RegisterMsgHandler(protocolCode, (message) =>
-{
-    // 处理消息
-    var msg = (YourMessageType)message;
-    // ...
-});
+#region ProtocolLogHelper
 
-// 取消监听
-GameClient.Instance.UnRegisterMsgHandler.UnRegisterMsgHandler(protocolCode, handler);
+public static Action<Type, object> OnReceiveMessage { get; set; }
+
+public static Action<Type, object> OnSendMessage { get; set; }
+
+#endregion
+```
+
+#### 5.2 修改 Deserialize 方法（添加接收消息回调）
+
+```csharp
+/// <inheritdoc/>
+public object Deserialize(Type type, MemoryStreamBuffer buffer)
+{
+    var obj = _deserializes[type.TypeHandle](buffer);
+    OnReceiveMessage?.Invoke(type, obj);
+    return obj;
+}
+```
+
+#### 5.3 修改 Serialize 方法（添加发送消息回调）
+
+```csharp
+/// <inheritdoc/>
+public void Serialize(Type type, object @object, IBufferWriter<byte> buffer)
+{
+    OnSendMessage?.Invoke(type, @object);
+    _serializes[type.TypeHandle](buffer, @object);
+}
 ```
 
 ---
@@ -224,4 +248,5 @@ GameClient.Instance.UnRegisterMsgHandler.UnRegisterMsgHandler(protocolCode, hand
 - [ ] `MessageHandler()` 方法中已添加客户端回调触发逻辑
 - [ ] **Fantasy.Log 中 `Debug`、`Info`、`Warning`、`Error` 方法已添加条件宏定义**（`Trace` 和 `TraceInfo` 除外），防止打包输出相关的Debug代码
 - [ ] 检查项目是否引入了 Obfuz 包，如果引用了，在 `Fantasy.Unity` 程序集和 `Fantasy.Editor` 程序集中添加 `Obfuz.Runtime` 引用
+- [ ] **ProtoBufHelper.cs 中已添加协议日志回调支持**，用于协议消息的收发日志记录
 - [ ] 编译无错误
