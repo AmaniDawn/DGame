@@ -2,7 +2,19 @@
 cd /d %~dp0
 call path_define.bat
 
-set VERSION=1.0
+@REM set VERSION=1.0
+
+set "VERSION="
+echo ========================================
+echo Please input Android AssetBundle version:
+set /p VERSION=Version^> 
+
+if "%VERSION%"=="" (
+    echo Version cannot be empty.
+    pause
+    exit /b 1
+)
+
 echo ========================================
 echo Building Android AssetBundle (Manual Version: %VERSION%)
 echo ========================================
