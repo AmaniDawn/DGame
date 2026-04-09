@@ -4,10 +4,21 @@ cd "$(dirname "$0")"
 
 source ./path_define.sh
 
-VERSION=1.2
+VERSION=""
 
 echo "========================================"
-echo "Building Android AssetBundle (Manual Version: ${VERSION})"
+echo "Please input version:"
+read -r VERSION
+
+if [[ -z "${VERSION}" ]]; then
+  echo "Version cannot be empty."
+  echo "Press any key to continue..."
+  read -n 1 -s -r
+  exit 1
+fi
+
+echo "========================================"
+echo "Building Android (Manual Version: ${VERSION})"
 echo "========================================"
 echo "Log File: ${BUILD_LOGFILE}"
 
@@ -16,7 +27,7 @@ echo "Log File: ${BUILD_LOGFILE}"
   -batchmode \
   -quit \
   -logFile "${BUILD_LOGFILE}" \
-  -executeMethod DGame.ReleaseTools.BuildWindowWithVersion \
+  -executeMethod DGame.ReleaseTools.BuildAndroidWithVersion \
   "-version=${VERSION}" \
   "-CustomArgs:Language=en_US;${WORKSPACE}"
 
