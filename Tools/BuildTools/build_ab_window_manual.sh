@@ -4,7 +4,18 @@ cd "$(dirname "$0")"
 
 source ./path_define.sh
 
-VERSION=1.5
+VERSION=""
+
+echo "========================================"
+echo "Please input AB version:"
+read -r VERSION
+
+if [[ -z "${VERSION}" ]]; then
+  echo "Version cannot be empty."
+  echo "Press any key to continue..."
+  read -n 1 -s -r
+  exit 1
+fi
 
 echo "========================================"
 echo "Building Windows AssetBundle (Manual Version: ${VERSION})"
