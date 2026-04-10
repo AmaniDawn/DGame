@@ -5,11 +5,15 @@ using System.IO;
 
 namespace Fantasy.Serialize
 {
-    public enum MemoryStreamBufferSource
+    [Flags]
+    public enum MemoryStreamBufferSource : byte
     {
         None = 0,
         Pack = 1,
-        UnPack = 2,
+        UnPack = 1 << 1,
+        MultiPack = 1 << 2,
+        
+        Return = Pack | MultiPack
     }
     
     public sealed class MemoryStreamBuffer : MemoryStream, IBufferWriter<byte>
@@ -21,7 +25,7 @@ namespace Fantasy.Serialize
             // 使用 capacity 参数的构造函数，这样创建的 MemoryStream 支持 GetBuffer()
         }
 
-        public MemoryStreamBuffer(MemoryStreamBufferSource memoryStreamBufferSource, int capacity) : base(capacity)
+        public MemoryStreamBuffer(MemoryStreamBufferSource memoryStreamBufferSource, int capacity, int disposeCount = 1) : base(capacity)
         {
             MemoryStreamBufferSource = memoryStreamBufferSource;
         }

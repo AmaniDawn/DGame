@@ -133,7 +133,7 @@ namespace Fantasy.Network.TCP
                 _onConnectFail?.Invoke();
                 Dispose();
             });
-            _packetParser = PacketParserFactory.CreateClientReadOnlyMemoryPacket(this);
+            _packetParser = PacketParserFactory.CreateReadOnlyMemoryPacketParser(this);
             _remoteEndPoint = NetworkHelper.GetIPEndPoint(remoteAddress);
             _socket = new Socket(_remoteEndPoint.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
             _socket.NoDelay = true;
@@ -361,13 +361,15 @@ namespace Fantasy.Network.TCP
                     {
                         return;
                     }
-
-                    ReturnMemoryStream(memoryStreamBuffer);
                 }
                 catch
                 {
                     _isSending = false;
                     return;
+                }
+                finally
+                {
+                    ReturnMemoryStream(memoryStreamBuffer);
                 }
             }
             
@@ -376,7 +378,7 @@ namespace Fantasy.Network.TCP
 
         private void ReturnMemoryStream(MemoryStreamBuffer memoryStream)
         {
-            if (memoryStream.MemoryStreamBufferSource == MemoryStreamBufferSource.Pack)
+            if (MemoryStreamBufferSource.Return.HasFlag(memoryStream.MemoryStreamBufferSource))
             {
                 MemoryStreamBufferPool.ReturnMemoryStream(memoryStream);
             }

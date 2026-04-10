@@ -36,7 +36,7 @@ namespace Fantasy.Network.WebSocket
         public void Initialize(NetworkTarget networkTarget)
         {
             base.Initialize(NetworkType.Client, NetworkProtocolType.WebSocket, networkTarget);
-            _packetParser = PacketParserFactory.CreateClientReadOnlyMemoryPacket(this);
+            _packetParser = (ReadOnlyMemoryPacketParser)PacketParserFactory.CreateWebglBufferPacketParser(this);
         }
 
         public override void Dispose()
@@ -331,8 +331,8 @@ namespace Fantasy.Network.WebSocket
                 }
 
                 await _clientWebSocket.SendAsync(new ArraySegment<byte>(memoryStream.GetBuffer(), 0, (int)memoryStream.Position), WebSocketMessageType.Binary, true, _cancellationTokenSource.Token);
-                
-                if (memoryStream.MemoryStreamBufferSource == MemoryStreamBufferSource.Pack)
+
+                if (MemoryStreamBufferSource.Return.HasFlag(memoryStream.MemoryStreamBufferSource))
                 {
                     MemoryStreamBufferPool.ReturnMemoryStream(memoryStream);
                 }

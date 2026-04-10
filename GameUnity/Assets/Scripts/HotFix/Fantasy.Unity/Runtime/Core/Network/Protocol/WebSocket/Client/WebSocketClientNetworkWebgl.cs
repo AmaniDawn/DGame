@@ -30,7 +30,7 @@ namespace Fantasy.Network.WebSocket
         public void Initialize(NetworkTarget networkTarget)
         {
             base.Initialize(NetworkType.Client, NetworkProtocolType.WebSocket, networkTarget);
-            _packetParser = PacketParserFactory.CreateClient<BufferPacketParser>(this);
+            _packetParser = (BufferPacketParser)PacketParserFactory.CreateWebglBufferPacketParser(this);
         }
         
         public override void Dispose()
@@ -167,7 +167,7 @@ namespace Fantasy.Network.WebSocket
         {
             _webSocket.SendAsync(memoryStream.GetBuffer(), 0, (int)memoryStream.Position);
 #if !UNITY_EDITOR && UNITY_WEBGL
-            if (memoryStream.MemoryStreamBufferSource == MemoryStreamBufferSource.Pack)
+            if (MemoryStreamBufferSource.Return.HasFlag(memoryStream.MemoryStreamBufferSource))
             {
                 MemoryStreamBufferPool.ReturnMemoryStream(memoryStream);
             }
