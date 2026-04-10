@@ -36,7 +36,7 @@ namespace GameBattle
         /// </summary>
         public static void DestroyBattle()
         {
-            CurScene.Dispose();
+            CurScene?.Dispose();
             CurScene = null;
             CurBattleContextComponent = null;
         }
