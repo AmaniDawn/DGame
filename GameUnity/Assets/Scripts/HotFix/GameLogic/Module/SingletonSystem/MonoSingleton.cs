@@ -79,7 +79,7 @@ namespace GameLogic
 
         private void OnDestroy()
         {
-            if (this == Instance)
+            if (m_instance == this)
             {
                 Release();
             }
