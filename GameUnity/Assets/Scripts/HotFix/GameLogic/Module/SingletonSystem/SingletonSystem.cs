@@ -107,12 +107,13 @@ namespace GameLogic
         /// <param name="singleton">单例对象</param>
         public static void DestroySingleton(GameObject go, object singleton)
         {
-            if (m_gameObjects != null && m_gameObjects.ContainsKey(go.name))
+            if (go != null)
             {
                 m_gameObjects?.Remove(go.name);
                 Object.Destroy(go);
-                DestroyLifeCycle(singleton);
             }
+
+            DestroyLifeCycle(singleton);
         }
 
         private static void DestroyLifeCycle(object singleton)
@@ -150,20 +151,37 @@ namespace GameLogic
         /// </summary>
         public static void Destroy()
         {
+            DeInit();
+
+            m_updates.Clear();
+            m_fixedUpdates.Clear();
+            m_lateUpdates.Clear();
+
+#if UNITY_EDITOR
+
+            m_drawGizmos.Clear();
+            m_drawGizmosSelecteds.Clear();
+
+#endif
+
             if (m_gameObjects != null)
             {
                 foreach (var go in m_gameObjects.Values)
                 {
-                    Object.Destroy(go);
+                    if (go != null)
+                    {
+                        Object.Destroy(go);
+                    }
                 }
                 m_gameObjects.Clear();
             }
 
             if (m_singletons != null)
             {
-                for (int i = m_singletons.Count - 1; i >= 0; i--)
+                while (m_singletons.Count > 0)
                 {
-                    m_singletons[i].Destroy();
+                    ISingleton singleton = m_singletons[^1];
+                    singleton.Destroy();
                 }
                 m_singletons.Clear();
             }
