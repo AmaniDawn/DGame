@@ -282,7 +282,7 @@ namespace Fantasy.Serialize
         #region ProtocolLogHelper
 
         public static Action<Type, object> OnReceiveMessage { get; set; }
-        
+
         public static Action<Type, object> OnSendMessage { get; set; }
 
         #endregion
