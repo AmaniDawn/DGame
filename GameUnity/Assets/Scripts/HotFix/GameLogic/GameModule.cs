@@ -15,12 +15,7 @@ namespace GameLogic
         public static RootModule RootModule
         {
             get => m_rootModule == null ? m_rootModule =
-#if UNITY_6000_3_OR_NEWER
-                Object.FindFirstObjectByType<RootModule>()
-#else
-                Object.FindObjectOfType<RootModule>()
-#endif
-                : m_rootModule;
+                DGame.Utility.UnityUtil.FindObjectOfType<RootModule>() : m_rootModule;
             private set => m_rootModule = value;
         }
 
