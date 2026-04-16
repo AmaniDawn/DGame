@@ -15,6 +15,7 @@ namespace GameLogic
             if (m_uiParticle == null)
             {
                 DLogger.Error($"UIParticle为空，请检查: [{gameObject.name}]");
+                return;
             }
 
             InitUIParticle();
