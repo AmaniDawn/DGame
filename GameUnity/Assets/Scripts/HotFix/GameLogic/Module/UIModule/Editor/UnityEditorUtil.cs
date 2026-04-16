@@ -76,11 +76,7 @@ namespace GameLogic
                 rectTransform.SetParent(canvas);
             }
 
-#if UNITY_6000_3_OR_NEWER
-            if (!Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>())
-#else
-            if (!Object.FindObjectOfType<UnityEngine.EventSystems.EventSystem>())
-#endif
+            if (!DGame.Utility.UnityUtil.FindObjectOfType<UnityEngine.EventSystems.EventSystem>())
             {
                 // 创建 EventSystem 组件
                 GameObject eventSystem = new GameObject("EventSystem",
@@ -95,11 +91,7 @@ namespace GameLogic
         /// <returns></returns>
         public static Transform GetOrCreateCanvas()
         {
-#if UNITY_6000_3_OR_NEWER
-            Canvas canvas = Object.FindFirstObjectByType<Canvas>();
-#else
-            Canvas canvas = Object.FindObjectOfType<Canvas>();
-#endif
+            Canvas canvas = DGame.Utility.UnityUtil.FindObjectOfType<Canvas>();
 
             if (canvas != null)
             {
