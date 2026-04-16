@@ -1,14 +1,10 @@
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
-using NUnit.Framework;
 using UnityEditor;
-using UnityEditorInternal;
 using UnityEngine;
 using UnityEngine.UI;
-using Object = UnityEngine.Object;
 
 namespace DGame
 {
@@ -29,12 +25,7 @@ namespace DGame
                 rectTransform.SetParent(canvas);
             }
 
-            bool isFind =
-#if UNITY_6000_0_OR_NEWER
-                Object.FindFirstObjectByType<UnityEngine.EventSystems.EventSystem>();
-#else
-				Object.FindObjectOfType<UnityEngine.EventSystems.EventSystem>();
-#endif
+            bool isFind = DGame.Utility.UnityUtil.FindObjectOfType<UnityEngine.EventSystems.EventSystem>();
             if (!isFind)
             {
                 // 创建 EventSystem 组件
@@ -54,12 +45,7 @@ namespace DGame
         /// <returns></returns>
         public static Transform GetOrCreateCanvas()
         {
-            Canvas canvas =
-#if UNITY_6000_0_OR_NEWER
-                Object.FindFirstObjectByType<Canvas>();
-#else
-				Object.FindObjectOfType<Canvas>();
-#endif
+            Canvas canvas = DGame.Utility.UnityUtil.FindObjectOfType<Canvas>();
 
             if (canvas != null)
             {
@@ -447,6 +433,18 @@ namespace DGame
 
             return null;
         }
+
+        #endregion
+
+        #region AssetDatabase.GetAssetPath
+
+        public static string GetAssetPath(int instanceID)
+            =>
+#if UNITY_6000_0_OR_NEWER
+                AssetDatabase.GetAssetPath((EntityId)instanceID);
+#else
+                AssetDatabase.GetAssetPath(instanceID);
+#endif
 
         #endregion
     }

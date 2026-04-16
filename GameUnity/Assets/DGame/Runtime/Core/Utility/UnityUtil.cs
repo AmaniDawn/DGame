@@ -331,15 +331,12 @@ namespace DGame
             #region FindObjectOfType
 
             public static T FindObjectOfType<T>() where T : UnityEngine.Object
-            {
-// #if UNITY_6000_0_OR_NEWER
-//                 return UnityEngine.Object.FindFirstObjectByType<T>();
-// #else
-//                 return UnityEngine.Object.FindObjectOfType<T>();
-// #endif
-
-                return UnityEngine.Object.FindFirstObjectByType<T>();
-            }
+                =>
+#if UNITY_6000_0_OR_NEWER
+                UnityEngine.Object.FindFirstObjectByType<T>();
+#else
+                UnityEngine.Object.FindObjectOfType<T>();
+#endif
 
             #endregion
 

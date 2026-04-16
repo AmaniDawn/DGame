@@ -210,11 +210,7 @@ namespace GameLogic
                 m_camera = Camera.main;
                 if (m_camera == null)
                 {
-#if UNITY_6000_3_OR_NEWER
-                    m_camera = Object.FindFirstObjectByType<Camera>();
-#else
-                    m_camera = Object.FindObjectOfType<Camera>();
-#endif
+                    m_camera = DGame.Utility.UnityUtil.FindObjectOfType<Camera>();
                 }
             }
 
