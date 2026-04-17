@@ -5,15 +5,15 @@ namespace GameLogic
 {
     public class DGameLocalizationHelper : ILocalizationHelper
     {
-        public Language CurrentLanguage { get; set; }
+        public LocalAreaType CurrentLanguage { get; set; }
 
-        public Language SystemLanguage => LocalizationUtil.SystemLanguage;
+        public LocalAreaType SystemLanguage => LocalizationUtil.SystemLanguage;
 
-        public bool ContainsLanguage(Language language) => (int)language < (int)LocalAreaType.MAX;
+        public bool ContainsLanguage(LocalAreaType language) => (int)language < (int)LocalAreaType.MAX;
 
         public bool ContainsLanguage(int language) => language < (int)LocalAreaType.MAX;
 
-        public bool SetLanguage(Language language)
+        public bool SetLanguage(LocalAreaType language)
         {
             if (ContainsLanguage(language) && language != CurrentLanguage)
             {
@@ -28,7 +28,7 @@ namespace GameLogic
         {
             if (ContainsLanguage(language) && language != (int)CurrentLanguage)
             {
-                CurrentLanguage = (Language)language;
+                CurrentLanguage = (LocalAreaType)language;
                 GameEvent.Get<ILocalization>().OnLanguageChanged(language);
                 return true;
             }

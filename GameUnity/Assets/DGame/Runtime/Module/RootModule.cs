@@ -16,17 +16,17 @@ namespace DGame
 
         private float m_gameSpeedBeforePause = 1f;
 
-        [SerializeField]
-        private Language editorLanguage = Language.CN;
-
-        /// <summary>
-        /// 获取或设置编辑器语言（仅编辑器内有效）。
-        /// </summary>
-        public Language EditorLanguage
-        {
-            get => editorLanguage;
-            set => editorLanguage = value;
-        }
+        // [SerializeField]
+        // private Language editorLanguage = Language.CN;
+        //
+        // /// <summary>
+        // /// 获取或设置编辑器语言（仅编辑器内有效）。
+        // /// </summary>
+        // public Language EditorLanguage
+        // {
+        //     get => editorLanguage;
+        //     set => editorLanguage = value;
+        // }
 
         [SerializeField]
         private string stringUtilHelperTypeName = "DGame.DGameStringUtilHelper";
