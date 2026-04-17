@@ -54,7 +54,7 @@ namespace DGame
 
             EditorGUI.BeginDisabledGroup(EditorApplication.isPlayingOrWillChangePlaymode);
             {
-                DrawEditorLanguageSettings(rootModule);
+                // DrawEditorLanguageSettings(rootModule);
                 DrawGlobalHelperSettings(rootModule);
                 DrawMemoryPoolSettings(rootModule);
                 DrawPerformanceSettings(rootModule);
@@ -68,21 +68,21 @@ namespace DGame
 
         private void DrawEditorLanguageSettings(RootModule rootModule)
         {
-            EditorGUILayout.BeginVertical("HelpBox");
-            {
-                EditorGUILayout.LabelField("编辑器模式语言设置");
-                EditorGUILayout.BeginHorizontal();
-                EditorGUILayout.LabelField(new GUIContent("Editor Language"), GUILayout.Width(120));
-                EditorGUILayout.PropertyField(m_editorLanguage, GUIContent.none);
-
-                EditorGUILayout.EndHorizontal();
-
-                EditorGUILayout.Space(3);
-
-                string helperStatus = "编辑器模式下运行的语言类型: " + LocalizationUtil.GetLanguage(rootModule.EditorLanguage);
-                EditorGUILayout.HelpBox(helperStatus, MessageType.Info);
-            }
-            EditorGUILayout.EndVertical();
+            // EditorGUILayout.BeginVertical("HelpBox");
+            // {
+            //     EditorGUILayout.LabelField("编辑器模式语言设置");
+            //     EditorGUILayout.BeginHorizontal();
+            //     EditorGUILayout.LabelField(new GUIContent("Editor Language"), GUILayout.Width(120));
+            //     EditorGUILayout.PropertyField(m_editorLanguage, GUIContent.none);
+            //
+            //     EditorGUILayout.EndHorizontal();
+            //
+            //     EditorGUILayout.Space(3);
+            //
+            //     string helperStatus = "编辑器模式下运行的语言类型: " + LocalizationUtil.GetLanguage(rootModule.EditorLanguage);
+            //     EditorGUILayout.HelpBox(helperStatus, MessageType.Info);
+            // }
+            // EditorGUILayout.EndVertical();
         }
 
         private void DrawMemoryPoolSettings(RootModule rootModule)

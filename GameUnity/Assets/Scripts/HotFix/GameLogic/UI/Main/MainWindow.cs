@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
 using DGame;
+using GameProto;
 
 namespace GameLogic
 {
@@ -14,10 +15,10 @@ namespace GameLogic
 
 			var optionsList = new List<Dropdown.OptionData>();
 
-			for (int i = 0; i < (int)Language.MAX; i++)
+			for (int i = 0; i < (int)LocalAreaType.MAX; i++)
 			{
 				Dropdown.OptionData optionData = new Dropdown.OptionData();
-				optionData.text = GetLanguageStr((Language)i);
+				optionData.text = GetLanguageStr((LocalAreaType)i);
 				optionsList.Add(optionData);
 			}
 
@@ -26,36 +27,36 @@ namespace GameLogic
 			m_dropDownLanguage.onValueChanged.AddListener(OnDropdownSelect);
 		}
 
-		public string GetLanguageStr(Language lang)
+		public string GetLanguageStr(LocalAreaType lang)
 		{
 			var langStr = "英文";
 			switch (lang)
 			{
-				case Language.CN:
+				case LocalAreaType.CN:
 					langStr = "中文";
 					break;
 
-				case Language.EN:
+				case LocalAreaType.EN:
 					langStr = "英文";
 					break;
 
-				case Language.GAT:
+				case LocalAreaType.GAT:
 					langStr = "繁体";
 					break;
 
-				case Language.KR:
+				case LocalAreaType.KR:
 					langStr = "韩文";
 					break;
 
-				case Language.JP:
+				case LocalAreaType.JP:
 					langStr = "日文";
 					break;
 
-				case Language.VN:
+				case LocalAreaType.VN:
 					langStr = "越南语";
 					break;
 
-				case Language.INDO:
+				case LocalAreaType.INDO:
 					langStr = "印尼";
 					break;
 			}
@@ -73,7 +74,7 @@ namespace GameLogic
 
 		void OnDropdownSelect(int val)
 		{
-			GameModule.LocalizationModule.SetLanguage((Language)val);
+			GameModule.LocalizationModule.SetLanguage((LocalAreaType)val);
 			// string[] inputDrop = m_dropDownLanguage.captionText.text.Split(' ');
 		}
 

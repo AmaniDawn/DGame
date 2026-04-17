@@ -1,6 +1,8 @@
-﻿namespace DGame
+﻿using GameProto;
+
+namespace GameLogic
 {
-    public class LocalizationModule : Module, ILocalizationModule
+    public class LocalizationModule : DGame.Module, ILocalizationModule
     {
         private ILocalizationHelper m_localizationHelper;
 
@@ -18,11 +20,11 @@
 
         }
 
-        public Language CurrentLanguage => m_localizationHelper != null ? m_localizationHelper.CurrentLanguage : Language.CN;
+        public LocalAreaType CurrentLanguage => m_localizationHelper != null ? m_localizationHelper.CurrentLanguage : LocalAreaType.CN;
 
-        public Language SystemLanguage => m_localizationHelper.SystemLanguage;
+        public LocalAreaType SystemLanguage => m_localizationHelper.SystemLanguage;
 
-        public bool ContainsLanguage(Language language)
+        public bool ContainsLanguage(LocalAreaType language)
         {
             if (m_localizationHelper != null)
             {
@@ -40,7 +42,7 @@
             return false;
         }
 
-        public bool SetLanguage(Language language)
+        public bool SetLanguage(LocalAreaType language)
         {
             if (m_localizationHelper != null)
             {
