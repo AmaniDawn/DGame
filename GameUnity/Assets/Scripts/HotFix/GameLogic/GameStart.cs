@@ -5,6 +5,7 @@ using System.Reflection;
 using Cysharp.Threading.Tasks;
 using GameLogic;
 using DGame;
+using GameProto;
 using YooAsset;
 
 #if ENABLE_OBFUZ
@@ -42,21 +43,22 @@ public partial class GameStart
         ILocalizationModule localizationModule = GameModule.LocalizationModule;
         DGameLocalizationHelper localizationHelper = new DGameLocalizationHelper();
         localizationModule.SetLocalizationHelper(localizationHelper);
+        DLogger.Info("LocalizationHelper: {0}", typeof(LocalAreaType));
 
-        if (GameModule.ResourceModule.PlayMode == EPlayMode.EditorSimulateMode
-            && RootModule.Instance.EditorLanguage == DGame.Language.CN)
+        if (GameModule.ResourceModule.PlayMode == EPlayMode.EditorSimulateMode)
         {
-            // 编辑器资源模式直接使用 Inspector 上设置的语言
+            // 设置编辑器资源模式使用的语言
+            localizationModule.SetLanguage(LocalAreaType.CN);
             return;
         }
 
-        DGame.Language language = localizationModule.CurrentLanguage;
+        LocalAreaType language = localizationModule.CurrentLanguage;
         if (DGame.Utility.PlayerPrefsUtil.HasSetting(Constant.Settings.LANGUAGE))
         {
             try
             {
                 int languageIndex = DGame.Utility.PlayerPrefsUtil.GetInt(Constant.Settings.LANGUAGE);
-                language = (Language)languageIndex;
+                language = (LocalAreaType)languageIndex;
                 // string languageString = DGame.Utility.PlayerPrefsUtil.GetString(Constant.Settings.LANGUAGE);
                 // language = (DGame.Language)System.Enum.Parse(typeof(DGame.Language), languageString);
                 // System.Enum.TryParse(languageString, out language);
@@ -80,12 +82,12 @@ public partial class GameStart
         DLogger.Info("Init language settings complete, current language is '{0}'.", language.ToString());
     }
 
-    private static bool CheckLanguageIsSupport(ref Language language)
+    private static bool CheckLanguageIsSupport(ref LocalAreaType language)
     {
-        if (language >= DGame.Language.MAX)
+        if (language >= LocalAreaType.MAX)
         {
             // 若是暂不支持的语言，则使用英语
-            language = DGame.Language.EN;
+            language = LocalAreaType.EN;
             return false;
         }
 
