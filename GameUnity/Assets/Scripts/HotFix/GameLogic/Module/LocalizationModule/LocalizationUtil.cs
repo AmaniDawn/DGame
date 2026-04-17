@@ -9,6 +9,17 @@ namespace GameLogic
         private static readonly Dictionary<LocalAreaType, string> m_languageMap = new Dictionary<LocalAreaType, string>();
         private static readonly Dictionary<string, LocalAreaType> m_languageStrMap = new Dictionary<string, LocalAreaType>();
 
+        static LocalizationUtil()
+        {
+            RegisterLanguageMap(LocalAreaType.CN, "中文");
+            RegisterLanguageMap(LocalAreaType.EN, "英文");
+            RegisterLanguageMap(LocalAreaType.GAT, "繁体");
+            RegisterLanguageMap(LocalAreaType.KR, "韩文");
+            RegisterLanguageMap(LocalAreaType.JP, "日文");
+            RegisterLanguageMap(LocalAreaType.VN, "越南语");
+            RegisterLanguageMap(LocalAreaType.INDO, "印尼语");
+        }
+
         private static void RegisterLanguageMap(LocalAreaType language, string str = "")
         {
             if (string.IsNullOrEmpty(str))
@@ -30,6 +41,8 @@ namespace GameLogic
             language = LocalAreaType.EN;
             return m_languageMap.TryGetValue(language, out languageStr) ? languageStr : language.ToString();
         }
+
+        public static Dictionary<LocalAreaType, string> GetAllLanguageMap() => m_languageMap;
 
         public static LocalAreaType SystemLanguage
             => Application.systemLanguage switch
