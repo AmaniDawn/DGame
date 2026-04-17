@@ -13,7 +13,7 @@ namespace GameLogic
     /// </summary>
     public static class EditorConfigLoader
     {
-        private const string DefaultConfigPath = "Assets/BundleAssets/Configs/Bytes";
+        private const string DefaultConfigPath = "Assets/BundleAssets/Configs/Binary";
 
         private static Tables s_tables;
 
