@@ -29,7 +29,7 @@ namespace DGame
         // 路径配置
         private const string m_defaultScriptPath = "Assets/Scripts/HotFix/GameLogic";
         private const string m_defaultPrefabPath = "Assets/BundleAssets/UI";
-        private const string m_textDefinePath = "Assets/Scripts/HotFix/GameLogic/Text/TextDefine.cs";
+        private const string m_textDefinePath = "Assets/Scripts/HotFix/GameLogic/Module/TextModule/TextDefine.cs";
         private const string m_outputPath = "Assets/Editor/TextDefineEditor/Output/";
         private ToolTab m_currentTab = ToolTab.CodeExtract;
 
