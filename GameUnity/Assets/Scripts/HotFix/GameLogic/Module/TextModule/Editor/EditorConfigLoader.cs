@@ -108,6 +108,11 @@ namespace GameLogic
                 return $"[没有配置的文本ID: {textID}]";
             }
 
+            if (config.Content == null || config.Content.Length == 0)
+            {
+                return $"[文本配置表内容为空: {textID}]";
+            }
+
             int langIndex = (int)language;
             if (langIndex < 0 || langIndex >= config.Content.Length)
             {
