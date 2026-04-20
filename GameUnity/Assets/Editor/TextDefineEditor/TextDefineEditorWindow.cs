@@ -339,10 +339,10 @@ namespace DGame
 
         private void DrawInfoBox(string info1) // , string info2
         {
-            EditorGUILayout.BeginHorizontal();
+            // EditorGUILayout.BeginHorizontal();
             EditorGUILayout.HelpBox(info1, MessageType.Info);
             // EditorGUILayout.HelpBox(info2, MessageType.Info);
-            EditorGUILayout.EndHorizontal();
+            // EditorGUILayout.EndHorizontal();
         }
 
         private void DrawUsageTips(string tips)
