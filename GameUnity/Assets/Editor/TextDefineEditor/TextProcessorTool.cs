@@ -126,6 +126,12 @@ namespace DGame
                     }
                 }
 
+                if (strMap.Count <= 0)
+                {
+                    Debug.Log("未找到任何匹配的文本需要提取……");
+                    return;
+                }
+
                 string textDefine = File.ReadAllText(options.TextDefinePath);
                 bool connect = false;
                 int startIndex = textDefine.IndexOf("// AutoBuildStart", StringComparison.Ordinal);
@@ -287,10 +293,15 @@ namespace DGame
 
                             var textComponentName = textComponent.name;
 
-                            if ((!options.Include_m_Prefix_Node &&
-                                 (textComponentName.StartsWith("m_") || textComponentName.StartsWith("_")))
-                                || textComponentName == "Placeholder")
+                            if (!options.Include_m_Prefix_Node &&
+                                (textComponentName.StartsWith("m_") || textComponentName.StartsWith("_"))) //|| textComponentName == "Placeholder"
                             {
+                                continue;
+                            }
+
+                            if (string.IsNullOrWhiteSpace(textComponent.text))
+                            {
+                                Debug.LogWarning($"跳过空文本: {textComponent.gameObject.name} - {textComponent.text}");
                                 continue;
                             }
 
@@ -355,10 +366,15 @@ namespace DGame
 
                                 var textComponentName = textPro.name;
 
-                                if ((!options.Include_m_Prefix_Node &&
-                                     (textComponentName.StartsWith("m_") || textComponentName.StartsWith("_")))
-                                    || textComponentName == "Placeholder")
+                                if (!options.Include_m_Prefix_Node &&
+                                    (textComponentName.StartsWith("m_") || textComponentName.StartsWith("_"))) //|| textComponentName == "Placeholder"
                                 {
+                                    continue;
+                                }
+
+                                if (string.IsNullOrWhiteSpace(textPro.text))
+                                {
+                                    Debug.LogWarning($"跳过空文本: {textPro.gameObject.name} - {textPro.text}");
                                     continue;
                                 }
 

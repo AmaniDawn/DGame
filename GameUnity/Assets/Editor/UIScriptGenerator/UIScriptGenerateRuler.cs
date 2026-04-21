@@ -74,5 +74,6 @@ namespace DGame
         Canvas,
         Dropdown,
         TMP_InputField,
+        TMP_Dropdown,
     }
 }
