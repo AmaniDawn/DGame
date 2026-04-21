@@ -2,11 +2,14 @@
 using System.IO;
 using System.Text;
 using GameLogic;
-using TMPro;
 using UnityEditor;
 using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.UI;
+
+#if TextMeshPro
+using TMPro;
+#endif
 
 namespace DGame
 {
@@ -670,7 +673,11 @@ namespace DGame
                 UIComponentName.HorizontalLayoutGroup => typeof(HorizontalLayoutGroup),
                 UIComponentName.VerticalLayoutGroup => typeof(VerticalLayoutGroup),
                 UIComponentName.Dropdown => typeof(Dropdown),
+#if TextMeshPro
+                UIComponentName.TMP_InputField => typeof(TMP_InputField),
+                UIComponentName.TMP_Dropdown => typeof(TMP_Dropdown),
                 UIComponentName.TextMeshProUGUI => typeof(TextMeshProUGUI),
+#endif
                 _ => null,
             };
         }
