@@ -51,12 +51,13 @@ namespace DGame
             new UIScriptGenerateRuler("m_group", UIComponentName.ToggleGroup),
             new UIScriptGenerateRuler("m_curve", UIComponentName.AnimationCurve),
             new UIScriptGenerateRuler("m_canvasGroup", UIComponentName.CanvasGroup),
-            new UIScriptGenerateRuler("m_canvas",UIComponentName.Canvas),
-            new UIScriptGenerateRuler("m_toggle",UIComponentName.Toggle),
-            new UIScriptGenerateRuler("m_dropDown",UIComponentName.Dropdown),
+            new UIScriptGenerateRuler("m_canvas", UIComponentName.Canvas),
+            new UIScriptGenerateRuler("m_toggle", UIComponentName.Toggle),
+            new UIScriptGenerateRuler("m_dropDown", UIComponentName.Dropdown),
 #if TextMeshPro
-            new UIScriptGenerateRuler("m_tmp",UIComponentName.TextMeshProUGUI),
-            new UIScriptGenerateRuler("m_tInput",UIComponentName.TMP_InputField),
+            new UIScriptGenerateRuler("m_tmpInput", UIComponentName.TMP_InputField),
+            new UIScriptGenerateRuler("m_tmpDropdown", UIComponentName.TMP_Dropdown),
+            new UIScriptGenerateRuler("m_tmp", UIComponentName.TextMeshProUGUI),
 #endif
         };
 
