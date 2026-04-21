@@ -79,7 +79,7 @@ namespace DGame
 
             if (includeListener)
             {
-#if ENABLE_TEXTMESHPRO
+#if TextMeshPro
                     strFile.AppendLine("using TMPro;");
 #endif
                 if (isUniTask)
