@@ -478,6 +478,7 @@ namespace DGame
             }
 
             binder.TextID = prefabEntry.BinderTextIDs[index];
+            binder.UpdateTextContent();
 
             // 标记对象为脏
             EditorUtility.SetDirty(textObj);
@@ -532,6 +533,7 @@ namespace DGame
                             binder = textObj.AddComponent<UITextIDBinder>();
                         }
                         binder.TextID = prefabEntry.BinderTextIDs[j];
+                        binder.UpdateTextContent();
 
                         EditorUtility.SetDirty(prefabEntry.prefab);
                         successCount++;
