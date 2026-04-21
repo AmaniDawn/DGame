@@ -27,6 +27,11 @@ namespace GameLogic
 
         public override void OnInspectorGUI()
         {
+            if (Application.isPlaying)
+            {
+                base.OnInspectorGUI();
+                return;
+            }
             serializedObject.Update();
 
             EditorGUI.BeginChangeCheck();
