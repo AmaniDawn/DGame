@@ -140,6 +140,18 @@ namespace DGame
 
                 GUILayout.FlexibleSpace();
 
+                if (GUILayout.Button("打开文本生成路径", EditorStyles.toolbarButton, GUILayout.Width(120)))
+                {
+                    if (!Directory.Exists(m_outputPath))
+                    {
+                        Debug.LogWarning($"文本生成路径不存在: {m_outputPath}");
+                    }
+                    else
+                    {
+                        string absolutePath = Path.GetFullPath(m_outputPath);
+                        EditorUtility.RevealInFinder(absolutePath);
+                    }
+                }
                 // 刷新按钮
                 if (GUILayout.Button("刷新数据", EditorStyles.toolbarButton, GUILayout.Width(80)))
                 {
