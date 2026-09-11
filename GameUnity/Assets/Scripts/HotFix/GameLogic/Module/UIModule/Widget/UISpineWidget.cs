@@ -32,13 +32,7 @@ namespace GameLogic
         protected override void BindMemberProperty()
         {
             m_skeletonGraphic = m_goSpineModel.GetComponent<SkeletonGraphic>();
-            m_curAnimState = m_skeletonGraphic?.AnimationState;
-
-            if (m_curAnimState == null)
-            {
-                DLogger.Error(
-                    $"skeletonGraphic.AnimationState为空，请检查是否调用时SkeletonGraphic是否Awake初始化.[{gameObject.name}]");
-            }
+            EnsureAnimationState();
         }
 
         protected override void OnDestroy()
@@ -112,6 +106,8 @@ namespace GameLogic
         {
             CancelTimer();
 
+            EnsureAnimationState();
+
             if (m_curAnimState == null || m_skeletonGraphic == null || string.IsNullOrEmpty(animName))
             {
                 return;
@@ -119,7 +115,7 @@ namespace GameLogic
             if (forceReplay)
             {
                 m_curAnimState.ClearTracks();
-                m_skeletonGraphic.Skeleton?.SetToSetupPose();
+                m_skeletonGraphic.Skeleton?.SetupPose();
             }
             bool canFindAnim = m_curAnimState.Data?.SkeletonData?.FindAnimation(animName) != null;
 
@@ -157,6 +153,8 @@ namespace GameLogic
         /// <returns>动画时长，未找到或出错返回 0</returns>
         public float GetAnimationDuration(string animName)
         {
+            EnsureAnimationState();
+
             if (m_curAnimState == null || m_skeletonGraphic == null || string.IsNullOrEmpty(animName))
             {
                 return 0;
@@ -190,7 +188,7 @@ namespace GameLogic
             if (skin != null)
             {
                 m_skeletonGraphic.Skeleton.SetSkin(skin);
-                m_skeletonGraphic.Skeleton.SetSlotsToSetupPose();
+                m_skeletonGraphic.Skeleton.SetupPoseSlots();
             }
             else
             {
@@ -238,7 +236,7 @@ namespace GameLogic
                 }
             }
             m_skeletonGraphic.Skeleton.SetSkin(m_view);
-            m_skeletonGraphic.Skeleton.SetSlotsToSetupPose();
+            m_skeletonGraphic.Skeleton.SetupPoseSlots();
         }
 
         private bool IsSameSkinList(List<string> skinNames)
@@ -268,6 +266,21 @@ namespace GameLogic
         {
             GameModule.GameTimerModule.DestroyGameTimer(m_gameTimer);
             m_gameTimer = null;
+        }
+
+        private void EnsureAnimationState()
+        {
+            if (m_skeletonGraphic == null)
+            {
+                return;
+            }
+
+            if (!m_skeletonGraphic.IsValid)
+            {
+                m_skeletonGraphic.Initialize(false);
+            }
+
+            m_curAnimState = (m_skeletonGraphic.Animation as IAnimationStateComponent)?.AnimationState;
         }
 
         /// <summary>

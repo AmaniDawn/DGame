@@ -1,7 +1,6 @@
 GenerateDatas/
 Ignore/
 Tools/LubanTools
-Tools/Generata Tools/SourceGenerator/SourceGenerator/bin
 UnityPackage/*.unitypackage
 GameConfig/Tools/LubanTools/
 
@@ -10,10 +9,10 @@ GameConfig/Tools/LubanTools/
 *.dotnet
 
 
-#Generata Tools
-Tools/Generata Tools/SourceGenerator/*/*bin
-Tools/Generata Tools/SourceGenerator/*/*obj
-Tools/Generata Tools/SourceGenerator/*.DotSettings.user
+#Generate Tools
+Tools/Generate Tools/SourceGenerator/*/*bin
+Tools/Generate Tools/SourceGenerator/*/*obj
+Tools/Generate Tools/SourceGenerator/*.DotSettings.user
 
 path_define.bat
 path_define.sh

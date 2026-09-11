@@ -27,6 +27,13 @@ namespace GameLogic
         {
         }
 
+        /// <summary>
+        /// 自动注册数据中心模块，实现由 DataCenterModuleGenerator 在编译期生成。
+        /// </summary>
+        /// <remarks>
+        /// 实现位于生成的 DataCenterModule_Gen.g.cs，无需查找或手写常规 .cs 实现。
+        /// 未发现派生模块时不会生成实现，这是合法的 partial 方法声明，无需补齐。
+        /// </remarks>
         partial void InitModule();
 
         #endregion

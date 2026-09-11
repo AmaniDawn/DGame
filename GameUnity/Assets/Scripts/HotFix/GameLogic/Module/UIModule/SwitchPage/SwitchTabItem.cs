@@ -40,6 +40,9 @@ namespace GameLogic
 
         protected bool m_selected;
 
+        /// <summary>当前页签持有的红点控件，随页签的子 Widget 生命周期销毁。</summary>
+        private RedDotItem m_redDotItem;
+
         /// <summary>
         /// 获取或设置选中状态。
         /// </summary>
@@ -191,6 +194,29 @@ namespace GameLogic
         public virtual void SetRedNodeActive(bool isActive)
         {
             m_tfRedNode?.SetActive(isActive);
+        }
+
+        /// <summary>
+        /// 将页签红点挂点绑定到指定红点树节点，重复绑定时复用已有控件。
+        /// </summary>
+        /// <param name="redDotNodeId">已注册的红点节点 ID。</param>
+        public void BindRedDot(int redDotNodeId)
+        {
+            if (m_tfRedNode == null)
+            {
+                return;
+            }
+
+            m_tfRedNode.SetActive(true);
+            if (m_redDotItem == null)
+            {
+                // CreateRedDot 已完成初始化，无需再次调用 Init。
+                m_redDotItem = CreateRedDot(redDotNodeId, m_tfRedNode);
+            }
+            else
+            {
+                m_redDotItem.Init(redDotNodeId);
+            }
         }
 
         #endregion

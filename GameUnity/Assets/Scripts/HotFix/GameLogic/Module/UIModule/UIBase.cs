@@ -7,6 +7,8 @@ using UnityEngine;
 using Obfuz;
 #endif
 
+#pragma warning disable CS0162
+
 namespace GameLogic
 {
     /// <summary>
@@ -504,9 +506,12 @@ namespace GameLogic
         public void AdjustItemNum<T>(List<T> itemList, int count, Transform parentTrans, GameObject prefab = null,
             string assetLocation = "") where T : UIWidget, new()
         {
-            if (itemList == null)
+            if (itemList == null || IsDestroyed || gameObject == null)
             {
-                DLogger.Error($"itemList is null, please check GameObject: {gameObject.name}.{parentTrans.name}!");
+                if (itemList == null)
+                {
+                    DLogger.Error("itemList is null, please check UI list initialization!");
+                }
                 return;
             }
 
@@ -675,6 +680,46 @@ namespace GameLogic
             var item = CreateWidgetByType<RedDotItem>(parent);
             item?.Init(redDotNodeID);
             return item;
+        }
+
+        #endregion
+        
+        #region UI特效相关
+
+        public async UniTask<UIWidget> CreateUIEffectAsync(int effectId, Transform parent)
+        {
+            if (!EffectConfigMgr.Instance.TryGetValue(effectId, out var config) ||
+                string.IsNullOrWhiteSpace(config.Location))
+            {
+                return null;
+            }
+
+            return await CreateUIEffectAsync<UIParticleWidget>(config.Location, parent);
+            
+            // 如果有spine骨骼特效和粒子特效并存，则可在配置表加个字段做区分加载
+            // 没有则默认是粒子特效
+            // if (config.IsUIParticle)
+            // {
+            //     return await CreateUIEffectAsync<UIParticleWidget>(config.Location, parent);
+            // }
+
+#if SPINE_UNITY && SPINE_CSHARP
+            return await CreateUIEffectAsync<UISpineWidget>(config.Location, parent);
+#else
+            DLogger.Warning($"UI特效配置为 Spine，但当前工程未启用 Spine。EffectId:{effectId}");
+            return null;
+#endif
+        }
+
+        public async UniTask<UIWidget> CreateUIEffectAsync(GameProto.CommonEffectID effectId, Transform parent)
+        {
+            return await CreateUIEffectAsync((int)effectId, parent);
+        }
+
+        private async UniTask<T> CreateUIEffectAsync<T>(string location, Transform parent)
+            where T : UIWidget, new()
+        {
+            return await CreateWidgetByPathAsync<T>(parent, location);
         }
 
         #endregion

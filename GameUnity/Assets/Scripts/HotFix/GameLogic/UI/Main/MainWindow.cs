@@ -11,7 +11,7 @@ namespace GameLogic
 	{
 		protected override void BindMemberProperty()
 		{
-			GameModule.GuideModule.TryStartGuide(9000);
+			GuideMgr.Instance.TryStartGuide(9000);
 			// DLogger.Warning(Utility.TimeUtil.CalcDiffDay(1769745600, 1769839200));
 
 			var optionsList = new List<Dropdown.OptionData>();

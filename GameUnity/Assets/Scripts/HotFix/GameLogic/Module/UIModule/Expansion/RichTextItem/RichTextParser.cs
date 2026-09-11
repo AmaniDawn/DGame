@@ -124,13 +124,12 @@ namespace GameLogic
                             }
                         }
 
-                        // 不是有效标签，作为普通文本处理
-                        // 使用 StringBuilder.Append(char[], int, int) 避免字符串分配
-                        for (int i = index; i <= bracketEnd; i++)
-                        {
-                            currentElement.TextBuilder.Append(text[i]);
-                        }
-                        index = bracketEnd + 1;
+                        // 不是有效标签时只消费当前 '['。
+                        // 方括号文本内部可能包含颜色标签，例如：
+                        // [</color><color=#F4A261FF>经济</color><color=#FFFFFFFF>]
+                        // 若一次吞掉到 ']'，其中的颜色标签会被当作普通字符并可能在换行时被截断。
+                        currentElement.TextBuilder.Append(c);
+                        index++;
                         continue;
                     }
                 }

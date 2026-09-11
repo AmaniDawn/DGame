@@ -25,6 +25,18 @@ namespace GameLogic
             set => m_isUseClickScale = value;
         }
 
+        public Vector3 NormalScale
+        {
+            get => m_normalScale;
+            set => m_normalScale = value;
+        }
+
+        public Vector3 ClickScale
+        {
+            get => m_clickScale;
+            set => m_clickScale = value;
+        }
+
         public void OnEnable(Transform transf)
         {
             KillTween(transf);
