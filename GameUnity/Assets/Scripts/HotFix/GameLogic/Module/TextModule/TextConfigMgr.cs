@@ -68,7 +68,7 @@ namespace GameLogic
         private static string FormatFraction(ulong num, ulong divisor)
         {
             double value = num / (double)divisor;
-            return value.ToString("0.##").TrimEnd('0').TrimEnd('.');
+            return value.ToString("0.##");
         }
     }
 }

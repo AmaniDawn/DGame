@@ -2,6 +2,9 @@
 
 using UnityEditor;
 using UnityEngine;
+#if TextMeshPro
+using TMPro;
+#endif
 
 namespace GameLogic
 {
@@ -13,6 +16,9 @@ namespace GameLogic
 
         // Text Settings
         private SerializedProperty m_font;
+#if TextMeshPro
+        private SerializedProperty m_tmpFont;
+#endif
         private SerializedProperty m_fontSize;
         private SerializedProperty m_fontColor;
         private SerializedProperty m_supportRichText;
@@ -33,9 +39,11 @@ namespace GameLogic
         private SerializedProperty m_enableShadow;
         private SerializedProperty m_shadowEffectDistance;
         private SerializedProperty m_shadowTopLeftColor;
+#if !TextMeshPro
         private SerializedProperty m_shadowTopRightColor;
         private SerializedProperty m_shadowBottomLeftColor;
         private SerializedProperty m_shadowBottomRightColor;
+#endif
 
         // Outline Settings
         private SerializedProperty m_enableOutline;
@@ -68,6 +76,9 @@ namespace GameLogic
         {
             // Text Settings
             m_font = serializedObject.FindProperty("m_font");
+#if TextMeshPro
+            m_tmpFont = serializedObject.FindProperty("m_tmpFont");
+#endif
             m_fontSize = serializedObject.FindProperty("m_fontSize");
             m_fontColor = serializedObject.FindProperty("m_fontColor");
             m_supportRichText = serializedObject.FindProperty("m_supportRichText");
@@ -88,9 +99,11 @@ namespace GameLogic
             m_enableShadow = serializedObject.FindProperty("m_enableShadow");
             m_shadowEffectDistance = serializedObject.FindProperty("m_shadowEffectDistance");
             m_shadowTopLeftColor = serializedObject.FindProperty("m_shadowTopLeftColor");
+#if !TextMeshPro
             m_shadowTopRightColor = serializedObject.FindProperty("m_shadowTopRightColor");
             m_shadowBottomLeftColor = serializedObject.FindProperty("m_shadowBottomLeftColor");
             m_shadowBottomRightColor = serializedObject.FindProperty("m_shadowBottomRightColor");
+#endif
 
             // Outline Settings
             m_enableOutline = serializedObject.FindProperty("m_enableOutline");
@@ -170,7 +183,12 @@ namespace GameLogic
             EditorGUILayout.LabelField("文本设置", s_headerStyle);
             EditorGUILayout.Space(2);
 
+#if TextMeshPro
+            DrawObjectField("字体（布局）", m_font, typeof(Font));
+            DrawObjectField("TMP 字体", m_tmpFont, typeof(TMP_FontAsset));
+#else
             DrawObjectField("字体", m_font, typeof(Font));
+#endif
             DrawIntField("字体大小", m_fontSize);
             DrawColorField("字体颜色", m_fontColor);
             DrawToggleField("支持富文本", m_supportRichText);
@@ -184,7 +202,8 @@ namespace GameLogic
             EditorGUILayout.LabelField("图标设置", s_headerStyle);
             EditorGUILayout.Space(2);
 
-            DrawIntField("图标尺寸", m_iconSize);
+            DrawVector2Field("图标尺寸", m_iconSize);
+            EditorGUILayout.LabelField("(0, 0) 表示普通图标使用原生尺寸；表情仍需设置宽高。", EditorStyles.wordWrappedMiniLabel);
             DrawVector2Field("图标偏移", m_iconOffset);
             DrawPopupField("垂直对齐", m_iconAlignment, new[] { "居中", "底部", "顶部" });
 
@@ -212,7 +231,11 @@ namespace GameLogic
         private void DrawShadowSettings()
         {
             EditorGUILayout.BeginVertical(s_boxStyle);
+#if TextMeshPro
+            EditorGUILayout.LabelField("阴影设置（TMP Underlay）", s_headerStyle);
+#else
             EditorGUILayout.LabelField("阴影设置", s_headerStyle);
+#endif
             EditorGUILayout.Space(2);
 
             DrawToggleField("启用阴影", m_enableShadow);
@@ -221,6 +244,9 @@ namespace GameLogic
             {
                 DrawVector2Field("阴影偏移", m_shadowEffectDistance);
 
+#if TextMeshPro
+                DrawColorField("阴影颜色", m_shadowTopLeftColor);
+#else
                 EditorGUILayout.Space(3);
                 EditorGUILayout.LabelField("四角阴影颜色", EditorStyles.miniLabel);
 
@@ -240,6 +266,7 @@ namespace GameLogic
                 EditorGUILayout.LabelField("右下", GUILayout.Width(labelWidth));
                 m_shadowBottomRightColor.colorValue = EditorGUILayout.ColorField(GUIContent.none, m_shadowBottomRightColor.colorValue, true, true, false, GUILayout.MinWidth(colorWidth));
                 EditorGUILayout.EndHorizontal();
+#endif
             }
 
             EditorGUILayout.EndVertical();
@@ -248,7 +275,11 @@ namespace GameLogic
         private void DrawOutlineSettings()
         {
             EditorGUILayout.BeginVertical(s_boxStyle);
+#if TextMeshPro
+            EditorGUILayout.LabelField("描边设置（TMP Outline）", s_headerStyle);
+#else
             EditorGUILayout.LabelField("描边设置", s_headerStyle);
+#endif
             EditorGUILayout.Space(2);
 
             DrawToggleField("启用描边", m_enableOutline);
@@ -257,6 +288,9 @@ namespace GameLogic
             {
                 DrawColorField("描边颜色", m_outlineColor);
                 DrawIntSlider("描边宽度", m_outlineWidth, 1, 10);
+#if TextMeshPro
+                EditorGUILayout.LabelField("宽度 1–10 对应 Outline 参数 0.1–1.0，可与阴影同时启用。", EditorStyles.wordWrappedMiniLabel);
+#endif
             }
 
             EditorGUILayout.EndVertical();

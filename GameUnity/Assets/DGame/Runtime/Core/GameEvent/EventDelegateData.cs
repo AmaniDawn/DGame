@@ -19,9 +19,10 @@ namespace DGame
 
         internal bool AddHandler(Delegate handler)
         {
-            if (m_existList.Contains(handler))
+            // 已注册或等待加入的委托无需重复添加，记录警告并返回 false。
+            if (m_existList.Contains(handler) || m_addList.Contains(handler))
             {
-                DLogger.Fatal("重复添加事件");
+                DLogger.Warning("[EventDelegateData] 重复添加事件");
                 return false;
             }
 

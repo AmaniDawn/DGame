@@ -28,9 +28,13 @@ namespace DGame
         private IDebuggerModule m_debuggerModule;
         private readonly Rect m_dragRect = new Rect(0f, 0f, float.MaxValue, float.MaxValue);
         private const float DragMargin = 15f; // 四边可拖动边距
+        private const float IconClickDragThreshold = 4f;
         private Rect m_iconRect = DefaultIconRect;
         private Rect m_windowRect = DefaultWindowRect;
         private float m_windowScale = DefaultWindowScale;
+        private bool m_iconPointerDown;
+        private bool m_iconPointerMoved;
+        private Vector2 m_iconPointerDownPosition;
 
         [SerializeField] private GUISkin reporterScrollerSkin;
 
@@ -235,13 +239,52 @@ namespace DGame
             string fpsText = DebuggerStyles.ColorBoldText($"FPS: {m_fpsCounter.CurrentFps:F1}", fpsColor);
             string statusText = statusIcon.Length > 0 ? DebuggerStyles.ColorText(statusIcon, statusColor) : "";
 
-            if (GUILayout.Button(fpsText + statusText, DebuggerStyles.FpsButtonStyle, GUILayout.ExpandWidth(true), GUILayout.Height(40f)))
-            {
-                ShowFullWindow = true;
-            }
+            Rect iconButtonRect = GUILayoutUtility.GetRect(new GUIContent(fpsText + statusText), DebuggerStyles.FpsButtonStyle, GUILayout.ExpandWidth(true), GUILayout.Height(40f));
+            GUI.Label(iconButtonRect, fpsText + statusText, DebuggerStyles.FpsButtonStyle);
+            HandleIconClick(iconButtonRect);
 
-            // 拖动放在最后，让按钮优先处理点击事件
+            // 拖动放在最后，覆盖中间区域与边缘区域
             GUI.DragWindow(m_dragRect);
+        }
+
+        private void HandleIconClick(Rect iconButtonRect)
+        {
+            Event currentEvent = Event.current;
+            switch (currentEvent.type)
+            {
+                case EventType.MouseDown:
+                    if (currentEvent.button == 0 && iconButtonRect.Contains(currentEvent.mousePosition))
+                    {
+                        m_iconPointerDown = true;
+                        m_iconPointerMoved = false;
+                        m_iconPointerDownPosition = currentEvent.mousePosition;
+                    }
+
+                    break;
+
+                case EventType.MouseDrag:
+                    if (m_iconPointerDown && (currentEvent.mousePosition - m_iconPointerDownPosition).sqrMagnitude > IconClickDragThreshold * IconClickDragThreshold)
+                    {
+                        m_iconPointerMoved = true;
+                    }
+
+                    break;
+
+                case EventType.MouseUp:
+                    if (currentEvent.button == 0 && m_iconPointerDown)
+                    {
+                        if (!m_iconPointerMoved && iconButtonRect.Contains(currentEvent.mousePosition))
+                        {
+                            ShowFullWindow = true;
+                            currentEvent.Use();
+                        }
+
+                        m_iconPointerDown = false;
+                        m_iconPointerMoved = false;
+                    }
+
+                    break;
+            }
         }
 
         public void GetRecentLogs(List<LogNode> results)

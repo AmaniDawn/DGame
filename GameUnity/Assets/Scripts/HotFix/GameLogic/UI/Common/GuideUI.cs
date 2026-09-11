@@ -596,7 +596,7 @@ namespace GameLogic
             }
 
             ResetStepClickListener();
-            GameModule.GuideModule.CompleteCurrentStep();
+            GuideMgr.Instance.CompleteCurrentStep();
             return true;
         }
 
@@ -879,7 +879,7 @@ namespace GameLogic
                 return;
             }
 
-            GameModule.GuideModule.SkipCurrentGuide();
+            GuideMgr.Instance.SkipCurrentGuide();
         }
 
         private partial void OnClickNextStepBtn()

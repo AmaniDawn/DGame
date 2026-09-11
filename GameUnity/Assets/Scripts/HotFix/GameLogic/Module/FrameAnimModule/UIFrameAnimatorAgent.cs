@@ -183,6 +183,7 @@ namespace GameLogic
         /// <param name="modelConfig">模型配置</param>
         public async UniTask Init(ModelConfig modelConfig)
         {
+            ResetForReinit();
             m_initCts?.Cancel();
             m_initCts?.Dispose();
             m_initCts = new CancellationTokenSource();
@@ -237,6 +238,35 @@ namespace GameLogic
                 m_frameSpritePool.GetSprites(FrameAnimName.hurt), IsLoopAnim(UIFrameAnimState.Hurt));
             m_isInit = true;
             SetFirstFrame();
+        }
+
+        /// <summary>
+        /// 重复初始化前退出调度，清理旧片段和显示状态；保留异步加载的取消与版本校验。
+        /// </summary>
+        private void ResetForReinit()
+        {
+            if (FrameSpriteMgr.IsValid)
+            {
+                FrameSpriteMgr.Instance.UnregisterAnimator(this);
+            }
+
+            m_isInit = false;
+            m_isStarted = false;
+            m_isSetFirstFrame = false;
+            m_isBindDisplayImage = false;
+            m_frameSpritePool = null;
+            if (m_image != null)
+            {
+                m_image.sprite = null;
+            }
+            m_curFrameAnimName = UIFrameAnimState.Idle;
+            m_changeFrameAnimName = UIFrameAnimState.Idle;
+
+            for (int i = 0; i < m_animClips.Length; i++)
+            {
+                m_animClips[i]?.OnDestroy();
+                m_animClips[i] = null;
+            }
         }
 
         /// <summary>

@@ -105,7 +105,7 @@ namespace GameLogic
     public class RichTextParams
     {
         public int FontSize = 24;
-        public int IconSize = 24;
+        public Vector2 IconSize = new Vector2(24, 24);
         public Color TextColor = Color.white;
         public RichTextAlignment Alignment = RichTextAlignment.Left;
         public RichTextIconAlignment IconAlignment = RichTextIconAlignment.Center;
@@ -131,6 +131,12 @@ namespace GameLogic
         public RichTextParams() { }
 
         public RichTextParams(int fontSize, int iconSize)
+        {
+            FontSize = fontSize;
+            IconSize = new Vector2(iconSize, iconSize);
+        }
+
+        public RichTextParams(int fontSize, Vector2 iconSize)
         {
             FontSize = fontSize;
             IconSize = iconSize;

@@ -266,6 +266,7 @@ namespace DGame
                                    assetPath.Contains("DGameLogHelper.cs") ||
                                    assetPath.Contains("DGameLog.cs") ||
                                    assetPath.Contains("AssetsLogger.cs") ||
+                                   assetPath.Contains("BLogger.cs") ||
                                    assetPath.Contains("DLogger.cs") ||
                                    assetPath.Contains("DGameException.cs");
 
@@ -299,6 +300,7 @@ namespace DGame
                         !pathLine.Contains("DGameLogHelper.cs") &&
                         !pathLine.Contains("DGameLog.cs") &&
                         !pathLine.Contains("AssetsLogger.cs") &&
+                        !pathLine.Contains("BLogger.cs") &&
                         !pathLine.Contains("DLogger.cs"))
                     {
                         var splitIndex = pathLine.LastIndexOf(":", StringComparison.Ordinal);
