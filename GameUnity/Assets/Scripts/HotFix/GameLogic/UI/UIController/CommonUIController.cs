@@ -7,7 +7,7 @@ namespace GameLogic
     {
         public void RegUIMessage()
         {
-            GameEvent.AddEventListener<uint, uint, System.Action>(ICommonUI_Event.ShowWaitingUI, OnShowWaitingUI);
+            GameEventHelper.AddEvent.CommonUI.ShowWaitingUI(OnShowWaitingUI);
         }
 
         #region ShowWaitingUI

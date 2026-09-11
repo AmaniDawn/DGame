@@ -45,6 +45,12 @@ cmd /c "set AI_MODE=1 && GameConfig\GenerateTool_Binary\gen_bin_client_lazyload.
 bash GameConfig/GenerateTool_Binary/gen_bin_client_lazyload.sh
 ```
 
+## 导表与发布成对约束
+
+- Luban 生成的 `GameUnity/Assets/Scripts/HotFix/GameProto/LubanConfig/` 代码与 `GameUnity/Assets/BundleAssets/Configs/Binary/` 二进制必须来自同一次导表；只更新其中一侧会造成运行时反序列化或字段错位。
+- 修改 `__tables__.xlsx` 的 `tags`、`group_by` 或 `read_schema_from_file` 后，必须重新执行对应客户端/全量导表脚本，并检查生成代码、Binary 和 Unity 编译结果。
+- `read_schema_from_file` 是表级开关：业务 Excel 已带 `##var/##type/##group` 表头时通常设为 `true`；schema 已在 Defines 中维护、业务文件只提供数据时设为 `false`。不要凭表名猜值。
+
 ## 默认工作流
 
 1. 先判断改动属于数据、表结构、Bean/Enum、schema、模板、导表脚本还是运行时消费。
@@ -60,7 +66,8 @@ bash GameConfig/GenerateTool_Binary/gen_bin_client_lazyload.sh
 3. 默认推荐在 `__tables__.xlsx` 显式注册 `full_name`、`value_type`、`input`、`mode`、`tags`。
 4. Luban 支持文件名 `#<value_type>-<comment>.xlsx` 自动导入，不需要在 `__tables__.xlsx` 注册；DGame 可用但不作为默认推荐。
 5. DGame 扩展支持 Sheet 名 `#<value_type>-<comment>` 自动拆表；导表前会拆成临时 `#` 文件，同样不需要注册，但仍按自动导入场景谨慎使用。
-6. 需要按字段分组访问时，优先在 `__tables__.xlsx` 的 `tags` 写 `group_by:字段名`；自动导入表如需特殊 tags，先确认当前 Luban 支持方式。
+6. 需要按字段分组访问时，优先在 `__tables__.xlsx` 的 `tags` 写 `group_by:字段名`。例如 `group_by:GroupId` 会为表生成 `GroupedDataMap` 和 `GetListByGroupId(int)`，按组快速取得数据；自动导入表如需特殊 tags，先确认当前 Luban 支持方式。
+7. 配置 `__tables__.xlsx` 时必须确认 `read_schema_from_file` 为正确的 `true` 或 `false`：`true` 表示从业务 Excel 表头读取字段定义，`false` 表示使用 Defines/schema 中的定义。该值错误会导致 schema 解析或导表失败。
 7. 单例配置可用 `mode=one`。
 8. 导表后在 `GameLogic/ConfigMgr/` 补 `XxxConfigMgr`。
 
@@ -165,3 +172,8 @@ python .codex/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Dat
 脚本：`scripts/luban_helper.py`（DGame 化配置表操作工具）、`scripts/requirements.txt`（依赖）。
 
 官方文档：https://www.datable.cn/docs/intro
+
+
+## 导表空白行警告
+
+Luban 提示表尾空白数据影响性能时，先执行 `cleanup blank-rows TABLE` 预览，确认 `last_data_row` 后再加 `--apply`。工具只删除表尾连续且所有业务列为空的行，不删除中间空行或含数据的行。清理后重新执行 `validate --all` 和导表脚本。

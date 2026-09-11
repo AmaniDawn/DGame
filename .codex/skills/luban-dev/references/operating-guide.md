@@ -358,7 +358,7 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas row add TbItemConfig 
 - `--file`: 从 JSON 文件读取数据（推荐用于 PowerShell）
 - `--sheet`: Sheet名称
 
-**智能插入**：添加数据行时自动按 ID 顺序插入到合适位置，而非追加到末尾。
+**智能插入**：添加数据行时必须紧接最后一条实际数据，不能使用工作表 `max_row` 把数据放到预格式化空白区；存在数值 `id` 主键时按升序插入到合适位置，并检查重复 ID。操作遵循最小改动原则，只修改目标表和目标行。
 - ID 最大 → 追加到末尾
 - ID 在中间 → 插入到合适位置
 
@@ -675,3 +675,53 @@ Weapon      # 枚举名
 - **零改动**：完全兼容现有 Luban，`##` 本来就是注释
 - **向后兼容**：现有表格无需修改
 - **灵活**：支持多行注释
+
+
+## 带宏 `.xlsm` 配置表
+
+带宏工作簿不能使用普通 `openpyxl` 写入流程。`keep_vba=True` 只能保留宏二进制，保存时仍可能重建工作簿并改变空字符串、格式或其他内容。
+
+在 Windows 且安装 Excel 时，使用安全副本命令：
+
+```powershell
+python scripts/luban_helper.py xlsm edit GameConfig/Datas/业务配置表.xlsm `
+  --output GameConfig/Datas/业务配置表__edit_test.xlsm `
+  --file changes.json
+```
+
+`changes.json` 格式：
+
+```json
+[
+  {"sheet":"业务数据", "cell":"C10", "value":"示例值"},
+  {"sheet":"业务数据", "cell":"F10", "value":1001}
+]
+```
+
+命令会复制源文件、禁用宏自动执行、通过 Excel COM 写入、保存后重新打开并校验目标单元格。源文件不会被覆盖；确认输出文件和差异报告安全后，再人工替换正式文件。该流程依赖 Windows Excel，Linux/macOS 不支持。 示例中的文件名、工作表名和单元格仅用于说明格式，必须替换为实际配置表内容；`Card_卡牌总表.xlsm` 仅是本次安全性测试样例。
+
+
+### 配置表修改安全约束
+
+- 修改前先定位唯一的文件、Sheet、字段和数据行，禁止凭文件名猜测位置。
+- 只写入用户要求的字段；未要求的字段保持原值，不用空值覆盖。
+- 新增数据行不得制造空白间隔，不得删除或重排无关数据。
+- 修改后必须重新读取并校验目标值、主键唯一性、数据连续性；失败时保留原文件不动。
+- `.xlsm` 必须使用 `xlsm edit` 的 Excel COM 副本流程，禁止普通 row/field 写入命令直接保存。
+
+
+## 导表空白行警告
+
+Luban 如果提示某张表存在大量表尾空白数据，先执行预览：
+
+```powershell
+python scripts/luban_helper.py --data-dir GameConfig/Datas cleanup blank-rows TbItemConfig
+```
+
+确认输出的 `last_data_row`、`max_row` 和 `trailing_blank_rows` 后，再执行：
+
+```powershell
+python scripts/luban_helper.py --data-dir GameConfig/Datas cleanup blank-rows TbItemConfig --apply
+```
+
+清理规则只删除最后一条真实数据之后、所有业务列都为空的连续行；不会删除中间空行、表头、注释行或任何含数据的行。`.xlsm` 不走此命令，必须使用 Excel COM 流程。清理后应重新运行 `validate --all` 和导表脚本。

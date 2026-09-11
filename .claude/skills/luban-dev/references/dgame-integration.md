@@ -103,6 +103,21 @@ DGame 当前支持三种表来源；默认仍推荐 `__tables__.xlsx` 显式注�
 
 `group_by` 优先写在 `__tables__.xlsx` 的 `tags` 里，不要手改生成代码补索引。
 
+### 按 GroupId 快速访问
+
+在需要按组查询的表对应的 `__tables__.xlsx` 行，将 `tags` 设置为 `group_by:GroupId`（字段名必须与业务表中的字段完全一致）。导表后会生成按组索引，例如：
+
+```csharp
+var steps = TbGuideStepConfig.GetListByGroupId(groupId);
+var groups = TbGuideStepConfig.GroupedDataMap;
+```
+
+生成代码中对应 `_groupedDataMap`、`GroupedDataMap` 和 `GetListByGroupId(int)`，不要手动修改 `GameProto` 生成文件。
+
+### `read_schema_from_file` 注意事项
+
+`__tables__.xlsx` 的 `read_schema_from_file` 必须根据表结构配置为正确的 `true` 或 `false`：`true` 从业务 Excel 的 `##var/##type/##group` 表头读取字段定义，`false` 使用项目 Defines/schema 中的定义。配置错误会导致 schema 读取失败或导表失败；修改后应先校验 `__tables__.xlsx`，再运行导表脚本。
+
 自动导入命名规则：
 
 - 文件：`#SkillCfg-技能表.xlsx` -> `value_type=SkillCfg` -> 生成 `TbSkillCfg`

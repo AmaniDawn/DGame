@@ -70,7 +70,7 @@ public class ItemWidget : UIWidget
     public void SetData(ItemConfig cfg)
     {
         m_textName.text = cfg.Name;
-        m_imgIcon.SetSprite(cfg.IconPath);  // 内置缓存池，随 Image 销毁自动释放
+        m_imgIcon.SetSprite(cfg.IconPath, gameObject.GetCancellationTokenOnDestroy());  // 传入销毁令牌，避免窗口销毁后回调继续执行
     }
 }
 ```

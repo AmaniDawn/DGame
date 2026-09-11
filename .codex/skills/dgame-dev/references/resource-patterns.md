@@ -20,11 +20,15 @@
 ```csharp
 private TextAsset m_configAsset;
 
-protected override async void OnCreate()
+protected override void OnCreate()
+{
+    LoadConfigAsync().Forget();
+}
+
+private async UniTaskVoid LoadConfigAsync()
 {
     m_configAsset = await GameModule.ResourceModule.LoadAssetAsync<TextAsset>(
-        "MyConfig",
-        gameObject.GetCancellationTokenOnDestroy());
+        "MyConfig", gameObject.GetCancellationTokenOnDestroy());
 }
 
 protected override void OnDestroy()
@@ -270,7 +274,12 @@ private static Sprite s_icon;
 // 正确：由窗口/模块持有，并在生命周期结束释放
 private Sprite m_icon;
 
-protected override async void OnCreate()
+protected override void OnCreate()
+{
+    LoadIconAsync().Forget();
+}
+
+private async UniTaskVoid LoadIconAsync()
 {
     m_icon = await GameModule.ResourceModule.LoadAssetAsync<Sprite>(
         "IconSword",
