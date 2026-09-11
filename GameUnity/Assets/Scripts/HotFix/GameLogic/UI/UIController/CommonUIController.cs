@@ -22,7 +22,7 @@ namespace GameLogic
         }
 
         #endregion
-        
+
         #region FinishWaitingUI
 
         private void OnFinishWaiting(uint waitFuncID)
@@ -52,7 +52,7 @@ namespace GameLogic
         }
 
         #endregion
-        
+
         #region OnShowComTipsUI
 
         private void OnShowComTipsUI(string title, string content, bool isUserPrivacy)

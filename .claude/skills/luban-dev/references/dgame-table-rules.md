@@ -56,3 +56,18 @@ Sheet 级：
 ```
 
 数据从表头行之后开始。当前项目使用过的扩展类型包括 `vector2`、`vector3`、`vector4`、`vector2int`、`vector3int`，定义在 `GameConfig/Defines/builtin.xml`。
+
+
+## GroupId 分组索引
+
+需要按组查询时，在 `__tables__.xlsx` 对应表的 `tags` 字段填写 `group_by:GroupId`。字段名必须与业务表字段完全一致。导表后会生成 `_groupedDataMap`、`GroupedDataMap` 和 `GetListByGroupId(int)`，例如：
+
+```csharp
+var steps = TbGuideStepConfig.GetListByGroupId(groupId);
+```
+
+不要手动修改 `GameProto` 下的生成代码。
+
+## `read_schema_from_file`
+
+配置 `__tables__.xlsx` 时确认 `read_schema_from_file` 使用正确的布尔值：`true` 从业务 Excel 表头读取 schema，`false` 使用 Defines/schema 中的定义。值配置错误会导致 schema 解析或导表失败。
