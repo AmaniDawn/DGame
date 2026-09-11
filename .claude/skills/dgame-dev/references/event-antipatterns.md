@@ -16,7 +16,7 @@ public class BagWindow : UIWindow
 {
     protected override void OnCreate()
     {
-        GameEvent.AddEventListener<int>(IPlayer_Event.OnGoldChanged, OnGoldChanged);
+        GameEventHelper.AddEvent.Player.OnGoldChanged(OnGoldChanged);
     }
 }
 
@@ -56,7 +56,7 @@ public class PlayerService : IDisposable
 
     public void Dispose()
     {
-        GameEvent.RemoveEventListener<int>(IPlayer_Event.OnGoldChanged, OnGoldChanged);
+        GameEventHelper.RemoveEvent.Player.OnGoldChanged(OnGoldChanged);
     }
 }
 ```
@@ -75,8 +75,8 @@ GameEvent.RemoveEventListener<int>(eventId, value => Refresh(value));
 // 正确：使用命名方法
 private void OnValueChanged(int value) => Refresh(value);
 
-public void Init() => GameEvent.AddEventListener<int>(eventId, OnValueChanged);
-public void Dispose() => GameEvent.RemoveEventListener<int>(eventId, OnValueChanged);
+public void Init() => GameEventHelper.AddEvent.Player.OnValueChanged(OnValueChanged);
+public void Dispose() => GameEventHelper.RemoveEvent.Player.OnValueChanged(OnValueChanged);
 ```
 
 ---
@@ -114,14 +114,14 @@ public interface IBattleEvent
 }
 
 // 正确：指定 DGame 已有事件组
-[EventInterface(EEventGroup.GroupBattle)]
+[EventInterface(EEventGroup.GroupLogic)]
 public interface IBattleEvent
 {
     void OnHpChanged(int hp);
 }
 ```
 
-当前 `EEventGroup` 只有 `GroupUI`、`GroupLogic`、`GroupBattle`。新增组前先确认生成器和分层用途。
+当前 `EEventGroup` 只有 `GroupUI`、`GroupLogic`。新增组前先确认生成器和分层用途。
 
 ---
 
@@ -280,7 +280,7 @@ GameEvent.UnRegisterAll();
 GameEvent.ClearAll();
 GameEvent.RemoveAll(eventId);
 GameEvent.RegisterListener<IPlayer>(impl);
-GameEventHelper.Init();
+GameEventLauncher.Init();
 ```
 
 正确替代：
@@ -290,8 +290,8 @@ GameEventHelper.Init();
 | UI 生命周期内监听 | `AddUIEvent(eventId, handler)` |
 | 非 UI 手动监听 | `GameEvent.AddEventListener(eventId, handler)` |
 | 非 UI 手动移除 | `GameEvent.RemoveEventListener(eventId, handler)` |
-| EventCenter 包装监听 | `EventCenter.AddEvent.<组>.<方法>(handler)` |
-| EventCenter 包装移除 | `EventCenter.RemoveEvent.<组>.<方法>(handler)`，与 AddEvent 配套调用 |
+| GameEventHelper 包装监听 | `GameEventHelper.AddEvent.<组>.<方法>(handler)` |
+| GameEventHelper 包装移除 | `GameEventHelper.RemoveEvent.<组>.<方法>(handler)`，与 AddEvent 配套调用 |
 | 接口事件初始化 | `GameEventLauncher.Init()` |
 | 接口事件发送 | `GameEvent.Get<IEvent>().Method(args)` |
 | 全局销毁事件系统 | 框架内部 `GameEvent.EventMgr.Destroy()`；普通业务不要调用 |

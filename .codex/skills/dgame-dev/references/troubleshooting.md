@@ -128,7 +128,7 @@ Frame Debugger 查看合批。UI 同 Atlas 同 Canvas、3D 用 GPU Instancing、
 
 1. `GameEventLauncher.Init()` 是否在 `GameStart.Entrance` 执行。
 2. 事件接口是否带 `[EventInterface(EEventGroup...)]`。
-3. 当前事件组是否为 `GroupUI`、`GroupLogic` 或 `GroupBattle`。
+3. 当前事件组是否为 `GroupUI`、`GroupLogic` 或 `GroupLogic`。
 4. 生成的 `Ixxx_Event` 是否存在。
 5. 监听和发送参数签名是否完全一致。
 

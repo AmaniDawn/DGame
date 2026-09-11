@@ -12,7 +12,7 @@
 
 ## 字段与方法命名
 
-匹配现有代码，私有字段用 `m_`、私有静态用 `s_`：
+匹配现有代码，私有字段用 `m_`；新增长期私有静态字段优先用 `s_`，历史代码中仍有少量 `m_` 静态缓存：
 
 ```csharp
 private GameTimer m_timer;                  // 私有实例字段：m_ 前缀
@@ -25,7 +25,7 @@ public int NodeCount => m_nodeDict.Count;   // 公开属性：PascalCase
 | 私有实例字段 | `m_` + camelCase | `m_timer`、`m_cts` |
 | 私有静态字段 | `s_` + camelCase | `s_instance` |
 | 公开属性 | PascalCase | `NodeCount` |
-| 异步方法 | `Async` 后缀 | `SaveAllClientDataAsync`、`OnShowWaitingUIAsync`（`UniTaskVoid` 也带 `Async`） |
+| 公开异步 API | `Async` 后缀 | `SaveAllClientDataAsync`、`OnShowWaitingUIAsync`（`UniTaskVoid` 也带 `Async`） |
 | 事件回调方法 | `On` 前缀 | `OnHpChanged`、`OnShowWaitingUIAsync` |
 | 常量 | 全大写下划线 | `DATE_MASK_YEAR`、`DATE_MASK_MONTH`（`const`/`static readonly`） |
 
