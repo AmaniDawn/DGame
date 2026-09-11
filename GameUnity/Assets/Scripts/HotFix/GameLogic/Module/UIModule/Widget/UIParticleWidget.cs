@@ -141,7 +141,6 @@ namespace GameLogic
         private void InitUIParticle()
         {
             m_uiParticle.RefreshParticles();
-            m_uiParticle.scale = 1f;
             m_uiParticle.maskable = m_maskable;
             m_uiParticle.autoScalingMode = m_autoScalingMode;
             m_uiParticle.positionMode = m_positionMode;

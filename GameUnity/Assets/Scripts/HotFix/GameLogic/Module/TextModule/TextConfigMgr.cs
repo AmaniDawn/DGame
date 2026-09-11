@@ -32,7 +32,7 @@ namespace GameLogic
         public string GetText(uint id, params object[] args) => GetText((int)id, args);
 
         public string GetText(TextDefine id, params object[] args) => GetText((int)id, args);
-        
+
         /// <summary>
         /// 格式化大数字显示（千、万、亿）
         /// </summary>
@@ -68,7 +68,7 @@ namespace GameLogic
         private static string FormatFraction(ulong num, ulong divisor)
         {
             double value = num / (double)divisor;
-            return value.ToString("0.##").TrimEnd('0').TrimEnd('.');
+            return value.ToString("0.##");
         }
     }
 }

@@ -1,4 +1,3 @@
-using DGame;
 using GameProto;
 using UnityEngine;
 using UnityEngine.UI;
@@ -95,12 +94,12 @@ namespace GameLogic
 
         private void OnEnable()
         {
-            GameEvent.AddEventListener<int>(ILocalization_Event.OnLanguageChanged, OnLanguageChanged);
+            EventCenter.AddEvent.Localization.OnLanguageChanged(OnLanguageChanged);
         }
 
         private void OnDisable()
         {
-            GameEvent.RemoveEventListener<int>(ILocalization_Event.OnLanguageChanged, OnLanguageChanged);
+            EventCenter.RemoveEvent.Localization.OnLanguageChanged(OnLanguageChanged);
         }
 
         private void OnLanguageChanged(int language)

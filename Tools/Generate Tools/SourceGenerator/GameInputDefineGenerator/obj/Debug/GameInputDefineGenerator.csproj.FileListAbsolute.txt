@@ -1,0 +1,22 @@
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\bin\Debug\GameInputDefineGenerator.deps.json
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\bin\Debug\GameInputDefineGenerator.dll
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\bin\Debug\GameInputDefineGenerator.pdb
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.csproj.AssemblyReference.cache
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.GeneratedMSBuildEditorConfig.editorconfig
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.AssemblyInfoInputs.cache
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.AssemblyInfo.cs
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.csproj.CoreCompileInputs.cache
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.sourcelink.json
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.dll
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.pdb
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\bin\Debug\GameInputDefineGenerator.deps.json
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\bin\Debug\GameInputDefineGenerator.dll
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\bin\Debug\GameInputDefineGenerator.pdb
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.csproj.AssemblyReference.cache
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.GeneratedMSBuildEditorConfig.editorconfig
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.AssemblyInfoInputs.cache
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.AssemblyInfo.cs
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.csproj.CoreCompileInputs.cache
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.sourcelink.json
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.dll
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameInputDefineGenerator\obj\Debug\GameInputDefineGenerator.pdb

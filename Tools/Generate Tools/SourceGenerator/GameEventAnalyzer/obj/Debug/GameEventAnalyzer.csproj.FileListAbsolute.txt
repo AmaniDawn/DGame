@@ -1,0 +1,22 @@
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\bin\Debug\GameEventAnalyzer.deps.json
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\bin\Debug\GameEventAnalyzer.dll
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\bin\Debug\GameEventAnalyzer.pdb
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.csproj.AssemblyReference.cache
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.GeneratedMSBuildEditorConfig.editorconfig
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.AssemblyInfoInputs.cache
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.AssemblyInfo.cs
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.csproj.CoreCompileInputs.cache
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.sourcelink.json
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.dll
+D:\Unity\GitHub Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.pdb
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\bin\Debug\GameEventAnalyzer.deps.json
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\bin\Debug\GameEventAnalyzer.dll
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\bin\Debug\GameEventAnalyzer.pdb
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.csproj.AssemblyReference.cache
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.GeneratedMSBuildEditorConfig.editorconfig
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.AssemblyInfoInputs.cache
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.AssemblyInfo.cs
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.csproj.CoreCompileInputs.cache
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.sourcelink.json
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.dll
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\GameEventAnalyzer\obj\Debug\GameEventAnalyzer.pdb

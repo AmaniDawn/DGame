@@ -116,14 +116,6 @@ namespace GameLogic
         public static RedDotModule RedDotModule => m_redDotModule == null 
             ? m_redDotModule = RedDotModule.Instance : m_redDotModule;
 
-        private static GuideMgr m_guideModule;
-
-        /// <summary>
-        /// 新手引导管理
-        /// </summary>
-        public static GuideMgr GuideModule => m_guideModule == null
-            ? m_guideModule = GuideMgr.Instance : m_guideModule;
-
         #endregion
 
         /// <summary>
@@ -153,7 +145,6 @@ namespace GameLogic
             m_sensitiveWordModule = null;
             m_uiModule = null;
             m_redDotModule = null;
-            m_guideModule = null;
 #if ENABLE_INPUT_SYSTEM
             m_input = null;
 #endif

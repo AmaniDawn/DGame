@@ -6,6 +6,12 @@ using Cysharp.Threading.Tasks;
 using DGame;
 using UnityEngine;
 using UnityEngine.UI;
+#if TextMeshPro
+using TMPro;
+using RichTextLabel = TMPro.TMP_Text;
+#else
+using RichTextLabel = GameLogic.UIText;
+#endif
 
 namespace GameLogic
 {
@@ -22,12 +28,16 @@ namespace GameLogic
         [Header("Text Settings")] [SerializeField]
         private Font m_font;
 
+#if TextMeshPro
+        [SerializeField] private TMP_FontAsset m_tmpFont;
+#endif
+
         [SerializeField] private int m_fontSize = 24;
         [SerializeField] private Color m_fontColor = Color.white;
         [SerializeField] private bool m_supportRichText = true;
 
         [Header("Icon Settings")] [SerializeField]
-        private int m_iconSize = 24;
+        private Vector2 m_iconSize = new Vector2(24, 24);
 
         [SerializeField] private Vector2 m_iconOffset = Vector2.zero;
         [SerializeField] private RichTextIconAlignment m_iconAlignment = RichTextIconAlignment.Center;
@@ -86,10 +96,25 @@ namespace GameLogic
         // 缓存的参数对象，避免每次创建新实例
         private RichTextParams m_cachedParams;
 
+#if TextMeshPro
+        /// <summary>跨组件共享的 TMP 特效材质，仅在有文本持有时保留。</summary>
+        private static readonly Dictionary<string, TmpEffectMaterialEntry> s_tmpEffectMaterials = new Dictionary<string, TmpEffectMaterialEntry>();
+
+        /// <summary>当前组件中每个文本持有的材质键，避免重复计数并支持逐项释放。</summary>
+        private readonly Dictionary<RichTextLabel, string> m_tmpEffectMaterialKeys = new Dictionary<RichTextLabel, string>();
+
+        /// <summary>TMP 特效材质及其文本引用数。</summary>
+        private sealed class TmpEffectMaterialEntry
+        {
+            public Material Material;
+            public int ReferenceCount;
+        }
+#endif
+
         // 对象池
-        private readonly List<UIText> m_textPool = new List<UIText>();
+        private readonly List<RichTextLabel> m_textPool = new List<RichTextLabel>();
         private readonly List<UIImage> m_imagePool = new List<UIImage>();
-        private readonly List<UIText> m_activeTexts = new List<UIText>();
+        private readonly List<RichTextLabel> m_activeTexts = new List<RichTextLabel>();
         private readonly List<UIImage> m_activeImages = new List<UIImage>();
         private readonly List<UIImage> m_underlinePool = new List<UIImage>();
         private readonly List<UIImage> m_activeUnderlines = new List<UIImage>();
@@ -106,7 +131,7 @@ namespace GameLogic
         private bool m_pendingEffects = false;
 
         // 链接元素 - 只存储 text，LinkData 单独管理避免重复 Dispose
-        private readonly List<UIText> m_linkTexts = new List<UIText>();
+        private readonly List<RichTextLabel> m_linkTexts = new List<RichTextLabel>();
         // 唯一的 LinkData 列表，避免重复 Dispose
         private readonly List<LinkData> m_linkDataList = new List<LinkData>();
 
@@ -114,7 +139,8 @@ namespace GameLogic
         private bool m_isRendering = false;
 
         // 图标加载上下文（避免 Lambda 闭包）
-        private readonly Dictionary<Image, float> m_pendingIconSizes = new Dictionary<Image, float>();
+        private readonly HashSet<Image> m_pendingNativeSizeIcons = new HashSet<Image>();
+        private bool m_pendingIconLayoutRefresh;
 
         #endregion
 
@@ -172,7 +198,7 @@ namespace GameLogic
             set => m_fontColor = value;
         }
 
-        public int IconSize
+        public Vector2 IconSize
         {
             get => m_iconSize;
             set => m_iconSize = value;
@@ -406,6 +432,12 @@ namespace GameLogic
 
         private void LateUpdate()
         {
+            if (m_pendingIconLayoutRefresh && !m_isRendering)
+            {
+                m_pendingIconLayoutRefresh = false;
+                RefreshIconLayout();
+            }
+
             // 在渲染完成后应用延迟的文本特效（阴影/描边）
             if (m_pendingEffects)
             {
@@ -434,6 +466,10 @@ namespace GameLogic
         private void OnDestroy()
         {
             CancelPendingOperations();
+
+#if TextMeshPro
+            ReleaseAllTmpEffectMaterials();
+#endif
 
             // 清理 Action 回调，防止外部对象通过委托持有引用
             OnLinkClicked = null;
@@ -523,6 +559,7 @@ namespace GameLogic
         private float m_layoutHeight; // Truncate 模式下的固定布局高度
         private float m_originalWidth; // 布局前的原始 RectTransform 宽度
         private float m_originalHeight; // 布局前的原始 RectTransform 高度
+
         private float m_layoutMinWidth;
         private float m_layoutPreferredWidth;
         private float m_layoutMinHeight;
@@ -720,6 +757,25 @@ namespace GameLogic
             }
         }
 
+        private float GetCharacterAdvance(char character)
+        {
+#if TextMeshPro
+            if (m_tmpFont != null && m_tmpFont.characterLookupTable.TryGetValue(character, out var tmpCharacter)
+                && tmpCharacter.glyph != null && m_tmpFont.faceInfo.pointSize > 0)
+            {
+                return tmpCharacter.glyph.metrics.horizontalAdvance
+                    * m_currentParams.FontSize / m_tmpFont.faceInfo.pointSize;
+            }
+#endif
+
+            if (m_font != null && m_font.GetCharacterInfo(character, out CharacterInfo info, m_currentParams.FontSize))
+            {
+                return info.advance;
+            }
+
+            return m_currentParams.FontSize;
+        }
+
         private void ProcessTextElement(RichTextElement element, ref RichTextRow currentRow)
         {
             string text = element.GetText();
@@ -755,8 +811,7 @@ namespace GameLogic
                 }
 
                 // 获取字符宽度（包含字间距）
-                m_font.GetCharacterInfo(c, out CharacterInfo info, m_currentParams.FontSize);
-                float charWidth = info.advance + charSpacing;
+                float charWidth = GetCharacterAdvance(c) + charSpacing;
 
                 // 检查是否需要换行（仅当 m_layoutWidth > 0 时）
                 if (shouldWrap && currentRow.Width + currentWidth + charWidth > m_layoutWidth)
@@ -788,28 +843,28 @@ namespace GameLogic
             var image = GetOrCreateImage();
             SetupImageCommon(image, element.RaycastEnabled);
 
-            float size = m_currentParams.IconSize;
-
-            // 存储图标尺寸到字典，供回调使用（避免 Lambda 闭包）
-            m_pendingIconSizes[image] = size;
-
-            // 加载图片并调整尺寸 - 使用实例方法避免闭包
-            RichTextConfig.SetSprite(image, element.FormatData, true, OnIconSpriteLoaded, m_cts?.Token ?? default);
-
-            image.rectTransform.sizeDelta = new Vector2(size, size);
+            Vector2 size = m_currentParams.IconSize;
+            bool useNativeSize = size == Vector2.zero;
+            image.rectTransform.sizeDelta = size;
 
             // 检查是否需要换行（仅当 m_layoutWidth > 0 时）
-            if (m_layoutWidth > 0 && currentRow.Width + size > m_layoutWidth)
+            if (m_layoutWidth > 0 && currentRow.Width + image.rectTransform.sizeDelta.x > m_layoutWidth)
             {
                 currentRow = RichTextRow.Create();
                 m_rows.Add(currentRow);
             }
 
             var layoutElement = RichTextLayoutElement.Create(RichTextElementType.Icon, image.rectTransform);
-            layoutElement.Width = size;
-            layoutElement.Height = size;
             currentRow.AddElement(layoutElement);
             m_activeImages.Add(image);
+
+            if (useNativeSize)
+            {
+                m_pendingNativeSizeIcons.Add(image);
+            }
+
+            RichTextConfig.SetSprite(image, element.FormatData, useNativeSize,
+                useNativeSize ? OnIconSpriteLoaded : null, m_cts?.Token ?? default);
         }
 
         /// <summary>
@@ -819,11 +874,9 @@ namespace GameLogic
         {
             if (img == null || img.sprite == null) return;
 
-            if (m_pendingIconSizes.TryGetValue(img, out float size))
+            if (m_pendingNativeSizeIcons.Remove(img))
             {
-                float aspectRatio = img.sprite.rect.width / img.sprite.rect.height;
-                img.rectTransform.sizeDelta = new Vector2(size * aspectRatio, size);
-                m_pendingIconSizes.Remove(img);
+                m_pendingIconLayoutRefresh = true;
             }
         }
 
@@ -835,8 +888,8 @@ namespace GameLogic
             var image = GetOrCreateImage();
             SetupImageCommon(image, emojiData.RaycastEnabled);
 
-            float size = m_currentParams.IconSize;
-            image.rectTransform.sizeDelta = new Vector2(size, size);
+            Vector2 size = m_currentParams.IconSize;
+            image.rectTransform.sizeDelta = size;
 
             // 使用对象池创建表情动画实例
             var animInstance = EmojiAnimationInstance.Create(image, emojiData);
@@ -844,15 +897,13 @@ namespace GameLogic
             m_hasEmojis = true;
 
             // 检查是否需要换行（仅当 m_layoutWidth > 0 时）
-            if (m_layoutWidth > 0 && currentRow.Width + size > m_layoutWidth)
+            if (m_layoutWidth > 0 && currentRow.Width + size.x > m_layoutWidth)
             {
                 currentRow = RichTextRow.Create();
                 m_rows.Add(currentRow);
             }
 
             var layoutElement = RichTextLayoutElement.Create(RichTextElementType.Emoji, image.rectTransform);
-            layoutElement.Width = size;
-            layoutElement.Height = size;
             currentRow.AddElement(layoutElement);
             m_activeImages.Add(image);
         }
@@ -892,8 +943,7 @@ namespace GameLogic
 
                 foreach (char c in linkText)
                 {
-                    m_font.GetCharacterInfo(c, out CharacterInfo info, m_currentParams.FontSize);
-                    totalWidth += info.advance + charSpacing;
+                    totalWidth += GetCharacterAdvance(c) + charSpacing;
                 }
 
                 CreateLinkLabel(linkText, linkData, linkColor, totalWidth, ref currentRow);
@@ -909,8 +959,7 @@ namespace GameLogic
                 for (int i = 0; i < linkText.Length; i++)
                 {
                     char c = linkText[i];
-                    m_font.GetCharacterInfo(c, out CharacterInfo info, m_currentParams.FontSize);
-                    float charWidth = info.advance + charSpacing;
+                    float charWidth = GetCharacterAdvance(c) + charSpacing;
 
                     // 检查是否需要换行
                     if (currentRow.Width + currentWidth + charWidth > m_layoutWidth && sb.Length > 0)
@@ -988,7 +1037,7 @@ namespace GameLogic
             clickHandler.Callback = OnLinkClicked;
             button.onClick.AddListener(clickHandler.OnClick);
 
-            float height = m_currentParams.FontSize + m_currentParams.LineSpacing;
+            float height = GetTextLabelHeight(label, width);
             label.rectTransform.sizeDelta = new Vector2(width, height);
 
             // 创建下划线（如果需要）
@@ -1070,7 +1119,7 @@ namespace GameLogic
                 label.text = text;
             }
 
-            float height = m_currentParams.FontSize + m_currentParams.LineSpacing;
+            float height = GetTextLabelHeight(label, width);
             label.rectTransform.sizeDelta = new Vector2(width, height);
 
             var layoutElement = RichTextLayoutElement.Create(RichTextElementType.Text, label.rectTransform);
@@ -1237,13 +1286,40 @@ namespace GameLogic
             }
         }
 
+        private void RefreshIconLayout()
+        {
+            foreach (var row in m_rows)
+            {
+                row.Width = 0;
+                row.Height = 0;
+
+                foreach (var element in row.Elements)
+                {
+                    if (element.RectTransform == null)
+                    {
+                        continue;
+                    }
+
+                    Vector2 size = element.RectTransform.sizeDelta;
+                    element.Width = size.x;
+                    element.Height = size.y;
+                    row.Width += element.Width;
+                    row.Height = Mathf.Max(row.Height, element.Height);
+                }
+            }
+
+            CalculateTotalSize();
+            ApplyLayout();
+            MarkLayoutDirty();
+        }
+
         #endregion
 
         #region 对象池
 
-        private UIText GetOrCreateText()
+        private RichTextLabel GetOrCreateText()
         {
-            UIText text;
+            RichTextLabel text;
 
             if (m_textPool.Count > 0)
             {
@@ -1256,7 +1332,11 @@ namespace GameLogic
                 var go = new GameObject("RichText_Label", typeof(RectTransform));
                 go.layer = gameObject.layer;
                 go.transform.SetParent(transform, false);
+#if TextMeshPro
+                text = go.AddComponent<TextMeshProUGUI>();
+#else
                 text = go.AddComponent<UIText>();
+#endif
                 SetupRectTransform(text.rectTransform);
             }
 
@@ -1294,8 +1374,28 @@ namespace GameLogic
             rect.localRotation = Quaternion.identity;
         }
 
-        private void SetupTextCommon(UIText text)
+        private void SetupTextCommon(RichTextLabel text)
         {
+#if TextMeshPro
+            text.font = m_tmpFont != null ? m_tmpFont : TMP_Settings.defaultFontAsset;
+            text.fontSize = m_currentParams.FontSize;
+            text.color = m_currentParams.TextColor;
+            text.alignment = m_currentParams.Alignment switch
+            {
+                RichTextAlignment.Center => TextAlignmentOptions.Midline,
+                RichTextAlignment.Right => TextAlignmentOptions.MidlineRight,
+                _ => TextAlignmentOptions.MidlineLeft
+            };
+            // RichTextItem performs wrapping at the element level so TMP labels must not wrap again.
+            text.enableWordWrapping = false;
+            text.overflowMode = m_currentParams.VerticalOverflow == VerticalWrapMode.Truncate
+                ? TextOverflowModes.Truncate
+                : TextOverflowModes.Overflow;
+            text.richText = m_currentParams.SupportRichText;
+            text.characterSpacing = m_currentParams.CharacterSpacing;
+            text.lineSpacing = m_currentParams.LineSpacing;
+            text.raycastTarget = false;
+#else
             text.font = m_font;
             text.fontSize = m_currentParams.FontSize;
             text.color = m_currentParams.TextColor;
@@ -1321,6 +1421,19 @@ namespace GameLogic
 
             // 注意: 文本特效（阴影/描边）在布局完成后通过 ApplyAllTextEffects() 应用
             // 以确保正确渲染
+#endif
+        }
+
+        private float GetTextLabelHeight(RichTextLabel text, float width)
+        {
+            float minimumHeight = m_currentParams.FontSize + m_currentParams.LineSpacing;
+#if TextMeshPro
+            if (width > 0)
+            {
+                return Mathf.Max(minimumHeight, text.GetPreferredValues(text.text, width, 0).y);
+            }
+#endif
+            return minimumHeight;
         }
 
         private void SetupImageCommon(UIImage image, bool raycastEnabled)
@@ -1343,8 +1456,86 @@ namespace GameLogic
             }
         }
 
-        private void ApplyTextEffects(UIText text)
+        private void ApplyTextEffects(RichTextLabel text)
         {
+#if TextMeshPro
+            bool useOutline = m_currentParams.EnableOutline;
+            bool useUnderlay = m_currentParams.EnableShadow;
+            if (!useOutline && !useUnderlay)
+            {
+                ReleaseTmpEffectMaterial(text);
+                text.fontSharedMaterial = text.font != null ? text.font.material : TMP_Settings.defaultFontAsset?.material;
+                text.SetMaterialDirty();
+                return;
+            }
+
+            var sourceMaterial = text.font != null ? text.font.material : TMP_Settings.defaultFontAsset?.material;
+            if (sourceMaterial == null)
+            {
+                ReleaseTmpEffectMaterial(text);
+                return;
+            }
+
+            var outlineColor = useOutline ? m_currentParams.OutlineColor : Color.clear;
+            var outlineWidth = useOutline
+                ? Mathf.Clamp01(m_currentParams.OutlineWidth * 0.1f)
+                : 0f;
+            var underlayColor = useUnderlay ? m_currentParams.ShadowTopLeftColor : Color.clear;
+            var underlayOffsetX = useUnderlay ? m_currentParams.ShadowEffectDistance.x : 0f;
+            var underlayOffsetY = useUnderlay ? m_currentParams.ShadowEffectDistance.y : 0f;
+            var materialKey = string.Concat(
+                sourceMaterial.GetInstanceID(), ":",
+                useOutline, ":", outlineWidth, ":",
+                outlineColor.r, ":", outlineColor.g, ":", outlineColor.b, ":", outlineColor.a, ":",
+                useUnderlay, ":",
+                underlayColor.r, ":", underlayColor.g, ":", underlayColor.b, ":", underlayColor.a, ":",
+                underlayOffsetX, ":", underlayOffsetY);
+
+            bool alreadyHeld = m_tmpEffectMaterialKeys.TryGetValue(text, out var currentKey) && currentKey == materialKey;
+            if (!alreadyHeld)
+            {
+                ReleaseTmpEffectMaterial(text);
+            }
+
+            if (!s_tmpEffectMaterials.TryGetValue(materialKey, out var entry))
+            {
+                var effectMaterial = new Material(sourceMaterial)
+                {
+                    name = sourceMaterial.name + " (RichText Effects)"
+                };
+
+                // 描边与阴影独立设置，可同时启用，并保留各自颜色的透明度。
+                if (useOutline)
+                    effectMaterial.EnableKeyword(ShaderUtilities.Keyword_Outline);
+                else
+                    effectMaterial.DisableKeyword(ShaderUtilities.Keyword_Outline);
+
+                effectMaterial.DisableKeyword("UNDERLAY_INNER");
+                if (useUnderlay)
+                    effectMaterial.EnableKeyword(ShaderUtilities.Keyword_Underlay);
+                else
+                    effectMaterial.DisableKeyword(ShaderUtilities.Keyword_Underlay);
+
+                effectMaterial.SetColor(ShaderUtilities.ID_OutlineColor, outlineColor);
+                effectMaterial.SetFloat(ShaderUtilities.ID_OutlineWidth, outlineWidth);
+                effectMaterial.SetColor(ShaderUtilities.ID_UnderlayColor, underlayColor);
+                effectMaterial.SetFloat(ShaderUtilities.ID_UnderlayDilate, 0f);
+                effectMaterial.SetFloat(ShaderUtilities.ID_UnderlaySoftness, 0f);
+                effectMaterial.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, underlayOffsetX);
+                effectMaterial.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, underlayOffsetY);
+                entry = new TmpEffectMaterialEntry { Material = effectMaterial };
+                s_tmpEffectMaterials.Add(materialKey, entry);
+            }
+
+            if (!alreadyHeld)
+            {
+                entry.ReferenceCount++;
+                m_tmpEffectMaterialKeys[text] = materialKey;
+            }
+
+            text.fontSharedMaterial = entry.Material;
+            text.SetMaterialDirty();
+#else
             // 阴影 - 使用 UIText 内置的阴影功能
             var shadowExtend = text.UITextShadowExtend;
 
@@ -1372,12 +1563,73 @@ namespace GameLogic
 
                 outlineExtend.SetUseTextOutline(m_currentParams.EnableOutline);
             }
+#endif
         }
+
+#if TextMeshPro
+        /// <summary>释放指定文本持有的特效材质，重复释放不会改变引用计数。</summary>
+        private void ReleaseTmpEffectMaterial(RichTextLabel text)
+        {
+            if (m_tmpEffectMaterialKeys.Remove(text, out var materialKey))
+            {
+                ReleaseTmpEffectMaterial(text, materialKey);
+            }
+        }
+
+        /// <summary>解除文本的材质引用，最后一个使用者释放时销毁动态材质。</summary>
+        private static void ReleaseTmpEffectMaterial(RichTextLabel text, string materialKey)
+        {
+            if (!s_tmpEffectMaterials.TryGetValue(materialKey, out var entry))
+            {
+                return;
+            }
+
+            // 池内文本也必须解除引用，字体资源自带的原始材质不由此缓存销毁。
+            if (text != null && text.fontSharedMaterial == entry.Material)
+            {
+                text.fontSharedMaterial = text.font != null ? text.font.material : TMP_Settings.defaultFontAsset?.material;
+                text.SetMaterialDirty();
+            }
+
+            entry.ReferenceCount--;
+            if (entry.ReferenceCount > 0)
+            {
+                return;
+            }
+
+            s_tmpEffectMaterials.Remove(materialKey);
+            if (entry.Material != null)
+            {
+                if (Application.isPlaying)
+                {
+                    Destroy(entry.Material);
+                }
+                else
+                {
+                    DestroyImmediate(entry.Material);
+                }
+            }
+        }
+
+        /// <summary>组件销毁时释放全部持有项，包括已被外部销毁的文本。</summary>
+        private void ReleaseAllTmpEffectMaterials()
+        {
+            foreach (var pair in m_tmpEffectMaterialKeys)
+            {
+                ReleaseTmpEffectMaterial(pair.Key, pair.Value);
+            }
+
+            m_tmpEffectMaterialKeys.Clear();
+        }
+#endif
 
         private void RecycleAllElements()
         {
             foreach (var text in m_activeTexts)
             {
+#if TextMeshPro
+                ReleaseTmpEffectMaterial(text);
+#endif
                 if (text != null)
                 {
                     text.gameObject.SetActive(false);
@@ -1400,7 +1652,8 @@ namespace GameLogic
             m_activeImages.Clear();
 
             // 清理待处理的图标尺寸
-            m_pendingIconSizes.Clear();
+            m_pendingNativeSizeIcons.Clear();
+            m_pendingIconLayoutRefresh = false;
 
             // 回收下划线
             RecycleUnderlines();

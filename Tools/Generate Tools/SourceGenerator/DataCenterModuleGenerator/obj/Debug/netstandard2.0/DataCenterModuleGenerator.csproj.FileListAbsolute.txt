@@ -1,0 +1,11 @@
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\DataCenterModuleGenerator\bin\Debug\netstandard2.0\DataCenterModuleGenerator.deps.json
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\DataCenterModuleGenerator\bin\Debug\netstandard2.0\DataCenterModuleGenerator.dll
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\DataCenterModuleGenerator\bin\Debug\netstandard2.0\DataCenterModuleGenerator.pdb
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\DataCenterModuleGenerator\obj\Debug\netstandard2.0\DataCenterModuleGenerator.csproj.AssemblyReference.cache
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\DataCenterModuleGenerator\obj\Debug\netstandard2.0\DataCenterModuleGenerator.GeneratedMSBuildEditorConfig.editorconfig
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\DataCenterModuleGenerator\obj\Debug\netstandard2.0\DataCenterModuleGenerator.AssemblyInfoInputs.cache
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\DataCenterModuleGenerator\obj\Debug\netstandard2.0\DataCenterModuleGenerator.AssemblyInfo.cs
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\DataCenterModuleGenerator\obj\Debug\netstandard2.0\DataCenterModuleGenerator.csproj.CoreCompileInputs.cache
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\DataCenterModuleGenerator\obj\Debug\netstandard2.0\DataCenterModuleGenerator.sourcelink.json
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\DataCenterModuleGenerator\obj\Debug\netstandard2.0\DataCenterModuleGenerator.dll
+D:\Unity\GitHub_Project\DGame\Tools\Generata Tools\SourceGenerator\DataCenterModuleGenerator\obj\Debug\netstandard2.0\DataCenterModuleGenerator.pdb

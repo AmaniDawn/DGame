@@ -33,6 +33,13 @@ namespace GameLogic
 
         #region UIController
 
+        /// <summary>
+        /// 自动注册 UI 控制器，实现由 UIControllerGenerator 在编译期生成。
+        /// </summary>
+        /// <remarks>
+        /// 实现及控制器列表位于生成的 UIController_Gen.g.cs，无需查找或手写常规 .cs 实现。
+        /// 未发现符合条件的控制器时不会生成实现，这是合法的 partial 方法声明，无需补齐。
+        /// </remarks>
         partial void RegisterAllController();
 
         #endregion
