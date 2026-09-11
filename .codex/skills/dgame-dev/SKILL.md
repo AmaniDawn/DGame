@@ -17,6 +17,13 @@ DGame 使用 HybridCLR + YooAsset + UniTask + Luban 构建。
 5. **事件解耦**：UI 内部监听用 `UIBase.AddUIEvent` 自动清理；跨模块事件用 `[EventInterface(EEventGroup...)]`、`GameEvent.Get<T>()` 或 `GameEvent.AddEventListener`。
 6. **配置表边界**：配置表结构、Excel、导表脚本优先使用 `luban-dev`；本 skill 只补充 DGame 业务代码如何消费配置。
 
+## 防止误用的例外与优先级
+
+- **模块访问分层**：`GameLogic` 业务代码优先通过 `GameModule.XXX`；`DGame.Runtime` 框架内部、编辑器代码、`GameModule` 的初始化桥接代码允许直接使用 `ModuleSystem.GetModule<T>()`，不要为了机械遵守规则改动这些底层代码。
+- **事件监听**：UIWindow/UIWidget 在 `RegisterEvent` 中使用 `AddUIEvent`；非 UI 模块对带 `[EventInterface]` 的接口优先使用生成的 `GameEventHelper.AddEvent.Xxx.Xxx` / `GameEventHelper.RemoveEvent.Xxx.Xxx`。只有没有生成门面或框架底层场景才直接调用 `GameEvent.AddEventListener/RemoveEventListener`。 `IUIController` 不是 `UIBase`，也必须按非 UI 生命周期处理，成对注册和移除。
+- **资源例外**：业务热更资源优先走 `GameModule.ResourceModule`；`UIWindow.FromResources`、AOT 的 Obfuz 密钥、框架音频混音器等已存在的 `Resources.Load` 路径属于框架例外，修改前先核对调用层，不要全局替换。
+- **生成产物**：Luban 的 `GameProto/LubanConfig`、事件/模块/输入等 Source Generator 产物不要手改；先修改 schema、接口或生成器源码，再重新生成并检查 Unity 编译。
+
 ## 文档路由
 
 根据任务类型，读取对应的 reference 文档：

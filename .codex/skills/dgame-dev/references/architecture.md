@@ -72,6 +72,7 @@ DGame/
     │   ├── GameLogic/                  # 主业务热更
     │   └── GameBattle/                 # 战斗热更
     ├── BundleAssets/                   # YooAsset 热更资源
+    ├── Editor/                         # 顶层编辑器工具（如 UIScriptGenerator）
     └── Scenes/GameStart/               # 主启动场景
 ```
 
@@ -93,8 +94,8 @@ location/addressable 约定：
 
 - 新增运行时资源优先放 `GameUnity/Assets/BundleAssets/...`，并通过 YooAsset 收集配置生成 location。
 - 业务代码通过 `GameModule.ResourceModule` 加载资源，不使用 `Resources.Load()`。
-- `UpdateSettings.EnableAddressable` 为 true 时，DLL location 可直接使用 `GameLogic.dll`、`DGame.Runtime.dll` 这类地址。
-- `UpdateSettings.EnableAddressable` 为 false 时，`LoadAssemblyProcedure` 会按 `Assets/<AssemblyTextAssetPath>/<dll><AssemblyTextAssetExtension>` 拼接 location；当前默认配置是 `Assets/BundleAssets/DLL/<dll>.bytes`。
+- `UpdateSettings.EnableAddressable` 由资源包配置决定；为 true 时，DLL location 可直接使用 `GameLogic.dll`、`DGame.Runtime.dll` 这类地址。
+- 为 false 时，`LoadAssemblyProcedure` 会按 `Assets/<AssemblyTextAssetPath>/<dll><AssemblyTextAssetExtension>` 拼接 location；当前默认配置是 `Assets/BundleAssets/DLL/<dll>.bytes`。
 - `LoadAssemblyProcedure.cs:316` 的 `Resources.Load<TextAsset>("Obfuz/defaultStaticSecretKey")` 是 AOT 框架层加载 Obfuz 密钥的例外，不作为热更业务资源加载模板。
 
 ---

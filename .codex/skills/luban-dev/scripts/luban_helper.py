@@ -19,8 +19,10 @@ if sys.platform == 'win32':
         sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8', line_buffering=True)
 
 import argparse
+import shutil
 import json
 import hashlib
+import copy
 from pathlib import Path
 from typing import Optional, List, Dict, Any, Tuple
 from dataclasses import dataclass, field
@@ -1261,6 +1263,7 @@ class LubanConfigHelper:
             return []
 
         excel_path, actual_sheet = result
+
         data = self._parse_excel_data(excel_path, actual_sheet)
         if data:
             return data.get("fields", [])
@@ -1801,7 +1804,19 @@ class LubanConfigHelper:
                                 var_row[col] = value
                 elif cell_a == "##type":
                     result.type_row_num = i
-                    type_row = list(row)
+                    current = list(row)
+                    if type_row is None:
+                        type_row = current
+                    else:
+                        # Luban 允许多行 ##type：后续行补充复合字段的子列类型，
+                        # 不能覆盖第一行，否则会把主字段误判为缺少类型。
+                        for col, value in enumerate(current):
+                            if col == 0:
+                                continue
+                            if value and (col >= len(type_row) or not type_row[col]):
+                                while col >= len(type_row):
+                                    type_row.append(None)
+                                type_row[col] = value
                 elif cell_a == "##group":
                     result.group_row_num = i
                     group_row = list(row)
@@ -2112,6 +2127,11 @@ class LubanConfigHelper:
 
         excel_path, actual_sheet = result
 
+        if excel_path.suffix.lower() == ".xlsm":
+            print("错误: 不允许用 openpyxl 的 row add 修改 .xlsm；请使用 xlsm edit 通过 Excel COM 在副本上操作")
+            return False
+
+
         try:
             wb = openpyxl.load_workbook(excel_path)
 
@@ -2158,14 +2178,14 @@ class LubanConfigHelper:
                                         pass
 
                             if max_id is None or new_id > max_id:
-                                insert_row = sheet.max_row + 1
-                                for r in range(sheet.max_row, data_start - 1, -1):
-                                    first_col_val = sheet.cell(row=r, column=1).value
-                                    if first_col_val == "##":
-                                        insert_row = r
-                                    elif any(sheet.cell(row=r, column=c).value is not None for c in range(2, sheet.max_column + 1)):
-                                        insert_row = r + 1
-                                        break
+                                # 以最后一条实际数据为边界，不能使用 max_row：表格常带有
+                                # 预格式化空白行，否则新增数据会被放到很远的空白区域。
+                                last_data_row = data_start - 1
+                                for r in range(data_start, sheet.max_row + 1):
+                                    if any(sheet.cell(row=r, column=c).value is not None
+                                           for c in range(2, sheet.max_column + 1)):
+                                        last_data_row = r
+                                insert_row = last_data_row + 1
                             else:
                                 for existing_id, row_num in existing_ids:
                                     if new_id < existing_id:
@@ -2174,12 +2194,30 @@ class LubanConfigHelper:
                                         break
 
                                 if insert_row is None:
-                                    insert_row = sheet.max_row + 1
+                                    insert_row = max(data_start, max(
+                                        (r for r in range(data_start, sheet.max_row + 1)
+                                         if any(sheet.cell(row=r, column=c).value is not None
+                                                for c in range(2, sheet.max_column + 1))),
+                                        default=data_start - 1) + 1)
                     except (ValueError, TypeError):
                         pass
 
             if insert_row is None:
-                insert_row = sheet.max_row + 1
+                insert_row = max(data_start, max(
+                    (r for r in range(data_start, sheet.max_row + 1)
+                     if any(sheet.cell(row=r, column=c).value is not None
+                            for c in range(2, sheet.max_column + 1))),
+                    default=data_start - 1) + 1)
+
+            # 只复制上一条数据行的样式，避免新增空白行破坏表格视觉结构。
+            if insert_row > data_start:
+                for col in range(1, sheet.max_column + 1):
+                    source_cell = sheet.cell(row=insert_row - 1, column=col)
+                    target_cell = sheet.cell(row=insert_row, column=col)
+                    if source_cell.has_style:
+                        target_cell._style = copy.copy(source_cell._style)
+                    if source_cell.number_format:
+                        target_cell.number_format = source_cell.number_format
 
             for field in fields:
                 field_name = field["name"]
@@ -2651,6 +2689,11 @@ class LubanConfigHelper:
             if result.stderr:
                 print(result.stderr)
 
+            warning_text = (result.stdout or "") + "\n" + (result.stderr or "")
+            if any(token in warning_text for token in ("空白数据", "空白行", "blank rows", "blank data")):
+                print("⚠️ 检测到 Luban 空白行性能警告。请先定位受影响表，再执行：")
+                print("  python scripts/luban_helper.py --data-dir GameConfig/Datas cleanup blank-rows <TABLE> --apply")
+
             if result.returncode == 0:
                 print("-" * 50)
                 print("✓ Luban 生成成功")
@@ -2662,6 +2705,43 @@ class LubanConfigHelper:
 
         except Exception as e:
             print(f"错误: 执行 Luban 生成失败 - {e}")
+            return False
+
+    def cleanup_trailing_blank_rows(self, table_name: str, sheet_name: str = None,
+                                    apply: bool = False) -> bool:
+        """Remove only fully blank rows after the last real data row in an XLSX sheet."""
+        result = self._get_table_excel_path(table_name, sheet_name)
+        if not result:
+            print(f"错误: 未找到表 {table_name} 的数据文件")
+            return False
+        excel_path, actual_sheet = result
+        if excel_path.suffix.lower() == ".xlsm":
+            print("错误: .xlsm 必须使用 Excel COM 流程清理，不能用 openpyxl 删除行")
+            return False
+        try:
+            wb = openpyxl.load_workbook(excel_path)
+            sheet = wb[actual_sheet] if actual_sheet else wb.active
+            structure = self._parse_luban_sheet(sheet)
+            data_start = structure.data_start_row or self._get_data_start_row(sheet)
+            last_data = data_start - 1
+            for row in range(data_start, sheet.max_row + 1):
+                if any(sheet.cell(row=row, column=col).value is not None
+                       for col in range(2, sheet.max_column + 1)):
+                    last_data = row
+            remove_count = max(0, sheet.max_row - last_data)
+            print(json.dumps({"table": table_name, "sheet": sheet.title,
+                              "last_data_row": last_data,
+                              "max_row": sheet.max_row,
+                              "trailing_blank_rows": remove_count,
+                              "apply": apply}, ensure_ascii=False, indent=2))
+            if apply and remove_count:
+                sheet.delete_rows(last_data + 1, remove_count)
+                wb.save(excel_path)
+                print(f"✓ 已删除末尾连续空白行: {remove_count}")
+            wb.close()
+            return True
+        except Exception as exc:
+            print(f"错误: 清理空白行失败 - {exc}")
             return False
 
     # ==================== 引用完整性检查 ====================
@@ -4366,6 +4446,88 @@ def _parse_fields_arg(fields_str: str) -> list:
     return fields
 
 
+def edit_xlsm_with_excel(source: str, output: str, changes: list) -> bool:
+    """Use native Excel COM to edit an XLSM copy without openpyxl reserialization.
+
+    changes: [{"sheet": "Card", "cell": "C197", "value": "测试数据"}]
+    The source is never written. Macros are disabled while opening the workbook.
+    """
+    if os.name != "nt":
+        print("错误: xlsm 安全写入需要 Windows Excel COM")
+        return False
+    source_path = Path(source).resolve()
+    output_path = Path(output).resolve()
+    if source_path.suffix.lower() != ".xlsm" or output_path.suffix.lower() != ".xlsm":
+        print("错误: xlsm edit 的输入和输出都必须是 .xlsm")
+        return False
+    if not source_path.exists():
+        print(f"错误: 文件不存在 {source_path}")
+        return False
+    if source_path == output_path:
+        print("错误: xlsm 安全写入必须输出到副本，不能覆盖原文件")
+        return False
+    if not isinstance(changes, list) or not changes:
+        print("错误: changes 必须是非空 JSON 数组")
+        return False
+
+    shutil.copy2(source_path, output_path)
+    excel = workbook = check = None
+    try:
+        import win32com.client
+        excel = win32com.client.DispatchEx("Excel.Application")
+        excel.Visible = False
+        excel.DisplayAlerts = False
+        # msoAutomationSecurityForceDisable = 3
+        excel.AutomationSecurity = 3
+        workbook = excel.Workbooks.Open(str(output_path), UpdateLinks=0, ReadOnly=False)
+        for change in changes:
+            sheet_name = change.get("sheet")
+            cell = change.get("cell")
+            if not sheet_name or not cell:
+                raise ValueError("每条修改必须包含 sheet 和 cell")
+            sheet = workbook.Worksheets.Item(sheet_name)
+            target = sheet.Range(cell)
+            if change.get("value") is None:
+                target.ClearContents()
+            else:
+                target.Value2 = change["value"]
+        workbook.Save()
+        workbook.Close(SaveChanges=True)
+        workbook = None
+
+        # Reopen read-only to verify that Excel can parse the result and values stuck.
+        check = excel.Workbooks.Open(str(output_path), UpdateLinks=0, ReadOnly=True)
+        verified = []
+        for change in changes:
+            actual = check.Worksheets.Item(change["sheet"]).Range(change["cell"]).Value2
+            expected = change.get("value")
+            verified.append({"sheet": change["sheet"], "cell": change["cell"],
+                             "expected": expected, "actual": actual,
+                             "matched": str(actual) == str(expected)})
+        check.Close(SaveChanges=False)
+        check = None
+        if not all(item["matched"] for item in verified):
+            print(json.dumps({"success": False, "output": str(output_path), "verified": verified}, ensure_ascii=False, indent=2))
+            return False
+        print(json.dumps({"success": True, "output": str(output_path), "verified": verified}, ensure_ascii=False, indent=2))
+        return True
+    except Exception as exc:
+        print(f"错误: Excel COM 写入失败: {exc}")
+        return False
+    finally:
+        for book in (check, workbook):
+            if book is not None:
+                try:
+                    book.Close(SaveChanges=False)
+                except Exception:
+                    pass
+        if excel is not None:
+            try:
+                excel.Quit()
+            except Exception:
+                pass
+
+
 def main():
     parser = argparse.ArgumentParser(description="DGame Luban 配置编辑器辅助脚本")
     parser.add_argument("--data-dir", default="GameConfig/Datas", help="DGame 数据目录路径")
@@ -4610,6 +4772,22 @@ def main():
     gen_parser = subparsers.add_parser("gen", help="调用 DGame 客户端 LazyLoad 导表脚本")
     gen_parser.add_argument("--output", default=None, help="输出目录")
     gen_parser.add_argument("--luban-cmd", default=None, help="自定义 Luban CLI 命令；不指定则调用 DGame gen_bin_client_lazyload.bat")
+
+    # XLSM 安全写入（必须通过 Excel COM，禁止 openpyxl 重存宏工作簿）
+    xlsm_parser = subparsers.add_parser("xlsm", help="带宏 Excel 配置表操作")
+    xlsm_subparsers = xlsm_parser.add_subparsers(dest="xlsm_command")
+    xlsm_edit = xlsm_subparsers.add_parser("edit", help="在副本中修改 XLSM 单元格")
+    xlsm_edit.add_argument("source", metavar="SOURCE", help="源 .xlsm 文件")
+    xlsm_edit.add_argument("--output", required=True, help="输出 .xlsm 副本，不能覆盖源文件")
+    xlsm_edit.add_argument("--changes", help="修改 JSON 数组，或使用 --file")
+    xlsm_edit.add_argument("--file", help="从 JSON 文件读取修改数组")
+
+    cleanup_parser = subparsers.add_parser("cleanup", help="清理配置表安全冗余数据")
+    cleanup_subparsers = cleanup_parser.add_subparsers(dest="cleanup_command")
+    cleanup_blank = cleanup_subparsers.add_parser("blank-rows", help="清理表尾连续空白行")
+    cleanup_blank.add_argument("table", metavar="TABLE", help="表名称")
+    cleanup_blank.add_argument("--sheet", default="", help="Sheet名称")
+    cleanup_blank.add_argument("--apply", action="store_true", help="确认删除；默认只报告不修改")
 
     # 引用检查命令
     ref_parser = subparsers.add_parser("ref", help="引用完整性检查")
@@ -5125,6 +5303,30 @@ def main():
             output_dir=args.output,
             luban_cmd=args.luban_cmd
         )
+
+    # XLSM 安全写入操作
+    elif args.command == "xlsm":
+        if args.xlsm_command == "edit":
+            changes_text = None
+            if args.file:
+                with open(args.file, "r", encoding="utf-8-sig") as f:
+                    changes_text = f.read()
+            elif args.changes:
+                changes_text = args.changes
+            else:
+                print("错误: 需要指定 --changes 或 --file")
+                return
+            try:
+                changes = json.loads(changes_text)
+            except json.JSONDecodeError as exc:
+                print(f"错误: changes JSON 格式无效 - {exc}")
+                return
+            edit_xlsm_with_excel(args.source, args.output, changes)
+
+    elif args.command == "cleanup":
+        if args.cleanup_command == "blank-rows":
+            helper.cleanup_trailing_blank_rows(
+                args.table, args.sheet if args.sheet else None, args.apply)
 
     # 引用检查操作
     elif args.command == "ref":
