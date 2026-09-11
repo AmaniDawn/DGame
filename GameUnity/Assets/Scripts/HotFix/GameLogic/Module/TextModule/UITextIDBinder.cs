@@ -94,12 +94,12 @@ namespace GameLogic
 
         private void OnEnable()
         {
-            EventCenter.AddEvent.Localization.OnLanguageChanged(OnLanguageChanged);
+            GameEventHelper.AddEvent.Localization.OnLanguageChanged(OnLanguageChanged);
         }
 
         private void OnDisable()
         {
-            EventCenter.RemoveEvent.Localization.OnLanguageChanged(OnLanguageChanged);
+            GameEventHelper.RemoveEvent.Localization.OnLanguageChanged(OnLanguageChanged);
         }
 
         private void OnLanguageChanged(int language)
