@@ -253,6 +253,11 @@ namespace GameLogic
                 return;
             }
 
+            // 兜底确保所在 Canvas 已开启描边 shader 所需的附加顶点通道。
+            // Dropdown 展开时运行时克隆的选项挂在独立的临时 Canvas 下，
+            // 若不在此处开启通道，shader 读不到顶点里的描边数据，描边会错乱。
+            OpenShaderParams();
+
             if (m_vertexList == null)
             {
                 m_vertexList = ListPool<UIVertex>.Get();
@@ -339,8 +344,8 @@ namespace GameLogic
 
                 float triXMag = triX.magnitude;
                 float triYMag = triY.magnitude;
-                float invTriXMag = triXMag > 0.0001f ? 1f / Mathf.Min(triXMag, 18f) : 0f;
-                float invTriYMag = triYMag > 0.0001f ? 1f / Mathf.Min(triYMag, 18f) : 0f;
+                float invTriXMag = triXMag > 0.0001f ? 1f / triXMag : 0f;
+                float invTriYMag = triYMag > 0.0001f ? 1f / triYMag : 0f;
                 float triXSign = Vector2.Dot(triX, Vector2.right) > 0 ? 1f : -1f;
                 float triYSign = Vector2.Dot(triY, Vector2.up) > 0 ? 1f : -1f;
 

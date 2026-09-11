@@ -13,11 +13,6 @@ namespace DGame
         /// 逻辑层内部交互相关
         /// </summary>
         GroupLogic,
-        
-        /// <summary>
-        /// Battle层交互相关
-        /// </summary>
-        GroupBattle,
     }
 
     [AttributeUsage(AttributeTargets.Interface)]

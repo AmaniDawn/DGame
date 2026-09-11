@@ -1,6 +1,7 @@
 using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -55,6 +56,15 @@ namespace GameLogic
             }
         }
 
+        public static void SetActive(this TMP_InputField input, bool value, ref bool cacheValue)
+        {
+            if (input != null && value != cacheValue)
+            {
+                cacheValue = value;
+                input.gameObject.SetActive(value);
+            }
+        }
+
         public static void SetActive(this ScrollRect scroll, bool value, ref bool cacheValue)
         {
             if (scroll != null && value != cacheValue)
@@ -83,6 +93,15 @@ namespace GameLogic
         }
 
         public static void SetActive(this Dropdown dropdown, bool value, ref bool cacheValue)
+        {
+            if (dropdown != null && value != cacheValue)
+            {
+                cacheValue = value;
+                dropdown.gameObject.SetActive(value);
+            }
+        }
+
+        public static void SetActive(this TMP_Dropdown dropdown, bool value, ref bool cacheValue)
         {
             if (dropdown != null && value != cacheValue)
             {
@@ -138,15 +157,23 @@ namespace GameLogic
 
         public static void SetActive(this Image image, bool value)
         {
-            if (image != null)
+            if (image != null && image.gameObject.activeSelf != value)
             {
                 image.gameObject.SetActive(value);
             }
         }
 
+        public static void SetActive(this RichTextItem richTextItem, bool value)
+        {
+            if (richTextItem != null && richTextItem.gameObject.activeSelf != value)
+            {
+                richTextItem.gameObject.SetActive(value);
+            }
+        }
+
         public static void SetActive(this Button btn, bool value)
         {
-            if (btn != null)
+            if (btn != null && btn.gameObject.activeSelf != value)
             {
                 btn.gameObject.SetActive(value);
             }
@@ -154,7 +181,15 @@ namespace GameLogic
 
         public static void SetActive(this Text text, bool value)
         {
-            if (text != null)
+            if (text != null && text.gameObject.activeSelf != value)
+            {
+                text.gameObject.SetActive(value);
+            }
+        }
+
+        public static void SetActive(this TextMeshProUGUI text, bool value)
+        {
+            if (text != null && text.gameObject.activeSelf != value)
             {
                 text.gameObject.SetActive(value);
             }
@@ -162,7 +197,15 @@ namespace GameLogic
 
         public static void SetActive(this InputField input, bool value)
         {
-            if (input != null)
+            if (input != null && input.gameObject.activeSelf != value)
+            {
+                input.gameObject.SetActive(value);
+            }
+        }
+
+        public static void SetActive(this TMP_InputField input, bool value)
+        {
+            if (input != null && input.gameObject.activeSelf != value)
             {
                 input.gameObject.SetActive(value);
             }
@@ -170,7 +213,7 @@ namespace GameLogic
 
         public static void SetActive(this ScrollRect scroll, bool value)
         {
-            if (scroll != null)
+            if (scroll != null && scroll.gameObject.activeSelf != value)
             {
                 scroll.gameObject.SetActive(value);
             }
@@ -178,7 +221,7 @@ namespace GameLogic
 
         public static void SetActive(this Slider slider, bool value)
         {
-            if (slider != null)
+            if (slider != null && slider.gameObject.activeSelf != value)
             {
                 slider.gameObject.SetActive(value);
             }
@@ -186,7 +229,7 @@ namespace GameLogic
 
         public static void SetActive(this Scrollbar scrollbar, bool value)
         {
-            if (scrollbar != null)
+            if (scrollbar != null && scrollbar.gameObject.activeSelf != value)
             {
                 scrollbar.gameObject.SetActive(value);
             }
@@ -194,7 +237,15 @@ namespace GameLogic
 
         public static void SetActive(this Dropdown dropdown, bool value)
         {
-            if (dropdown != null)
+            if (dropdown != null && dropdown.gameObject.activeSelf != value)
+            {
+                dropdown.gameObject.SetActive(value);
+            }
+        }
+
+        public static void SetActive(this TMP_Dropdown dropdown, bool value)
+        {
+            if (dropdown != null && dropdown.gameObject.activeSelf != value)
             {
                 dropdown.gameObject.SetActive(value);
             }
@@ -202,7 +253,7 @@ namespace GameLogic
 
         public static void SetActive(this RectTransform rect, bool value)
         {
-            if (rect != null)
+            if (rect != null && rect.gameObject.activeSelf != value)
             {
                 rect.gameObject.SetActive(value);
             }
@@ -210,7 +261,7 @@ namespace GameLogic
 
         public static void SetActive(this Transform transform, bool value)
         {
-            if (transform != null)
+            if (transform != null && transform.gameObject.activeSelf != value)
             {
                 transform.gameObject.SetActive(value);
             }
@@ -218,7 +269,7 @@ namespace GameLogic
 
         public static void SetActive(this Toggle toggle, bool value)
         {
-            if (toggle != null)
+            if (toggle != null && toggle.gameObject.activeSelf != value)
             {
                 toggle.gameObject.SetActive(value);
             }
@@ -226,7 +277,7 @@ namespace GameLogic
 
         public static void SetActive(this Canvas canvas, bool value)
         {
-            if (canvas != null)
+            if (canvas != null && canvas.gameObject.activeSelf != value)
             {
                 canvas.gameObject.SetActive(value);
             }
@@ -234,7 +285,7 @@ namespace GameLogic
 
         public static void SetActive(this CanvasGroup canvasGroup, bool value)
         {
-            if (canvasGroup != null)
+            if (canvasGroup != null && canvasGroup.gameObject.activeSelf != value)
             {
                 canvasGroup.gameObject.SetActive(value);
             }

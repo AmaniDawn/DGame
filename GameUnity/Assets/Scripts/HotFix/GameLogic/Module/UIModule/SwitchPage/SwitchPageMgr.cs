@@ -589,6 +589,19 @@ namespace GameLogic
         }
 
         /// <summary>
+        /// 将已创建的 Tab 绑定到红点树节点，应在创建 Tab 完成后调用。
+        /// </summary>
+        /// <param name="tabID">Tab ID。</param>
+        /// <param name="redDotNodeId">已注册的红点节点 ID。</param>
+        public void BindTabRedDot(int tabID, int redDotNodeId)
+        {
+            if (m_tabPageInfoDict.TryGetValue(tabID, out var tabInfo))
+            {
+                tabInfo.TabItem?.BindRedDot(redDotNodeId);
+            }
+        }
+
+        /// <summary>
         /// 设置 Tab 图标。
         /// </summary>
         /// <param name="tabID">Tab ID</param>

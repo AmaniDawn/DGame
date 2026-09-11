@@ -211,6 +211,11 @@ namespace GameLogic
                 }
             }
         }
+        
+        /// <summary>
+        /// 当前窗口是否已经显示且可见。
+        /// </summary>
+        public bool IsVisible => IsPrepared && !IsDestroyed && Visible;
 
         /// <summary>
         /// 是否可交互
