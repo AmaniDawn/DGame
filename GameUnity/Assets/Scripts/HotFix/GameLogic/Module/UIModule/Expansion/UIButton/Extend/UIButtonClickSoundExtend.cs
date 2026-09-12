@@ -21,10 +21,7 @@ namespace GameLogic
                 return;
             }
 
-            if(SoundConfigMgr.Instance.TryGetValue(m_clickSoundID, out var soundCfg))
-            {
-                GameModule.AudioModule.Play(DGame.AudioType.UISound, soundCfg.Location, isInPool: true);
-            }
+            SoundConfigMgr.Instance.Play(m_clickSoundID, DGame.AudioType.UISound, isInPool: true);
         }
 
         public void OnPointerUp()

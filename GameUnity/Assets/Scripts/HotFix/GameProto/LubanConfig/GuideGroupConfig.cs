@@ -93,13 +93,20 @@ public sealed partial class GuideGroupConfig : Luban.BeanBase
         other.GroupId = GroupId;
         other.Priority = Priority;
         other.FirstStepId = FirstStepId;
-        other.PrerequisiteGuideIds = PrerequisiteGuideIds;
+        other.PrerequisiteGuideIds = PrerequisiteGuideIds == null ? null : new System.Collections.Generic.List<int>(PrerequisiteGuideIds);
         other.ConditionKey = ConditionKey;
-        other.ConditionParams = ConditionParams;
+        other.ConditionParams = ConditionParams == null ? null : new System.Collections.Generic.List<int>(ConditionParams);
         other.LocalSave = LocalSave;
         other.ResumePolicy = ResumePolicy;
         other.FailurePolicy = FailurePolicy;
         other.Enabled = Enabled;
+    }
+
+    public GuideGroupConfig DeepCopy()
+    {
+        var other = new GuideGroupConfig();
+        CopyTo(ref other);
+        return other;
     }
     
     public override string ToString()

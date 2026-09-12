@@ -247,6 +247,13 @@ public sealed partial class ModelConfig : Luban.BeanBase
         other.WeaponOffsetX = WeaponOffsetX;
         other.WeaponOffsetY = WeaponOffsetY;
     }
+
+    public ModelConfig DeepCopy()
+    {
+        var other = new ModelConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

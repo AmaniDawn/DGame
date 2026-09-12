@@ -46,6 +46,13 @@ public partial struct Size
         other.Width = Width;
         other.Height = Height;
     }
+
+    public Size DeepCopy()
+    {
+        var other = new Size();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

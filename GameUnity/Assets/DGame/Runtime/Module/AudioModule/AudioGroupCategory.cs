@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
@@ -169,6 +169,87 @@ namespace DGame
                 DLogger.Error($"当前没有空闲的音频组件播放音频：{path}");
                 return null;
             }
+        }
+
+        /// <summary>按音效配置申请代理；同资源超过上限拒绝，分类满载时淘汰最低优先级代理。</summary>
+        public AudioSourceAgent Play(string path, AudioPlayOptions options, bool async, bool inPool = false)
+        {
+            if (!m_enable) return null;
+            int sameCount = 0;
+            int freeChannel = -1;
+            for (int i = 0; i < audioAgents.Count; i++)
+            {
+                var agent = audioAgents[i];
+                if (agent == null) { freeChannel = i; break; }
+                if (!agent.IsFree && (options.SoundId > 0
+                    ? (agent.SoundId == options.SoundId || agent.PendingSoundId == options.SoundId)
+                    : (agent.Path == path || agent.HasPendingPath(path)))) sameCount++;
+                if (freeChannel < 0 && agent.IsFree) freeChannel = i;
+            }
+            if (options.MaxPlayCount > 0 && sameCount >= options.MaxPlayCount) return null;
+            if (freeChannel >= 0)
+            {
+                var freeAgent = audioAgents[freeChannel] ?? AudioSourceAgent.CreateEmpty(this);
+                audioAgents[freeChannel] = freeAgent;
+                freeAgent.Load(path, options, async, inPool);
+                return freeAgent;
+            }
+            AudioSourceAgent candidate = null;
+            for (int i = 0; i < audioAgents.Count; i++)
+            {
+                var agent = audioAgents[i];
+                if (agent == null || agent.IsFree) continue;
+                if (candidate == null || agent.EffectivePriority > candidate.EffectivePriority ||
+                    (agent.EffectivePriority == candidate.EffectivePriority && agent.Duration > candidate.Duration)) candidate = agent;
+            }
+            if (candidate == null || candidate.EffectivePriority < options.Priority ||
+                (candidate.EffectivePriority == options.Priority && !options.AllowEqualPriority)) return null;
+            candidate.Stop(true);
+            candidate.Load(path, options, async, inPool);
+            return candidate;
+        }
+
+        internal bool TryReplayRandom(AudioSourceAgent agent)
+        {
+            var options = agent.ActiveOptions;
+            if (!options.UseRandomSelection)
+            {
+                return false;
+            }
+            if (options.MaxPlayCount > 0 && options.SoundId > 0)
+            {
+                int count = 0;
+                for (int i = 0; i < audioAgents.Count; i++)
+                {
+                    var other = audioAgents[i];
+                    if (other == null || ReferenceEquals(other, agent) || other.IsFree) continue;
+                    if (other.SoundId == options.SoundId || other.PendingSoundId == options.SoundId) count++;
+                }
+                if (count >= options.MaxPlayCount) return false;
+            }
+            string path = SelectRandomPath(options, agent.Path);
+            if (string.IsNullOrEmpty(path)) return false;
+            agent.Load(path, options, agent.RequestAsync, agent.RequestInPool);
+            return true;
+        }
+
+        private static string SelectRandomPath(AudioPlayOptions options, string fallback)
+        {
+            float total = 0f;
+            for (int i = 0; i < options.RandomLocations.Length; i++)
+            {
+                if (string.IsNullOrEmpty(options.RandomLocations[i])) continue;
+                total += options.RandomWeights != null && i < options.RandomWeights.Length ? Mathf.Max(0f, options.RandomWeights[i]) : 1f;
+            }
+            if (total <= 0f) return fallback;
+            float roll = UnityEngine.Random.value * total;
+            for (int i = 0; i < options.RandomLocations.Length; i++)
+            {
+                if (string.IsNullOrEmpty(options.RandomLocations[i])) continue;
+                roll -= options.RandomWeights != null && i < options.RandomWeights.Length ? Mathf.Max(0f, options.RandomWeights[i]) : 1f;
+                if (roll <= 0f) return options.RandomLocations[i];
+            }
+            return fallback;
         }
 
         /// <summary>

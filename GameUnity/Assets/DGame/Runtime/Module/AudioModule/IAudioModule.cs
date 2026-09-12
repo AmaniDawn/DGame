@@ -100,7 +100,13 @@ namespace DGame
         /// <param name="isAsync">是否异步</param>
         /// <param name="isInPool">是否进池</param>
         /// <returns></returns>
-        AudioSourceAgent Play(AudioType audioType, string path, bool isLoop = false, float volume = 1.0f, bool isAsync = false, bool isInPool = false);
+        AudioSourceAgent Play(AudioType audioType, string path, bool isLoop = false, float volume = 1.0f,
+            bool isAsync = false, bool isInPool = false, float pitch = 1.0f, float fadeInTime = 0.0f,
+            float fadeOutTime = 0.2f, float endPauseTime = 0.0f, float spatialBlend = 0.0f,
+            float minDistance = 1.0f, float maxDistance = 500.0f, int priority = 128);
+
+        AudioSourceAgent Play(AudioType audioType, string path, AudioPlayOptions options, bool isAsync = false, bool isInPool = false);
+
 
         /// <summary>
         /// 停止某类声音播放
