@@ -55,6 +55,13 @@ public partial struct GuideStepParam
         other.StringParam1 = StringParam1;
         other.StringParam2 = StringParam2;
     }
+
+    public GuideStepParam DeepCopy()
+    {
+        var other = new GuideStepParam();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

@@ -49,6 +49,13 @@ public partial struct Pos
         other.X = X;
         other.Y = Y;
     }
+
+    public Pos DeepCopy()
+    {
+        var other = new Pos();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

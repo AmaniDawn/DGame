@@ -29,6 +29,7 @@ namespace DGame
         public Transform InstanceRoot => m_instanceRoot;
         public Dictionary<string, AssetHandle> AudioClipPool { get; set; } = new Dictionary<string, AssetHandle>();
 
+
         public float Volume
         {
             get => m_unityAudioDisabled ? 0.0f : m_volume;
@@ -329,20 +330,33 @@ namespace DGame
         }
 
         public AudioSourceAgent Play(AudioType audioType, string path, bool isLoop = false, float volume = 1, bool isAsync = false,
-            bool isInPool = false)
+            bool isInPool = false, float pitch = 1.0f, float fadeInTime = 0.0f, float fadeOutTime = 0.2f,
+            float endPauseTime = 0.0f, float spatialBlend = 0.0f, float minDistance = 1.0f,
+            float maxDistance = 500.0f, int priority = 128)
         {
-            if (m_unityAudioDisabled || m_audioGroupCategories == null || (int)audioType >= m_audioGroupCategories.Length)
+            var options = AudioPlayOptions.CreateDefault();
+            options.IsLoop = isLoop;
+            options.Volume = volume;
+            options.PitchRange = new Vector2(pitch, pitch);
+            options.FadeInTime = fadeInTime;
+            options.FadeOutTime = fadeOutTime;
+            options.EndPauseTime = endPauseTime;
+            options.SpatialBlend = spatialBlend;
+            options.MinDistance = minDistance;
+            options.MaxDistance = maxDistance;
+            options.Priority = priority;
+            options.AllowEqualPriority = true;
+            return Play(audioType, path, options, isAsync, isInPool);
+        }
+
+        public AudioSourceAgent Play(AudioType audioType, string path, AudioPlayOptions options, bool isAsync = false, bool isInPool = false)
+        {
+            if (m_unityAudioDisabled || m_audioGroupCategories == null || (int)audioType < 0 || (int)audioType >= m_audioGroupCategories.Length)
             {
                 return null;
             }
-
-            var audioSourceAgent = m_audioGroupCategories[(int)audioType]?.Play(path, isAsync, isInPool);
-            if (audioSourceAgent != null)
-            {
-                audioSourceAgent.IsLoop = isLoop;
-                audioSourceAgent.Volume = volume;
-            }
-            return audioSourceAgent;
+            var group = Settings.AudioSetting.audioGroupConfigs[(int)audioType];
+            return m_audioGroupCategories[(int)audioType]?.Play(path, options.Normalize(group), isAsync, isInPool);
         }
 
         public void Stop(AudioType audioType, bool fadeout)
@@ -425,3 +439,4 @@ namespace DGame
         }
     }
 }
+

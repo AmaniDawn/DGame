@@ -81,6 +81,27 @@ namespace GameProto
             }
         }
         /// <summary>
+        /// 音效随机配置表
+        /// </summary>
+        private TbSoundRandomConfig m_TbSoundRandomConfig;
+        public TbSoundRandomConfig TbSoundRandomConfig 
+        {
+            get
+            {
+                if (m_TbSoundRandomConfig == null)
+                {
+                    m_TbSoundRandomConfig = new TbSoundRandomConfig(m_defaultLoader("tbsoundrandomconfig"));
+                    m_TbSoundRandomConfig.ResolveRef(this);
+                }
+                return m_TbSoundRandomConfig;
+            }
+            set
+            {
+                m_TbSoundRandomConfig = value;
+                m_TbSoundRandomConfig.ResolveRef(this);
+            }
+        }
+        /// <summary>
         /// 模型配置表
         /// </summary>
         private TbModelConfig m_TbModelConfig;
@@ -205,6 +226,7 @@ namespace GameProto
             m_TbTextConfig = null;
             m_TbItemConfig = null;
             m_TbSoundConfig = null;
+            m_TbSoundRandomConfig = null;
             m_TbModelConfig = null;
             m_TbEffectConfig = null;
             m_TbGmConfig = null;

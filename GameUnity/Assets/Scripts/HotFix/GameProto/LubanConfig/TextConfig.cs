@@ -57,7 +57,14 @@ public sealed partial class TextConfig : Luban.BeanBase
         }
         other.ID = ID;
         other.ArgNum = ArgNum;
-        other.Content = Content;
+        other.Content = Content == null ? null : ((string[])Content.Clone());
+    }
+
+    public TextConfig DeepCopy()
+    {
+        var other = new TextConfig();
+        CopyTo(ref other);
+        return other;
     }
     
     public override string ToString()

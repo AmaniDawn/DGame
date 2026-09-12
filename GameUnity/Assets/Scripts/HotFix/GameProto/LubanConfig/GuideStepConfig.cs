@@ -203,6 +203,13 @@ public sealed partial class GuideStepConfig : Luban.BeanBase
         other.TipsSize = TipsSize;
         other.TimeoutMs = TimeoutMs;
     }
+
+    public GuideStepConfig DeepCopy()
+    {
+        var other = new GuideStepConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {
