@@ -62,6 +62,13 @@ public sealed partial class PassChapterCurrency : Luban.BeanBase
         other.BaseNum = BaseNum;
         other.ExtraNum = ExtraNum;
     }
+
+    public PassChapterCurrency DeepCopy()
+    {
+        var other = new PassChapterCurrency();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

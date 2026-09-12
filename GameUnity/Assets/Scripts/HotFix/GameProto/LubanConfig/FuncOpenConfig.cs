@@ -119,6 +119,13 @@ public sealed partial class FuncOpenConfig : Luban.BeanBase
         other.OpenTipsID = OpenTipsID;
         other.NoOpenTipsID = NoOpenTipsID;
     }
+
+    public FuncOpenConfig DeepCopy()
+    {
+        var other = new FuncOpenConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

@@ -119,6 +119,13 @@ public sealed partial class WeaponModelConfig : Luban.BeanBase
         other.UIOffsetY = UIOffsetY;
         other.UIScale = UIScale;
     }
+
+    public WeaponModelConfig DeepCopy()
+    {
+        var other = new WeaponModelConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

@@ -178,13 +178,20 @@ public sealed partial class MonsterConfig : Luban.BeanBase
         other.DropItemID = DropItemID;
         other.DamageReduction = DamageReduction;
         other.HpLengthRatio = HpLengthRatio;
-        other.DefaultAttr = DefaultAttr;
-        other.Skills = Skills;
+        other.DefaultAttr = DefaultAttr == null ? null : new System.Collections.Generic.List<AttrModifuerData>(); if (DefaultAttr != null) foreach (var _e in DefaultAttr) { var _copy = _e; _e?.CopyTo(ref _copy); other.DefaultAttr.Add(_copy); }
+        other.Skills = Skills == null ? null : new System.Collections.Generic.List<int>(Skills);
         other.AttachSkill = AttachSkill;
         other.AutoPlaySkill = AutoPlaySkill;
         other.AITaskID = AITaskID;
         other.OutLineWidth = OutLineWidth;
         other.OutLineColor = OutLineColor;
+    }
+
+    public MonsterConfig DeepCopy()
+    {
+        var other = new MonsterConfig();
+        CopyTo(ref other);
+        return other;
     }
     
     public override string ToString()

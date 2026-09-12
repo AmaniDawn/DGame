@@ -53,6 +53,13 @@ public sealed partial class ChapterHangDropItem : Luban.BeanBase
         other.ItemID = ItemID;
         other.Num = Num;
     }
+
+    public ChapterHangDropItem DeepCopy()
+    {
+        var other = new ChapterHangDropItem();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

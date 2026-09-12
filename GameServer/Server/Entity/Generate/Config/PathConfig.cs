@@ -91,11 +91,6 @@ public sealed partial class PathConfig : Luban.BeanBase
 
     public  void ResolveRef(Tables tables)
     {
-        MonsterPos?.ResolveRef(tables);
-        MonsterFlagPos?.ResolveRef(tables);
-        PortalPos?.ResolveRef(tables);
-        WaveArrowPos?.ResolveRef(tables);
-        foreach (var _e in PathList) { _e?.ResolveRef(tables); }
     }
 
 
@@ -114,9 +109,16 @@ public sealed partial class PathConfig : Luban.BeanBase
         other.WaveArrowRot = WaveArrowRot;
         other.MaxRadius = MaxRadius;
         other.PathCnt = PathCnt;
-        other.PathList = PathList;
+        other.PathList = PathList == null ? null : new System.Collections.Generic.List<Pos>(PathList);
         other.NextID = NextID;
         other.PrevID = PrevID;
+    }
+
+    public PathConfig DeepCopy()
+    {
+        var other = new PathConfig();
+        CopyTo(ref other);
+        return other;
     }
     
     public override string ToString()

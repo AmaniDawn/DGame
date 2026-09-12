@@ -53,6 +53,13 @@ public sealed partial class RandomNameConfig : Luban.BeanBase
         other.ID = ID;
         other.Name = Name;
     }
+
+    public RandomNameConfig DeepCopy()
+    {
+        var other = new RandomNameConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

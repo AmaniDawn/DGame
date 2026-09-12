@@ -160,7 +160,7 @@ public sealed partial class ItemConfig : Luban.BeanBase
         other.MaxStack = MaxStack;
         other.UseLevel = UseLevel;
         other.FuncType = FuncType;
-        other.FuncValue = FuncValue;
+        other.FuncValue = FuncValue == null ? null : new System.Collections.Generic.List<int>(FuncValue);
         other.DecomposeMoneyType = DecomposeMoneyType;
         other.DecomposeMoneyCnt = DecomposeMoneyCnt;
         other.DecomposeItemID = DecomposeItemID;
@@ -170,8 +170,15 @@ public sealed partial class ItemConfig : Luban.BeanBase
         other.ActiveFashionID = ActiveFashionID;
         other.CanSell = CanSell;
         other.CanCompose = CanCompose;
-        other.GetWayID = GetWayID;
+        other.GetWayID = GetWayID == null ? null : new System.Collections.Generic.List<int>(GetWayID);
         other.JumpWayID = JumpWayID;
+    }
+
+    public ItemConfig DeepCopy()
+    {
+        var other = new ItemConfig();
+        CopyTo(ref other);
+        return other;
     }
     
     public override string ToString()

@@ -109,9 +109,16 @@ public sealed partial class PathConfig : Luban.BeanBase
         other.WaveArrowRot = WaveArrowRot;
         other.MaxRadius = MaxRadius;
         other.PathCnt = PathCnt;
-        other.PathList = PathList;
+        other.PathList = PathList == null ? null : new System.Collections.Generic.List<Pos>(PathList);
         other.NextID = NextID;
         other.PrevID = PrevID;
+    }
+
+    public PathConfig DeepCopy()
+    {
+        var other = new PathConfig();
+        CopyTo(ref other);
+        return other;
     }
     
     public override string ToString()

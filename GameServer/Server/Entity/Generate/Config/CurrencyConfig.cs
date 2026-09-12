@@ -89,6 +89,13 @@ public sealed partial class CurrencyConfig : Luban.BeanBase
         other.NotEnoughTextID = NotEnoughTextID;
         other.DescTextID = DescTextID;
     }
+
+    public CurrencyConfig DeepCopy()
+    {
+        var other = new CurrencyConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

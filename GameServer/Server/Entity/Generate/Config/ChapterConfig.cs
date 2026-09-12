@@ -258,7 +258,6 @@ public sealed partial class ChapterConfig : Luban.BeanBase
     {
         foreach (var _e in PassChapterCurrency) { _e?.ResolveRef(tables); }
         foreach (var _e in ChapterHangDropItem) { _e?.ResolveRef(tables); }
-        MainPlayerPos?.ResolveRef(tables);
     }
 
 
@@ -293,17 +292,17 @@ public sealed partial class ChapterConfig : Luban.BeanBase
         other.FailBootyID = FailBootyID;
         other.CanMultiPlayer = CanMultiPlayer;
         other.MultiPlayerCnt = MultiPlayerCnt;
-        other.PassChapterCurrency = PassChapterCurrency;
+        other.PassChapterCurrency = PassChapterCurrency == null ? null : new System.Collections.Generic.List<PassChapterCurrency>(); if (PassChapterCurrency != null) foreach (var _e in PassChapterCurrency) { var _copy = _e; _e?.CopyTo(ref _copy); other.PassChapterCurrency.Add(_copy); }
         other.ShowBootyID = ShowBootyID;
         other.FinMaxGold = FinMaxGold;
-        other.ChapterHangDropItem = ChapterHangDropItem;
+        other.ChapterHangDropItem = ChapterHangDropItem == null ? null : new System.Collections.Generic.List<ChapterHangDropItem>(); if (ChapterHangDropItem != null) foreach (var _e in ChapterHangDropItem) { var _copy = _e; _e?.CopyTo(ref _copy); other.ChapterHangDropItem.Add(_copy); }
         other.GuaJiBootyID = GuaJiBootyID;
         other.TourCostStam = TourCostStam;
         other.TourBootyID = TourBootyID;
         other.UnlockDescID = UnlockDescID;
         other.IsLocked = IsLocked;
-        other.UnlockChapterCodition = UnlockChapterCodition;
-        other.NextChapterList = NextChapterList;
+        other.UnlockChapterCodition = UnlockChapterCodition == null ? null : new System.Collections.Generic.List<int>(UnlockChapterCodition);
+        other.NextChapterList = NextChapterList == null ? null : new System.Collections.Generic.List<int>(NextChapterList);
         other.RandomLibID = RandomLibID;
         other.LvUpLibID = LvUpLibID;
         other.IsContinue = IsContinue;
@@ -313,6 +312,13 @@ public sealed partial class ChapterConfig : Luban.BeanBase
         other.IsSupportAd = IsSupportAd;
         other.MainPlayerPos = MainPlayerPos;
         other.RefreshRequiredGoldNum = RefreshRequiredGoldNum;
+    }
+
+    public ChapterConfig DeepCopy()
+    {
+        var other = new ChapterConfig();
+        CopyTo(ref other);
+        return other;
     }
     
     public override string ToString()

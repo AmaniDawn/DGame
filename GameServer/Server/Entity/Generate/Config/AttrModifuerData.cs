@@ -59,6 +59,13 @@ public sealed partial class AttrModifuerData : Luban.BeanBase
         other.ModifyMode = ModifyMode;
         other.Value = Value;
     }
+
+    public AttrModifuerData DeepCopy()
+    {
+        var other = new AttrModifuerData();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

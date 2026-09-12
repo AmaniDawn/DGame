@@ -241,11 +241,18 @@ public sealed partial class ModelConfig : Luban.BeanBase
         other.HitFlashTime = HitFlashTime;
         other.DeathFadeOutDurTime = DeathFadeOutDurTime;
         other.DeathEffectSoundID = DeathEffectSoundID;
-        other.WeaponModelBaseParam = WeaponModelBaseParam;
-        other.UIWeaponModelBaseParam = UIWeaponModelBaseParam;
+        WeaponModelBaseParam?.CopyTo(ref other.WeaponModelBaseParam);
+        UIWeaponModelBaseParam?.CopyTo(ref other.UIWeaponModelBaseParam);
         other.UIStandbyAction = UIStandbyAction;
         other.WeaponOffsetX = WeaponOffsetX;
         other.WeaponOffsetY = WeaponOffsetY;
+    }
+
+    public ModelConfig DeepCopy()
+    {
+        var other = new ModelConfig();
+        CopyTo(ref other);
+        return other;
     }
     
     public override string ToString()

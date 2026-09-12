@@ -94,12 +94,19 @@ public sealed partial class ActivityOpenConfig : Luban.BeanBase
         other.ActivityNameID = ActivityNameID;
         other.ActivityType = ActivityType;
         other.OpenType = OpenType;
-        other.OpenParamList = OpenParamList;
+        other.OpenParamList = OpenParamList == null ? null : new System.Collections.Generic.List<long>(OpenParamList);
         other.OpenLevel = OpenLevel;
         other.CreateRoleDays = CreateRoleDays;
         other.CreateTimeStart = CreateTimeStart;
         other.CreateTimeEnd = CreateTimeEnd;
         other.SortID = SortID;
+    }
+
+    public ActivityOpenConfig DeepCopy()
+    {
+        var other = new ActivityOpenConfig();
+        CopyTo(ref other);
+        return other;
     }
     
     public override string ToString()

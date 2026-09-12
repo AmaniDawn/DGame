@@ -107,6 +107,13 @@ public sealed partial class PlayerInitConfig : Luban.BeanBase
         other.IsFinGuide = IsFinGuide;
         other.Sign = Sign;
     }
+
+    public PlayerInitConfig DeepCopy()
+    {
+        var other = new PlayerInitConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

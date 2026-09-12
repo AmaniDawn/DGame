@@ -102,27 +102,6 @@ namespace GameProto
             }
         }
         /// <summary>
-        /// 音效配置表
-        /// </summary>
-        private TbSoundConfig m_TbSoundConfig;
-        public TbSoundConfig TbSoundConfig 
-        {
-            get
-            {
-                if (m_TbSoundConfig == null)
-                {
-                    m_TbSoundConfig = new TbSoundConfig(m_defaultLoader("tbsoundconfig"));
-                    m_TbSoundConfig.ResolveRef(this);
-                }
-                return m_TbSoundConfig;
-            }
-            set
-            {
-                m_TbSoundConfig = value;
-                m_TbSoundConfig.ResolveRef(this);
-            }
-        }
-        /// <summary>
         /// 模型配置表
         /// </summary>
         private TbModelConfig m_TbModelConfig;
@@ -479,7 +458,6 @@ namespace GameProto
             m_TbItemConfig = null;
             m_TbCurrencyConfig = null;
             m_TbGetWayConfig = null;
-            m_TbSoundConfig = null;
             m_TbModelConfig = null;
             m_TbWeaponModelConfig = null;
             m_TbEffectConfig = null;

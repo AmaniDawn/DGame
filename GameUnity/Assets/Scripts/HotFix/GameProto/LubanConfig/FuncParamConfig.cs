@@ -179,6 +179,13 @@ public sealed partial class FuncParamConfig : Luban.BeanBase
         other.DefaultFemaleModelID = DefaultFemaleModelID;
         other.DefaultGunFashionID = DefaultGunFashionID;
     }
+
+    public FuncParamConfig DeepCopy()
+    {
+        var other = new FuncParamConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

@@ -89,6 +89,13 @@ public sealed partial class ServerConfig : Luban.BeanBase
         other.Group = Group;
         other.State = State;
     }
+
+    public ServerConfig DeepCopy()
+    {
+        var other = new ServerConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

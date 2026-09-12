@@ -71,8 +71,6 @@ public sealed partial class MapConfig : Luban.BeanBase
 
     public  void ResolveRef(Tables tables)
     {
-        WaveTipPos?.ResolveRef(tables);
-        BattleCenter?.ResolveRef(tables);
     }
 
 
@@ -89,7 +87,14 @@ public sealed partial class MapConfig : Luban.BeanBase
         other.BornPosEffID = BornPosEffID;
         other.WaveTipPos = WaveTipPos;
         other.BattleCenter = BattleCenter;
-        other.PathList = PathList;
+        other.PathList = PathList == null ? null : new System.Collections.Generic.List<int>(PathList);
+    }
+
+    public MapConfig DeepCopy()
+    {
+        var other = new MapConfig();
+        CopyTo(ref other);
+        return other;
     }
     
     public override string ToString()

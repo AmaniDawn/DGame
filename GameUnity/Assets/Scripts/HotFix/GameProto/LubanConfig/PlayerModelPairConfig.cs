@@ -59,6 +59,13 @@ public sealed partial class PlayerModelPairConfig : Luban.BeanBase
         other.ClothID = ClothID;
         other.ModelID = ModelID;
     }
+
+    public PlayerModelPairConfig DeepCopy()
+    {
+        var other = new PlayerModelPairConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

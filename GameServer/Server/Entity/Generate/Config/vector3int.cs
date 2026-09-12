@@ -43,6 +43,13 @@ public partial struct vector3int
         other.Y = Y;
         other.Z = Z;
     }
+
+    public vector3int DeepCopy()
+    {
+        var other = new vector3int();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

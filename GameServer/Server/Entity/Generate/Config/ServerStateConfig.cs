@@ -65,6 +65,13 @@ public sealed partial class ServerStateConfig : Luban.BeanBase
         other.Location = Location;
         other.Color = Color;
     }
+
+    public ServerStateConfig DeepCopy()
+    {
+        var other = new ServerStateConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

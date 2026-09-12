@@ -75,7 +75,14 @@ public sealed partial class GetWayConfig : Luban.BeanBase
         other.ActivityID = ActivityID;
         other.WayName = WayName;
         other.EventType = EventType;
-        other.ParameterList = ParameterList;
+        other.ParameterList = ParameterList == null ? null : ((int[])ParameterList.Clone());
+    }
+
+    public GetWayConfig DeepCopy()
+    {
+        var other = new GetWayConfig();
+        CopyTo(ref other);
+        return other;
     }
     
     public override string ToString()

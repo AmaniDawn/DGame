@@ -77,6 +77,13 @@ public sealed partial class WeaponModelBaseParam : Luban.BeanBase
         other.RotationZ = RotationZ;
         other.Scale = Scale;
     }
+
+    public WeaponModelBaseParam DeepCopy()
+    {
+        var other = new WeaponModelBaseParam();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {
