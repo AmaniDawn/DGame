@@ -95,6 +95,13 @@ public sealed partial class GmConfig : Luban.BeanBase
         other.ExecuteClose = ExecuteClose;
         other.AssConfig = AssConfig;
     }
+
+    public GmConfig DeepCopy()
+    {
+        var other = new GmConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

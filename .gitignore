@@ -8,6 +8,10 @@ GameConfig/Tools/LubanTools/
 *.idea
 *.dotnet
 
+# Excel temporary files
+~$*.xlsx
+~$*.xlsm
+
 
 #Generate Tools
 Tools/Generate Tools/SourceGenerator/*/*bin

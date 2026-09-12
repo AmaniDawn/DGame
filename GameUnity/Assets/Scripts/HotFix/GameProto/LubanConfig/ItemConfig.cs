@@ -95,6 +95,13 @@ public sealed partial class ItemConfig : Luban.BeanBase
         other.ExpireTime = ExpireTime;
         other.BatchUseable = BatchUseable;
     }
+
+    public ItemConfig DeepCopy()
+    {
+        var other = new ItemConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {
