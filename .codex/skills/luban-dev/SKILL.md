@@ -7,6 +7,12 @@ description: DGame Luban 游戏配置全栈工具，支持枚举/Bean/数据表/
 
 ## 核心约定
 
+### 现有 Excel 表结构保护
+
+- 修改已有业务表字段前，先按逻辑字段名压缩并删除字段区间内、字段末尾的空列，再追加字段。
+- DGame 常见四行表头固定为：第 1 行 `##var` 字段名，第 2 行 `##type` 类型，第 3 行 `##group` 分组，第 4 行 `##` 中文注释；字段工具必须复用第 4 行，不得改写第 3 行或创建第五行注释。
+- 追加/删除字段后必须检查 `field list` 的列号连续、`validate --all` 通过，再执行导表。
+
 - 源头：`GameConfig/Datas/`、`GameConfig/Defines/`、`GameConfig/CustomTemplate/`，不要手改生成产物。
 - 默认生成：客户端 `cs-bin` 代码 + `bin/json` 数据，优先走 LazyLoad。
 - 默认脚本：`GameConfig/GenerateTool_Binary/gen_bin_client_lazyload.bat`。
