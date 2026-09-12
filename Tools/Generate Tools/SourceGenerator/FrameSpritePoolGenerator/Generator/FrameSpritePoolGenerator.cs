@@ -1,50 +1,33 @@
-﻿using System.Text;
+using System.Text;
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace FrameSpritePoolGenerator.Generator;
 
 [Generator]
-public class FrameSpritePoolGenerator : ISourceGenerator
+public class FrameSpritePoolGenerator : IIncrementalGenerator
 {
-    public void Initialize(GeneratorInitializationContext context)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // 初始化
-    }
-
-    public void Execute(GeneratorExecutionContext context)
-    {
-        // 获取当前语法树
-        var syntaxTrees = context.Compilation.SyntaxTrees;
-        GenerateFrameSpritePoolExecute(context, syntaxTrees);
+        var enums = context.SyntaxProvider.CreateSyntaxProvider(
+                static (node, _) => node is EnumDeclarationSyntax,
+                static (syntaxContext, _) =>
+                {
+                    var e = (EnumDeclarationSyntax)syntaxContext.Node;
+                    var ns = e.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
+                    return ns != null && Definition.TargetNameSpaces.Contains(ns.Name.ToString()) && e.Identifier.Text == Definition.EnumName ? e : null;
+                })
+            .Where(static node => node != null).Select(static (node, _) => node!).Collect();
+        context.RegisterSourceOutput(enums, (sourceContext, nodes) => GenerateFrameSpritePoolExecute(sourceContext, nodes));
     }
 
     #region GenerateGameEvent
 
-    private void GenerateFrameSpritePoolExecute(GeneratorExecutionContext context, IEnumerable<SyntaxTree> syntaxTrees)
+    private void GenerateFrameSpritePoolExecute(SourceProductionContext context, ImmutableArray<EnumDeclarationSyntax> enums)
     {
-        foreach (var tree in syntaxTrees)
-        {
-            // 获取语法树的根节点
-            var root = tree.GetRoot();
-
-            // 获取当前语法树中的所有命名空间节点
-            var namespaces = root.DescendantNodes().OfType<NamespaceDeclarationSyntax>();
-
-            // 判断语法树是否在指定检测的命名空间下
-            if (namespaces.All(ns => !Definition.TargetNameSpaces.Contains(ns.Name.ToString())))
-            {
-                continue;
-            }
-
-            var enums = GetMatchEnums(root);
-
-            foreach (var enumNode in enums)
-            {
-                var scriptContent = GenerateFrameSpritePool(enumNode);
-                context.AddSource($"FrameSpritePool_Gen.g.cs", scriptContent);
-            }
-        }
+        foreach (var enumNode in enums)
+            context.AddSource("FrameSpritePool_Gen.g.cs", GenerateFrameSpritePool(enumNode));
     }
 
     private string GenerateFrameSpritePool(EnumDeclarationSyntax enumNode)

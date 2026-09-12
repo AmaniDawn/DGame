@@ -1,6 +1,7 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Collections.Immutable;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -8,21 +9,28 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace GameInputDefineGenerator.Generator;
 
 [Generator]
-public class GameInputDefineGenerator : ISourceGenerator
+public class GameInputDefineGenerator : IIncrementalGenerator
 {
-    public void Initialize(GeneratorInitializationContext context)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-    }
-
-    public void Execute(GeneratorExecutionContext context)
-    {
-        var inputActions = CollectButtonActions(context.Compilation);
-        if (inputActions.Count == 0)
+        var inputs = context.SyntaxProvider.CreateSyntaxProvider(
+                static (node, _) => node is ClassDeclarationSyntax c && c.Identifier.ValueText == Definition.TargetClassName,
+                static (syntaxContext, _) => syntaxContext.Node as ClassDeclarationSyntax)
+            .Where(static node => node != null).Select(static (node, _) => node!).Collect();
+        context.RegisterSourceOutput(inputs, (sourceContext, nodes) =>
         {
-            return;
-        }
-
-        context.AddSource(Definition.InputDefineFileName, GenerateInputDefineSource(inputActions));
+            var actions = new List<InputActionInfo>();
+            foreach (var node in nodes)
+            {
+                var ns = node.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
+                if (ns == null || ns.Name.ToString() != Definition.TargetNamespace) continue;
+                var constructor = node.Members.OfType<ConstructorDeclarationSyntax>().FirstOrDefault();
+                var invocation = constructor?.DescendantNodes().OfType<InvocationExpressionSyntax>().FirstOrDefault(IsFromJsonInvocation);
+                if (invocation?.ArgumentList.Arguments.FirstOrDefault()?.Expression is LiteralExpressionSyntax literal)
+                { actions = ParseButtonActions(literal.Token.ValueText); break; }
+            }
+            if (actions.Count > 0) sourceContext.AddSource(Definition.InputDefineFileName, GenerateInputDefineSource(actions));
+        });
     }
 
     private static List<InputActionInfo> CollectButtonActions(Compilation compilation)
