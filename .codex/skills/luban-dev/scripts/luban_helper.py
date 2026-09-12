@@ -1327,10 +1327,78 @@ class LubanConfigHelper:
         # 无法明确判断，默认两边都有
         return 'cs'
 
+    @staticmethod
+    def _compact_field_columns(sheet) -> int:
+        """压缩字段列，保留所有 ##var/##type 行中的结构列和所有数据列。"""
+        header_rows = []
+        data_start = sheet.max_row + 1
+        for row in range(1, sheet.max_row + 1):
+            marker = sheet.cell(row=row, column=1).value
+            if marker is not None and str(marker).startswith("##"):
+                header_rows.append(row)
+            else:
+                data_start = row
+                break
+        field_cols = []
+        for col in range(2, sheet.max_column + 1):
+            has_header = any(
+                sheet.cell(row=row, column=col).value not in (None, "")
+                and not (row <= 2 and str(sheet.cell(row=row, column=col).value).startswith("##"))
+                for row in header_rows)
+            has_data = any(sheet.cell(row=row, column=col).value not in (None, "") for row in range(data_start, sheet.max_row + 1))
+            if has_header or has_data:
+                field_cols.append(col)
+        for target, source in enumerate(field_cols, start=2):
+            if source == target:
+                continue
+            for row in range(1, sheet.max_row + 1):
+                src = sheet.cell(row=row, column=source)
+                dst = sheet.cell(row=row, column=target)
+                dst.value = src.value
+                if src.has_style:
+                    dst._style = copy.copy(src._style)
+                if src.number_format:
+                    dst.number_format = src.number_format
+                src.value = None
+        # 删除字段末尾仅用于旧格式/排版的空列；不删除含数据的列。
+        logical_last = len(field_cols) + 1
+        delete_from = sheet.max_column
+        while delete_from > logical_last and all(sheet.cell(row=row, column=delete_from).value is None for row in range(data_start, sheet.max_row + 1)):
+            delete_from -= 1
+        if delete_from < sheet.max_column:
+            sheet.delete_cols(delete_from + 1, sheet.max_column - delete_from)
+        return len(field_cols) + 1
+
+    @staticmethod
+    def _header_rows(sheet) -> Tuple[List[int], Optional[int], int]:
+        """返回注释行、分组行和数据起始行；注释行按原表顺序保留，不移动到表头前。"""
+        group_row = None
+        comment_rows = []
+        for row in range(3, sheet.max_row + 1):
+            marker = sheet.cell(row=row, column=1).value
+            if marker == "##group":
+                group_row = row
+            elif marker == "##":
+                comment_rows.append(row)
+            elif marker is not None and not str(marker).startswith("##"):
+                break
+        data_start = sheet.max_row + 1
+        for row in range(3, sheet.max_row + 1):
+            if any(sheet.cell(row=row, column=col).value is not None for col in range(2, sheet.max_column + 1)) and row not in comment_rows:
+                if sheet.cell(row=row, column=1).value in (None, ""):
+                    data_start = row
+                    break
+        return comment_rows, group_row, data_start
+
     def add_field(self, table_name: str, field_name: str, field_type: str = "",
                   field_comment: str = "", field_group: str = "",
                   sheet_name: str = None, position: int = -1) -> bool:
         """添加字段到表
+
+        写入前会压缩字段列并删除字段末尾的空排版列；所有原有
+        `##var`/`##type`/`##group`/`##` 行及其顺序保持不变。新增字段写入第一组
+        `##var`/`##type`，注释始终写入原表已有的 `##` 注释行（DGame 业务表通常是第 4 行），
+        不会把注释误写到 `##group` 行或额外创建第三/第五行。
 
         Args:
             table_name: 表名称
@@ -1365,12 +1433,19 @@ class LubanConfigHelper:
             else:
                 sheet = wb.active
 
-            # 找到当前最大列
-            max_col = sheet.max_column
+            # 先压缩历史预留空列，再按逻辑字段数追加
+            max_col = self._compact_field_columns(sheet)
+
+            var_rows = [r for r in range(1, sheet.max_row + 1) if sheet.cell(row=r, column=1).value == "##var"]
+            type_rows = [r for r in range(1, sheet.max_row + 1) if sheet.cell(row=r, column=1).value == "##type"]
+            if not var_rows or not type_rows:
+                print("错误: 表缺少 ##var 或 ##type 行")
+                wb.close()
+                return False
 
             # 检查字段是否已存在
             for col in range(2, max_col + 1):
-                if sheet.cell(row=1, column=col).value == field_name:
+                if any(sheet.cell(row=row, column=col).value == field_name for row in var_rows):
                     print(f"错误: 字段 '{field_name}' 已存在")
                     wb.close()
                     return False
@@ -1386,21 +1461,12 @@ class LubanConfigHelper:
                 sheet.insert_cols(insert_col)
 
             # 设置字段值
-            sheet.cell(row=1, column=insert_col, value=field_name)  # ##var
-            sheet.cell(row=2, column=insert_col, value=field_type)  # ##type
+            # 新字段写入第一组定义行；其余 ##var/##type 行原样保留
+            sheet.cell(row=var_rows[0], column=insert_col, value=field_name)
+            sheet.cell(row=type_rows[0], column=insert_col, value=field_type)
 
-            # 找出注释行数和 ##group 行位置
-            comment_rows = []
-            group_row = None
-            for row in range(3, sheet.max_row + 1):
-                cell_value = sheet.cell(row=row, column=1).value
-                if cell_value == "##":
-                    comment_rows.append(row)
-                elif cell_value == "##group":
-                    group_row = row
-                    break
-                elif cell_value and not cell_value.startswith("##"):
-                    break  # 数据行开始
+            # 保留原表的注释行位置（通常是第四行），不新造第三/第五行注释
+            comment_rows, group_row, data_start = self._header_rows(sheet)
 
             # 解析多行注释
             comments = [c.strip() for c in field_comment.split("|") if c.strip()]
@@ -1412,7 +1478,7 @@ class LubanConfigHelper:
                 # 需要插入额外的注释行
                 extra_rows = len(comments) - len(comment_rows)
                 # 在最后一个注释行之后插入
-                insert_after = comment_rows[-1] if comment_rows else 2
+                insert_after = comment_rows[-1] if comment_rows else (group_row - 1 if group_row else data_start - 1)
                 for _ in range(extra_rows):
                     sheet.insert_rows(insert_after + 1)
                     # 更新后续行号
@@ -1486,7 +1552,9 @@ class LubanConfigHelper:
             # 找到字段列
             field_col = None
             for col in range(2, sheet.max_column + 1):
-                if sheet.cell(row=1, column=col).value == field_name:
+                if any(sheet.cell(row=row, column=col).value == field_name
+                       for row in range(1, sheet.max_row + 1)
+                       if sheet.cell(row=row, column=1).value == "##var"):
                     field_col = col
                     break
 
@@ -1497,24 +1565,18 @@ class LubanConfigHelper:
 
             # 修改字段名和类型
             if new_name:
-                sheet.cell(row=1, column=field_col, value=new_name)
+                for row in range(1, sheet.max_row + 1):
+                    if sheet.cell(row=row, column=1).value == "##var" and sheet.cell(row=row, column=field_col).value == field_name:
+                        sheet.cell(row=row, column=field_col, value=new_name)
             if new_type is not None:
-                sheet.cell(row=2, column=field_col, value=new_type)
+                type_rows = [row for row in range(1, sheet.max_row + 1) if sheet.cell(row=row, column=1).value == "##type"]
+                if type_rows:
+                    sheet.cell(row=type_rows[0], column=field_col, value=new_type)
 
             # 修改注释（支持多行）
             if new_comment is not None:
-                # 找出注释行
-                comment_rows = []
-                group_row = None
-                for row in range(3, sheet.max_row + 1):
-                    cell_value = sheet.cell(row=row, column=1).value
-                    if cell_value == "##":
-                        comment_rows.append(row)
-                    elif cell_value == "##group":
-                        group_row = row
-                        break
-                    elif cell_value and not cell_value.startswith("##"):
-                        break
+                # 使用原表注释行（通常为第四行），避免改变表头结构
+                comment_rows, group_row, data_start = self._header_rows(sheet)
 
                 # 解析多行注释
                 comments = [c.strip() for c in new_comment.split("|") if c.strip()]
@@ -1524,7 +1586,7 @@ class LubanConfigHelper:
                 # 如果新注释行数大于现有注释行数，需要插入新行
                 if len(comments) > len(comment_rows):
                     extra_rows = len(comments) - len(comment_rows)
-                    insert_after = comment_rows[-1] if comment_rows else 2
+                    insert_after = comment_rows[-1] if comment_rows else (group_row - 1 if group_row else data_start - 1)
                     for _ in range(extra_rows):
                         sheet.insert_rows(insert_after + 1)
                         if group_row:
@@ -1595,7 +1657,9 @@ class LubanConfigHelper:
             # 找到字段列
             field_col = None
             for col in range(2, sheet.max_column + 1):
-                if sheet.cell(row=1, column=col).value == field_name:
+                if any(sheet.cell(row=row, column=col).value == field_name
+                       for row in range(1, sheet.max_row + 1)
+                       if sheet.cell(row=row, column=1).value == "##var"):
                     field_col = col
                     break
 
@@ -1623,6 +1687,8 @@ class LubanConfigHelper:
 
             # 删除列
             sheet.delete_cols(field_col)
+            # 删除后同步压缩剩余字段，避免下次追加再次落到空列末尾
+            self._compact_field_columns(sheet)
 
             wb.save(excel_path)
             wb.close()
