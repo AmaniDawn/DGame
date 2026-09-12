@@ -71,6 +71,13 @@ public sealed partial class EffectConfig : Luban.BeanBase
         other.Scale = Scale;
         other.DelayDestroy = DelayDestroy;
     }
+
+    public EffectConfig DeepCopy()
+    {
+        var other = new EffectConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

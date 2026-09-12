@@ -30,6 +30,9 @@
         /// </summary>
         FadingOut,
 
+        /// <summary>播放结束后的停顿</summary>
+        EndPause,
+
         /// <summary>
         /// 结束
         /// </summary>

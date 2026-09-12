@@ -131,6 +131,13 @@ public sealed partial class ModelConfig : Luban.BeanBase
         other.ShadowOffsetX = ShadowOffsetX;
         other.ShadowOffsetY = ShadowOffsetY;
     }
+
+    public ModelConfig DeepCopy()
+    {
+        var other = new ModelConfig();
+        CopyTo(ref other);
+        return other;
+    }
     
     public override string ToString()
     {

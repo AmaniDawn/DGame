@@ -20,6 +20,19 @@ public sealed partial class SoundConfig : Luban.BeanBase
     {
         ID = _buf.ReadInt();
         Location = _buf.ReadString();
+        PlayMode = _buf.ReadInt();
+        VolumeMin = _buf.ReadFloat();
+        VolumeMax = _buf.ReadFloat();
+        PitchMin = _buf.ReadFloat();
+        PitchMax = _buf.ReadFloat();
+        FadeInTime = _buf.ReadFloat();
+        FadeOutTime = _buf.ReadFloat();
+        EndPauseTime = _buf.ReadFloat();
+        SpatialBlend = _buf.ReadFloat();
+        MinDistance = _buf.ReadFloat();
+        MaxDistance = _buf.ReadFloat();
+        Priority = _buf.ReadInt();
+        MaxPlayCount = _buf.ReadInt();
     }
 
     public static SoundConfig DeserializeSoundConfig(ByteBuf _buf)
@@ -35,6 +48,58 @@ public sealed partial class SoundConfig : Luban.BeanBase
     /// 音效可寻址地址
     /// </summary>
     public string Location;
+    /// <summary>
+    /// 播放模式
+    /// </summary>
+    public int PlayMode;
+    /// <summary>
+    /// 最小音量
+    /// </summary>
+    public float VolumeMin;
+    /// <summary>
+    /// 最大音量
+    /// </summary>
+    public float VolumeMax;
+    /// <summary>
+    /// 最小音调
+    /// </summary>
+    public float PitchMin;
+    /// <summary>
+    /// 最大音调
+    /// </summary>
+    public float PitchMax;
+    /// <summary>
+    /// 淡入时间
+    /// </summary>
+    public float FadeInTime;
+    /// <summary>
+    /// 淡出时间
+    /// </summary>
+    public float FadeOutTime;
+    /// <summary>
+    /// 结束停顿时间
+    /// </summary>
+    public float EndPauseTime;
+    /// <summary>
+    /// 2D/3D混合
+    /// </summary>
+    public float SpatialBlend;
+    /// <summary>
+    /// 最小距离
+    /// </summary>
+    public float MinDistance;
+    /// <summary>
+    /// 最大距离
+    /// </summary>
+    public float MaxDistance;
+    /// <summary>
+    /// 播放优先级
+    /// </summary>
+    public int Priority;
+    /// <summary>
+    /// 最大并发数
+    /// </summary>
+    public int MaxPlayCount;
 
     public const int __ID__ = -1164338927;
     public override int GetTypeId() => __ID__;
@@ -52,6 +117,26 @@ public sealed partial class SoundConfig : Luban.BeanBase
         }
         other.ID = ID;
         other.Location = Location;
+        other.PlayMode = PlayMode;
+        other.VolumeMin = VolumeMin;
+        other.VolumeMax = VolumeMax;
+        other.PitchMin = PitchMin;
+        other.PitchMax = PitchMax;
+        other.FadeInTime = FadeInTime;
+        other.FadeOutTime = FadeOutTime;
+        other.EndPauseTime = EndPauseTime;
+        other.SpatialBlend = SpatialBlend;
+        other.MinDistance = MinDistance;
+        other.MaxDistance = MaxDistance;
+        other.Priority = Priority;
+        other.MaxPlayCount = MaxPlayCount;
+    }
+
+    public SoundConfig DeepCopy()
+    {
+        var other = new SoundConfig();
+        CopyTo(ref other);
+        return other;
     }
     
     public override string ToString()
@@ -59,6 +144,19 @@ public sealed partial class SoundConfig : Luban.BeanBase
         return "{ "
         + "ID:" + ID + ","
         + "Location:" + Location + ","
+        + "PlayMode:" + PlayMode + ","
+        + "VolumeMin:" + VolumeMin + ","
+        + "VolumeMax:" + VolumeMax + ","
+        + "PitchMin:" + PitchMin + ","
+        + "PitchMax:" + PitchMax + ","
+        + "FadeInTime:" + FadeInTime + ","
+        + "FadeOutTime:" + FadeOutTime + ","
+        + "EndPauseTime:" + EndPauseTime + ","
+        + "SpatialBlend:" + SpatialBlend + ","
+        + "MinDistance:" + MinDistance + ","
+        + "MaxDistance:" + MaxDistance + ","
+        + "Priority:" + Priority + ","
+        + "MaxPlayCount:" + MaxPlayCount + ","
         + "}";
     }
 }

@@ -215,8 +215,8 @@ MonoBehaviour:
         m_Calls: []
     m_lastPointDownTime: 0
   m_uiButtonClickSound:
-    m_isUseClickSound: 0
-    m_clickSoundID: 0
+    m_isUseClickSound: 1
+    m_clickSoundID: 1000002
 --- !u!114 &5228963348584925582
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1901,8 +1901,8 @@ MonoBehaviour:
         m_Calls: []
     m_lastPointDownTime: 0
   m_uiButtonClickSound:
-    m_isUseClickSound: 0
-    m_clickSoundID: 0
+    m_isUseClickSound: 1
+    m_clickSoundID: 1000002
 --- !u!114 &9146068628546392582
 MonoBehaviour:
   m_ObjectHideFlags: 0
