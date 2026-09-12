@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
@@ -7,7 +8,7 @@ using Microsoft.CodeAnalysis.CSharp.Syntax;
 namespace SourceGenerator.Generator;
 
 [Generator]
-public class DEventInterfaceGenerator : ISourceGenerator
+public class DEventInterfaceGenerator : IIncrementalGenerator
 {
     private sealed class GameEventHelperInterfaceInfo
     {
@@ -23,68 +24,48 @@ public class DEventInterfaceGenerator : ISourceGenerator
         public string ActionType { get; set; } = string.Empty;
     }
 
-    public void Initialize(GeneratorInitializationContext context)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // 初始化
-    }
-
-    public void Execute(GeneratorExecutionContext context)
-    {
-        // 获取当前语法树
-        var syntaxTrees = context.Compilation.SyntaxTrees;
-        GenerateGameEventExecute(context, syntaxTrees);
-        //GenerateRuntimeInitializeOnLoadMethodExecute(context, syntaxTrees);
-        //GenerateRequireComponentExecute(context, syntaxTrees);
-        //GenerateTextDefineEnumExecute(context, syntaxTrees);
+        var interfaces = context.SyntaxProvider.CreateSyntaxProvider(
+                static (node, _) => node is InterfaceDeclarationSyntax i && i.AttributeLists.Count > 0,
+                static (syntaxContext, _) =>
+                {
+                    var node = (InterfaceDeclarationSyntax)syntaxContext.Node;
+                    var namespaceNode = node.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
+                    return namespaceNode != null
+                        && Definition.TargetNameSpaces.Contains(namespaceNode.Name.ToString())
+                        && node.AttributeLists.Any(a => a.Attributes.Any(x => x.Name.ToString().Equals(Definition.AttributeName)))
+                        ? node : null;
+                })
+            .Where(static node => node != null)
+            .Select(static (node, _) => node!)
+            .Collect();
+        context.RegisterSourceOutput(context.CompilationProvider.Combine(interfaces),
+            (sourceContext, input) => GenerateGameEventExecute(sourceContext, input.Left, input.Right));
     }
 
     #region GenerateGameEvent
 
-    private void GenerateGameEventExecute(GeneratorExecutionContext context, IEnumerable<SyntaxTree> syntaxTrees)
+    private void GenerateGameEventExecute(SourceProductionContext context, Compilation compilation,
+        ImmutableArray<InterfaceDeclarationSyntax> interfaces)
     {
-        List<string> classNameList = new List<string>();
-        List<GameEventHelperInterfaceInfo> gameEventHelperInterfaceInfos = new List<GameEventHelperInterfaceInfo>();
-        string namespaceName = Definition.NameSpace;
-
-        foreach (var tree in syntaxTrees)
+        var classNameList = new List<string>();
+        var gameEventHelperInterfaceInfos = new List<GameEventHelperInterfaceInfo>();
+        var namespaceName = Definition.NameSpace;
+        foreach (var interfaceNode in interfaces)
         {
-            // 获取语法树的根节点
-            var root = tree.GetRoot();
-
-            // 获取当前语法树中的所有命名空间节点
-            var namespaces = root.DescendantNodes().OfType<NamespaceDeclarationSyntax>();
-
-            // 判断语法树是否在指定检测的命名空间下
-            if (namespaces.All(ns => !Definition.TargetNameSpaces.Contains(ns.Name.ToString())))
-            {
-                continue;
-            }
-
-            var interfaces = GetMatchInterfaces(root);
-
-            foreach (var interfaceNode in interfaces)
-            {
-                var interfaceName = interfaceNode.Identifier.ToString();
-                var fullName = GetInterfaceFullName(interfaceNode, interfaceName);
-                namespaceName = GetInterfaceNamespaceName(interfaceNode, interfaceName);
-                var eventClassName = $"{interfaceName}_Event";
-                var eventClassCode = GenerateEventClass(interfaceName, eventClassName, namespaceName, interfaceNode);
-                context.AddSource($"{eventClassName}.g.cs", eventClassCode);
-
-                // 生成实现类
-                var implementationClassCode =
-                    GenerateImplementationClass(fullName, interfaceName, namespaceName, interfaceNode, context);
-                context.AddSource($"{interfaceName}_Gen.g.cs", implementationClassCode);
-                classNameList.Add($"{interfaceName}_Gen");
-                gameEventHelperInterfaceInfos.Add(GenerateGameEventHelperInterfaceInfo(interfaceName, eventClassName,
-                    interfaceNode, context));
-            }
+            var interfaceName = interfaceNode.Identifier.ToString();
+            var fullName = GetInterfaceFullName(interfaceNode, interfaceName);
+            namespaceName = GetInterfaceNamespaceName(interfaceNode, interfaceName);
+            var eventClassName = $"{interfaceName}_Event";
+            context.AddSource($"{eventClassName}.g.cs", GenerateEventClass(interfaceName, eventClassName, namespaceName, interfaceNode));
+            context.AddSource($"{interfaceName}_Gen.g.cs", GenerateImplementationClass(fullName, interfaceName, namespaceName, interfaceNode, compilation));
+            classNameList.Add($"{interfaceName}_Gen");
+            gameEventHelperInterfaceInfos.Add(GenerateGameEventHelperInterfaceInfo(interfaceName, eventClassName, interfaceNode, compilation));
         }
-
         if (classNameList.Count > 0)
         {
-            string uniqueFileName = $"GameEventLauncher.g.cs";
-            context.AddSource(uniqueFileName, GenerateGameEventHelper(classNameList, namespaceName));
+            context.AddSource("GameEventLauncher.g.cs", GenerateGameEventHelper(classNameList, namespaceName));
             context.AddSource("GameEventHelper.g.cs", GenerateGameEventHelper(gameEventHelperInterfaceInfos, namespaceName));
         }
     }
@@ -176,9 +157,9 @@ public class DEventInterfaceGenerator : ISourceGenerator
     }
 
     private GameEventHelperInterfaceInfo GenerateGameEventHelperInterfaceInfo(string interfaceName, string eventClassName,
-        InterfaceDeclarationSyntax interfaceNode, GeneratorExecutionContext context)
+        InterfaceDeclarationSyntax interfaceNode, Compilation compilation)
     {
-        var semanticModel = context.Compilation.GetSemanticModel(interfaceNode.SyntaxTree);
+        var semanticModel = compilation.GetSemanticModel(interfaceNode.SyntaxTree);
         var gameEventHelperInterfaceInfo = new GameEventHelperInterfaceInfo
         {
             InterfaceName = interfaceName,
@@ -295,10 +276,10 @@ public class DEventInterfaceGenerator : ISourceGenerator
     /// <param name="context"></param>
     /// <returns></returns>
     private string GenerateImplementationClass(string fullName, string interfaceName, string namespaceName,
-        InterfaceDeclarationSyntax interfaceNode, GeneratorExecutionContext context)
+        InterfaceDeclarationSyntax interfaceNode, Compilation compilation)
     {
         // 获取接口节点语法模型
-        var semanticModel = context.Compilation.GetSemanticModel(interfaceNode.SyntaxTree);
+        var semanticModel = compilation.GetSemanticModel(interfaceNode.SyntaxTree);
         var sb = new StringBuilder();
         sb.AppendLine("//----------------------------------------------------------");
         sb.AppendLine("// <auto-generated>");
