@@ -1,58 +1,36 @@
 using System.Text;
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace UIControllerGenerator.Generator;
 
 [Generator]
-public class UIControllerGenerator : ISourceGenerator
+public class UIControllerGenerator : IIncrementalGenerator
 {
-    public void Initialize(GeneratorInitializationContext context)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // 初始化
-    }
-
-    public void Execute(GeneratorExecutionContext context)
-    {
-        // 获取当前语法树
-        var syntaxTrees = context.Compilation.SyntaxTrees;
-        GenerateUIControllerExecute(context, syntaxTrees);
+        var candidates = context.SyntaxProvider.CreateSyntaxProvider(
+                static (node, _) => node is ClassDeclarationSyntax c && c.BaseList != null,
+                static (syntaxContext, _) => syntaxContext.Node as ClassDeclarationSyntax)
+            .Where(static node => node != null).Select(static (node, _) => node!).Collect();
+        context.RegisterSourceOutput(candidates,
+            (sourceContext, nodes) => GenerateUIControllerExecute(sourceContext, nodes));
     }
 
     #region GenerateUIController
 
-    private void GenerateUIControllerExecute(GeneratorExecutionContext context, IEnumerable<SyntaxTree> syntaxTrees)
+    private void GenerateUIControllerExecute(SourceProductionContext context, ImmutableArray<ClassDeclarationSyntax> candidates)
     {
-        var controllerTypes = new List<(string className, string namespaceName)>();
-
-        foreach (var tree in syntaxTrees)
+        var types = new List<(string className, string namespaceName)>();
+        foreach (var classNode in candidates)
         {
-            // 获取语法树的根节点
-            var root = tree.GetRoot();
-
-            // 获取当前语法树中的所有命名空间节点
-            var namespaces = root.DescendantNodes().OfType<NamespaceDeclarationSyntax>();
-
-            // 判断语法树是否在指定检测的命名空间下
-            if (namespaces.All(ns => !Definition.TargetNameSpaces.Contains(ns.Name.ToString())))
-            {
-                continue;
-            }
-
-            var classes = GetMatchClasses(root);
-            foreach (var classNode in classes)
-            {
-                var className = classNode.Identifier.Text;
-                var namespaceName = GetNamespace(classNode);
-                controllerTypes.Add((className, namespaceName));
-            }
+            var namespaceNode = classNode.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
+            if (namespaceNode == null || !Definition.TargetNameSpaces.Contains(namespaceNode.Name.ToString())) continue;
+            if (classNode.BaseList == null || !classNode.BaseList.Types.Any(t => t.Type.ToString().Equals(Definition.InterfaceName))) continue;
+            types.Add((classNode.Identifier.Text, namespaceNode.Name.ToString()));
         }
-
-        if (controllerTypes.Count > 0)
-        {
-            var scriptContent = GenerateUIControllerCode(controllerTypes);
-            context.AddSource($"UIController_Gen.g.cs", scriptContent);
-        }
+        if (types.Count > 0) context.AddSource("UIController_Gen.g.cs", GenerateUIControllerCode(types));
     }
 
     private string GenerateUIControllerCode(List<(string className, string namespaceName)> controllerTypes)

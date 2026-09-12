@@ -1,58 +1,36 @@
 using System.Text;
+using System.Collections.Immutable;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
 
 namespace DataCenterModuleGenerator.Generator;
 
 [Generator]
-public class DataCenterModuleGenerator : ISourceGenerator
+public class DataCenterModuleGenerator : IIncrementalGenerator
 {
-    public void Initialize(GeneratorInitializationContext context)
+    public void Initialize(IncrementalGeneratorInitializationContext context)
     {
-        // 初始化
-    }
-
-    public void Execute(GeneratorExecutionContext context)
-    {
-        // 获取当前语法树
-        var syntaxTrees = context.Compilation.SyntaxTrees;
-        GenerateDataCenterModuleExecute(context, syntaxTrees);
+        var candidates = context.SyntaxProvider.CreateSyntaxProvider(
+                static (node, _) => node is ClassDeclarationSyntax c && c.BaseList != null,
+                static (syntaxContext, _) => syntaxContext.Node as ClassDeclarationSyntax)
+            .Where(static node => node != null).Select(static (node, _) => node!).Collect();
+        context.RegisterSourceOutput(candidates,
+            (sourceContext, nodes) => GenerateDataCenterModuleExecute(sourceContext, nodes));
     }
 
     #region GenerateDataCenterModule
 
-    private void GenerateDataCenterModuleExecute(GeneratorExecutionContext context, IEnumerable<SyntaxTree> syntaxTrees)
+    private void GenerateDataCenterModuleExecute(SourceProductionContext context, ImmutableArray<ClassDeclarationSyntax> candidates)
     {
-        var moduleTypes = new List<(string className, string namespaceName)>();
-
-        foreach (var tree in syntaxTrees)
+        var types = new List<(string className, string namespaceName)>();
+        foreach (var classNode in candidates)
         {
-            // 获取语法树的根节点
-            var root = tree.GetRoot();
-
-            // 获取当前语法树中的所有命名空间节点
-            var namespaces = root.DescendantNodes().OfType<NamespaceDeclarationSyntax>();
-
-            // 判断语法树是否在指定检测的命名空间下
-            if (namespaces.All(ns => !Definition.TargetNameSpaces.Contains(ns.Name.ToString())))
-            {
-                continue;
-            }
-
-            var classes = GetMatchClasses(root);
-            foreach (var classNode in classes)
-            {
-                var className = classNode.Identifier.Text;
-                var namespaceName = GetNamespace(classNode);
-                moduleTypes.Add((className, namespaceName));
-            }
+            var namespaceNode = classNode.Ancestors().OfType<NamespaceDeclarationSyntax>().FirstOrDefault();
+            if (namespaceNode == null || !Definition.TargetNameSpaces.Contains(namespaceNode.Name.ToString())) continue;
+            if (classNode.BaseList == null || !classNode.BaseList.Types.Any(t => t.Type.ToString().StartsWith(Definition.BaseClassName))) continue;
+            types.Add((classNode.Identifier.Text, namespaceNode.Name.ToString()));
         }
-
-        if (moduleTypes.Count > 0)
-        {
-            var scriptContent = GenerateDataCenterModuleCode(moduleTypes);
-            context.AddSource($"DataCenterModule_Gen.g.cs", scriptContent);
-        }
+        if (types.Count > 0) context.AddSource("DataCenterModule_Gen.g.cs", GenerateDataCenterModuleCode(types));
     }
 
     private string GenerateDataCenterModuleCode(List<(string className, string namespaceName)> moduleTypes)
