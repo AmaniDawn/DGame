@@ -3,6 +3,8 @@ using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.Audio;
 
+#pragma warning disable UAC1001
+
 namespace DGame
 {
     /// <summary>

@@ -1,5 +1,7 @@
 using System;
 
+#pragma warning disable UAC1001
+
 namespace DGame
 {
     public delegate void TimerHandler(object[] args);
