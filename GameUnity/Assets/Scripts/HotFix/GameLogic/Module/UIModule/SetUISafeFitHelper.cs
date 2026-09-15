@@ -1,39 +1,51 @@
+using System.Collections.Generic;
+using DGame;
 using UnityEngine;
+using Application = UnityEngine.Device.Application;
+using Screen = UnityEngine.Device.Screen;
+using SystemInfo = UnityEngine.Device.SystemInfo;
 
 namespace GameLogic
 {
     public class SetUISafeFitHelper
     {
         /// <summary>
-        /// 是否适配刘海屏
+        /// 是否适配刘海侧安全区（竖屏顶部，横屏随朝向映射到左右）
         /// </summary>
         public bool LiuHaiFit { get; set; } = false;
 
         /// <summary>
-        /// 顶部适配偏移高度
+        /// 刘海侧安全区回补距离（屏幕像素），由已验证的平台及机型参数覆盖
         /// </summary>
         public float TopSpacing { get; set; } = 0;
 
         /// <summary>
-        /// 是否底部适配
+        /// 是否适配另一侧及底部手势区
         /// </summary>
         public bool BottomFit { get; set; } = false;
 
         /// <summary>
-        /// 底部适配偏移高度
+        /// 另一侧安全区回补距离（屏幕像素），由已验证的平台及机型参数覆盖
         /// </summary>
         public float BottomSpacing { get; set; } = 0;
 
-        private readonly RectTransform m_curFitRect;
+        private RectTransform m_curFitRect;
+        private Dictionary<RectTransform, NotFitOffset> m_notFitOffsets;
+
+        private struct NotFitOffset
+        {
+            public Vector2 Min;
+            public Vector2 Max;
+        }
 
         /// <summary>
         /// 移动设备屏幕适配
         /// </summary>
-        /// <param name="fitRect">适配的RectTransform对象</param>
-        /// <param name="liuHaiFit">是否开启刘海屏顶部适配</param>
-        /// <param name="topSpacing">刘海屏顶部适配偏移高度</param>
-        /// <param name="bottomFit">是否开启刘海屏底部适配</param>
-        /// <param name="bottomSpacing">刘海屏底部适配偏移高度</param>
+        /// <param name="fitRect">安全区容器，其父节点须覆盖完整屏幕</param>
+        /// <param name="liuHaiFit">是否适配刘海侧安全区</param>
+        /// <param name="topSpacing">刘海侧回补距离（屏幕像素，Windows/iOS 按机型覆盖）</param>
+        /// <param name="bottomFit">是否适配另一侧及底部手势区</param>
+        /// <param name="bottomSpacing">另一侧回补距离（屏幕像素，Windows/iOS 按机型覆盖）</param>
         public SetUISafeFitHelper(RectTransform fitRect, bool liuHaiFit = true, float topSpacing = 0, bool bottomFit = true, float bottomSpacing = 0)
         {
             LiuHaiFit = liuHaiFit;
@@ -45,8 +57,19 @@ namespace GameLogic
 
         public SetUISafeFitHelper() { }
 
+        /// <summary>绑定当前适配容器及参数，保留已有子节点的反向补偿记录。</summary>
+        internal void SetUIFit(RectTransform fitRect, bool liuHaiFit, float topSpacing, bool bottomFit, float bottomSpacing)
+        {
+            m_curFitRect = fitRect;
+            LiuHaiFit = liuHaiFit;
+            TopSpacing = topSpacing;
+            BottomFit = bottomFit;
+            BottomSpacing = bottomSpacing;
+            SetUIFit();
+        }
+
         /// <summary>
-        /// 设置UI安全区域适配
+        /// 按平台及机型回补安全区，再映射到全屏父节点的归一化锚点。
         /// </summary>
         public void SetUIFit()
         {
@@ -54,12 +77,6 @@ namespace GameLogic
             {
                 return;
             }
-
-            Vector3 offsetMax = new Vector2(0f, 0f);
-            Vector3 offsetMin = new Vector2(0f, 0f);
-
-            // 挖孔屏
-            Rect[] cutouts = Screen.cutouts;
 
             switch (Application.platform)
             {
@@ -76,149 +93,65 @@ namespace GameLogic
                     var phoneType = SystemInfo.deviceModel;
                     TopSpacing = 70;
                     BottomSpacing = 80;
-
                     if (phoneType == "iPhone12,1" || phoneType == "iPhone11,8")
                     {
-                        //特定机型做下特点的偏移
                         TopSpacing = 30;
                         BottomSpacing = 70;
                     }
-
                     break;
             }
 
-            // 横屏：把竖屏的上下逻辑镜像到左右两侧
-            // LiuHaiFit(Top) 对准刘海侧、BottomFit(Bottom) 对准非刘海侧
-            if (Screen.width > Screen.height)
-            {
-                SetUIFitLandscape();
-                return;
-            }
-
-            //启动刘海适配
-            if (LiuHaiFit)
-            {
-                if (cutouts != null && cutouts.Length > 0 && Application.platform != RuntimePlatform.IPhonePlayer)
-                {
-                    offsetMax = new Vector3(m_curFitRect.offsetMax.x, (cutouts[0].height));
-                }
-                else if (Screen.safeArea.yMax > 0 && Screen.height - Screen.safeArea.yMax > 0)
-                {
-                    offsetMax = new Vector3(Screen.width - Screen.safeArea.xMax, Screen.height - (Screen.safeArea.yMax + TopSpacing));
-                }
-                //刘海屏适配
-                m_curFitRect.offsetMax = new Vector2(offsetMax.x, -offsetMax.y);
-            }
-            else
-            {
-                //非刘海屏适配
-                m_curFitRect.offsetMax = offsetMax;
-            }
-
-            //启动底部适配
-            if (BottomFit)
-            {
-                if (Screen.safeArea.y > 0)
-                {
-                    offsetMin = new Vector2(Screen.safeArea.x, Mathf.Abs(Screen.safeArea.y - BottomSpacing));
-                }
-
-                if (Mathf.Abs(offsetMin.y) > 0)
-                {
-                    m_curFitRect.offsetMin = new Vector2(m_curFitRect.offsetMin.x, Mathf.Abs(offsetMin.y));
-                }
-                else
-                {
-                    m_curFitRect.offsetMin = offsetMin;
-                }
-            }
-            else
-            {
-                m_curFitRect.offsetMin = offsetMin;
-            }
-        }
-
-        /// <summary>
-        /// 横屏适配：复用竖屏上下逻辑，映射到左右两侧。
-        /// 刘海侧套用顶部逻辑（TopSpacing 回补），非刘海侧套用底部逻辑（BottomSpacing 回补）。
-        /// 刘海在左还是右由安全区左右内缩量自动判定，无需固定横屏方向。
-        /// </summary>
-        private void SetUIFitLandscape()
-        {
             Rect safeArea = Screen.safeArea;
-            // 左右两侧被系统安全区裁掉的量（屏幕像素）
-            float leftInset = Mathf.Max(0f, safeArea.xMin);
-            float rightInset = Mathf.Max(0f, Screen.width - safeArea.xMax);
+            float screenWidth = Screen.width;
+            float screenHeight = Screen.height;
+            Vector2 insetMin = safeArea.min;
+            Vector2 insetMax = new Vector2(screenWidth - safeArea.xMax, screenHeight - safeArea.yMax);
+            float topSpacing = Mathf.Max(0f, TopSpacing);
+            float bottomSpacing = Mathf.Max(0f, BottomSpacing);
 
-            // 刘海方向由屏幕朝向决定，而非左右内缩大小：
-            // 系统 safeArea 常左右对称收缩，用 inset 大小无法区分刘海真实方向。
-            // LandscapeLeft：竖屏顶部转到左边 → 刘海在左；LandscapeRight → 刘海在右。
-            bool notchOnLeft = Screen.orientation != ScreenOrientation.LandscapeRight;
-            float notchInset = notchOnLeft ? leftInset : rightInset;
-            float otherInset = notchOnLeft ? rightInset : leftInset;
-
-            // 刘海侧：对应竖屏 Top，安全区内缩基础上用 TopSpacing 回补（减少内缩）
-            float notchFit = 0f;
-            if (LiuHaiFit && notchInset > 0f)
+            if (screenWidth > screenHeight)
             {
-                notchFit = Mathf.Max(0f, notchInset - TopSpacing);
-            }
-
-            // 非刘海侧：对应竖屏 Bottom，安全区内缩基础上用 BottomSpacing 回补
-            float otherFit = 0f;
-            if (BottomFit && otherInset > 0f)
-            {
-                otherFit = Mathf.Abs(otherInset - BottomSpacing);
-            }
-
-            Vector2 offsetMin = m_curFitRect.offsetMin;
-            Vector2 offsetMax = m_curFitRect.offsetMax;
-
-            if (notchOnLeft)
-            {
-                // 左侧（刘海）向右内缩
-                offsetMin.x = notchFit;    
-                // 右侧（非刘海）向左内缩
-                offsetMax.x = -otherFit;   
+                bool notchOnLeft = Screen.orientation != ScreenOrientation.LandscapeRight;
+                insetMin.x = (notchOnLeft ? LiuHaiFit : BottomFit)
+                    ? Mathf.Max(0f, insetMin.x - (notchOnLeft ? topSpacing : bottomSpacing)) : 0f;
+                insetMax.x = (notchOnLeft ? BottomFit : LiuHaiFit)
+                    ? Mathf.Max(0f, insetMax.x - (notchOnLeft ? bottomSpacing : topSpacing)) : 0f;
+                // 横屏上下保持系统安全区，底部手势区不套用横向回补。
+                insetMin.y = BottomFit ? insetMin.y : 0f;
+                insetMax.y = LiuHaiFit ? insetMax.y : 0f;
             }
             else
             {
-                // 右侧（刘海）向左内缩
-                offsetMax.x = -notchFit;  
-                // 左侧（非刘海）向右内缩
-                offsetMin.x = otherFit;    
+                bool upsideDown = Screen.orientation == ScreenOrientation.PortraitUpsideDown;
+                insetMin.y = (upsideDown ? LiuHaiFit : BottomFit)
+                    ? Mathf.Max(0f, insetMin.y - (upsideDown ? topSpacing : bottomSpacing)) : 0f;
+                insetMax.y = (upsideDown ? BottomFit : LiuHaiFit)
+                    ? Mathf.Max(0f, insetMax.y - (upsideDown ? bottomSpacing : topSpacing)) : 0f;
+                insetMin.x = LiuHaiFit ? insetMin.x : 0f;
+                insetMax.x = LiuHaiFit ? insetMax.x : 0f;
             }
 
-            // 横屏只处理左右，纵向保持铺满
-            offsetMin.y = 0f;
-            offsetMax.y = 0f;
-
-            m_curFitRect.offsetMin = offsetMin;
-            m_curFitRect.offsetMax = offsetMax;
+            m_curFitRect.anchorMin = new Vector2(insetMin.x / screenWidth, insetMin.y / screenHeight);
+            m_curFitRect.anchorMax = new Vector2(1f - insetMax.x / screenWidth, 1f - insetMax.y / screenHeight);
+            m_curFitRect.offsetMin = Vector2.zero;
+            m_curFitRect.offsetMax = Vector2.zero;
         }
 
         /// <summary>
-        /// 设置某一个节点不受m_curRect影响
+        /// 将直属子节点的位置和尺寸补偿到当前安全区容器铺满父节点时的布局。
         /// </summary>
-        /// <param name="rect"></param>
+        /// <param name="rect">安全区直属子节点，不应由 LayoutGroup 等组件驱动其位置和尺寸</param>
         public void SetUINotFit(RectTransform rect)
         {
-            if (m_curFitRect == null || rect == null)
-            {
-                return;
-            }
-
-            var position = rect.anchoredPosition;
-
-            rect.anchoredPosition = new Vector2(position.x - m_curFitRect.sizeDelta.x,
-                position.y - m_curFitRect.sizeDelta.y);
+            SetUINotFit(rect, m_curFitRect);
         }
 
         /// <summary>
-        /// 设置某一个节点不受指定RectTransform的影响
+        /// 按子节点锚点反向补偿安全区收缩，保持层级、锚点和轴心不变；重复调用不累积偏移。
+        /// 容器再次适配后需再次调用。嵌套 UI 应对其位于安全区下的直属容器调用。
         /// </summary>
-        /// <param name="rect">设置的RectTransform</param>
-        /// <param name="refRect">依赖的RectTransform</param>
+        /// <param name="rect">refRect 的直属子节点，不应由 LayoutGroup 等组件驱动其位置和尺寸</param>
+        /// <param name="refRect">安全区容器，仅通过锚点及偏移适配，保持单位缩放和零旋转；其父节点为未适配范围</param>
         public void SetUINotFit(RectTransform rect, RectTransform refRect)
         {
             if (rect == null || refRect == null)
@@ -226,10 +159,32 @@ namespace GameLogic
                 return;
             }
 
-            var position = rect.anchoredPosition;
+            if (rect.parent != refRect || !(refRect.parent is RectTransform fullRect))
+            {
+                DLogger.Warning("SetUINotFit 需要安全区直属子节点，且安全区的父节点必须是 RectTransform。");
+                return;
+            }
 
-            rect.anchoredPosition = new Vector2(position.x - refRect.sizeDelta.x,
-                position.y - refRect.sizeDelta.y);
+            Rect fullBounds = fullRect.rect;
+            Rect fitBounds = refRect.rect;
+            Vector2 fullMin = refRect.InverseTransformPoint(fullRect.TransformPoint(fullBounds.min));
+            Vector2 fullMax = refRect.InverseTransformPoint(fullRect.TransformPoint(fullBounds.max));
+            Vector2 minDelta = fullMin - fitBounds.min;
+            Vector2 maxDelta = fullMax - fitBounds.max;
+            NotFitOffset compensation = new NotFitOffset
+            {
+                Min = minDelta + Vector2.Scale(maxDelta - minDelta, rect.anchorMin),
+                Max = minDelta + Vector2.Scale(maxDelta - minDelta, rect.anchorMax)
+            };
+
+            m_notFitOffsets ??= new Dictionary<RectTransform, NotFitOffset>();
+            m_notFitOffsets.TryGetValue(rect, out NotFitOffset previous);
+            // 只应用本次与上次补偿的差值，保留调用方对子节点原始布局的修改。
+            Vector2 offsetMin = rect.offsetMin + (compensation.Min - previous.Min);
+            Vector2 offsetMax = rect.offsetMax + (compensation.Max - previous.Max);
+            rect.offsetMin = offsetMin;
+            rect.offsetMax = offsetMax;
+            m_notFitOffsets[rect] = compensation;
         }
     }
 }
