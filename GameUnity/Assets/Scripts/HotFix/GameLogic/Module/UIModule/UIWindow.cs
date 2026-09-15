@@ -301,11 +301,11 @@ namespace GameLogic
         /// <summary>
         /// 移动设备屏幕适配
         /// </summary>
-        /// <param name="fitRect">适配的RectTransform对象</param>
-        /// <param name="liuHaiFit">是否开启刘海屏顶部适配</param>
-        /// <param name="topSpacing">刘海屏顶部适配偏移高度</param>
-        /// <param name="bottomFit">是否开启刘海屏底部适配</param>
-        /// <param name="bottomSpacing">刘海屏底部适配偏移高度</param>
+        /// <param name="fitRect">安全区容器，其父节点须覆盖完整屏幕</param>
+        /// <param name="liuHaiFit">是否适配刘海侧安全区</param>
+        /// <param name="topSpacing">刘海侧回补距离（屏幕像素，Windows/iOS 按机型覆盖）</param>
+        /// <param name="bottomFit">是否适配另一侧及底部手势区</param>
+        /// <param name="bottomSpacing">另一侧回补距离（屏幕像素，Windows/iOS 按机型覆盖）</param>
         public void SetUIFit(RectTransform fitRect, bool liuHaiFit = true, float topSpacing = 0, bool bottomFit = true, float bottomSpacing = 0)
         {
             if (m_setUISafeFitHelper == null)
