@@ -301,24 +301,25 @@ namespace GameLogic
         /// <summary>
         /// 移动设备屏幕适配
         /// </summary>
-        /// <param name="fitRect">适配的RectTransform对象</param>
-        /// <param name="liuHaiFit">是否开启刘海屏顶部适配</param>
-        /// <param name="topSpacing">刘海屏顶部适配偏移高度</param>
-        /// <param name="bottomFit">是否开启刘海屏底部适配</param>
-        /// <param name="bottomSpacing">刘海屏底部适配偏移高度</param>
+        /// <param name="fitRect">安全区容器，其父节点须覆盖完整屏幕</param>
+        /// <param name="liuHaiFit">是否适配刘海侧安全区</param>
+        /// <param name="topSpacing">刘海侧回补距离（屏幕像素，Windows/iOS 按机型覆盖）</param>
+        /// <param name="bottomFit">是否适配另一侧及底部手势区</param>
+        /// <param name="bottomSpacing">另一侧回补距离（屏幕像素，Windows/iOS 按机型覆盖）</param>
         public void SetUIFit(RectTransform fitRect, bool liuHaiFit = true, float topSpacing = 0, bool bottomFit = true, float bottomSpacing = 0)
         {
             if (m_setUISafeFitHelper == null)
             {
-                m_setUISafeFitHelper = new SetUISafeFitHelper(fitRect, liuHaiFit, topSpacing, bottomFit, bottomSpacing);
+                m_setUISafeFitHelper = new SetUISafeFitHelper();
             }
-            m_setUISafeFitHelper?.SetUIFit();
+            m_setUISafeFitHelper.SetUIFit(fitRect, liuHaiFit, topSpacing, bottomFit, bottomSpacing);
         }
 
         /// <summary>
-        /// rectTransform不受m_curRect适配影响
+        /// 将安全区直属子节点恢复到容器未适配时的布局；重复调用不累积偏移。
+        /// 在 SetUIFit 后调用，容器再次适配后需再次调用。
         /// </summary>
-        /// <param name="rect"></param>
+        /// <param name="rect">安全区直属子节点；嵌套 UI 对其直属容器调用，避免外部布局组件驱动</param>
         public void SetUINotFit(RectTransform rect)
         {
             if (rect == null)
@@ -330,10 +331,10 @@ namespace GameLogic
         }
 
         /// <summary>
-        /// 设置某一个节点不受指定RectTransform的影响
+        /// 将指定安全区直属子节点恢复到容器铺满其父节点时的布局；重复调用不累积偏移。
         /// </summary>
-        /// <param name="rect">设置的RectTransform</param>
-        /// <param name="refRect">依赖的RectTransform</param>
+        /// <param name="rect">refRect 的直属子节点，避免外部布局组件驱动其位置和尺寸</param>
+        /// <param name="refRect">仅通过锚点和偏移适配的安全区容器，保持单位缩放和零旋转</param>
         public void SetUINotFit(RectTransform rect, RectTransform refRect)
         {
             if (rect == null || refRect == null)
