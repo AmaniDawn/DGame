@@ -310,15 +310,16 @@ namespace GameLogic
         {
             if (m_setUISafeFitHelper == null)
             {
-                m_setUISafeFitHelper = new SetUISafeFitHelper(fitRect, liuHaiFit, topSpacing, bottomFit, bottomSpacing);
+                m_setUISafeFitHelper = new SetUISafeFitHelper();
             }
-            m_setUISafeFitHelper?.SetUIFit();
+            m_setUISafeFitHelper.SetUIFit(fitRect, liuHaiFit, topSpacing, bottomFit, bottomSpacing);
         }
 
         /// <summary>
-        /// rectTransform不受m_curRect适配影响
+        /// 将安全区直属子节点恢复到容器未适配时的布局；重复调用不累积偏移。
+        /// 在 SetUIFit 后调用，容器再次适配后需再次调用。
         /// </summary>
-        /// <param name="rect"></param>
+        /// <param name="rect">安全区直属子节点；嵌套 UI 对其直属容器调用，避免外部布局组件驱动</param>
         public void SetUINotFit(RectTransform rect)
         {
             if (rect == null)
@@ -330,10 +331,10 @@ namespace GameLogic
         }
 
         /// <summary>
-        /// 设置某一个节点不受指定RectTransform的影响
+        /// 将指定安全区直属子节点恢复到容器铺满其父节点时的布局；重复调用不累积偏移。
         /// </summary>
-        /// <param name="rect">设置的RectTransform</param>
-        /// <param name="refRect">依赖的RectTransform</param>
+        /// <param name="rect">refRect 的直属子节点，避免外部布局组件驱动其位置和尺寸</param>
+        /// <param name="refRect">仅通过锚点和偏移适配的安全区容器，保持单位缩放和零旋转</param>
         public void SetUINotFit(RectTransform rect, RectTransform refRect)
         {
             if (rect == null || refRect == null)

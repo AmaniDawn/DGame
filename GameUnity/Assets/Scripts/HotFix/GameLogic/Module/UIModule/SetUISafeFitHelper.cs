@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using DGame;
 using UnityEngine;
 using Application = UnityEngine.Device.Application;
 using Screen = UnityEngine.Device.Screen;
@@ -27,7 +29,14 @@ namespace GameLogic
         /// </summary>
         public float BottomSpacing { get; set; } = 0;
 
-        private readonly RectTransform m_curFitRect;
+        private RectTransform m_curFitRect;
+        private Dictionary<RectTransform, NotFitOffset> m_notFitOffsets;
+
+        private struct NotFitOffset
+        {
+            public Vector2 Min;
+            public Vector2 Max;
+        }
 
         /// <summary>
         /// 移动设备屏幕适配
@@ -47,6 +56,17 @@ namespace GameLogic
         }
 
         public SetUISafeFitHelper() { }
+
+        /// <summary>绑定当前适配容器及参数，保留已有子节点的反向补偿记录。</summary>
+        internal void SetUIFit(RectTransform fitRect, bool liuHaiFit, float topSpacing, bool bottomFit, float bottomSpacing)
+        {
+            m_curFitRect = fitRect;
+            LiuHaiFit = liuHaiFit;
+            TopSpacing = topSpacing;
+            BottomFit = bottomFit;
+            BottomSpacing = bottomSpacing;
+            SetUIFit();
+        }
 
         /// <summary>
         /// 按平台及机型回补安全区，再映射到全屏父节点的归一化锚点。
@@ -118,27 +138,20 @@ namespace GameLogic
         }
 
         /// <summary>
-        /// 设置某一个节点不受m_curRect影响
+        /// 将直属子节点的位置和尺寸补偿到当前安全区容器铺满父节点时的布局。
         /// </summary>
-        /// <param name="rect"></param>
+        /// <param name="rect">安全区直属子节点，不应由 LayoutGroup 等组件驱动其位置和尺寸</param>
         public void SetUINotFit(RectTransform rect)
         {
-            if (m_curFitRect == null || rect == null)
-            {
-                return;
-            }
-
-            var position = rect.anchoredPosition;
-
-            rect.anchoredPosition = new Vector2(position.x - m_curFitRect.sizeDelta.x,
-                position.y - m_curFitRect.sizeDelta.y);
+            SetUINotFit(rect, m_curFitRect);
         }
 
         /// <summary>
-        /// 设置某一个节点不受指定RectTransform的影响
+        /// 按子节点锚点反向补偿安全区收缩，保持层级、锚点和轴心不变；重复调用不累积偏移。
+        /// 容器再次适配后需再次调用。嵌套 UI 应对其位于安全区下的直属容器调用。
         /// </summary>
-        /// <param name="rect">设置的RectTransform</param>
-        /// <param name="refRect">依赖的RectTransform</param>
+        /// <param name="rect">refRect 的直属子节点，不应由 LayoutGroup 等组件驱动其位置和尺寸</param>
+        /// <param name="refRect">安全区容器，仅通过锚点及偏移适配，保持单位缩放和零旋转；其父节点为未适配范围</param>
         public void SetUINotFit(RectTransform rect, RectTransform refRect)
         {
             if (rect == null || refRect == null)
@@ -146,10 +159,32 @@ namespace GameLogic
                 return;
             }
 
-            var position = rect.anchoredPosition;
+            if (rect.parent != refRect || !(refRect.parent is RectTransform fullRect))
+            {
+                DLogger.Warning("SetUINotFit 需要安全区直属子节点，且安全区的父节点必须是 RectTransform。");
+                return;
+            }
 
-            rect.anchoredPosition = new Vector2(position.x - refRect.sizeDelta.x,
-                position.y - refRect.sizeDelta.y);
+            Rect fullBounds = fullRect.rect;
+            Rect fitBounds = refRect.rect;
+            Vector2 fullMin = refRect.InverseTransformPoint(fullRect.TransformPoint(fullBounds.min));
+            Vector2 fullMax = refRect.InverseTransformPoint(fullRect.TransformPoint(fullBounds.max));
+            Vector2 minDelta = fullMin - fitBounds.min;
+            Vector2 maxDelta = fullMax - fitBounds.max;
+            NotFitOffset compensation = new NotFitOffset
+            {
+                Min = minDelta + Vector2.Scale(maxDelta - minDelta, rect.anchorMin),
+                Max = minDelta + Vector2.Scale(maxDelta - minDelta, rect.anchorMax)
+            };
+
+            m_notFitOffsets ??= new Dictionary<RectTransform, NotFitOffset>();
+            m_notFitOffsets.TryGetValue(rect, out NotFitOffset previous);
+            // 只应用本次与上次补偿的差值，保留调用方对子节点原始布局的修改。
+            Vector2 offsetMin = rect.offsetMin + (compensation.Min - previous.Min);
+            Vector2 offsetMax = rect.offsetMax + (compensation.Max - previous.Max);
+            rect.offsetMin = offsetMin;
+            rect.offsetMax = offsetMax;
+            m_notFitOffsets[rect] = compensation;
         }
     }
 }
