@@ -1,2 +1,3 @@
 -define:FANTASY_UNITY
+-r:"Assets/Scripts/HotFix/Fantasy.Unity/Runtime/Plugins/Other/System.Collections.Immutable.dll"
 -r:System.Threading.Tasks.Extensions.dll

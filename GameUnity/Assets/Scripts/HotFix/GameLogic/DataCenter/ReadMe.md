@@ -196,7 +196,27 @@ public static void Error(string msg) { ... }
 
 ---
 
-### 5. ProtoBufHelper.cs - 添加协议消息日志回调支持
+### 5. csc.rsp - 补充 Fantasy Unity 程序集引用
+
+**文件位置**: `Assets/Scripts/HotFix/Fantasy.Unity/csc.rsp`
+
+**修改内容**: 显式引用项目内的 `System.Collections.Immutable.dll`，避免 Fantasy Unity 编译时无法解析 `System.Collections.Immutable` 类型；保留 `System.Threading.Tasks.Extensions.dll` 引用。
+
+```text
+-define:FANTASY_UNITY
+-r:"Assets/Scripts/HotFix/Fantasy.Unity/Runtime/Plugins/Other/System.Collections.Immutable.dll"
+-r:System.Threading.Tasks.Extensions.dll
+```
+
+**检查方式**:
+
+1. 确认 `Assets/Scripts/HotFix/Fantasy.Unity/Runtime/Plugins/Other/System.Collections.Immutable.dll` 文件存在。
+2. 确认 `csc.rsp` 同时包含项目内 `System.Collections.Immutable.dll` 和 `System.Threading.Tasks.Extensions.dll` 两条引用。
+3. 重新编译 Fantasy Unity 相关程序集，确认不再出现 `System.Collections.Immutable` 类型或程序集解析错误。
+
+---
+
+### 6. ProtoBufHelper.cs - 添加协议消息日志回调支持
 
 **文件位置**: `Assets/Scripts/HotFix/Fantasy.Unity/Runtime/Core/Serialize/Pack/ProtoBufPack/ProtoBufHelper.cs`
 
@@ -239,7 +259,7 @@ public void Serialize(Type type, object @object, IBufferWriter<byte> buffer)
 
 ---
 
-### 6. UnitySessionHeartbeatComponent.cs - 心跳消息不受时间缩放影响
+### 7. UnitySessionHeartbeatComponent.cs - 心跳消息不受时间缩放影响
 
 **文件位置**: `Assets/Scripts/HotFix/Fantasy.Unity/Runtime/Core/Network/Session/Component/UnitySessionHeartbeatComponent.cs`
 
@@ -264,6 +284,7 @@ public void Serialize(Type type, object @object, IBufferWriter<byte> buffer)
 - [ ] `MessageHandler()` 方法中已添加客户端回调触发逻辑
 - [ ] **Fantasy.Log 中 `Debug`、`Info`、`Warning`、`Error` 方法已添加条件宏定义**（`Trace` 和 `TraceInfo` 除外），防止打包输出相关的Debug代码
 - [ ] 检查项目是否引入了 Obfuz 包，如果引用了，在 `Fantasy.Unity` 程序集和 `Fantasy.Editor` 程序集中添加 `Obfuz.Runtime` 引用
+- [ ] `Fantasy.Unity/csc.rsp` 已显式引用项目内的 `System.Collections.Immutable.dll`，并保留 `System.Threading.Tasks.Extensions.dll` 引用
 - [ ] **ProtoBufHelper.cs 中已添加协议日志回调支持**，用于协议消息的收发日志记录
 - [ ] `UnitySessionHeartbeatComponent.cs` 的心跳发送和超时检测使用 `TimerComponent.Net`，不受 `Time.timeScale` 影响
 - [ ] 编译无错误

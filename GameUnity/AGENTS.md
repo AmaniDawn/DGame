@@ -30,7 +30,7 @@
 | 红点系统 | `../.agents/skills/dgame-dev/references/reddot-system.md` |
 | 命名、UI 节点前缀、代码规范 | `../.agents/skills/dgame-dev/references/naming-rules.md` |
 | 排障 | `../.agents/skills/dgame-dev/references/troubleshooting.md` |
-| Fantasy Unity 客户端、Session/连接、消息 Handler、Fantasy ECS、协议和 Roaming | `../.agents/skills/fantasy-net/SKILL.md`；按主题读取 `../.agents/skills/fantasy-net/references/unity/`、`references/ecs/`、`references/protocol/`、`references/server/roaming/` |
+| Fantasy Unity 客户端、Session/连接、消息 Handler、Fantasy ECS、协议和 Roaming | `../.agents/skills/fantasy-net/SKILL.md`；按主题读取 `../.agents/skills/fantasy-net/references/unity/`、`references/ecs/`、`references/protocol/`、`references/server/roaming/`；影响服务端协议或 Handler 时同时读取 `../GameServer/AGENTS.md` |
 | Unity CLI / Workflow | `../.agents/skills/unity-cli/`、`../.agents/scripts/workflow.py` |
 
 处理 DGame 代码时优先使用 `dgame-dev`；内容以当前源码、目录和 API 为准。配置表结构、Excel、导表脚本和 `GameConfig/` 数据优先使用 `luban-dev`，再使用 `dgame-dev` 处理运行时消费。
@@ -54,6 +54,7 @@
 - 客户端连接、Session、网络请求和消息收发位于 `Assets/Scripts/HotFix/GameLogic`；战斗侧 Fantasy ECS 位于 `Assets/Scripts/HotFix/GameBattle`。
 - `Assets/Scripts/HotFix/GameProto/Generate/NetworkProtocol` 是协议导出产物；协议源和导出配置以仓库根目录 `GameServer/Tools/NetworkProtocol`、`GameServer/Tools/ProtocolExportTool/ExporterSettings.json` 为准，生成文件不得手改。
 - Fantasy 客户端异步逻辑使用 `FTask` 和 Fantasy Session/连接 API；涉及跨服路由时按 `fantasy-net` 的 Address、Roaming、SphereEvent 规则核对服务端对应实现。
+- 客户端协议、消息签名、Session/连接流程或消息 Handler 变更影响服务端时，必须同时读取 [GameServer/AGENTS.md](../GameServer/AGENTS.md)，核对服务端 Outer/Inner 协议、Handler、Scene 和端口配置。
 
 ## 验证入口
 

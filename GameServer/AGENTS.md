@@ -12,9 +12,11 @@
 - 配置生成代码位于 `Server/Entity/Generate/Config`，协议生成代码位于 `Server/Entity/Generate/NetworkProtocol`；客户端协议输出目录由导出配置指向 `GameUnity/Assets/Scripts/HotFix/GameProto/Generate/NetworkProtocol`。
 - 配置运行时文件位于 `GameServer/Configs/`；配置源文件仍以仓库根目录 `GameConfig/` 为准。
 
+当服务端协议、消息签名、连接流程或导出结果影响 Unity 客户端时，还必须读取 [GameUnity/AGENTS.md](../GameUnity/AGENTS.md)，并按其中的程序集、Fantasy Unity、生成产物和验证规则处理客户端侧输出。
+
 ## 技能路由
 
-涉及 Fantasy 服务端、ECS Entity/Component/System、Scene/SubScene、FTask、Handler、事件、Timer、Address、Roaming、SphereEvent、Fantasy.config、数据库、HTTP、Session 或协议导出时，必须读取 [fantasy-net skill](../.agents/skills/fantasy-net/SKILL.md) 及对应 reference。
+涉及 Fantasy 服务端、ECS Entity/Component/System、Scene/SubScene、FTask、Handler、事件、Timer、Address、Roaming、SphereEvent、Fantasy.config、数据库、HTTP、Session 或协议导出时，必须读取 [fantasy-net skill](../.agents/skills/fantasy-net/SKILL.md) 及对应 reference。涉及客户端连接、Session、消息 Handler 或 Unity 协议生成时，同时读取 [GameUnity/AGENTS.md](../GameUnity/AGENTS.md)。
 
 涉及 Luban 表结构、配置源、导表或生成配置时，同时读取 [luban-dev skill](../.agents/skills/luban-dev/SKILL.md)；运行时消费链路再按需要读取 `dgame-dev`。
 
