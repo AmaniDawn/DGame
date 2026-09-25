@@ -1,6 +1,0 @@
-interface:
-  display_name: "DGame Dev"
-  short_description: "DGame Unity 开发、架构与 MCP 工具规范"
-  default_prompt: "Use $dgame-dev to implement or modify DGame Unity project code."
-policy:
-  allow_implicit_invocation: true

@@ -1,209 +1,76 @@
 # AGENTS.md
 
 请使用中文写提案和回答。
-这个文件为 Codex 提供指导，用于处理此代码库中的代码。
 
-主启动场景位于 `GameUnity/Assets/Scenes/GameStart/GameStart.unity`。
+本文件是 DGame 仓库级规则。处理 `GameUnity/**` 下的文件时，还必须读取并遵守 [GameUnity/AGENTS.md](GameUnity/AGENTS.md)；子目录规则用于补充工程细节，和本文件冲突时以距离目标文件更近的规则为准。
 
----
+## 适用范围与规范源
 
-## ⚡ 强制工作流
+- 仓库级配置和工具位于 `GameConfig/`、`GameRelease/` 和 `Tools/`。
+- Unity 工程位于 `GameUnity/`，其工程级规则见 [GameUnity/AGENTS.md](GameUnity/AGENTS.md)。
+- Claude Code 与 Codex 共用 `.agents/skills/` 下的 Agent Skills；技能和 Workflow 不再维护第二套入口。
+- 不回滚用户已有改动，不删除与当前任务无关的文件。
 
-### 第零步：判断任务等级
+## 工作方式
 
-| 等级 | 判断标准 | 知识查询策略 |
-|------|----------|--------------|
-| **L1 简单** | typo、注释、日志文案、单行变量改名；前提是不涉及框架 API、UI 节点前缀、事件定义、资源路径、Luban 配置 | 可跳过 skill，直接处理 |
-| **L2 调用** | 调用已知 API、单模块局部修改 | 使用 `$dgame-dev` 查询对应主题 |
-| **L3 功能** | 新功能、跨文件修改、新增 UI / 资源 / 事件 / 模块逻辑 | 使用 `$dgame-dev` 查询全量相关主题；涉及配置先用 `luban-dev` |
-| **L4 架构** | 模块设计、系统重构、多模块协作、架构决策 | 使用 `$dgame-dev` 并按需并行查询多个 reference；配置链路同时使用 `luban-dev` |
+1. 先阅读相关实现和 `git status`，确认已有改动边界。
+2. 按任务影响范围选择验证方式；跨模块、高风险或多阶段任务先明确目标和验收条件。
+3. 读取对应 skill 的 `SKILL.md` 及必要的 reference。配置表、Excel、导表脚本和 `GameConfig/` 数据优先使用 `.agents/skills/luban-dev/`。
+4. 源码用代码编辑工具修改；完成后执行与变更匹配的检查，并报告实际结果、限制和剩余风险。
+5. 当 reference 与源码冲突时，使用 `rg` 核对实际签名和调用点，优先信任当前源码，并记录冲突位置。
 
-不确定时上调一级。凡涉及 DGame API 名称、程序集边界、资源地址、UI 节点前缀、事件接口、热更流程、Luban 表结构，都不要按 L1 处理。
+## 授权边界
 
-### 第一步：按主题获取规范
+- 普通源码、文档和只读检查可按用户任务直接执行。
+- 删除文件、覆盖已有配置或资源、修改包依赖、修改 ProjectSettings、切换平台、真实构建、导表写入生产目录、发布、提交或推送前，必须明确目标和范围；已有计划或预览不等于已授权执行。
+- Unity 写入必须先经过项目绑定的 Workflow preview，再使用同一计划和一次性审批执行。命令超时后先查询真实状态，不自动重放。
+- Luban 生产导表使用 `python .agents/scripts/workflow.py luban preview`、`approve`、`apply`；`validate` 和隔离回归不会写入生产目录。
+- 无法连接当前 DGame Editor、缺少工具或测试没有可运行用例时，记录 blocked 和原因，不使用其他工程或旧结果替代。
+- Workflow 不自动安装或升级工具，不修改用户级技能、Codex 配置或其他用户级设置。
+- 不自动提交、推送、上传、签名或发布；CLI 的 `confirm` 参数和本地审批记录不能替代用户授权。
+- 不使用已停用的旧工作流、旧 Unity MCP 或其他项目的验证结果替代当前 DGame 证据。
 
-同一会话中已查过的主题可复用摘要；只有涉及新主题或发现文档与源码冲突时才重新查询。配置表相关任务优先 `luban-dev`，业务落位和运行时代码再补 `dgame-dev`。
+同一会话中已经核对过的主题可以复用摘要；只有涉及新主题或发现文档与源码冲突时才重新查询。
 
-| 场景 | 必须查询主题 |
-|------|--------------|
-| 文件落位 / 程序集边界 | `architecture.md` |
-| UI 生命周期 / 窗口 / Widget / IUIController | `ui-lifecycle.md`、`ui-patterns.md` |
-| 资源加载 / 释放 / 场景切换资源整理 | `resource-api.md`、`resource-patterns.md` |
-| 热更资源包 / YooAsset 下载链路 | `hotpatch-workflow.md` |
-| 整包 / AB 打包 / Jenkins 自动化 / ReleaseTools | `build-pipeline.md` |
-| 热更代码 / HybridCLR / AOT 泛型 | `hotfix-workflow.md` |
-| 模块 API / DataCenterModule / MemoryPool / Audio / Fsm | `modules.md` |
-| 事件系统 / EventCenter / 事件反模式 | `event-system.md`、`event-antipatterns.md` |
-| Luban 配置消费 | `luban-config.md`；编辑配置表时使用 `luban-dev` |
-| 红点系统 | `reddot-system.md` |
-| 命名 / UI 节点前缀 / 代码规范 | `naming-rules.md` |
-| MCP 工具链 | `mcp-tools.md`、`mcp-visual.md` |
-| 排障 | `troubleshooting.md` |
-| Fantasy 服务端 / 客户端 / ECS / 协议 / Roaming / 数据库 | `fantasy-net` skill |
+完整验证入口以各 DGame skill 和 `.agents/scripts/workflow.py --help` 为准。L4、跨模块、配置导表、Unity 写入、构建和发布类任务必须使用 [.agents/templates/task.md](.agents/templates/task.md) 记录目标、授权、决策、验证证据和剩余风险；L1/L2 小改可不创建任务文件。
 
-### 第二步：输出代码或方案
+`AGENTS.md` 是 Claude Code 与 Codex 都会读取的仓库级入口。匹配任务后，两个工具都应按这里的路由读取 `.agents/skills/<skill>/SKILL.md`；技能目录遵循 Agent Skills 的 `SKILL.md`、`references/`、`scripts/` 和可选 `agents/openai.yaml` 结构。
 
-基于已查询规范实现。若 reference 与源码冲突：
+### 任务等级
 
-1. 用 `rg` 搜索实际签名和调用点。
-2. 优先信任当前源码。
-3. 在回复中标注冲突点；如果任务本身是维护 skill，直接修正 `.codex/skills/dgame-dev/references/` 对应文档。
+| 等级 | 判断标准 | 默认动作 |
+|------|----------|----------|
+| **L1 简单** | typo、注释、日志文案、单行变量改名，且不涉及框架 API、资源路径、事件、配置或工具链 | 可跳过 skill，直接处理 |
+| **L2 调用** | 调用已知 API、单模块局部修改 | 读取对应 skill 主题 |
+| **L3 功能** | 新功能、跨文件修改、新增资源、事件或模块逻辑 | 读取完整相关 skill；涉及配置先读 `luban-dev` |
+| **L4 架构** | 模块设计、系统重构、多模块协作或架构决策 | 读取完整相关 skill 和 reference，并明确验收条件 |
 
----
+不确定时上调一级。用户明确要求优先于本文件；安全、权限和不可逆操作仍需按项目规则取得相应确认。
 
-## DGame 开发指导
+## Review 重点
 
-处理 DGame 代码时优先使用 `$dgame-dev`。该 skill 的结构参考 TEngine 项目的 `tengine-dev`，但内容必须以 DGame 当前源码、目录和 API 为准。
+- 优先检查可复现的源码 API、路径、签名和文档冲突。
+- 重点检查资源与事件生命周期、Luban 模板与生成产物漂移、序列化兼容性以及程序集边界。
+- 构建、导表和测试必须报告实际命令、结果、阻塞原因和剩余风险；命令返回成功不等于业务验证通过。
 
-**知识源**：`.codex/skills/dgame-dev/references/`
+## 通用编码准则
 
-### 使用方式
+### 先理解再编码
 
-```
-使用 $dgame-dev 在 DGame 仓库中实现或修改功能。
-描述需要查询的技术问题或功能点
-```
+- 明确假设、边界和成功标准；存在多种解释时说明取舍。
+- 先搜索当前调用点和实现，不把文档或记忆当成 API 保证。
 
-### 专用 skill 优先级
+### 保持简单
 
-- Luban 配置表、Excel、`__tables__.xlsx` / `__beans__.xlsx` / `__enums__.xlsx`、导表脚本、`GameConfig/` 数据：优先使用 `luban-dev`。
-- 代码落位、程序集边界、HotFix/Runtime/AOT 分层、资源模块生命周期、UI/事件/模块架构：使用 `dgame-dev`。
-- 同时涉及配置和业务代码时，先用 `luban-dev` 处理配置链路，再用 `dgame-dev` 处理业务落位与调用方式。
+- 只实现请求范围内的最小改动，不为单次使用增加抽象或配置项。
+- 不为不可能发生的情况添加复杂错误处理。
 
----
+### 手术式修改
 
-## 核心红线
+- 只修改与任务直接相关的文件和行，保持现有代码风格。
+- 由本次修改产生的未使用导入、变量或函数应一并清理；不删除预先存在的无关代码。
 
-1. **分层落位**：框架运行时放 `GameUnity/Assets/DGame/Runtime`；编辑器工具放 `GameUnity/Assets/DGame/Editor`；热更业务放 `GameUnity/Assets/Scripts/HotFix/GameLogic`；配置生成代码放 `GameUnity/Assets/Scripts/HotFix/GameProto`。
-2. **优先复用 DGame 封装**：新增服务前先确认 `GameModule`、`DGame/Runtime/Module`、`GameLogic/Module` 是否已有封装。
-3. **模块访问**：业务层通过 `GameLogic.GameModule.XXX` 访问模块，不散落 `ModuleSystem.GetModule<T>()`。
-4. **异步优先**：IO、资源、场景等耗时操作优先使用 `UniTask`，不要新增 Coroutine 工作流。
-5. **资源必须释放**：普通资源加载与 `UnloadAsset` 成对；实例化 GameObject 由实例销毁触发资源引用回收。
-6. **事件解耦**：UI 内监听用 `AddUIEvent`；跨模块事件用 `GameEvent` / `[EventInterface(EEventGroup...)]`。
+### 以目标验证
 
----
-
-## Reference 路由
-
-| 场景 | 文档 |
-|------|------|
-| 项目结构 / 启动 / 分层 | `architecture.md` |
-| 模块访问 | `modules.md` |
-| UI 开发 | `ui-lifecycle.md`、`ui-patterns.md` |
-| 事件系统 | `event-system.md`、`event-antipatterns.md` |
-| 资源加载 | `resource-api.md`、`resource-patterns.md` |
-| 热更代码 | `hotfix-workflow.md` |
-| 热更资源包 | `hotpatch-workflow.md` |
-| 构建打包 / Jenkins | `build-pipeline.md` |
-| Luban 配置消费 | `luban-config.md` |
-| 红点系统 | `reddot-system.md` |
-| 代码规范 | `naming-rules.md` |
-| 问题排查 | `troubleshooting.md` |
-| MCP 场景 / GameObject / UI / 脚本 / Editor | `mcp-tools.md` |
-| MCP 材质 / Shader / 动画 / VFX | `mcp-visual.md` |
-| Fantasy 服务端 / 客户端 / ECS / 协议 / Roaming / 数据库 | `fantasy-net` skill |
-
----
-
-## 冲突处理
-
-当 reference 与代码实际 API 冲突时：
-
-1. 使用 `rg` 搜索实际方法签名和调用点。
-2. 优先信任当前源码。
-3. 在回复中标注冲突点，方便后续修正文档。
-
----
-
-## 自我优化机制
-
-满足任一条件时，需要把问题反馈到本次回答；如果用户任务就是维护 skill，则直接修正对应 reference：
-
-1. reference 文档与当前源码 API、路径、签名不一致。
-2. 生成代码失败的根因来自过期文档或错误模式。
-3. 用户明确指出 DGame skill、`AGENTS.md` 或 `CLAUDE.md` 描述不准确。
-
-记录或修正文档时写清楚：
-
-- 问题现象：错误 API、错误路径或失败表现。
-- 文档位置：哪个 reference 或根文档的哪一节。
-- 正确事实：经源码核实后的 API、路径、签名。
-- 修正建议：文档应改成什么。
-
----
-
-## DGame 补充准则
-
-- 只改和任务直接相关的文件。
-- 不顺手重构无关代码。
-- 不回滚用户已有改动。
-- 生成或修改 UI、资源、事件、配置消费代码前，先确认 DGame 当前 API。
-- 能验证就验证；不能验证时说明限制。
-
----
-
-# 通用编码准则
-
-Behavioral guidelines to reduce common LLM coding mistakes. Merge with project-specific instructions as needed.
-
-**Tradeoff:** These guidelines bias toward caution over speed. For trivial tasks, use judgment.
-
-## 1. Think Before Coding
-
-**Don't assume. Don't hide confusion. Surface tradeoffs.**
-
-Before implementing:
-- State your assumptions explicitly. If uncertain, ask.
-- If multiple interpretations exist, present them - don't pick silently.
-- If a simpler approach exists, say so. Push back when warranted.
-- If something is unclear, stop. Name what's confusing. Ask.
-
-## 2. Simplicity First
-
-**Minimum code that solves the problem. Nothing speculative.**
-
-- No features beyond what was asked.
-- No abstractions for single-use code.
-- No "flexibility" or "configurability" that wasn't requested.
-- No error handling for impossible scenarios.
-- If you write 200 lines and it could be 50, rewrite it.
-
-Ask yourself: "Would a senior engineer say this is overcomplicated?" If yes, simplify.
-
-## 3. Surgical Changes
-
-**Touch only what you must. Clean up only your own mess.**
-
-When editing existing code:
-- Don't "improve" adjacent code, comments, or formatting.
-- Don't refactor things that aren't broken.
-- Match existing style, even if you'd do it differently.
-- If you notice unrelated dead code, mention it - don't delete it.
-
-When your changes create orphans:
-- Remove imports/variables/functions that YOUR changes made unused.
-- Don't remove pre-existing dead code unless asked.
-
-The test: Every changed line should trace directly to the user's request.
-
-## 4. Goal-Driven Execution
-
-**Define success criteria. Loop until verified.**
-
-Transform tasks into verifiable goals:
-- "Add validation" → "Write tests for invalid inputs, then make them pass"
-- "Fix the bug" → "Write a test that reproduces it, then make it pass"
-- "Refactor X" → "Ensure tests pass before and after"
-
-For multi-step tasks, state a brief plan:
-```
-1. [Step] → verify: [check]
-2. [Step] → verify: [check]
-3. [Step] → verify: [check]
-```
-
-Strong success criteria let you loop independently. Weak criteria ("make it work") require constant clarification.
-
----
-
-**These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
+- 修复问题时先确定可复现条件，再用针对性检查确认修复。
+- 多阶段任务为每一步指定验证方式；无法验证时明确说明限制。
