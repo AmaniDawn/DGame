@@ -1,0 +1,6 @@
+﻿interface:
+  display_name: "DGame Unity CLI"
+  short_description: "DGame Unity CLI 安装、MCP 连接排查与验证"
+  default_prompt: "使用 $unity-cli 处理 DGame 的 CLI 安装、MCP 连接或 Unity 状态查询，并提供实际验证结果。"
+policy:
+  allow_implicit_invocation: true

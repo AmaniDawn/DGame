@@ -1,0 +1,13 @@
+# SHA-256 integrity manifest for the bundled Roslyn (Microsoft.CodeAnalysis) DLLs.
+# Verified at build time by PipelineRuntimeBuildProcessor.VerifyBundledChecksums();
+# a mismatch (tampered/swapped DLL) fails the build.
+#
+# Format per line:  <sha256-hex>  <filename>  # <nuget package> <version>
+# Regenerate hashes with:  sha256sum *.dll   (run in this folder)
+# Version fields marked TODO should be set to the exact NuGet package version the DLL came from.
+
+159f595e313f8cc09bac14588e2466c312f512a4778d9fa2352fcccf2a53aa3d  Microsoft.CodeAnalysis.dll  # Microsoft.CodeAnalysis.Common TODO
+e822156145e1add437b1d893c0315257c12e3d5b1b89d83494db6d88d37fe20a  Microsoft.CodeAnalysis.CSharp.dll  # Microsoft.CodeAnalysis.CSharp TODO
+5b1b1c83ba3d135c2fdfe425842fbe9c7432878b7e468623acb554c69b4c130f  System.Collections.Immutable.dll  # System.Collections.Immutable TODO
+55ef768ffa305de58e38e15420669258b16f420618eb1f702bddb30e5c797961  System.Reflection.Metadata.dll  # System.Reflection.Metadata TODO
+bac58578ec05ecb8c234bf3402a0aa1491a5e437b03008b431e78d663ab52b78  System.Runtime.CompilerServices.Unsafe.dll  # System.Runtime.CompilerServices.Unsafe TODO

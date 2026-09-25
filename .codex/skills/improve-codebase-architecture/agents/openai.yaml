@@ -1,4 +1,0 @@
-interface:
-  display_name: "Improve Codebase Architecture"
-  short_description: "发现 DGame 代码库中的架构摩擦并生成加深报告"
-  default_prompt: "Use $improve-codebase-architecture to review DGame architecture and produce an HTML report."

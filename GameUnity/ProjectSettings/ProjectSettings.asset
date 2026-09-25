@@ -86,6 +86,7 @@ PlayerSettings:
   defaultIsNativeResolution: 1
   macRetinaSupport: 1
   runInBackground: 1
+  captureSingleScreen: 0
   muteOtherAudioSources: 0
   Prepare IOS For Recording: 0
   Force IOS Speakers When Recording: 0
