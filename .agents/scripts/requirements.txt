@@ -1,0 +1,2 @@
+# Workflow checks use Python standard library plus YAML metadata parsing.
+PyYAML>=6.0,<7

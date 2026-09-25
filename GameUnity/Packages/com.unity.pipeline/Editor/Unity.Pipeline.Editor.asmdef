@@ -1,0 +1,19 @@
+{
+    "name": "Unity.Pipeline.Editor",
+    "rootNamespace": "Unity.Pipeline.Editor",
+    "references": [
+        "Unity.Pipeline",
+        "Unity.Nuget.Newtonsoft-Json"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

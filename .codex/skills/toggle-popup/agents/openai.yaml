@@ -1,4 +1,0 @@
-interface:
-  display_name: "Toggle Popup"
-  short_description: "切换项目 Codex 权限确认弹窗 hook"
-  default_prompt: "Use $toggle-popup to toggle Codex permission request popup hooks for this project."

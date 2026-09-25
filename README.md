@@ -6,7 +6,7 @@
 
 > 基于 TEngine 深度优化演进，为商业级游戏开发打造
 
-[![Unity Version](https://img.shields.io/badge/Unity-2021.3.30%2B-blue.svg?style=flat-square)](https://unity3d.com/)
+[![Unity Version](https://img.shields.io/badge/Unity-2022.3.62f3-blue.svg?style=flat-square)](https://unity3d.com/)
 [![License](https://img.shields.io/badge/License-MIT-green.svg?style=flat-square)](LICENSE)
 [![Last Commit](https://img.shields.io/github/last-commit/AmaniDawn/DGame?style=flat-square)](https://github.com/AmaniDawn/DGame/commits)
 [![Issues](https://img.shields.io/github/issues/AmaniDawn/DGame?style=flat-square)](https://github.com/AmaniDawn/DGame/issues)
@@ -20,13 +20,13 @@
 
 **DGame** 是在 [TEngine](https://github.com/ALEXTANGXIAO/TEngine) 基础上深度优化演进的 Unity 游戏框架。保留 TEngine 核心优势的同时，针对商业游戏开发需求**新增了多个核心模块**，并对现有系统进行了**部分优化**。
 
-> 📝 本文档由 AI（Claude）自动生成，内容可能存在偏差，如有疑问请参考源代码或提交 Issue。
+> 📝 本文档按当前仓库源码和项目配置维护；API、路径和验证方式以实际源码及 `AGENTS.md` 为准。
 >
 > 新增功能均在多个商业化游戏及百万DAU项目经过验证。
 >
 > Fantasy线和TE同步接入服务器框架[Fantasy](https://github.com/qq362946/Fantasy)，区别在于TE接入的就更纯净简洁，本项目可能会做更多的项目细节和实用工具方法处理。
 >
-> 本框架已支持 Codex 的基础 skill，其中 `dgame-dev` 可用于辅助理解本仓库的目录结构、客户端架构与常见开发流程。
+> 本仓库通过 `dgame-dev`、`unity-cli` 和 `luban-dev` 提供项目内开发与验证辅助，详细规则见 `AGENTS.md`。
 
 ### ✨ 核心特性
 
@@ -38,7 +38,7 @@
 | 📋 **配置系统**        | 基于 Luban 的配置表解决方案                            | 继承自 TEngine |
 | 🧩 **流程管理**        | 基于状态机的流程系统，管理游戏生命周期                 | 继承自 TEngine |
 | 🔄 **MonoDriver**      | 替代 UpdataDriver，统一生命周期驱动                   | ⚡ 优化改进    |
-| 🌍 **多语言**          | ILocalizationModule，接口驱动、8 种语言支持            | ⚡ 重新实现    |
+| 🌍 **多语言**          | ILocalizationModule，接口驱动、7 种语言支持            | ⚡ 重新实现    |
 | ⏱️ **GameTimer**       | 替代 TimerModule，支持循环次数限制                     | ⚡ 优化改进    |
 | 🎲 **MemoryCollector** | 替代 MemoryCollection，Spawn/Release 语义             | ⚡ 优化改进    |
 | 🛠️ **编辑器工具**      | 工具栏扩展、Spine 助手、Odin 支持、快速创建入口        | 🆕 新增功能    |
@@ -54,7 +54,7 @@
 | 📜 **SuperScrollView** | 高性能循环滚动视图                                     | 🆕 新增功能    |
 | 📝 **Text 系统**        | 多语言文本系统（G.cs, TextConfigMgr）                  | 🆕 新增功能    |
 | 🔧 **SingletonSystem** | 单例系统                                               | 🆕 新增功能    |
-| 👁️ **GameTickWatcher** | 游戏帧监听                                             | 🆕 新增功能    |
+| 👁️ **GameTickWatcher** | 基于 Stopwatch 的耗时统计工具                         | 🆕 新增功能    |
 
 ---
 
@@ -63,7 +63,6 @@
 - [🆕 新增功能一览](#-新增功能一览)
 - [⚡ 优化改进一览](#-优化改进一览)
 - [快速开始](#-快速开始)
-- [🤖 AI 协作开发（Codex + OpenSpec）](#-ai-协作开发codex--openspec)
 - [新增功能详解](#-新增功能详解)
 - [优化改进详解](#-优化改进详解)
 - [核心模块](#-核心模块)
@@ -80,7 +79,6 @@
 | 模块                | 文件路径              | 说明                               |
 | ------------------- | --------------------- | ---------------------------------- |
 | 🎯 **AnimModule**    | Runtime/Module/       | 封装 Playable API，与 FsmModule 集成 |
-| 🕹️ **InputModule**  | Runtime/Module/       | 统一输入处理、多点触控、手势识别    |
 | 🏊 **GameObjectPool** | Runtime/Module/       | 专用 GameObject 对象池              |
 | ⏱️ **GameTimer**    | Runtime/Module/       | 替代 TimerModule，支持循环次数限制  |
 | 🔄 **MonoDriver**   | Runtime/Module/       | 替代 UpdataDriver                  |
@@ -90,15 +88,16 @@
 | 模块                      | 文件路径                      | 说明                                           |
 | ------------------------- | ----------------------------- | ---------------------------------------------- |
 | 🔴 **RedDotModule**       | GameLogic/Module/             | 树状结构红点管理，编辑器可视化配置             |
+| 🕹️ **InputModule**       | GameLogic/Module/InputModule/ | 统一输入处理、多点触控、手势识别              |
 | 💾 **DataCenter**         | GameLogic/DataCenter/         | 统一数据管理，生命周期事件通知                 |
 | 💽 **ClientSaveDataMgr**  | GameLogic/DataCenter/         | 客户端存档系统，支持按角色存档                 |
-| 🎬 **FrameSprite**        | GameLogic/Common/             | 序列帧动画系统，对象池复用                     |
-| 🎮 **GMPanel**            | GameLogic/GMPanel/            | GM 调试面板，配置表驱动                        |
+| 🎬 **FrameSprite**        | GameLogic/Module/FrameAnimModule/ | 序列帧动画系统，对象池复用                  |
+| 🎮 **GMPanel**            | GameLogic/UI/GMPanel/         | GM 调试面板，配置表驱动                        |
 | 📜 **SuperScrollView**    | GameLogic/Module/UIModule/    | 高性能循环滚动视图（ListView/GridView/StaggeredGridView） |
-| 📝 **Text 系统**           | GameLogic/Text/               | 多语言文本系统（G.cs, TextConfigMgr）          |
-| 🔧 **SingletonSystem**    | GameLogic/SingletonSystem/    | 单例系统                                       |
-| 👤 **PlayerData**         | GameLogic/PlayerData/         | 玩家数据管理                                   |
-| 👁️ **GameTickWatcher**    | GameLogic/GameTickWatcher/    | 游戏帧监听                                     |
+| 📝 **Text 系统**          | GameLogic/Module/TextModule/ | 多语言文本系统（G.cs, TextConfigMgr）          |
+| 🔧 **SingletonSystem**    | GameLogic/Module/SingletonSystem/ | 单例系统                                    |
+| 👤 **PlayerData**         | GameLogic/DataCenter/PlayerData/ | 玩家数据管理                              |
+| 👁️ **GameTickWatcher**    | GameLogic/GameTickWatcher/    | Stopwatch 耗时统计工具                        |
 
 ### Editor 层新增
 
@@ -117,8 +116,8 @@
 | 模块            | TEngine                | DGame                         | 主要改进点                                        |
 | --------------- | ---------------------- | ----------------------------- | ------------------------------------------------- |
 | ⏱️ **计时器**   | TimerModule            | GameTimer                     | 返回对象可操作、支持循环次数限制、DGameLinkedList  |
-| 🌍 **多语言**   | LocalizationModule     | ILocalizationModule           | 接口驱动设计、8 种语言支持、事件通知机制          |
-| 🎲 **内存池**   | MemoryCollection       | MemoryCollector               | Spawn/Release 语义、支持批量释放、Capacity 属性   |
+| 🌍 **多语言**   | LocalizationModule     | ILocalizationModule           | 接口驱动设计、7 种语言支持、事件通知机制          |
+| 🎲 **内存池**   | MemoryCollection       | MemoryPool / MemoryCollector  | Spawn/Release 语义、支持批量释放                   |
 | 🎨 **UI 系统**  | 基础组件               | UIBindComponent + 组件扩展    | 代码自动生成、UIButton/UIImage/UIText 组件扩展    |
 | 📡 **事件系统** | GameEventMgr           | EventDispatcher               | 分离设计、接口包装支持                             |
 | 📝 **日志系统** | Log                    | DGameLog                      | 更简洁的日志封装                                   |
@@ -131,8 +130,8 @@
 
 | 项目           | 要求                                   |
 | -------------- | -------------------------------------- |
-| **Unity 版本** | 2021.3.30f1c1（推荐）或更高            |
-| **开发环境**   | .NET 4.x / .NET Standard 2.1           |
+| **Unity 版本** | 2022.3.62f3                             |
+| **开发环境**   | .NET SDK（代码构建）/ .NET Standard 2.1 |
 | **支持平台**   | Windows、Android、iOS                  |
 | **IDE**        | Visual Studio 2019+ 或 JetBrains Rider |
 
@@ -145,10 +144,10 @@
    ```
 
 2. **打开项目**
-   - 使用 Unity 2021.3.30f1c1 打开 `GameUnity` 目录
+   - 使用 Unity 2022.3.62f3 打开 `GameUnity` 目录
 
 3. **运行项目**
-   - 打开 `Assets/Scenes` 下的 `LaunchScene` 启动场景
+   - 打开 `Assets/Scenes/GameStart/GameStart.unity` 启动场景
    - 点击运行按钮启动游戏
 
 4. **热更新设置**（可选）
@@ -158,34 +157,27 @@
 
 ---
 
-## 🤖 AI 协作开发（Codex + OpenSpec）
+## 🤖 AI 协作开发（Claude Code / Codex）
 
-本仓库已经完成了基础的 `codex skills` 支持，相关能力位于项目根目录的 `.codex/skills/`，可用于辅助理解 DGame 的目录结构、客户端架构、热更开发流程，以及基于 OpenSpec 的变更提案、实现与归档工作流。
+本仓库使用共享的 Agent Skills，技能位于 `.agents/skills/dgame-dev/`、`.agents/skills/unity-cli/` 和 `.agents/skills/luban-dev/`。Claude Code 与 Codex 都先读取 `AGENTS.md`，再按任务读取对应 `SKILL.md`；Unity 工程内还要读取 `GameUnity/AGENTS.md`。
 
-### 推荐使用方式
+### 推荐工作流
 
-推荐优先使用 **Codex CLI**，并结合 **OpenSpec** 进行规格驱动开发：
+1. 根据任务读取对应的 skill 和 reference。
+2. 使用项目 Workflow 执行结构检查、代码构建、配置导表和 Unity 验证。
+3. 交付时记录实际执行的命令、结果和未执行阶段。
 
-1. 使用 `Codex CLI` 在仓库内完成代码阅读、修改、调试与文档维护
-2. 使用 `OpenSpec` 先沉淀需求、设计和任务拆解
-3. 再通过 `Codex + OpenSpec` 按任务逐步实现、验证与归档
-
-适合本仓库的典型流程如下：
-
-```bash
-# 1. 进入仓库
+```powershell
 cd DGame
-
-# 2. 初始化或更新 OpenSpec 结构
-openspec init
-# 初始化时推荐选择 Codex 作为 AI 工具
-
-# 3. 启动 Codex CLI
 codex
-
-# 4. 在 Codex 中按 OpenSpec 工作流推进
-# 例如：先提 proposal，再实现，再 archive
+python .agents/scripts/workflow.py check
+python .agents/scripts/workflow.py verify --profile docs
+python .agents/scripts/workflow.py verify --profile code
+python .agents/scripts/workflow.py verify --profile unity --test-filter GameLogic
+python .agents/scripts/workflow.py verify --profile full
 ```
+
+`doctor` 和 `unity/full` 验证优先使用工程目录的 `GameUnity/Tools/unity.exe`，缺少时自动从系统 `PATH` 查找 `unity`；Workflow 不会自动安装或替换 Unity CLI。完整验证还会在隔离目录执行两次 Luban 客户端导表并比较产物哈希。目录说明见 `.agents/README.md`。
 
 ### Codex CLI 安装
 
@@ -230,73 +222,23 @@ $env:OPENAI_API_KEY="<YOUR_OPENAI_API_KEY>"
 codex
 ```
 
-常用模式示例：
+> Codex CLI 的安装和登录方式以官方文档为准；本仓库只约束项目内的技能、路径和 Workflow。
 
-```bash
-codex --auto-edit
-codex --full-auto
+### 仓库验证流程
+
+从仓库根目录运行：
+
+```powershell
+python .agents/scripts/workflow.py doctor
+python .agents/scripts/workflow.py check
+python .agents/scripts/workflow.py verify --profile code
+python .agents/scripts/workflow.py verify --profile full
 ```
-
-> 提示：`Codex CLI` 官方对 macOS / Linux 支持更完整；如在 Windows 环境下遇到兼容性问题，建议优先使用 WSL。
-
-### OpenSpec 安装与初始化
-
-#### 1. 全局安装 OpenSpec CLI
-
-```bash
-npm install -g @fission-ai/openspec@latest
-```
-
-#### 2. 验证安装
-
-```bash
-openspec --version
-```
-
-#### 3. 在仓库根目录初始化
-
-```bash
-openspec init # 初始化时推荐选择 Codex 作为 AI 工具
-```
-
-初始化过程中，当 CLI 询问要集成的 AI 工具时，**推荐优先选择 `Codex`**。
-
-初始化后通常会生成或更新以下内容：
-
-- `openspec/`：用于存放当前变更、规范与归档
-- `AGENTS.md`：提供给 AI 助手的统一协作说明
-- 针对所选 AI 工具的辅助命令或集成配置
-
-#### 4. 常用 OpenSpec 命令
-
-```bash
-# 查看当前变更
-openspec list
-
-# 查看某个变更状态
-openspec status --change "<change-name>"
-
-# 校验某个变更
-openspec validate "<change-name>" --strict
-
-# 归档已完成变更
-openspec archive "<change-name>" --yes
-```
-
-### 本仓库中的建议工作流
-
-1. 先运行 `openspec init`，保证仓库具备标准化规格目录与 AI 协作入口
-2. 使用 `codex` 进入仓库，在需求较明确时优先走 OpenSpec 流程
-3. 先产出 proposal / design / tasks，再进入实现阶段
-4. 实现过程中优先复用本仓库已有的 `.codex/skills/` 与 `AGENTS.md`
-5. 开发完成后执行验证，并归档对应 OpenSpec change
 
 ### 参考文档
 
 - Codex CLI: https://help.openai.com/en/articles/11096431-openai-codex-ci-getting-started
 - Codex CLI 登录: https://help.openai.com/en/articles/11381614
-- OpenSpec 安装: https://thedocs.io/openspec/installation/
-- OpenSpec 快速开始: https://thedocs.io/openspec/quick_start/
 
 ---
 
@@ -318,13 +260,13 @@ openspec archive "<change-name>" --yes
 
 ```csharp
 // 创建红点
-var redDot = CreateRedDot(RedDotPathDefine_Gen.Main.Bag.Equipment, parentTransform);
+var redDot = CreateRedDot(RedDotPathDefine.Main.Bag.Equipment, parentTransform);
 
-// 更新红点状态
-RedDotModule.Instance.SetState(RedDotPathDefine_Gen.Main.Bag.Equipment, true);
+// 更新红点数量
+GameModule.RedDotModule.SetValue(RedDotPathDefine.Main.Bag.Equipment, 1);
 
 // 设置红点数量
-RedDotModule.Instance.SetNumber(RedDotPathDefine_Gen.Main.Quest.Daily, 5);
+GameModule.RedDotModule.SetValue(RedDotPathDefine.Main.Quest.Daily, 5);
 ```
 
 ### 🎬 序列帧动画 (FrameSprite)
@@ -332,13 +274,9 @@ RedDotModule.Instance.SetNumber(RedDotPathDefine_Gen.Main.Quest.Daily, 5);
 高效序列帧播放，对象池复用，异步加载。
 
 ```csharp
-var frameSprite = await FrameSpriteMgr.PlayAsync(
-    parent: transform,
-    atlasName: "EffectAtlas",
-    spriteNames: new[] { "frame_0", "frame_1", "frame_2" },
-    frameRate: 30,
-    loopCount: 1
-);
+var animator = FrameAnimatorAgent.Create();
+await animator.Init(modelConfig);
+animator.StartAnim();
 ```
 
 ### 🎮 GM 系统 (GMPanel)
@@ -346,8 +284,8 @@ var frameSprite = await FrameSpriteMgr.PlayAsync(
 配置表驱动的调试面板。
 
 ```csharp
-GMModule.ExecuteCommand("AddGold 1000");
-GMModule.ExecuteClientGm(GmCommandId.AddGold);
+ClientGM.Instance.AddCommendCfg(commandConfig);
+GameModule.UIModule.ShowWindowAsync<GMPanel>();
 ```
 
 ### 💾 数据中心 (DataCenter)
@@ -355,14 +293,16 @@ GMModule.ExecuteClientGm(GmCommandId.AddGold);
 统一数据管理，生命周期事件通知。
 
 ```csharp
-public class PlayerData : DataBase
+public sealed class BagDataCenter : DataCenterModule<BagDataCenter>
 {
-    public int Level;
-    public long Gold;
+    public int Gold;
 }
 
-var playerData = DataCenterModule.GetData<PlayerData>();
-playerData.Gold += 100;
+var playerData = DataCenterSys.Instance.CurPlayerData;
+if (playerData != null)
+{
+    DLogger.Info($"当前角色：{playerData.RoleName}");
+}
 ```
 
 ### 💽 客户端存档系统 (ClientSaveDataMgr)
@@ -412,10 +352,8 @@ public class IdleState : BaseState<Character>
 统一输入处理，多点触控支持。
 
 ```csharp
-var inputModule = ModuleSystem.GetModule<IInputModule>();
-inputModule.OnClick += (position) => { };
-inputModule.OnLongPress += (position, duration) => { };
-inputModule.OnDrag += (delta) => { };
+var inputComponent = GameModule.Input.AddInputComponent<MyInputComponent>();
+GameModule.Input.Enable();
 ```
 
 ### 🏊 GameObject 对象池 (GameObjectPoolModule)
@@ -423,9 +361,9 @@ inputModule.OnDrag += (delta) => { };
 专用 GameObject 对象池。
 
 ```csharp
-var pool = ModuleSystem.GetModule<IGameObjectPoolModule>();
-var obj = pool.Spawn("Bullet");
-pool.Despawn(obj);
+await GameModule.GameObjectPool.CreateGameObjectPoolAsync("Bullet", initCapacity: 5);
+var obj = await GameModule.GameObjectPool.SpawnAsync("Bullet");
+GameModule.GameObjectPool.Recycle(obj);
 ```
 
 ### 📜 SuperScrollView
@@ -433,10 +371,11 @@ pool.Despawn(obj);
 高性能循环滚动视图。
 
 ```csharp
-loopListView.InitListView(itemCount, (index, item) => {
-    var itemLogic = item as MyItem;
+loopListView.InitListView(itemCount, (listView, index) => {
+    var item = listView.NewListViewItem("MyItem");
+    var itemLogic = item.GetComponent<MyItem>();
     itemLogic.SetItemData(index);
-    return itemLogic;
+    return item;
 });
 ```
 
@@ -450,7 +389,7 @@ loopListView.InitListView(itemCount, (index, item) => {
 
 ### 👁️ GameTickWatcher
 
-游戏帧监听，用于性能监控和调试。
+基于 Stopwatch 的耗时统计，用于性能监控和调试。
 
 ---
 
@@ -462,15 +401,16 @@ loopListView.InitListView(itemCount, (index, item) => {
 - 使用 DGameLinkedList 优化链表结构
 
 ```csharp
-var timer = GameTimer.CreateLoopGameTimer(1f, () => DLogger.Info("每秒执行"));
-timer.LoopCount = 5;  // 只执行 5 次
-timer.Paused = true;  // 暂停
+var timer = GameModule.GameTimerModule.CreateLoopCountGameTimer(
+    1f, 5, _ => DLogger.Info("每秒执行"));
+GameModule.GameTimerModule.Pause(timer);
+GameModule.GameTimerModule.DestroyGameTimer(timer);
 ```
 
 ### 🌍 ILocalizationModule（替代 LocalizationModule）
 
 - 接口驱动设计
-- 8 种语言支持（中/英/繁/韩/日/越/印尼）
+- 7 种语言支持（中/英/繁/韩/日/越/印尼）
 - 事件通知机制
 
 ### 🎲 MemoryCollector（替代 MemoryCollection）
@@ -479,8 +419,15 @@ timer.Paused = true;  // 暂停
 - 支持批量释放
 
 ```csharp
-var obj = MemoryCollector.Spawn<MyClass>();
-MemoryCollector.Release(obj);
+public sealed class MyPayload : MemoryObject
+{
+    public int Value;
+
+    public override void OnRelease() => Value = 0;
+}
+
+var obj = MemoryPool.Spawn<MyPayload>();
+MemoryPool.Release(obj);
 ```
 
 ### 🎨 UI 系统（UIBindComponent + 组件扩展）
@@ -510,10 +457,10 @@ MemoryCollector.Release(obj);
 | 🔄 状态机        | `IFsmModule`            | 有限状态机管理         | TEngine     |
 | 🔊 音频          | `IAudioModule`          | 背景音乐与音效管理     | TEngine     |
 | 🎬 场景          | `ISceneModule`          | 场景加载与切换         | TEngine     |
-| 🌍 多语言        | `ILocalizationModule`   | 8 种语言支持，接口驱动 | ⚡ 重新实现 |
+| 🌍 多语言        | `ILocalizationModule`   | 7 种语言支持，接口驱动 | ⚡ 重新实现 |
 | 🏊 对象池        | `IObjectPoolModule`     | 对象池管理             | TEngine     |
 | ⏱️ 计时器        | `IGameTimerModule`      | 游戏计时器             | ⚡ 优化     |
-| 🎲 内存池        | `MemoryPool`            | 非托管内存池           | ⚡ 优化     |
+| 🎲 内存池        | `MemoryPool`            | 托管对象复用池         | ⚡ 优化     |
 | 🎯 动画          | `IAnimModule`           | 动画控制               | 🆕 新增     |
 | 🕹️ 输入          | `IInputModule`          | 输入处理               | 🆕 新增     |
 | 🏊 GameObject 池 | `IGameObjectPoolModule` | GameObject 对象池      | 🆕 新增     |
@@ -533,18 +480,15 @@ DGame/
 │   │   │   └── Runtime/     # 框架运行时代码
 │   │   │       ├── Core/    # 核心系统（日志、内存池、模块系统、事件）
 │   │   │       └── Module/  # 功能模块（GameTimer、AnimModule、InputModule等）
+│   │   ├── DGame.AOT/       # AOT 启动与流程代码
 │   │   └── Scripts/
 │   │       ├── HotFix/      # 热更新代码
-│   │       │   ├── GameBase/      # 基础框架程序集
-│   │       │   ├── GameProto/     # 配置协议程序集
-│   │       │   └── GameLogic/     # 业务逻辑程序集
-│   │       │       ├── Module/    # 🆕 红点系统、数据中心、UI 系统等
-│   │       │       ├── Common/    # 🆕 序列帧动画等
-│   │       │       └── GMPanel/   # 🆕 GM 系统
-│   │       └── Launcher/    # 启动器代码（AOT）
+│   │       │   ├── GameBattle/    # 战斗程序集
+│   │       │   ├── GameLogic/     # 业务逻辑程序集
+│   │       │   └── GameProto/     # 配置协议程序集
 │   └── ...
 ├── Tools/                   # 开发工具
-└── UnityPackage/            # Unity 包导出
+└── .agents/                 # 技能与 Workflow 验证工具
 ```
 
 ---
@@ -553,8 +497,8 @@ DGame/
 
 | 项目 | 要求 |
 |------|------|
-| **Unity 版本** | 2021.3.30f1c1（推荐）或更高 |
-| **开发环境** | .NET 4.x / .NET Standard 2.1 |
+| **Unity 版本** | 2022.3.62f3 |
+| **开发环境** | .NET SDK（代码构建）/ .NET Standard 2.1 |
 | **支持平台** | Windows、Android、iOS |
 
 ---
@@ -564,28 +508,29 @@ DGame/
 ### 计时器使用（⚡ 优化版）
 
 ```csharp
-var timer = GameTimer.CreateLoopGameTimer(1f, () => DLogger.Info("每秒执行"));
-timer.LoopCount = 5;  // 只执行 5 次
+var timer = GameModule.GameTimerModule.CreateLoopCountGameTimer(
+    1f, 5, _ => DLogger.Info("每秒执行"));
 ```
 
 ### 红点系统使用（🆕 新增）
 
 ```csharp
-RedDotModule.Instance.SetState(RedDotPathDefine_Gen.Main_Bag_Equipment, true);
-AddUIEvent(RedDotPathDefine_Gen.Main_Bag, OnRedDotChanged);
+var redDot = CreateRedDot(RedDotPathDefine.Main.Bag.Equipment, parentTransform);
+GameModule.RedDotModule.SetValue(RedDotPathDefine.Main.Bag.Equipment, 1);
 ```
 
 ### 序列帧动画（🆕 新增）
 
 ```csharp
-var frameSprite = await FrameSpriteMgr.PlayAsync(transform, "EffectAtlas", spriteNameArray, 30, 1);
+var animator = FrameAnimatorAgent.Create();
+await animator.Init(modelConfig);
+animator.StartAnim();
 ```
 
 ### GM 命令（🆕 新增）
 
 ```csharp
-GMModule.ExecuteCommand("AddGold 1000");
-GMModule.ExecuteClientGm(GmCommandId.AddGold);
+GameModule.UIModule.ShowWindowAsync<GMPanel>();
 ```
 
 ### 存档系统（🆕 新增）
@@ -612,17 +557,17 @@ ClientSaveDataMgr.Instance.SaveAllClientData();
 ```csharp
 public class MyWindow : UIWindow
 {
-    private Button m_btnClose;
+    private UIButton m_btnClose;
 
     protected override void ScriptGenerator()
     {
-        m_btnClose = FindChildComponent<Button>("m_btnClose");
-        m_btnClose.ClickProtect = true;
-        m_btnClose.ClickScale = 0.9f;
+        m_btnClose = FindChildComponent<UIButton>("m_btnClose");
+        m_btnClose.ClickScaleExtend.IsUseClickScale = true;
+        m_btnClose.ClickScaleExtend.ClickScale = new Vector3(0.9f, 0.9f, 0.9f);
     }
 }
 
-await UIModule.Instance.ShowWindowAsync<MyWindow>(userData);
+GameModule.UIModule.ShowWindowAsync<MyWindow>(userData);
 ```
 
 ---
