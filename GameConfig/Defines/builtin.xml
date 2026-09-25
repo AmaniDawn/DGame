@@ -43,8 +43,8 @@
         <var name="y" type="int" />
         <var name="z" type="int" />
         <mapper target="client" codeTarget="cs-bin,cs-simple-json,cs-newtonsoft-json">
-            <option name="type" value="UnityEngine.Vector3" />
-            <option name="constructor" value="ExternalTypeUtil.NewVector3" />
+            <option name="type" value="UnityEngine.Vector3Int" />
+            <option name="constructor" value="ExternalTypeUtil.NewVector3Int" />
         </mapper>
     </bean>
 

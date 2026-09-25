@@ -1,0 +1,6 @@
+interface:
+  display_name: "Luban Dev"
+  short_description: "DGame Luban 配置表开发与导表工具"
+  default_prompt: "Use $luban-dev to edit DGame Luban config tables and regenerate client config assets."
+policy:
+  allow_implicit_invocation: true

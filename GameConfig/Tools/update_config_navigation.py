@@ -420,8 +420,8 @@ def build_navigation(data_dir: Path, output: Path, reference: Path | None, inclu
         ["生成时间", datetime.now().strftime("%Y-%m-%d %H:%M:%S")],
         ["扫描目录", str(data_dir)],
         ["输出文件", str(output)],
-        ["参考文件", str(reference) if reference else ""],
-        ["导航结构", "参考 LeanNew 配置表目录：文件夹 -> 文件名 -> 工作表名，工作表名单元格链接到对应 Excel Sheet。"],
+        ["样式文件", str(reference) if reference else ""],
+        ["导航结构", "依据配置表目录：文件夹 -> 文件名 -> 工作表名，工作表名单元格链接到对应 Excel Sheet。"],
         ["文件格式", "本脚本生成 xlsx，无 VBA 宏；如果需要点击文件夹折叠，请基于 xlsm 宏模板另行扩展。"],
         ["数据行数规则", "从最后一个 Luban 标记行（##var/##type/##group/## 等）之后开始统计非空数据行。"],
         ["字段数规则", "字段名前缀为 ## 的注释列不计入导出字段数，但仍收录在 字段索引。"],
@@ -445,8 +445,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="更新 GameConfig 配置表目录导航。")
     parser.add_argument("--data-dir", type=Path, default=DEFAULT_DATA_DIR, help="配置表目录，默认 GameConfig/Datas")
     parser.add_argument("--output", type=Path, default=DEFAULT_OUTPUT, help="输出导航文件，默认 GameConfig/配置表导航.xlsx")
-    parser.add_argument("--reference", type=Path, default=DEFAULT_REFERENCE, help="样式参考文件；不存在时使用内置样式")
-    parser.add_argument("--no-reference", action="store_true", help="不读取参考文件样式")
+    parser.add_argument("--reference", type=Path, default=DEFAULT_REFERENCE, help="样式文件；不存在时使用内置样式")
+    parser.add_argument("--no-reference", action="store_true", help="不读取外部样式文件")
     parser.add_argument("--exclude-meta", action="store_true", help="不把 __tables__/__beans__/__enums__ 加入导航")
     return parser.parse_args()
 
@@ -455,7 +455,7 @@ def main():
     args = parse_args()
     reference = None if args.no_reference else args.reference
     if reference and not reference.exists():
-        print(f"参考文件不存在，改用内置样式：{reference}")
+        print(f"样式文件不存在，改用内置样式：{reference}")
         reference = None
 
     file_count, sheet_count, field_count = build_navigation(

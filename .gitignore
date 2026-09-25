@@ -23,8 +23,10 @@ path_define.sh
 
 Tools/BuildTools/Log/
 
-# .claude 和 .codex 的hooks缓存文件
-.claude/hooks/.last_idle
-.claude/*/*.log
-.codex/*/*.log
-.codex/hooks/.last_idle
+# Local Unity CLI deployment
+/GameUnity/Tools/unity.exe
+
+# Workflow reports and Python caches
+/.agents/runs/
+/.agents/**/__pycache__/
+/.agents/**/*.pyc

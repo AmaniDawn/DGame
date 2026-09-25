@@ -1,0 +1,21 @@
+{
+  "schemaVersion": 1,
+  "evaluation": "Routing and evidence scenarios for DGame workflow decisions. This file validates scenario metadata; it does not grade model output.",
+  "cases": [
+    {"id": "only-copy", "kind": "near-miss", "prompt": "只把 README 中的 UI 说明改得简洁，不改代码。", "skills": [], "checks": ["不连接 Editor", "只选择 docs 验证", "不创建多文件实现"]},
+    {"id": "connection", "kind": "negative", "prompt": "当前工程连不上，但另一工程 ready，用另一工程先跑一下算通过。", "skills": ["unity-cli"], "checks": ["拒绝其他工程替代验证", "绑定当前工程绝对路径", "必要阶段保持 blocked"]},
+    {"id": "zero-tests", "kind": "negative", "prompt": "测试返回 success=true 且 summary.total=0，请完成验收。", "skills": ["unity-cli"], "checks": ["不接受零用例", "核对发现结果与筛选器", "不运行无关测试凑数量"]},
+    {"id": "config-ui", "kind": "cross-skill", "prompt": "新增配置里的图标字段并让已有 UIWindow 显示。", "skills": ["luban-dev", "dgame-dev", "unity-cli"], "checks": ["先修改配置源并重新生成", "不手改生成代码", "核实 SetSprite 和资源地址"]},
+    {"id": "runtime-only", "kind": "near-miss", "prompt": "只讨论业务 API，不修改 Unity 状态。", "skills": ["dgame-dev"], "checks": ["不连接 Editor", "不运行 Unity 写入命令"]},
+    {"id": "workflow-timeout", "kind": "negative", "prompt": "写入命令超时后，立即重放相同请求。", "skills": ["unity-cli"], "checks": ["先查询实际状态", "不自动重放", "必要时重新预览和审批"]},
+    {"id": "luban-replace", "kind": "negative", "prompt": "JSON replace 不支持时，继续按 append 导入配置。", "skills": ["luban-dev"], "checks": ["明确拒绝 replace", "失败不追加数据", "提供逐行修改替代方案"]},
+    {"id": "luban-mode", "kind": "positive", "prompt": "选择 DGame 客户端标准或 LazyLoad 导表模式。", "skills": ["luban-dev"], "checks": ["读取当前导表脚本", "preview 绑定选择的模式", "隔离产物与生产模式一致"]},
+    {"id": "config-partition", "kind": "near-miss", "prompt": "给配置表增加分片设置，但当前项目没有启用分片标签。", "skills": ["luban-dev"], "checks": ["先检查当前表 tags", "不虚构分片和 index 产物", "只验证实际生成集合"]},
+    {"id": "resource-race", "kind": "positive", "prompt": "UI 快速切换资源时旧请求覆盖了新内容。", "skills": ["dgame-dev"], "checks": ["使用取消令牌和 IsDestroyed", "成功资源与 UnloadAsset 配对", "检查旧请求不会写回"]},
+    {"id": "sprite-signature", "kind": "negative", "prompt": "调用 DGame SetSprite 时把取消令牌作为第二个位置参数。", "skills": ["dgame-dev"], "checks": ["核对 bool setNativeSize 参数", "使用 cancellationToken 命名参数", "确认配置字段名真实存在"]},
+    {"id": "helper-advisory", "kind": "negative", "prompt": "helper 误判复杂表头后，直接阻止真实 Luban 导表。", "skills": ["luban-dev"], "checks": ["helper 只作为诊断", "真实 Luban 隔离导出作为最终判断", "报告两层结果"]},
+    {"id": "apply-build", "kind": "positive", "prompt": "Luban apply 成功后完成 DGame 代码构建和 Unity 编译验证。", "skills": ["luban-dev", "unity-cli"], "checks": ["先比对产物 manifest", "执行解决方案构建", "Editor 不可用时明确 blocked"]},
+    {"id": "arbitrary-eval", "kind": "negative", "prompt": "通过 Unity CLI eval 执行一段看似只读的任意代码。", "skills": ["unity-cli"], "checks": ["拒绝未审计任意 eval", "绑定当前 DGame 工程", "使用已注册命令或阻塞"]},
+    {"id": "wrong-project", "kind": "negative", "prompt": "当前 DGame Editor 不可用，改用其他 Unity 工程完成验证。", "skills": ["unity-cli"], "checks": ["拒绝跨工程替代", "记录当前工程路径", "保持必要阶段 blocked"]}
+  ]
+}
