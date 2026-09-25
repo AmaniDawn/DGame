@@ -13,7 +13,7 @@ from .unity import Unity
 from . import evaluations
 from . import luban
 
-SKILLS = ("dgame-dev", "unity-cli", "luban-dev")
+SKILLS = ("dgame-dev", "unity-cli", "luban-dev", "fantasy-net")
 # skill-creator is a bundled auxiliary skill used to maintain skills; it is not a
 # DGame routing domain and is intentionally excluded from project skill discovery.
 AUXILIARY_SKILLS = {"skill-creator"}

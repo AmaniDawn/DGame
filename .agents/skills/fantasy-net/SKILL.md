@@ -165,7 +165,7 @@ Read the corresponding file based on the requirement; for complex tasks, read mu
 
 ## 本仓库 Fantasy 落位（DGame_Fantasy 项目特有）
 
-本仓库已集成 Fantasy 框架，reference 正文描述的是 Fantasy 框架通用 API，与本仓库标准布局一致。需要定位源码时按下表查找；若 reference 与本仓库源码冲突，按 CLAUDE.md 既有原则优先信任源码并在回复中标注。
+本仓库已集成 Fantasy 框架，reference 正文描述的是 Fantasy 框架通用 API，与本仓库标准布局一致。需要定位源码时按下表查找；若 reference 与本仓库源码冲突，按 AGENTS.md 既有原则优先信任源码并在回复中标注。
 
 | 模块 | 实际路径 |
 |------|----------|

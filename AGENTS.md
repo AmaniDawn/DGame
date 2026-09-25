@@ -2,20 +2,22 @@
 
 请使用中文写提案和回答。
 
-本文件是 DGame 仓库级规则。处理 `GameUnity/**` 下的文件时，还必须读取并遵守 [GameUnity/AGENTS.md](GameUnity/AGENTS.md)；子目录规则用于补充工程细节，和本文件冲突时以距离目标文件更近的规则为准。
+本文件是 DGame 仓库级规则。处理 `GameUnity/**` 下的文件时，还必须读取并遵守 [GameUnity/AGENTS.md](GameUnity/AGENTS.md)；处理 `GameServer/**` 下的文件时，还必须读取并遵守 [GameServer/AGENTS.md](GameServer/AGENTS.md)。子目录规则用于补充工程细节，和本文件冲突时以距离目标文件更近的规则为准。
 
 ## 适用范围与规范源
 
 - 仓库级配置和工具位于 `GameConfig/`、`GameRelease/` 和 `Tools/`。
 - Unity 工程位于 `GameUnity/`，其工程级规则见 [GameUnity/AGENTS.md](GameUnity/AGENTS.md)。
+- Fantasy 服务端工程位于 `GameServer/`，其工程级规则见 [GameServer/AGENTS.md](GameServer/AGENTS.md)。
 - Claude Code 与 Codex 共用 `.agents/skills/` 下的 Agent Skills；技能和 Workflow 不再维护第二套入口。
+- 本项目特有的 Fantasy 服务端与 Unity 客户端开发、ECS、协议、Roaming、事件、数据库和分布式运行时规则位于 `.agents/skills/fantasy-net/`。
 - 不回滚用户已有改动，不删除与当前任务无关的文件。
 
 ## 工作方式
 
 1. 先阅读相关实现和 `git status`，确认已有改动边界。
 2. 按任务影响范围选择验证方式；跨模块、高风险或多阶段任务先明确目标和验收条件。
-3. 读取对应 skill 的 `SKILL.md` 及必要的 reference。配置表、Excel、导表脚本和 `GameConfig/` 数据优先使用 `.agents/skills/luban-dev/`。
+3. 读取对应 skill 的 `SKILL.md` 及必要的 reference。配置表、Excel、导表脚本和 `GameConfig/` 数据优先使用 `.agents/skills/luban-dev/`；Fantasy 相关任务优先使用 `.agents/skills/fantasy-net/SKILL.md`。
 4. 源码用代码编辑工具修改；完成后执行与变更匹配的检查，并报告实际结果、限制和剩余风险。
 5. 当 reference 与源码冲突时，使用 `rg` 核对实际签名和调用点，优先信任当前源码，并记录冲突位置。
 
@@ -35,6 +37,10 @@
 完整验证入口以各 DGame skill 和 `.agents/scripts/workflow.py --help` 为准。L4、跨模块、配置导表、Unity 写入、构建和发布类任务必须使用 [.agents/templates/task.md](.agents/templates/task.md) 记录目标、授权、决策、验证证据和剩余风险；L1/L2 小改可不创建任务文件。
 
 `AGENTS.md` 是 Claude Code 与 Codex 都会读取的仓库级入口。匹配任务后，两个工具都应按这里的路由读取 `.agents/skills/<skill>/SKILL.md`；技能目录遵循 Agent Skills 的 `SKILL.md`、`references/`、`scripts/` 和可选 `agents/openai.yaml` 结构。
+
+### 项目特有技能路由
+
+涉及 Fantasy 服务端 / Unity 客户端、ECS、协议、Roaming、跨服事件、HTTP、数据库或分布式运行时架构时，读取 `.agents/skills/fantasy-net/SKILL.md` 及其对应 reference；该 skill 适用于本仓库的 `GameServer/`、`GameUnity/Assets/Scripts/HotFix/Fantasy.Unity/`、`GameUnity/Assets/Scripts/HotFix/GameBattle/` 和协议工具链。
 
 ### 任务等级
 

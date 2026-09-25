@@ -30,6 +30,7 @@
 | 红点系统 | `../.agents/skills/dgame-dev/references/reddot-system.md` |
 | 命名、UI 节点前缀、代码规范 | `../.agents/skills/dgame-dev/references/naming-rules.md` |
 | 排障 | `../.agents/skills/dgame-dev/references/troubleshooting.md` |
+| Fantasy Unity 客户端、Session/连接、消息 Handler、Fantasy ECS、协议和 Roaming | `../.agents/skills/fantasy-net/SKILL.md`；按主题读取 `../.agents/skills/fantasy-net/references/unity/`、`references/ecs/`、`references/protocol/`、`references/server/roaming/` |
 | Unity CLI / Workflow | `../.agents/skills/unity-cli/`、`../.agents/scripts/workflow.py` |
 
 处理 DGame 代码时优先使用 `dgame-dev`；内容以当前源码、目录和 API 为准。配置表结构、Excel、导表脚本和 `GameConfig/` 数据优先使用 `luban-dev`，再使用 `dgame-dev` 处理运行时消费。
@@ -46,6 +47,13 @@
 8. **资源文件边界**：不直接编辑 Scene/Prefab YAML、GUID 或 `.meta` 文件来替代 Unity 资源数据库操作；新增源文件的 `.meta` 由 Unity 生成。
 9. **工程绑定**：Unity CLI、Editor、Player 和资源验证必须绑定当前 `DGame/GameUnity` 的规范化绝对路径，不使用其他 Unity 工程结果替代。
 10. **敏感信息**：Pipeline 实例描述文件和运行时响应中的鉴权信息不得写入日志、报告或提交内容。
+
+### Fantasy Unity 项目边界
+
+- Fantasy Unity 运行时与 WebSocket 实现位于 `Assets/Scripts/HotFix/Fantasy.Unity/Runtime`；编辑器设置、程序集链接和 `FANTASY_UNITY` / `FANTASY_WEBGL` 定义管理位于同目录的 `Editor/Runtime`。
+- 客户端连接、Session、网络请求和消息收发位于 `Assets/Scripts/HotFix/GameLogic`；战斗侧 Fantasy ECS 位于 `Assets/Scripts/HotFix/GameBattle`。
+- `Assets/Scripts/HotFix/GameProto/Generate/NetworkProtocol` 是协议导出产物；协议源和导出配置以仓库根目录 `GameServer/Tools/NetworkProtocol`、`GameServer/Tools/ProtocolExportTool/ExporterSettings.json` 为准，生成文件不得手改。
+- Fantasy 客户端异步逻辑使用 `FTask` 和 Fantasy Session/连接 API；涉及跨服路由时按 `fantasy-net` 的 Address、Roaming、SphereEvent 规则核对服务端对应实现。
 
 ## 验证入口
 
