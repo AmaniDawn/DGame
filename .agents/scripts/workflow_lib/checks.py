@@ -19,6 +19,17 @@ SKILLS = ("dgame-dev", "unity-cli", "luban-dev")
 AUXILIARY_SKILLS = {"skill-creator"}
 
 
+def expected_unity_cli_version(context):
+    path = context.scripts / "tool-versions.json"
+    if not path.is_file():
+        blocked(f"Unity CLI version policy is missing: {path}")
+    policy = read_json(path)
+    version = policy.get("unityCli") if isinstance(policy, dict) else None
+    if not isinstance(version, str) or not version.strip() or version != version.strip():
+        raise WorkflowError(f"Invalid unityCli version in {path}")
+    return version
+
+
 def behavior_scenarios(context):
     path = context.scripts.parent / "evals" / "scenarios.json"
     data = read_json(path)
@@ -42,6 +53,7 @@ def behavior_scenarios(context):
 
 def structure(context):
     root = context.scripts.parent
+    expected_unity_cli_version(context)
     errors = []
     skill_root = root / "skills"
     discovered = sorted(path.parent.name for path in skill_root.glob("*/SKILL.md")
@@ -188,6 +200,10 @@ def doctor(run):
     if missing:
         blocked("Required tools missing: " + ", ".join(missing))
     cli_version = require_success(run.execute([context.cli, "--version"], timeout=15), "Unity CLI version").strip()
+    expected_cli_version = expected_unity_cli_version(context)
+    if cli_version != expected_cli_version:
+        blocked(f"Unity CLI version mismatch at {context.cli}: expected {expected_cli_version}, "
+                f"actual {cli_version!r}. Install the configured version only with user authorization.")
     dotnet_version = require_success(run.execute(["dotnet", "--version"], timeout=15), ".NET version").strip()
     cli_hash = file_hash(context.cli) if context.cli.is_file() else None
     cli_help = require_success(run.execute([context.cli, "--help"], timeout=15), "Unity CLI help")
@@ -198,7 +214,7 @@ def doctor(run):
         blocked("CLI lacks Pipeline command surface: " + ", ".join(missing_commands))
     return {"python": sys.version, "dotnet": dotnet_version, "git": tools["git"],
             "unity": version, "pipeline": package_info.get("version"), "cli": cli_version,
-            "cliPath": str(context.cli), "cliSha256": cli_hash,
+            "cliPath": str(context.cli), "cliSha256": cli_hash, "cliExpectedVersion": expected_cli_version,
             "cliCommands": list(required_commands),
             "solution": str(context.solution), "tools": tools,
             "pipelineCapabilityCheck": "run workflow.py unity list against this project before Unity operations"}

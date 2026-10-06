@@ -6,10 +6,11 @@ import importlib.util
 import io
 import openpyxl
 from pathlib import Path
+import subprocess
 import sys
 import tempfile
 import unittest
-from unittest.mock import patch
+from unittest.mock import Mock, patch
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[1] / "scripts"))
 from workflow_lib.core import Context, Run, WorkflowError
@@ -130,6 +131,54 @@ class WorkflowCoreTests(unittest.TestCase):
         with patch.object(core.shutil, "which", return_value=str(global_cli)):
             context = Context(project)
         self.assertEqual(context.cli, global_cli.resolve())
+
+    def test_doctor_enforces_cli_version_for_local_and_path_entries(self):
+        project = self.project()
+        package = project / "Packages/com.unity.pipeline/package.json"
+        package.parent.mkdir()
+        package.write_text('{"version":"0.3.1-exp.1"}', encoding="utf-8")
+        (project / "ProjectSettings/ProjectVersion.txt").write_text("m_EditorVersion: 2022.3.62f3", encoding="utf-8")
+        (project / "GameUnity.sln").write_text("solution", encoding="utf-8")
+        scripts = project.parent / ".agents/scripts"
+        scripts.mkdir(parents=True)
+        (scripts / "tool-versions.json").write_text('{"unityCli":"1.0.0-beta.3"}', encoding="utf-8")
+        local_cli = project / "Tools/unity.exe"
+        global_cli = project.parent / "global-unity.exe"
+        local_cli.parent.mkdir()
+        global_cli.write_bytes(b"cli")
+
+        for use_local in (True, False):
+            if use_local:
+                local_cli.write_bytes(b"cli")
+            else:
+                local_cli.unlink()
+            with patch.object(core.shutil, "which", return_value=str(global_cli)):
+                context = Context(project)
+            for actual_version in ("1.0.0-beta.3", "0.1.0-beta.3", "1.0.0-beta.12"):
+                with self.subTest(local=use_local, version=actual_version):
+                    def execute(args, **kwargs):
+                        if args[0] == context.cli and args[1] == "--version":
+                            output = actual_version + "\n"
+                        elif args[0] == context.cli:
+                            output = "Commands:\n  status\n  command\n  list\n  pipeline\n"
+                        else:
+                            output = "10.0.101\n"
+                        return subprocess.CompletedProcess(args, 0, output, "")
+
+                    run = Mock(context=context)
+                    run.execute.side_effect = execute
+                    with patch.object(checks.shutil, "which", return_value="tool"):
+                        if actual_version == "1.0.0-beta.3":
+                            result = checks.doctor(run)
+                            self.assertEqual(result["cli"], result["cliExpectedVersion"])
+                            self.assertEqual(result["cliPath"], str(context.cli))
+                        else:
+                            with self.assertRaises(WorkflowError) as raised:
+                                checks.doctor(run)
+                            self.assertEqual(raised.exception.status, "blocked")
+                            self.assertIn(actual_version, str(raised.exception))
+                            self.assertIn(str(context.cli), str(raised.exception))
+                            self.assertEqual(run.execute.call_count, 1)
 
     def test_new_source_missing_from_solution_is_blocked(self):
         project = self.project()
