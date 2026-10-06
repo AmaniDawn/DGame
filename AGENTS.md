@@ -32,7 +32,7 @@
 
 同一会话中已经核对过的主题可以复用摘要；只有涉及新主题或发现文档与源码冲突时才重新查询。
 
-完整验证入口以各 DGame skill 和 `.agents/scripts/workflow.py --help` 为准。L4、跨模块、配置导表、Unity 写入、构建和发布类任务必须使用 [.agents/templates/task.md](.agents/templates/task.md) 记录目标、授权、决策、验证证据和剩余风险；L1/L2 小改可不创建任务文件。
+工作流、环境版本和验证矩阵见 [.agents/README.md](.agents/README.md)，具体命令以各 DGame skill 和 `.agents/scripts/workflow.py --help` 为准。L4、跨模块、配置导表、Unity 写入、构建和发布类任务必须使用 [.agents/templates/task.md](.agents/templates/task.md) 记录目标、授权、决策、验证证据和剩余风险；L1/L2 小改可不创建任务文件。
 
 `AGENTS.md` 是 Claude Code 与 Codex 都会读取的仓库级入口。匹配任务后，两个工具都应按这里的路由读取 `.agents/skills/<skill>/SKILL.md`；技能目录遵循 Agent Skills 的 `SKILL.md`、`references/`、`scripts/` 和可选 `agents/openai.yaml` 结构。
 

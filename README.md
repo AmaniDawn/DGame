@@ -177,7 +177,7 @@ python .agents/scripts/workflow.py verify --profile unity --test-filter GameLogi
 python .agents/scripts/workflow.py verify --profile full
 ```
 
-`doctor` 和 `unity/full` 验证优先使用工程目录的 `GameUnity/Tools/unity.exe`，缺少时自动从系统 `PATH` 查找 `unity`；Workflow 不会自动安装或替换 Unity CLI。完整验证还会在隔离目录执行两次 Luban 客户端导表并比较产物哈希。目录说明见 `.agents/README.md`。
+Unity 使用前先执行 `python .agents/scripts/workflow.py doctor`，校验 [CLI 版本约束](.agents/scripts/tool-versions.json)。Workflow 优先使用 `GameUnity/Tools/unity.exe`，缺少时从系统 `PATH` 查找 `unity`，不会自动安装或替换工具。完整工作流、验证矩阵和报告说明见 [.agents/README.md](.agents/README.md)。
 
 ### Codex CLI 安装
 
