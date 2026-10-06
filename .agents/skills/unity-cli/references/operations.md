@@ -6,11 +6,11 @@
 
 用户要求安装或修复 CLI 时执行：
 
-1. 检查项目 CLI 和 `Get-Command unity -All` / `where.exe unity` 的实际路径。已有 CLI 满足任务要求时直接复用。
-2. 从 Unity 官方发行渠道获取支持 Pipeline 的 CLI，先下载到临时目录检查顶层 `--help`，确认有 `status`、`command`、`list`、`pipeline`；任务涉及 MCP 时还须有 `mcp`。
-3. 候选包缺少所需命令时，继续核对官方发行说明并选择兼容发行包，验证通过后再替换目标文件。仅凭下载完成、安装脚本退出成功或能输出版本号，不算安装验收通过；无法取得兼容包时明确报告原因。
-4. 按任务范围更新实际使用的入口。用户要求终端直接运行 `unity` 时，确保 PATH 解析到验收通过的 CLI；同时核对项目副本，避免两个入口使用不同的未验证程序。
-5. 安装后分别通过实际命令路径检查版本与顶层帮助。Editor 已打开时，再运行 `unity list` 和场景查询；涉及 MCP 接入时继续完成工具调用验证。Editor 未打开时区分“CLI 安装已验收”和“Editor 连接尚未验证”。
+1. 读取 [版本配置](../../../scripts/tool-versions.json) 的 `unityCli`，检查项目 CLI 和 `Get-Command unity -All` / `where.exe unity` 的实际路径。已有 CLI 的 `--version` 精确匹配配置且满足所需能力时直接复用。
+2. 从 Unity 官方发行渠道获取指定版本的 CLI，先下载到临时目录检查 `--version` 与顶层 `--help`，确认有 `status`、`command`、`list`、`pipeline`；任务涉及 MCP 时还须有 `mcp`。包内 README 的 beta 安装命令读取动态 `latest-beta.json`，不能用它保证配置指定的版本。
+3. 核对指定版本的下载来源和对应校验信息；不能只给通用安装脚本传版本参数便假定其校验信息也属于该版本。候选包版本不符、缺少所需命令或无法核实来源时报告 blocked，不改装其他版本。仅凭下载完成、安装脚本退出成功或能输出版本号，不算安装验收通过。
+4. DGame 项目安装必须把验收通过的 CLI 放到 `GameUnity/Tools/unity.exe`，缺少目录时创建目录；已有项目副本满足版本和能力要求时直接复用。复制后核对源文件与项目副本的 SHA-256 一致，不以仅安装到全局 PATH 作为项目安装完成。替换已有文件按授权边界确认；用户要求终端直接运行 `unity` 时，再按授权范围配置 PATH 并验收该入口。
+5. 安装后从 `GameUnity/Tools/unity.exe` 检查版本与顶层帮助，并运行 `python .agents/scripts/workflow.py doctor`，确认报告中的 `cliPath` 指向该项目副本、实际版本匹配版本配置。其他使用入口也分别检查。Editor 已打开时，再运行 `unity list` 和场景查询；涉及 MCP 接入时继续完成工具调用验证。Editor 未打开时区分“CLI 安装已验收”和“Editor 连接尚未验证”。
 
 ## 只读查询
 
@@ -22,7 +22,7 @@ python .agents/scripts/workflow.py unity query get_player_settings
 python .agents/scripts/workflow.py unity runtime-status --runtime-path <player-working-directory>
 ```
 
-`doctor` 记录基础环境；`unity list` 检查指定工程唯一且 ready，并发现注册命令。参数通过 JSON 文件和 `--params-file` 传入。
+`doctor` 记录基础环境并校验 CLI 版本约束；项目副本缺失时，PATH 中的 CLI 也必须通过同一版本检查。`unity list` 检查指定工程唯一且 ready，并发现注册命令。参数通过 JSON 文件和 `--params-file` 传入。
 
 ## 验证
 

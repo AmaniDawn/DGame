@@ -5,6 +5,12 @@ description: 安装和修复 DGame Unity CLI，使用内嵌 Pipeline 与项目�
 
 # DGame Unity CLI
 
+## 版本约束
+
+本项目 Unity CLI 的指定版本以 [tool-versions.json](../../scripts/tool-versions.json) 的 `unityCli` 字段为唯一依据，操作前读取该值。安装、修复及 PATH 回退都必须匹配该值；`doctor` 对实际 `--version` 做精确比较，不匹配时报告 blocked，不自动替换工具。
+
+`beta` 渠道或 `latest` 不代表本项目指定版本。用户明确要求调整版本时，更新版本配置，再按操作规程重新验收。
+
 ## 执行入口
 
 从仓库根目录运行 `python .agents/scripts/workflow.py doctor`。脚本固定把 `GameUnity` 作为 Unity 工程；CLI 优先使用 `GameUnity/Tools/unity.exe`，文件缺少时从系统 `PATH` 查找 `unity`。此 CLI 与 Unity Editor 自身的 `Unity.exe` 是不同程序。
