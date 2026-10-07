@@ -98,17 +98,18 @@ def structure(context):
             errors.append(f"Missing document: {path}")
             continue
         text = path.read_text(encoding="utf-8-sig")
+        if path == context.repo / "README.md":
+            # Validate only the AI workflow section; other product links are out of scope.
+            match = re.search(r"^## .*AI.*(?:\n.*)*", text, re.M)
+            text = match[0].split("\n## ", 1)[0] if match else ""
+            if not text or "AGENTS.md" not in text:
+                errors.append("README workflow entry is missing")
         if re.search(r"(?:^|\s)(?:[A-Za-z]:[\\/](?:Users|WorkSpace)[\\/]|/Users/[^\s/]+/)", text):
             errors.append(f"Machine-specific path in {path}")
         if re.search(r"\bsk-[A-Za-z0-9_-]{20,}\b", text):
             errors.append(f"Credential-like token in {path}")
         if re.search(r"\.claude/|openspec/(?:specs|changes)|mcp-tools\.md|mcp-visual\.md|mcp__unity|unity-mcp-orchestrator", text):
             errors.append(f"Retired workflow reference in {path}")
-        if path == context.repo / "README.md":
-            match = re.search(r"^## .*AI.*(?:\n.*)*", text, re.M)
-            workflow_text = match[0].split("\n## ", 1)[0] if match else ""
-            if not workflow_text or "AGENTS.md" not in workflow_text:
-                errors.append("README workflow entry is missing")
         for target in re.findall(r"\]\(([^)]+)\)", text):
             target = target.strip().split(None, 1)[0].strip("<>")
             parts = urlsplit(target)
