@@ -218,7 +218,9 @@ def doctor(run):
             "cliPath": str(context.cli), "cliSha256": cli_hash, "cliExpectedVersion": expected_cli_version,
             "cliCommands": list(required_commands),
             "solution": str(context.solution), "tools": tools,
-            "pipelineCapabilityCheck": "run workflow.py unity list against this project before Unity operations"}
+            "pipelineCapabilityCheck": "use loaded Unity CLI MCP tools after checking editor_status.projectPath; "
+                                       "if unavailable, discover with "
+                                       "unity command --project-path <absolute-project-path>"}
 
 
 def verify(run, profile, test_filter, filter_type, timeout):

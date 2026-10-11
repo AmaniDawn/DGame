@@ -164,7 +164,7 @@
 ### 推荐工作流
 
 1. 根据任务读取对应的 skill 和 reference。
-2. 使用项目 Workflow 执行结构检查、代码构建、配置导表和 Unity 验证。
+2. Unity 对象与 Editor 验证使用 Unity CLI 原生工具，按 `unity-cli` 技能选择已加载 MCP 或直接 `unity command`；结构检查、代码构建、组合验证、CI 和配置导表按需使用项目 Workflow。
 3. 交付时记录实际执行的命令、结果和未执行阶段。
 
 ```powershell
@@ -177,7 +177,7 @@ python .agents/scripts/workflow.py verify --profile unity --test-filter GameLogi
 python .agents/scripts/workflow.py verify --profile full
 ```
 
-Unity 使用前先执行 `python .agents/scripts/workflow.py doctor`，校验 [CLI 版本约束](.agents/scripts/tool-versions.json)。Workflow 优先使用 `GameUnity/Tools/unity.exe`，缺少时从系统 `PATH` 查找 `unity`，不会自动安装或替换工具。完整工作流、验证矩阵和报告说明见 [.agents/README.md](.agents/README.md)。
+直接 Unity CLI 首次使用或入口变化时核对绝对路径和 [版本约束](.agents/scripts/tool-versions.json)；已加载 MCP 使用 `editor_status.projectPath` 确认工程，普通调用不要求检查本地 CLI 或读取客户端配置。`doctor` 是可选环境报告。原生工具调用、CLI 路径与授权统一见 [unity-cli 技能](.agents/skills/unity-cli/SKILL.md)，组合验证矩阵和报告见 [.agents/README.md](.agents/README.md)。
 
 ### Codex CLI 安装
 
@@ -226,7 +226,7 @@ codex
 
 ### 仓库验证流程
 
-从仓库根目录运行：
+需要组合验证或 CI 报告时，从仓库根目录按影响范围选择下列命令；日常 Unity 操作直接使用 MCP 或 CLI：
 
 ```powershell
 python .agents/scripts/workflow.py doctor
