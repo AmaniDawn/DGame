@@ -39,7 +39,7 @@ DGame 使用 HybridCLR + YooAsset + UniTask + Luban 构建。
 | 热更代码 | [hotfix-workflow.md](references/hotfix-workflow.md) | — | P1 |
 | 代码规范 | [naming-rules.md](references/naming-rules.md) | — | P1 |
 | Luban 配置 | [luban-config.md](references/luban-config.md) | `luban-dev` | P1 |
-| Unity CLI / Workflow | [unity-cli](../unity-cli/SKILL.md) | - | P1 |
+| Unity CLI / MCP | [unity-cli](../unity-cli/SKILL.md) | - | P1 |
 | 红点系统 | [reddot-system.md](references/reddot-system.md) | [ui-patterns.md](references/ui-patterns.md) | P1 |
 | 项目结构 | [architecture.md](references/architecture.md) | — | P2 |
 | 问题排查 | [troubleshooting.md](references/troubleshooting.md) | — | P2 |
