@@ -9,8 +9,8 @@
 - 项目解决方案是 `GameUnity.sln`。
 - 项目级 Unity CLI 是工程目录的 `GameUnity/Tools/unity.exe`。
 - 配置源文件位于仓库根目录 `../GameConfig/`，不是 `GameUnity/Configs/`。
-- Unity 版本取 `ProjectSettings/ProjectVersion.txt`；CLI 路径和版本由 `doctor` 记录，Pipeline 能力以本项目注册命令及包内 `Documentation~` 为准。
-- CLI 查询、验证和 MCP 接入见 [unity-cli 技能](../.agents/skills/unity-cli/SKILL.md)。Workflow 优先使用 `GameUnity/Tools/unity.exe`，文件缺少时从系统 `PATH` 查找 `unity`。
+- Unity 版本取 `ProjectSettings/ProjectVersion.txt`；直接 CLI 路径和版本首次使用时核对，`doctor` 可用于环境报告。Pipeline 能力以本项目注册命令及包内 `Documentation~` 为准。
+- Unity 查询、对象操作、编译和测试使用原生工具；已加载 MCP 通过 `editor_status` 核对当前工程，CLI 使用显式工程路径。调用、版本核对和接入规则统一见 [unity-cli 技能](../.agents/skills/unity-cli/SKILL.md)。
 
 ## DGame 任务分级与技能路由
 
@@ -30,7 +30,7 @@
 | 红点系统 | `../.agents/skills/dgame-dev/references/reddot-system.md` |
 | 命名、UI 节点前缀、代码规范 | `../.agents/skills/dgame-dev/references/naming-rules.md` |
 | 排障 | `../.agents/skills/dgame-dev/references/troubleshooting.md` |
-| Unity CLI / Workflow | `../.agents/skills/unity-cli/`、`../.agents/scripts/workflow.py` |
+| Unity CLI / MCP | `../.agents/skills/unity-cli/SKILL.md`；组合验证按需使用 `../.agents/scripts/workflow.py` |
 
 处理 DGame 代码时优先使用 `dgame-dev`；内容以当前源码、目录和 API 为准。配置表结构、Excel、导表脚本和 `GameConfig/` 数据优先使用 `luban-dev`，再使用 `dgame-dev` 处理运行时消费。
 
@@ -49,20 +49,21 @@
 
 ## 验证入口
 
-从仓库根目录执行：
+日常验证通过 MCP 或直接 CLI 执行 `editor_status`、`recompile` / `recompile_status`、`list_tests`、`run_tests` / `test_status`，具体参数见 [操作规程](../.agents/skills/unity-cli/references/operations.md)。源码与程序集变更取得当前 Editor 编译证据；测试按影响范围选择模式和筛选器。
+
+需要离线检查、组合验证或 CI 报告时，从仓库根目录执行以下可选入口：
 
 ```powershell
 python .agents/scripts/workflow.py doctor
 python .agents/scripts/workflow.py check
-python .agents/scripts/workflow.py unity list
 python .agents/scripts/workflow.py verify --profile docs
 python .agents/scripts/workflow.py verify --profile code
 python .agents/scripts/workflow.py verify --profile unity --test-filter GameLogic
 python .agents/scripts/workflow.py verify --profile full
 ```
 
-Unity Editor 的连接、编译和测试阶段使用工程锁；`docs/code` 离线检查和解决方案构建是否纳入锁范围，以 `.agents/scripts/workflow.py` 的实现为准，不在文档中扩大声明。
-Editor 断开、忙、多实例、筛选器没有可运行用例或测试结果不完整时，必须保持 `blocked`/`failed`，不能使用旧结果或其他工程结果替代。
+MCP、直接 CLI 与 Workflow 的 Unity 操作串行执行；新操作前核对本工程状态，状态轮询允许观察忙操作。Workflow 内的 Editor 阶段使用工程锁，直接工具调用不经过该锁；不得并行启动另一条导入、编译、测试或写入。`docs/code` 离线检查和解决方案构建是否纳入锁范围，以 `.agents/scripts/workflow.py` 的实现为准。
+Editor 断开、目标不唯一、筛选器没有可运行用例或测试结果不完整时，必须保持 `blocked`/`failed`；Editor 忙时等待并查询对应状态，不重发起始命令，不能使用旧结果或其他工程结果替代。
 
 ## 冲突与文档维护
 
