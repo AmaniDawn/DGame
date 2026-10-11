@@ -16,14 +16,14 @@
 1. 先阅读相关实现和 `git status`，确认已有改动边界。
 2. 按任务影响范围选择验证方式；跨模块、高风险或多阶段任务先明确目标和验收条件。
 3. 读取对应 skill 的 `SKILL.md` 及必要的 reference。配置表、Excel、导表脚本和 `GameConfig/` 数据优先使用 `.agents/skills/luban-dev/`。
-4. 源码用代码编辑工具修改；完成后执行与变更匹配的检查，并报告实际结果、限制和剩余风险。
+4. 源码用代码编辑工具修改；Unity 操作使用 Unity CLI 原生 MCP 工具或 `unity command`，入口选择和工程核对见 `unity-cli` 技能。Workflow 按需用于组合验证、CI 和配置导表。完成后执行与变更匹配的检查，并报告实际结果、限制和剩余风险。
 5. 当 reference 与源码冲突时，使用 `rg` 核对实际签名和调用点，优先信任当前源码，并记录冲突位置。
 
 ## 授权边界
 
 - 普通源码、文档和只读检查可按用户任务直接执行。
 - 删除文件、覆盖已有配置或资源、修改包依赖、修改 ProjectSettings、切换平台、真实构建、导表写入生产目录、发布、提交或推送前，必须明确目标和范围；已有计划或预览不等于已授权执行。
-- Unity 写入必须先经过项目绑定的 Workflow preview，再使用同一计划和一次性审批执行。命令超时后先查询真实状态，不自动重放。
+- Unity 写入先明确本工程内的目标、输入和影响范围；支持 `dry_run` 时使用原生命令预览。普通对象、组件及资源操作按用户任务和已有授权直接通过 MCP 或 CLI 执行；删除、覆盖、设置、依赖、平台和真实构建遵守上一条授权要求。使用 Workflow 时才执行其 preview、approve、apply 流程；命令超时后先查询真实状态，不自动重放。
 - Luban 生产导表使用 `python .agents/scripts/workflow.py luban preview`、`approve`、`apply`；`validate` 和隔离回归不会写入生产目录。
 - 无法连接当前 DGame Editor、缺少工具或测试没有可运行用例时，记录 blocked 和原因，不使用其他工程或旧结果替代。
 - Workflow 不自动安装或升级工具，不修改用户级技能、Codex 配置或其他用户级设置。
@@ -32,7 +32,7 @@
 
 同一会话中已经核对过的主题可以复用摘要；只有涉及新主题或发现文档与源码冲突时才重新查询。
 
-工作流、环境版本和验证矩阵见 [.agents/README.md](.agents/README.md)，具体命令以各 DGame skill 和 `.agents/scripts/workflow.py --help` 为准。L4、跨模块、配置导表、Unity 写入、构建和发布类任务必须使用 [.agents/templates/task.md](.agents/templates/task.md) 记录目标、授权、决策、验证证据和剩余风险；L1/L2 小改可不创建任务文件。
+工作流、环境版本和验证矩阵见 [.agents/README.md](.agents/README.md)，Unity 命令以当前 MCP 工具描述、CLI 帮助和注册命令为准，Workflow 命令以 `.agents/scripts/workflow.py --help` 为准。L4、跨模块、配置导表、Unity 写入、构建和发布类任务必须使用 [.agents/templates/task.md](.agents/templates/task.md) 记录目标、授权、决策、验证证据和剩余风险；L1/L2 小改可不创建任务文件。
 
 `AGENTS.md` 是 Claude Code 与 Codex 都会读取的仓库级入口。匹配任务后，两个工具都应按这里的路由读取 `.agents/skills/<skill>/SKILL.md`；技能目录遵循 Agent Skills 的 `SKILL.md`、`references/`、`scripts/` 和可选 `agents/openai.yaml` 结构。
 
