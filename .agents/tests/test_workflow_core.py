@@ -124,13 +124,42 @@ class WorkflowCoreTests(unittest.TestCase):
             context = Context(project)
         self.assertEqual(context.cli, local.resolve())
 
-    def test_unity_cli_falls_back_to_path(self):
+    def test_unity_cli_does_not_fall_back_to_path(self):
         project = self.project()
         global_cli = Path(self.tmp.name) / "global-unity.exe"
         global_cli.write_bytes(b"cli")
         with patch.object(core.shutil, "which", return_value=str(global_cli)):
             context = Context(project)
-        self.assertEqual(context.cli, global_cli.resolve())
+        self.assertEqual(context.cli, (project / "Tools/unity.exe").resolve())
+
+    def test_missing_unity_cli_is_downloaded_to_project_tools(self):
+        project = self.project()
+        scripts = project.parent / ".agents/scripts"
+        scripts.mkdir(parents=True)
+        (scripts / "tool-versions.json").write_text('{"unityCli":"1.0.0-beta.3"}', encoding="utf-8")
+
+        class Response:
+            def __enter__(self):
+                return self
+
+            def __exit__(self, *_):
+                return False
+
+            def read(self, _size):
+                if hasattr(self, "done"):
+                    return b""
+                self.done = True
+                return b"cli"
+
+        with patch.object(core.urllib_request, "urlopen", return_value=Response()) as open_url:
+            with patch.object(core, "_validate_project_unity_cli") as validate:
+                path = core.ensure_project_unity_cli(project)
+        self.assertEqual(path, (project / "Tools/unity.exe").resolve())
+        self.assertTrue(path.is_file())
+        open_url.assert_called_once()
+        self.assertEqual(validate.call_count, 1)
+        self.assertEqual(validate.call_args.args[1], "1.0.0-beta.3")
+        self.assertEqual(validate.call_args.args[0].parent, path.parent)
 
     def test_doctor_enforces_cli_version_for_local_and_path_entries(self):
         project = self.project()
@@ -143,42 +172,34 @@ class WorkflowCoreTests(unittest.TestCase):
         scripts.mkdir(parents=True)
         (scripts / "tool-versions.json").write_text('{"unityCli":"1.0.0-beta.3"}', encoding="utf-8")
         local_cli = project / "Tools/unity.exe"
-        global_cli = project.parent / "global-unity.exe"
         local_cli.parent.mkdir()
-        global_cli.write_bytes(b"cli")
+        local_cli.write_bytes(b"cli")
+        context = Context(project)
+        for actual_version in ("1.0.0-beta.3", "0.1.0-beta.3", "1.0.0-beta.12"):
+            with self.subTest(version=actual_version):
+                def execute(args, **kwargs):
+                    if args[0] == context.cli and args[1] == "--version":
+                        output = actual_version + "\n"
+                    elif args[0] == context.cli:
+                        output = "Commands:\n  status\n  command\n  list\n  pipeline\n"
+                    else:
+                        output = "10.0.101\n"
+                    return subprocess.CompletedProcess(args, 0, output, "")
 
-        for use_local in (True, False):
-            if use_local:
-                local_cli.write_bytes(b"cli")
-            else:
-                local_cli.unlink()
-            with patch.object(core.shutil, "which", return_value=str(global_cli)):
-                context = Context(project)
-            for actual_version in ("1.0.0-beta.3", "0.1.0-beta.3", "1.0.0-beta.12"):
-                with self.subTest(local=use_local, version=actual_version):
-                    def execute(args, **kwargs):
-                        if args[0] == context.cli and args[1] == "--version":
-                            output = actual_version + "\n"
-                        elif args[0] == context.cli:
-                            output = "Commands:\n  status\n  command\n  list\n  pipeline\n"
-                        else:
-                            output = "10.0.101\n"
-                        return subprocess.CompletedProcess(args, 0, output, "")
-
-                    run = Mock(context=context)
-                    run.execute.side_effect = execute
-                    with patch.object(checks.shutil, "which", return_value="tool"):
-                        if actual_version == "1.0.0-beta.3":
-                            result = checks.doctor(run)
-                            self.assertEqual(result["cli"], result["cliExpectedVersion"])
-                            self.assertEqual(result["cliPath"], str(context.cli))
-                        else:
-                            with self.assertRaises(WorkflowError) as raised:
-                                checks.doctor(run)
-                            self.assertEqual(raised.exception.status, "blocked")
-                            self.assertIn(actual_version, str(raised.exception))
-                            self.assertIn(str(context.cli), str(raised.exception))
-                            self.assertEqual(run.execute.call_count, 1)
+                run = Mock(context=context)
+                run.execute.side_effect = execute
+                with patch.object(checks.shutil, "which", return_value="tool"):
+                    if actual_version == "1.0.0-beta.3":
+                        result = checks.doctor(run)
+                        self.assertEqual(result["cli"], result["cliExpectedVersion"])
+                        self.assertEqual(result["cliPath"], str(context.cli))
+                    else:
+                        with self.assertRaises(WorkflowError) as raised:
+                            checks.doctor(run)
+                        self.assertEqual(raised.exception.status, "blocked")
+                        self.assertIn(actual_version, str(raised.exception))
+                        self.assertIn(str(context.cli), str(raised.exception))
+                        self.assertEqual(run.execute.call_count, 1)
 
     def test_new_source_missing_from_solution_is_blocked(self):
         project = self.project()
