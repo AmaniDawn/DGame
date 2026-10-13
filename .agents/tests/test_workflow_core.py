@@ -161,6 +161,31 @@ class WorkflowCoreTests(unittest.TestCase):
         self.assertEqual(validate.call_args.args[1], "1.0.0-beta.3")
         self.assertEqual(validate.call_args.args[0].parent, path.parent)
 
+    def test_pipeline_registry_dependency_without_library_cache(self):
+        project = self.project()
+        manifest = project / "Packages/manifest.json"
+        manifest.write_text(json.dumps({"dependencies": {"com.unity.pipeline": "0.3.1-exp.1"}}), encoding="utf-8")
+        resolved = {"version": "0.3.1-exp.1", "source": "registry", "url": "https://packages.unity.com"}
+        lock = project / "Packages/packages-lock.json"
+        lock.write_text(json.dumps({"dependencies": {"com.unity.pipeline": resolved}}), encoding="utf-8")
+        self.assertEqual(checks.pipeline_package(Context(project)), (manifest, resolved))
+        self.assertFalse((project / "Library").exists())
+
+        for invalid in ({**resolved, "version": "0.8.0-exp.1"},
+                        {**resolved, "source": "embedded"},
+                        {**resolved, "url": "https://example.com"}):
+            with self.subTest(resolved=invalid):
+                lock.write_text(json.dumps({"dependencies": {"com.unity.pipeline": invalid}}), encoding="utf-8")
+                with self.assertRaises(WorkflowError):
+                    checks.pipeline_package(Context(project))
+
+    def test_pipeline_missing_dependency_is_rejected(self):
+        project = self.project()
+        for name in ("manifest.json", "packages-lock.json"):
+            (project / "Packages" / name).write_text('{"dependencies":{}}', encoding="utf-8")
+        with self.assertRaises(WorkflowError):
+            checks.pipeline_package(Context(project))
+
     def test_doctor_enforces_cli_version_for_local_and_path_entries(self):
         project = self.project()
         package = project / "Packages/com.unity.pipeline/package.json"

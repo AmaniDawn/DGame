@@ -27,7 +27,7 @@ Unity 日常查询、对象/资源操作、编译和测试使用已加载的原�
 
 - Unity 工程是 `GameUnity/`，版本以 [ProjectVersion.txt](../GameUnity/ProjectSettings/ProjectVersion.txt) 为准。
 - CLI 指定版本以 [tool-versions.json](scripts/tool-versions.json) 的 `unityCli` 字段为准。直接 CLI 使用 `GameUnity/Tools/unity.exe`；项目 CLI 缺失时按该版本准备项目副本。MCP 可执行文件的版本核对用于接入或排障，普通已加载工具调用不重复查询客户端配置。`doctor` 可记录完整环境报告。
-- Pipeline 版本取 [package.json](../GameUnity/Packages/com.unity.pipeline/package.json)，能力以本工程实时注册命令为准。
+- Pipeline 版本取 [manifest.json](../GameUnity/Packages/manifest.json) 的 `com.unity.pipeline` 依赖，实际解析版本与来源见 [packages-lock.json](../GameUnity/Packages/packages-lock.json)；使用 Unity 官方 Registry 包，能力以本工程实时注册命令为准。
 - Workflow 需要 Python 3.11+；按需准备 Git、.NET SDK、Unity 生成的 `GameUnity.sln` 和相关领域依赖，见 [Workflow 依赖](scripts/requirements.txt)及 [Luban 依赖](skills/luban-dev/scripts/requirements.txt)。脚本不会自动安装工具。
 
 CLI 优先使用 `GameUnity/Tools/unity.exe`，与 Unity Editor 的同名程序不同。安装与验收见 [unity-cli 操作规程](skills/unity-cli/references/operations.md)的对应章节；动态 beta/latest 渠道不能保证指定版本。

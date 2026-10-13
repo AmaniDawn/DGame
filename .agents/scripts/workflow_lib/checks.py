@@ -30,6 +30,24 @@ def expected_unity_cli_version(context):
     return version
 
 
+def pipeline_package(context):
+    """Read embedded metadata or the Registry dependency resolved by Unity."""
+    embedded = context.project / "Packages" / "com.unity.pipeline" / "package.json"
+    if embedded.is_file():
+        return embedded, read_json(embedded)
+    manifest = context.project / "Packages" / "manifest.json"
+    lock = context.project / "Packages" / "packages-lock.json"
+    if not manifest.is_file() or not lock.is_file():
+        raise WorkflowError("Unity Pipeline manifest or package lock is missing.")
+    version = read_json(manifest).get("dependencies", {}).get("com.unity.pipeline")
+    resolved = read_json(lock).get("dependencies", {}).get("com.unity.pipeline", {})
+    if (not version or resolved.get("source") != "registry"
+            or resolved.get("version") != version
+            or resolved.get("url") != "https://packages.unity.com"):
+        raise WorkflowError("Unity Pipeline must resolve from the official Registry at the manifest version.")
+    return manifest, resolved
+
+
 def behavior_scenarios(context):
     path = context.scripts.parent / "evals" / "scenarios.json"
     data = read_json(path)
@@ -127,11 +145,9 @@ def structure(context):
                 fragment = unquote(parts.fragment).lower()
                 if fragment not in headings and fragment.lstrip("-") not in headings:
                     errors.append(f"Broken anchor: {path} -> {target}")
-    package = context.project / "Packages" / "com.unity.pipeline" / "package.json"
-    if not package.is_file():
-        errors.append(f"Missing embedded Unity Pipeline package: {package}")
     if errors:
         raise WorkflowError("\n".join(errors))
+    package, _ = pipeline_package(context)
     return {"skills": list(SKILLS), "package": str(package),
             "evaluations": evaluations.validate(context), "behaviorScenarios": behavior_scenarios(context)}
 
@@ -190,11 +206,10 @@ def build(run):
 
 def doctor(run):
     context = run.context
-    package = context.project / "Packages" / "com.unity.pipeline" / "package.json"
-    if not package.is_file() or not context.cli.is_file() or not context.solution.is_file():
-        missing = [str(path) for path in (package, context.cli, context.solution) if not path.is_file()]
+    _, package_info = pipeline_package(context)
+    if not context.cli.is_file() or not context.solution.is_file():
+        missing = [str(path) for path in (context.cli, context.solution) if not path.is_file()]
         blocked("Project preflight files missing: " + ", ".join(missing))
-    package_info = read_json(package)
     version = (context.project / "ProjectSettings" / "ProjectVersion.txt").read_text(encoding="utf-8-sig").strip()
     tools = {name: shutil.which(name) for name in ("git", "dotnet", "python")}
     missing = [name for name, path in tools.items() if not path]

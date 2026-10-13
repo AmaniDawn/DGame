@@ -33,7 +33,7 @@ MCP 工具由客户端配置的 `unity mcp` 服务提供，Pipeline 为原生命
 
 ## 权威资料
 
-按任务读取 `GameUnity/Packages/com.unity.pipeline/Documentation~/`：
+Pipeline 使用 Unity 官方 Registry 包，版本和来源见 `GameUnity/Packages/manifest.json` 与 `packages-lock.json`。按任务读取当前已解析包的 `Documentation~/`（通常位于 `GameUnity/Library/PackageCache/com.unity.pipeline@*/Documentation~/`，实际目录以 Unity Package Manager 的包路径为准）：
 
 | 场景 | 包内文档 |
 |---|---|
