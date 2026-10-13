@@ -206,7 +206,7 @@ namespace DGame
                 go = EditorUtility.CreateGameObjectWithHideFlags("Temp", HideFlags.HideAndDontSave);
                 Component uiSprite = go.AddComponent(type);
                 SerializedObject ob = new SerializedObject(uiSprite);
-#if UNITY_6000_1_OR_NEWER
+#if UNITY_6000_4_OR_NEWER
                 EntityId classID = ob.FindProperty("m_Script").objectReferenceEntityIdValue;
 #else
                 int classID = ob.FindProperty("m_Script").objectReferenceInstanceIDValue;
@@ -247,7 +247,7 @@ namespace DGame
             var id = GetClassIDCached(type);
             SerializedObject ob = new SerializedObject(mb);
             ob.Update();
-#if UNITY_6000_1_OR_NEWER
+#if UNITY_6000_4_OR_NEWER
             ob.FindProperty("m_Script").objectReferenceEntityIdValue = id;
 #else
             ob.FindProperty("m_Script").objectReferenceInstanceIDValue = id;
@@ -267,7 +267,7 @@ namespace DGame
             var id = GetClassID<T>();
             SerializedObject ob = new SerializedObject(mb);
             ob.Update();
-#if UNITY_6000_1_OR_NEWER
+#if UNITY_6000_4_OR_NEWER
             ob.FindProperty("m_Script").objectReferenceEntityIdValue = id;
 #else
             ob.FindProperty("m_Script").objectReferenceInstanceIDValue = id;
