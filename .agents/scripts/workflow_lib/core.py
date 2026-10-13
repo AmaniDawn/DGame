@@ -14,6 +14,7 @@ import subprocess
 import time
 import uuid
 from datetime import datetime, timezone
+from urllib import request as urllib_request
 
 
 class WorkflowError(Exception):
@@ -90,13 +91,78 @@ def within(path, root):
     return path
 
 
+def project_unity_cli_version(project):
+    """Read the Unity CLI version pinned by the repository policy."""
+    policy_path = Path(project).resolve().parent / ".agents" / "scripts" / "tool-versions.json"
+    policy = read_json(policy_path)
+    version = policy.get("unityCli") if isinstance(policy, dict) else None
+    if not isinstance(version, str) or not version.strip() or version != version.strip():
+        raise WorkflowError(f"Invalid unityCli version in {policy_path}")
+    return version
+
+
+def _validate_project_unity_cli(path, expected_version):
+    try:
+        version = subprocess.run(
+            [str(path), "--version"], capture_output=True, text=True, timeout=15, check=False
+        )
+        actual = version.stdout.strip()
+        if version.returncode != 0 or actual != expected_version:
+            raise WorkflowError(
+                f"Downloaded Unity CLI version mismatch: expected {expected_version}, actual {actual!r}"
+            )
+        help_result = subprocess.run(
+            [str(path), "--help"], capture_output=True, text=True, timeout=15, check=False
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise WorkflowError(f"Cannot validate Unity CLI {path}: {exc}") from exc
+    if help_result.returncode != 0:
+        raise WorkflowError(f"Unity CLI help failed for {path}: {help_result.stderr.strip()}")
+    required = ("status", "command", "list", "pipeline", "mcp")
+    missing = [name for name in required if not re.search(r"^\s*" + re.escape(name) + r"\b", help_result.stdout, re.M)]
+    if missing:
+        raise WorkflowError("Downloaded Unity CLI lacks commands: " + ", ".join(missing))
+
+
+def ensure_project_unity_cli(project):
+    """Ensure the pinned project CLI exists; never resolve a global CLI."""
+    project = Path(project).resolve()
+    target = project / "Tools" / "unity.exe"
+    if target.is_file():
+        return target
+    if os.name != "nt":
+        blocked(f"Project Unity CLI is missing and no Windows CLI artifact is available: {target}")
+    version = project_unity_cli_version(project)
+    url = f"https://public-cdn.cloud.unity3d.com/hub/prod/cli/{version}/unity-windows-x64.exe"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    temporary = target.with_name(f".{target.stem}-{uuid.uuid4().hex}.exe")
+    try:
+        with urllib_request.urlopen(url, timeout=120) as response, temporary.open("wb") as output:
+            while True:
+                chunk = response.read(1024 * 1024)
+                if not chunk:
+                    break
+                output.write(chunk)
+        if temporary.stat().st_size == 0:
+            raise WorkflowError(f"Unity CLI download was empty: {url}")
+        _validate_project_unity_cli(temporary, version)
+        os.replace(temporary, target)
+    except WorkflowError:
+        raise
+    except (OSError, urllib_request.URLError, TimeoutError) as exc:
+        raise WorkflowError(f"Failed to download Unity CLI {version} from {url}: {exc}") from exc
+    finally:
+        if temporary.exists():
+            try:
+                temporary.unlink()
+            except OSError:
+                pass
+    return target.resolve()
+
+
 def resolve_unity_cli(project):
-    """Resolve a project-local Unity CLI, falling back to the user's PATH."""
-    local = Path(project) / "Tools" / "unity.exe"
-    if local.is_file():
-        return local.resolve()
-    global_cli = shutil.which("unity")
-    return Path(global_cli).resolve() if global_cli else local
+    """Resolve only the project-local Unity CLI; never fall back to PATH."""
+    return (Path(project) / "Tools" / "unity.exe").resolve()
 
 
 class Context:
