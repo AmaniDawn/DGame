@@ -6,7 +6,7 @@
 
 使用客户端已加载的 Unity CLI 工具，调用 `editor_status` 确认 `projectPath` 是当前 DGame/GameUnity，再直接调用 `list_open_scenes` 等工具。现有通用 MCP 服务可复用，服务名与是否写有 `--project-path` 不作为工程身份；没有路径信息、目标不唯一或返回其他工程时使用显式绑定本工程的 CLI，或报告 blocked。
 
-已加载工具的普通调用不需要先查客户端配置、检查项目 CLI 文件或运行 Workflow。仅安装、接入、版本或连接排障时核对服务使用的可执行文件和配置；发现版本不符时按版本约束处理，不自动替换工具。域重载、重连或目标变化后重新核对工程路径。
+已加载工具的普通调用不需要先查客户端配置、检查项目 CLI 文件或运行 Workflow。任务需要 CLI 但项目副本缺失时，先运行 `python .agents/scripts/workflow.py doctor`；仅安装、接入、版本或连接排障时核对服务使用的可执行文件和配置。域重载、重连或目标变化后重新核对工程路径。
 
 ## 直接 CLI
 
@@ -22,7 +22,7 @@ $taskExpectedVersion = (Get-Content -LiteralPath '.agents/scripts/tool-versions.
 & $taskCliPath command --project-path $taskProjectPath list_open_scenes --format json --no-log-proxy
 ```
 
-实际版本必须等于 `$taskExpectedVersion`；项目副本缺少时通过 `Get-Command unity -CommandType Application` 解析 PATH 中 CLI 的绝对路径并同样核对版本。`status` 核对本工程唯一实例，无命令名的 `command` 发现注册能力；后续 Editor 命令继续显式传入工程绝对路径。
+实际版本必须等于 `$taskExpectedVersion`；项目副本缺少时按安装流程准备 `GameUnity/Tools/unity.exe`。`status` 核对本工程唯一实例，无命令名的 `command` 发现注册能力；后续 Editor 命令继续显式传入工程绝对路径。
 
 复杂参数按当前工具描述传入；MCP 使用结构化输入，CLI 使用终端能可靠传递的 JSON 参数。`--params-file` 属于 Workflow，不是原生 CLI 的统一参数。
 
@@ -78,9 +78,9 @@ Player 使用明确工作目录，macOS 使用 `.app` 路径：
 
 ## 安装与验收
 
-用户要求安装或修复 CLI 时执行：
+用户要求安装或修复 CLI 时执行；任务需要 CLI 且项目副本缺失时，先由 Workflow 执行这套流程：
 
-1. 读取 [版本配置](../../../scripts/tool-versions.json) 的 `unityCli`，检查项目 CLI 和 `Get-Command unity -All` / `where.exe unity` 的实际路径。已有 CLI 的 `--version` 精确匹配配置且满足所需能力时直接复用。
+1. 读取 [版本配置](../../../scripts/tool-versions.json) 的 `unityCli`，检查 `GameUnity/Tools/unity.exe`。已有项目 CLI 的 `--version` 精确匹配配置且满足所需能力时直接复用。
 2. 从 Unity 官方发行渠道获取指定版本的 CLI，先下载到临时目录检查 `--version` 与顶层 `--help`，确认有 `status`、`command`、`list`、`pipeline`；任务涉及 MCP 时还须有 `mcp`。包内 README 的 beta 安装命令读取动态 `latest-beta.json`，不能用它保证配置指定的版本。
 3. 核对指定版本的下载来源和对应校验信息；不能只给通用安装脚本传版本参数便假定其校验信息也属于该版本。候选包版本不符、缺少所需命令或无法核实来源时报告 blocked，不改装其他版本。仅凭下载完成、安装脚本退出成功或能输出版本号，不算安装验收通过。
 4. DGame 项目安装必须把验收通过的 CLI 放到 `GameUnity/Tools/unity.exe`，缺少目录时创建目录；已有项目副本满足版本和能力要求时直接复用。复制后核对源文件与项目副本的 SHA-256 一致，不以仅安装到全局 PATH 作为项目安装完成。替换已有文件按授权边界确认；用户要求终端直接运行 `unity` 时，再按授权范围配置 PATH 并验收该入口。
@@ -101,4 +101,4 @@ codex mcp get unity-dgame --json
 
 该例写入用户级 Codex 设置并固定绑定 DGame，不是普通 Unity 操作的前置步骤。使用 PATH 中的 CLI 时，也写入其解析后的绝对路径。
 
-通过工具发现、`editor_status` 工程路径核对和 `list_open_scenes` 实际调用验证连接。当前会话尚未加载工具时，可直接使用 CLI 完成当前任务；需要验证 MCP 接入本身时，重新加载 MCP 或重启客户端后实测。MCP 调用与授权按本文前述操作规程执行；连接鉴权由 CLI 管理，不输出实例描述文件内容。
+通过工具发现、`editor_status` 工程路径核对和 `list_open_scenes` 实际调用验证连接。若 MCP 因项目 CLI 缺失而未启动，先运行 `python .agents/scripts/workflow.py doctor`，再重新加载 MCP 或重启客户端。当前会话尚未加载工具时，可直接使用 CLI 完成当前任务。MCP 调用与授权按本文前述操作规程执行；连接鉴权由 CLI 管理，不输出实例描述文件内容。

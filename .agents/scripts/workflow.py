@@ -8,7 +8,8 @@ from pathlib import Path
 import sys
 
 from workflow_lib import checks, domains, evaluations, luban
-from workflow_lib.core import Context, Run, WorkflowError, approve, blocked, project_lock, read_json, render_report
+from workflow_lib.core import (Context, Run, WorkflowError, approve, blocked, ensure_project_unity_cli,
+                                project_lock, read_json, render_report)
 from workflow_lib.unity import Unity, decode_response
 
 
@@ -138,6 +139,15 @@ def post_luban_validation(run, tests=None):
         run.skip("unity-tests", "No test assemblies selected in the approved preview; only compilation verified.")
 
 
+def requires_project_unity_cli(args):
+    """Return whether this workflow command needs the pinned project CLI."""
+    if args.command in ("doctor", "unity"):
+        return True
+    if args.command == "verify":
+        return args.profile in ("unity", "full")
+    return args.command == "luban" and args.action == "apply"
+
+
 def runtime_status(unity, path):
     path = path.resolve()
     descriptor_path = path / ".unity-pipeline-runtime-port"
@@ -174,6 +184,8 @@ def main(argv=None):
             return 2
     try:
         context = Context(args.project)
+        if requires_project_unity_cli(args):
+            context.cli = ensure_project_unity_cli(context.project)
     except WorkflowError as exc:
         print(str(exc), file=sys.stderr)
         return 2

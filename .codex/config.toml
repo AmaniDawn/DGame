@@ -1,0 +1,14 @@
+[mcp_servers.unity-cli-mcp.env]
+UNITY_NO_UPDATE_CHECK = "1"
+
+[mcp_servers.unity-cli-mcp]
+enabled = true
+command = "GameUnity/Tools/unity.exe"
+args = ["mcp", "--project-path", "GameUnity", "--no-log-proxy"]
+
+[mcp_servers.rider]
+command = "python"
+args = ["-m", "mcp_proxy", "http://localhost:64342/sse"]
+enabled = true
+startup_timeout_sec = 30
+tool_timeout_sec = 300
