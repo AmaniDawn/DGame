@@ -136,7 +136,7 @@ class WorkflowCoreTests(unittest.TestCase):
         project = self.project()
         scripts = project.parent / ".agents/scripts"
         scripts.mkdir(parents=True)
-        (scripts / "tool-versions.json").write_text('{"unityCli":"1.0.0-beta.3"}', encoding="utf-8")
+        (scripts / "tool-versions.json").write_text('{"unityCli":"1.0.0-beta.16"}', encoding="utf-8")
 
         class Response:
             def __enter__(self):
@@ -158,7 +158,7 @@ class WorkflowCoreTests(unittest.TestCase):
         self.assertTrue(path.is_file())
         open_url.assert_called_once()
         self.assertEqual(validate.call_count, 1)
-        self.assertEqual(validate.call_args.args[1], "1.0.0-beta.3")
+        self.assertEqual(validate.call_args.args[1], "1.0.0-beta.16")
         self.assertEqual(validate.call_args.args[0].parent, path.parent)
 
     def test_pipeline_registry_dependency_without_library_cache(self):
@@ -195,18 +195,18 @@ class WorkflowCoreTests(unittest.TestCase):
         (project / "GameUnity.sln").write_text("solution", encoding="utf-8")
         scripts = project.parent / ".agents/scripts"
         scripts.mkdir(parents=True)
-        (scripts / "tool-versions.json").write_text('{"unityCli":"1.0.0-beta.3"}', encoding="utf-8")
+        (scripts / "tool-versions.json").write_text('{"unityCli":"1.0.0-beta.16"}', encoding="utf-8")
         local_cli = project / "Tools/unity.exe"
         local_cli.parent.mkdir()
         local_cli.write_bytes(b"cli")
         context = Context(project)
-        for actual_version in ("1.0.0-beta.3", "0.1.0-beta.3", "1.0.0-beta.12"):
+        for actual_version in ("1.0.0-beta.16", "0.1.0-beta.3", "1.0.0-beta.12"):
             with self.subTest(version=actual_version):
                 def execute(args, **kwargs):
                     if args[0] == context.cli and args[1] == "--version":
                         output = actual_version + "\n"
                     elif args[0] == context.cli:
-                        output = "Commands:\n  status\n  command\n  list\n  pipeline\n"
+                        output = "Commands:\n  status\n  command\n  pipeline\n  mcp\n"
                     else:
                         output = "10.0.101\n"
                     return subprocess.CompletedProcess(args, 0, output, "")
@@ -214,7 +214,7 @@ class WorkflowCoreTests(unittest.TestCase):
                 run = Mock(context=context)
                 run.execute.side_effect = execute
                 with patch.object(checks.shutil, "which", return_value="tool"):
-                    if actual_version == "1.0.0-beta.3":
+                    if actual_version == "1.0.0-beta.16":
                         result = checks.doctor(run)
                         self.assertEqual(result["cli"], result["cliExpectedVersion"])
                         self.assertEqual(result["cliPath"], str(context.cli))

@@ -49,7 +49,7 @@
 
 ## 验证入口
 
-日常验证通过 MCP 或直接 CLI 执行 `editor_status`、`recompile` / `recompile_status`、`list_tests`、`run_tests` / `test_status`，具体参数见 [操作规程](../.agents/skills/unity-cli/references/operations.md)。源码与程序集变更取得当前 Editor 编译证据；测试按影响范围选择模式和筛选器。
+日常验证使用 Pipeline 0.10 分组命令：CLI 为 `editor status`、`script recompile` / `script recompile_status`、`test list`、`test run` / `test status`；MCP 对应 `editor_status`、`script_recompile` / `script_recompile_status`、`test_list`、`test_run` / `test_status`。具体参数见 [操作规程](../.agents/skills/unity-cli/references/operations.md)。源码与程序集变更取得当前 Editor 编译证据；测试按影响范围选择模式和筛选器。
 
 需要离线检查、组合验证或 CI 报告时，从仓库根目录执行以下可选入口：
 

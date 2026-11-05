@@ -8,7 +8,7 @@ import sys
 import xml.etree.ElementTree as ET
 from urllib.parse import unquote, urlsplit
 
-from .core import WorkflowError, blocked, file_hash, project_lock, read_json, require_success
+from .core import WorkflowError, blocked, project_lock, read_json, require_success
 from .unity import Unity
 from . import evaluations
 from . import luban
@@ -221,16 +221,15 @@ def doctor(run):
         blocked(f"Unity CLI version mismatch at {context.cli}: expected {expected_cli_version}, "
                 f"actual {cli_version!r}. Install the configured version only with user authorization.")
     dotnet_version = require_success(run.execute(["dotnet", "--version"], timeout=15), ".NET version").strip()
-    cli_hash = file_hash(context.cli) if context.cli.is_file() else None
     cli_help = require_success(run.execute([context.cli, "--help"], timeout=15), "Unity CLI help")
-    required_commands = ("status", "command", "list", "pipeline")
+    required_commands = ("status", "command", "pipeline", "mcp")
     missing_commands = [name for name in required_commands
                         if not re.search(r"^\s*" + name + r"\b", cli_help, re.M)]
     if missing_commands:
         blocked("CLI lacks Pipeline command surface: " + ", ".join(missing_commands))
     return {"python": sys.version, "dotnet": dotnet_version, "git": tools["git"],
             "unity": version, "pipeline": package_info.get("version"), "cli": cli_version,
-            "cliPath": str(context.cli), "cliSha256": cli_hash, "cliExpectedVersion": expected_cli_version,
+            "cliPath": str(context.cli), "cliExpectedVersion": expected_cli_version,
             "cliCommands": list(required_commands),
             "solution": str(context.solution), "tools": tools,
             "pipelineCapabilityCheck": "use loaded Unity CLI MCP tools after checking editor_status.projectPath; "
