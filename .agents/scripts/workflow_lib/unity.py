@@ -10,33 +10,34 @@ from .core import WorkflowError, blocked, consume_approval, digest, make_plan
 
 
 READ_ONLY = frozenset({
-    "editor_status", "list_open_scenes", "get_scene_hierarchy", "get_build_settings",
-    "list_build_targets", "list_build_profiles", "list_tests", "test_status", "recompile_status",
-    "get_player_settings", "get_audio_settings", "get_graphics_settings", "get_input_settings",
-    "get_physics_settings", "get_quality_settings", "get_tags_layers", "get_time_settings",
-    "get_console_logs", "get_performance_stats", "get_authoring_root", "get_selection",
-    "find_assets", "find_gameobjects", "get_component_properties", "get_serialized_fields",
-    "get_import_settings", "get_material_properties", "list_shaders", "get_shader_properties",
-    "get_animation_clip", "get_animator_controller", "get_timeline", "get_lighting_settings",
-    "get_navmesh_settings", "build_status", "switch_build_target_status", "package_list",
-    "package_status", "lighting_bake_status", "navmesh_bake_status", "occlusion_bake_status",
+    "editor status", "scene list_open", "scene get_hierarchy", "build get_settings",
+    "build.target list", "build list_profiles", "test list", "test status", "script recompile_status",
+    "settings.player get", "settings.audio get", "settings.graphics get", "settings.input get",
+    "settings.physics get", "settings.quality get", "settings.tags_layers get", "settings.time get",
+    "console get", "diagnostics get_performance", "authoring get_root", "gameobject get_selection",
+    "asset find", "gameobject find", "component get_properties", "component get_fields",
+    "asset get_import_settings", "material get_properties", "material list_shaders", "material get_shader_properties",
+    "animation.clip get", "animation.animator get_controller", "animation.timeline get", "lighting get_settings",
+    "navmesh get_settings", "build status", "build.target switch_status", "package list",
+    "package status", "lighting bake_status", "navmesh bake_status", "occlusion bake_status",
 })
 
 # Explicit catalog, not a prefix heuristic. Only implemented return/poll contracts are admitted.
 MUTATIONS = {
-    "delete_asset": {"dry_run": True, "confirm": True, "poll": None},
-    "set_player_settings": {"dry_run": True, "confirm": True, "poll": None},
-    "set_build_settings": {"dry_run": True, "confirm": True, "poll": None},
-    "build": {"dry_run": True, "confirm": True, "poll": "build_status"},
+    "asset delete": {"dry-run": True, "confirm": True, "poll": None},
+    "settings.player set": {"dry-run": True, "confirm": True, "poll": None},
+    "build set_settings": {"dry-run": True, "confirm": True, "poll": None},
+    "build run": {"dry-run": True, "confirm": True, "poll": "build status"},
 }
 
 RESERVED = {"project-path", "project_path", "runtime", "runtime-path", "runtime_path",
+            "port", "pid", "instance",
             "format", "json", "confirm", "dry_run", "dry-run", "non-interactive", "timeout"}
 
 STATUS_QUERIES = frozenset({
-    "editor_status", "test_status", "recompile_status", "build_status", "switch_build_target_status",
-    "package_status", "lighting_bake_status", "navmesh_bake_status", "occlusion_bake_status",
-    "get_console_logs",
+    "editor status", "test status", "script recompile_status", "build status", "build.target switch_status",
+    "package status", "lighting bake_status", "navmesh bake_status", "occlusion bake_status",
+    "console get",
 })
 
 
@@ -44,7 +45,7 @@ def validate_parameters(parameters):
     if not isinstance(parameters, dict):
         raise WorkflowError("Parameters must be a JSON object.")
     for key in parameters:
-        if not key or key.startswith("-") or key in RESERVED or not key.replace("_", "").isalnum():
+        if not key or key.startswith("-") or key in RESERVED or not key.replace("_", "").replace("-", "").isalnum():
             raise WorkflowError(f"Reserved or invalid parameter: {key}")
     return parameters
 
@@ -108,11 +109,11 @@ def command_names(value):
     if isinstance(value, dict):
         for key in ("commands", "tools"):
             if isinstance(value.get(key), list):
-                return {item.get("name") or item.get("command") for item in value[key] if isinstance(item, dict)}
+                return {item.get("command") or item.get("name") for item in value[key] if isinstance(item, dict)}
         if "result" in value:
             return command_names(value["result"])
     if isinstance(value, list):
-        return {item.get("name") or item.get("command") for item in value if isinstance(item, dict)}
+        return {item.get("command") or item.get("name") for item in value if isinstance(item, dict)}
     blocked("Unrecognized command discovery schema; inspect the registered capabilities.")
 
 
@@ -198,7 +199,8 @@ class Unity:
 
     def discover(self, require_ready=True):
         self.ready(require_ready)
-        value = decode_response(self.raw(["command", "--project-path", str(self.context.project)]))
+        value = decode_response(self.raw(["command", "--project-path", str(self.context.project),
+                                          "pipeline", "list_commands", "--detail", "full"]))
         self.capabilities = command_names(value)
         return sorted(name for name in self.capabilities if name)
 
@@ -208,7 +210,7 @@ class Unity:
         if command not in self.capabilities:
             blocked(f"Command is not registered in this project: {command}")
         arguments = ["command", "--project-path", str(self.context.project),
-                     "--timeout", str(timeout), command]
+                     "--timeout", str(timeout), *command.split()]
         for key, value in (parameters or {}).items():
             arguments.extend(["--" + key, json.dumps(value, ensure_ascii=False) if not isinstance(value, str) else value])
         return decode_response(self.raw(arguments, timeout=timeout + 5, mutating=mutating))
@@ -247,39 +249,45 @@ class Unity:
 
     def recompile(self, timeout):
         self.ready()
-        started = self.call("recompile", mutating=True)
-        if not isinstance(started, dict) or started.get("status") not in ("compiling", "up_to_date"):
+        if self.call("test status").get("status") == "running":
+            blocked("Another test run is active; compilation was not started.")
+        started = self.call("script recompile", mutating=True)
+        if not isinstance(started, dict) or started.get("status") not in ("triggered", "compiling", "completed", "up_to_date"):
             blocked("Compilation start not acknowledged; retained results cannot establish success.")
         try:
-            value = self.poll("recompile_status", {"completed", "up_to_date"}, timeout)
+            value = self.poll("script recompile_status", {"completed", "up_to_date"}, timeout)
         except WorkflowError:
             # Import/asmdef errors can prevent compilation callbacks entirely.
             # Collect the read-only console without hiding the original incomplete operation.
             try:
-                self.call("get_console_logs")
+                self.call("console get")
             except WorkflowError:
                 pass
             raise
-        if value.get("success") is False or value.get("failed") or value.get("hasErrors") or value.get("errorCount", 0):
+        if (value.get("success") is False or value.get("failed") or value.get("compilationFailed")
+                or value.get("hasErrors") or value.get("errorCount", 0)):
             raise WorkflowError("Editor compilation reported errors.")
         self.ready()
         self.discover()
-        logs = self.call("get_console_logs")
+        logs = self.call("console get")
         return {"compilation": value, "console": logs}
 
     def tests(self, mode, query, filter_type, timeout):
         self.ready()
-        expected = test_listing(self.call("list_tests", {"mode": mode}), mode, query, filter_type)
-        before = self.call("test_status")
+        expected = test_listing(self.call("test list", {"mode": mode}), mode, query, filter_type)
+        before = self.call("test status")
         if isinstance(before, dict) and before.get("status") == "running":
             blocked("Another test run is active.")
         # The package synchronously clears prior status before acknowledging the start.
         # An unacknowledged start is ambiguous; never fall back to a retained completed result.
-        started = self.call("run_tests", {"mode": mode, "filter": query, "filter_type": filter_type,
-                                        "async_tests": True}, mutating=True)
+        started = self.call("test run", {"mode": mode, "filter": query, "filter-type": filter_type,
+                                        "async-tests": True}, mutating=True)
+        if isinstance(started, dict) and started.get("status") == "completed":
+            summary = validate_test_result(started, expected)
+            return {"mode": mode, "filter": query, "summary": summary, "results": started["results"]}
         if not isinstance(started, dict) or started.get("result", started.get("Result")) != "running":
             blocked("Async test start was not acknowledged; do not accept the last retained result.")
-        value = self.poll("test_status", {"completed"}, timeout)
+        value = self.poll("test status", {"completed"}, timeout)
         summary = validate_test_result(value, expected)
         return {"mode": mode, "filter": query, "summary": summary, "results": value["results"]}
 
@@ -289,7 +297,7 @@ class Unity:
             blocked(f"Mutation policy/return contract not implemented: {command}")
         self.ready()
         policy = MUTATIONS[command]
-        preview = self.call(command, {**parameters, "dry_run": True}) if policy["dry_run"] else {"staticOnly": True}
+        preview = self.call(command, {**parameters, "dry-run": True}) if policy["dry-run"] else {"staticOnly": True}
         return make_plan(self.run, "unity", command, parameters, high_risk=True, inputs=inputs, preview=preview)
 
     def apply(self, plan, approval_file):
@@ -301,11 +309,11 @@ class Unity:
         command = plan["command"]
         if command not in self.capabilities:
             blocked(f"Missing capability: {command}")
-        current_preview = self.call(command, {**plan["parameters"], "dry_run": True})
+        current_preview = self.call(command, {**plan["parameters"], "dry-run": True})
         if digest(current_preview) != digest(plan.get("preview")):
             blocked("Editor preview changed since authorization; inspect the new state and authorize a fresh preview.")
         consume_approval(self.run, plan, approval_file)
-        result = self.call(command, {**plan["parameters"], "confirm": True, "dry_run": False}, mutating=True)
+        result = self.call(command, {**plan["parameters"], "confirm": True, "dry-run": False}, mutating=True)
         poll = MUTATIONS[command]["poll"]
         if poll:
             if not isinstance(result, dict) or result.get("status") != "queued":
