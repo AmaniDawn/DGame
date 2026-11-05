@@ -118,7 +118,7 @@ def _validate_project_unity_cli(path, expected_version):
         raise WorkflowError(f"Cannot validate Unity CLI {path}: {exc}") from exc
     if help_result.returncode != 0:
         raise WorkflowError(f"Unity CLI help failed for {path}: {help_result.stderr.strip()}")
-    required = ("status", "command", "list", "pipeline", "mcp")
+    required = ("status", "command", "pipeline", "mcp")
     missing = [name for name in required if not re.search(r"^\s*" + re.escape(name) + r"\b", help_result.stdout, re.M)]
     if missing:
         raise WorkflowError("Downloaded Unity CLI lacks commands: " + ", ".join(missing))

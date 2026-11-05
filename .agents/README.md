@@ -27,7 +27,7 @@ Unity 日常查询、对象/资源操作、编译和测试使用已加载的原�
 ## 环境与版本
 
 - Unity 工程是 `GameUnity/`，版本以 [ProjectVersion.txt](../GameUnity/ProjectSettings/ProjectVersion.txt) 为准。
-- CLI 指定版本以 [tool-versions.json](scripts/tool-versions.json) 的 `unityCli` 字段为准。直接 CLI 使用 `GameUnity/Tools/unity.exe`；项目 CLI 缺失时按该版本准备项目副本。MCP 可执行文件的版本核对用于接入或排障，普通已加载工具调用不重复查询客户端配置。`doctor` 可记录完整环境报告。
+- CLI 指定版本以 [tool-versions.json](scripts/tool-versions.json) 为准。直接 CLI 使用 `GameUnity/Tools/unity.exe`；项目 CLI 缺失时按该版本准备项目副本，并检查版本和命令能力。MCP 可执行文件的版本核对用于接入或排障，普通已加载工具调用不重复查询客户端配置。`doctor` 可记录完整环境报告。
 - Pipeline 版本取 [package.json](../GameUnity/Packages/com.unity.pipeline/package.json)，能力以本工程实时注册命令为准。
 - Workflow 需要 Python 3.11+；按需准备 Git、.NET SDK、Unity 生成的 `GameUnity.sln` 和相关领域依赖，见 [Workflow 依赖](scripts/requirements.txt)及 [Luban 依赖](skills/luban-dev/scripts/requirements.txt)。脚本不会自动安装工具。
 
@@ -42,11 +42,13 @@ CLI 优先使用 `GameUnity/Tools/unity.exe`，与 Unity Editor 的同名程序�
 | 验证 | MCP / CLI 命令与证据 |
 |---|---|
 | 工程状态和查询 | `editor_status` 核对工程路径与状态，使用对应场景/对象/资源查询工具 |
-| Editor 编译 | `test_status` 确认无活动测试 → `recompile` → `recompile_status`，检查本次终态与编译错误 |
-| 测试 | `list_tests` → 选择模式/筛选器 → `test_status` 确认无活动测试 → `run_tests` → `test_status`，检查用例身份、执行数和业务结果 |
+| Editor 编译 | CLI：`test status` → `script recompile` → `script recompile_status`；MCP：`test_status` → `script_recompile` → `script_recompile_status` |
+| 测试 | CLI：`test list` → `test status` → `test run` → `test status`；MCP：`test_list` → `test_status` → `test_run` → `test_status`。先选真实用例，再核对本次终态和数量 |
 | 场景、Prefab、序列化、视觉 | 使用对应原生工具取得目标状态或截图证据；截图本身不等于视觉验收 |
 
 直接 CLI 的路径、参数和授权示例见 [操作规程](skills/unity-cli/references/operations.md)。需要组合验证或 CI 报告时，以下 Workflow 命令从仓库根目录执行：
+
+Pipeline 0.10 使用分组命令，Workflow 的 `unity query/preview` 名称需整体引用，例如 `unity query "editor status"`。
 
 直接编译/测试和等待已有测试默认每阶段设 300 秒总体期限，成功查询不重置计时；到期记录结果未知并保留现场，不自动取消或重放。
 

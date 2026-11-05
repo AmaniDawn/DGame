@@ -163,7 +163,7 @@ def runtime_status(unity, path):
     descriptor_directory = descriptor.get("workingDirectory") or descriptor.get("WorkingDirectory")
     if not isinstance(descriptor_directory, str) or not descriptor_directory.strip():
         blocked("Runtime descriptor has no working directory.")
-    value = decode_response(unity.raw(["command", "--runtime-path", str(path), "runtime_status"]))
+    value = decode_response(unity.raw(["command", "--runtime-path", str(path), "runtime", "status"]))
     if not isinstance(value, dict):
         blocked("Runtime status response is not an object.")
     return {"runtimePath": str(path), "workingDirectory": descriptor_directory,

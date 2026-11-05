@@ -9,17 +9,17 @@ description: 使用本项目 Unity CLI 查询和验证 Editor/Development Player
 
 Unity CLI 原生命令通过客户端已加载的 MCP 工具或 `unity command <name>` 调用。MCP 工具已暴露时直接使用其描述与参数，先以 `editor_status.projectPath` 核对当前工程；不要求服务名为 `unity-dgame`，也不要求每次读取客户端配置或运行本地 CLI。任务需要 CLI 且项目副本缺失时，先运行 `python .agents/scripts/workflow.py doctor` 完成准备和验收，再继续调用。未暴露对应工具时，直接 CLI 固定 `--project-path <GameUnity 绝对路径>`；Player 使用明确的 `--runtime-path`。
 
-直接 CLI 使用 `GameUnity/Tools/unity.exe`，缺失时按 [版本配置](../../scripts/tool-versions.json) 准备项目副本。无命令名的 `unity command --project-path <绝对路径>` 可发现当前注册命令。CLI 不是 Unity Editor 的同名程序。
+直接 CLI 使用 `GameUnity/Tools/unity.exe`，缺失时按 [版本配置](../../scripts/tool-versions.json) 准备项目副本。Pipeline 0.10 使用分组命令，例如 `unity command --project-path <绝对路径> editor status`；完整能力目录用 `pipeline list_commands --detail full`。CLI 不是 Unity Editor 的同名程序。
 
 MCP 工具由客户端配置的 `unity mcp` 服务提供，Pipeline 为原生命令提供描述和参数 Schema；技能不注册工具，Workflow 也不负责 MCP 发现。`agents/openai.yaml` 的自动调用策略用于技能选择，不设置工具优先级。普通原生命令不需要 Workflow 白名单、包装脚本或审批文件。
 
 查询、验证、安装与 MCP 接入统一见 [操作规程](references/operations.md)，按任务读取对应章节。组合验证、CI 和报告按需使用 [项目 Workflow](../../README.md)，Luban 生产导表使用 [luban-dev](../luban-dev/SKILL.md)。
 
-| 操作 | 原生命令 / 对应 MCP 工具 |
-|---|---|
-| 工程与场景查询 | `editor_status`、`list_open_scenes` |
-| 脚本编译 | `test_status` 确认无活动测试 → `recompile` → `recompile_status` |
-| 测试 | `list_tests` → `test_status` 确认无活动测试 → `run_tests` → `test_status` |
+| 操作 | CLI 命令 | MCP 工具 |
+|---|---|---|
+| 工程与场景查询 | `editor status`、`scene list_open` | `editor_status`、`scene_list_open` |
+| 脚本编译 | `test status` → `script recompile` → `script recompile_status` | `test_status` → `script_recompile` → `script_recompile_status` |
+| 测试 | `test list` → `test status` → `test run` → `test status` | `test_list` → `test_status` → `test_run` → `test_status` |
 
 ## 不变量
 
