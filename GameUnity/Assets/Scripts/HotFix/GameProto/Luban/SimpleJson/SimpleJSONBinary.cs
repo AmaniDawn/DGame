@@ -61,7 +61,7 @@
  * * * * */
 using System;
 
-namespace SimpleJSON
+namespace Luban.SimpleJSON
 {
 #if !SimpleJSON_ExcludeBinary
     public abstract partial class JSONNode

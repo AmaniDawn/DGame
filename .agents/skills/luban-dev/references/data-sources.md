@@ -70,14 +70,14 @@
 
 ```xml
 <?xml version="1.0" encoding="utf-8"?>
-<data>
-    <record>
-        <id>item_001</id>
-        <name>生命药水</name>
-        <price>50</price>
-    </record>
-</data>
+<record>
+    <id>item_001</id>
+    <name>生命药水</name>
+    <price>50</price>
+</record>
 ```
+
+XML loader 按单个文件读取一个记录；多个 XML 文件请在 `input` 中显式使用逗号分隔的文件列表，例如 `a.xml,b.xml`。5.1.0 不会展开 `*.xml` 通配路径，也不会识别额外的 `data/record` 包裹层。
 
 ### 多态 bean
 
@@ -92,18 +92,10 @@
 ### 容器类型
 
 ```xml
-<data>
-    <tags>
-        <item>tag1</item>
-        <item>tag2</item>
-    </tags>
-    <attributes>
-        <item>
-            <key>str</key>
-            <value>10</value>
-        </item>
-    </attributes>
-</data>
+<record>
+    <tags><item>tag1</item><item>tag2</item></tags>
+    <attributes><item><key>str</key><value>10</value></item></attributes>
+</record>
 ```
 
 ## YAML 格式

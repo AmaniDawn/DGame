@@ -2,7 +2,7 @@
 
 ## 推荐策略
 
-- 默认推荐在 `GameConfig/Datas/__tables__.xlsx` 显式注册表。
+- 默认推荐在 `GameConfig/Datas/Defines/__tables__.xlsx` 显式注册表。
 - Luban 支持 `#<value_type>-<comment>.xlsx` 文件级自动导入，DGame 可用但不默认推荐。
 - DGame 扩展支持 Sheet 级拆表：sheet 名为 `#<value_type>-<comment>` 时，可手动运行 `GameConfig/Tools/split_sheets.py` 拆成临时 `#` 文件再交给 Luban 自动导入；当前默认导表脚本不会自动调用该步骤。
 - 需要 `mode`、`index`、`group_by`、复杂 `tags` 或明确双端分组时，优先使用 `__tables__.xlsx`。
@@ -20,6 +20,10 @@
 - `group`：`c`、`s`、`e`
 - `comment`：表注释
 - `tags`：如 `group_by:GroupID`
+
+表级 `group` 为空表示所有目标都可能导出该表，与字段的 `##group` 独立。整张表仅供客户端使用时，在注册表将 `group` 显式设为 `c`；不能只把字段设为 `c`，否则服务端可能保留表却过滤掉主键，报“默认索引不能导出”。主键必须在该表实际导出的每个目标中可见。
+
+一键联合导表会分别运行 client / server，应验证两者，不能用客户端通过代替服务端通过。
 
 ## 自动导入
 
@@ -77,3 +81,5 @@ var steps = TbGuideStepConfig.GetListByGroupId(groupId);
 ## `read_schema_from_file`
 
 配置 `__tables__.xlsx` 时确认 `read_schema_from_file` 使用正确的布尔值：`true` 从业务 Excel 表头读取 schema，`false` 使用 Defines/schema 中的定义。值配置错误会导致 schema 解析或导表失败。
+
+`true` 时同名行类型由表头提供，不在 `__beans__.xlsx` 重复定义；创建前用官方 Agent 的 `describe` / `schema` 核对现有类型。登记后先校验，再在隔离输出中确认对应类型与表数据齐全。

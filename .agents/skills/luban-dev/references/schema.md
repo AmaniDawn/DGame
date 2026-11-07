@@ -1,5 +1,12 @@
 # Luban Schema 定义详解
 
+## 设计与复核
+
+- 扁平表可使用 Excel 表头与 `read_schema_from_file`；复用 Bean、继承与多态优先明确维护在 XML 或 `__beans__` 中。
+- 复杂技能或行为配置先评估可复用的 Bean/继承结构，避免用任意字符串替代已有类型；只引入当前需求需要的层次。
+- 核对主键与 `map/list/one`、客户端/服务端分组、多态子类及引用全名。字段命名沿用 DGame 现有风格。
+- 改动后使用 `python .agents/skills/luban-dev/scripts/luban_ai.py schema --name <类型名>` 查询编译后的结构，并运行官方 `validate`。
+
 ## XML Schema 定义
 
 ### 文件基本结构
@@ -96,13 +103,13 @@
 
 ### 多态 bean
 
-Luban 原生多态通过 `abstract` + `parent` 继承实现。源数据的子类型标记由 loader 决定；DGame 的 `cs-bin` 运行时按二进制类型 ID 分发。
+Luban 5.1.0 通过 `parent` 继承关系自动推断抽象父类。源数据的子类型标记由 loader 决定；DGame 的 `cs-bin` 运行时按二进制类型 ID 分发。
 
 > **不要**手动添加 `type` 字段模拟多态——这无法利用 Luban 的自动分发和校验能力。
 
 ```xml
-<!-- 抽象基类：不可直接实例化 -->
-<bean name="Skill" abstract="true">
+<!-- 父类由 parent 关系自动推断为抽象类 -->
+<bean name="Skill">
     <var name="skillId" type="int" comment="技能ID"/>
     <var name="skillName" type="string" comment="技能名称"/>
 </bean>
@@ -117,7 +124,7 @@ Luban 原生多态通过 `abstract` + `parent` 继承实现。源数据的子类
 </bean>
 ```
 
-`abstract="true"` 使基类在 C# 中生成为 `abstract class`，子类继承基类并添加自有字段。上述 Skill/AttackSkill/BuffSkill 是结构示例，并非当前项目已有配置类型。
+`Skill` 因为存在 `parent="Skill"` 的子类，会在 C# 中生成为 `abstract class`；子类继承基类并添加自有字段。上述结构仅用于说明，不是当前项目已有配置类型。
 
 #### 代码生成对照
 
@@ -143,7 +150,7 @@ JSON 源数据的多态标记须单独核对当前 loader；它与运行时 `Byt
 |------|------|
 | `name` | bean 名 |
 | `parent` | 父 bean 名（支持继承和多态）|
-| `abstract` | 是否为抽象基类（不可实例化，仅作为多态父类）|
+| `parent` | 继承父 Bean；存在子类时父 Bean 自动按抽象类型处理 |
 | `valueType` | 是否为值类型（C# struct）|
 | `sep` | 分隔符，用于紧凑格式数据 |
 | `group` | 分组控制 |
@@ -207,7 +214,7 @@ JSON 源数据的多态标记须单独核对当前 loader；它与运行时 `Byt
 |------|------|------|
 | `name` | 是 | 生成的表类名，推荐 `TbXxx` 格式 |
 | `value` | 是 | value_type，即 bean 名 |
-| `input` | 是 | 数据文件路径，支持通配符 `*` |
+| `input` | 是 | 数据文件路径；XML 多文件使用显式逗号列表，不能依赖 `*.xml` 通配展开 |
 | `mode` | 否 | 容器类型：`map`/`list`/`one`，默认 `map` |
 | `index` | 否 | map 模式的主键字段名 |
 | `output` | 否 | 输出文件名 |
