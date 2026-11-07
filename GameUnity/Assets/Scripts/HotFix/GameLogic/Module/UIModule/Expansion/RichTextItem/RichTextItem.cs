@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Text;
 using System.Threading;
 using Cysharp.Threading.Tasks;
@@ -85,6 +86,7 @@ namespace GameLogic
         private RectTransform m_rectTransform;
         private RichTextParams m_currentParams;
         private CancellationTokenSource m_cts;
+        private string m_content;
 
         // 静态缓存 - 减少 GC 分配
         [ThreadStatic] private static StringBuilder s_textBuilder;
@@ -119,6 +121,11 @@ namespace GameLogic
         private readonly List<UIImage> m_underlinePool = new List<UIImage>();
         private readonly List<UIImage> m_activeUnderlines = new List<UIImage>();
 
+#if TextMeshPro
+        private readonly List<MergedIconAnchor> m_mergedIconAnchors = new List<MergedIconAnchor>();
+        private RichTextLabel m_mergedText;
+#endif
+
         // 表情动画
         private readonly List<EmojiAnimationInstance> m_emojiInstances = new List<EmojiAnimationInstance>();
         private float m_emojiTimer = 0f;
@@ -127,8 +134,20 @@ namespace GameLogic
         // 布局数据
         private readonly List<RichTextRow> m_rows = new List<RichTextRow>();
 
-        // 延迟应用特效
+        // 非 TMP 特效依赖布局后的顶点，TMP 材质特效在文本排版前设置。
         private bool m_pendingEffects = false;
+
+        private bool NeedsDeferredTextEffects
+        {
+            get
+            {
+#if TextMeshPro
+                return false;
+#else
+                return m_currentParams.EnableShadow || m_currentParams.EnableOutline;
+#endif
+            }
+        }
 
         // 链接元素 - 只存储 text，LinkData 单独管理避免重复 Dispose
         private readonly List<RichTextLabel> m_linkTexts = new List<RichTextLabel>();
@@ -139,8 +158,19 @@ namespace GameLogic
         private bool m_isRendering = false;
 
         // 图标加载上下文（避免 Lambda 闭包）
-        private readonly HashSet<Image> m_pendingNativeSizeIcons = new HashSet<Image>();
+        private readonly Dictionary<Image, string> m_pendingNativeSizeIcons = new Dictionary<Image, string>();
+        private readonly Dictionary<string, Vector2> m_nativeIconSizes = new Dictionary<string, Vector2>();
         private bool m_pendingIconLayoutRefresh;
+
+#if TextMeshPro
+        private struct MergedIconAnchor
+        {
+            public RichTextElement Element;
+            public UIImage Image;
+            public int TextIndex;
+            public Vector2 ReservedSize;
+        }
+#endif
 
         #endregion
 
@@ -162,7 +192,35 @@ namespace GameLogic
         public Vector2 Size => RectTransform.sizeDelta;
         public float Width => RectTransform.sizeDelta.x;
         public float Height => RectTransform.sizeDelta.y;
-        public int RowCount => m_rows.Count;
+        /// <summary>已完成布局的行数；隐藏状态首次创建且尚未排版时返回 0。</summary>
+        public int RowCount
+        {
+            get
+            {
+                if (m_rows.Count > 0)
+                {
+                    return m_rows.Count;
+                }
+
+#if TextMeshPro
+                if (m_mergedText != null)
+                {
+                    if (m_mergedText.gameObject.activeInHierarchy && m_mergedText.havePropertiesChanged)
+                    {
+                        m_mergedText.ForceMeshUpdate(true);
+                    }
+                    return m_mergedText.textInfo?.lineCount ?? 0;
+                }
+#else
+                if (m_nativeMergedText != null && m_nativeMergedText.gameObject.activeInHierarchy)
+                {
+                    return m_nativeMergedRowCount;
+                }
+#endif
+
+                return 0;
+            }
+        }
 
         public float minWidth => m_layoutMinWidth;
         public float preferredWidth => m_layoutPreferredWidth;
@@ -216,7 +274,7 @@ namespace GameLogic
         public Action<LinkData> OnLinkClicked { get; set; }
 
         /// <summary>
-        /// 渲染进度回调 (0~1)
+        /// 渲染进度回调 (0~1)，分帧模式在每批元素完成排版后触发。
         /// </summary>
         public Action<float> OnRenderProgress { get; set; }
 
@@ -255,6 +313,8 @@ namespace GameLogic
             }
 
             m_currentParams = param;
+            m_content = content;
+            m_nativeIconSizes.Clear();
 
             // 在布局之前保存原始尺寸（用于 Wrap/Truncate 模式）
             m_originalWidth = RectTransform.sizeDelta.x;
@@ -262,6 +322,7 @@ namespace GameLogic
 
             // 取消任何待处理的操作
             CancelPendingOperations();
+            m_isRendering = false;
             m_cts = new CancellationTokenSource();
 
             // 解析元素
@@ -281,26 +342,29 @@ namespace GameLogic
                 return;
             }
 
-            // 同步渲染
-            BuildLayout(elements);
-            ApplyLayout();
-            MarkLayoutDirty();
-
-            // 标记下一帧应用特效（在所有渲染完成后）
-            m_pendingEffects = m_currentParams.EnableShadow || m_currentParams.EnableOutline;
-
-            // 如果有表情则启动动画
-            m_emojiTimer = 0f;
-
-            if (m_hasEmojis)
+            try
             {
-                UpdateEmojiFrames();
+                if (CanUseMergedText(elements))
+                {
+                    RenderMergedText(elements);
+                }
+                else
+                {
+                    BuildLayout(elements);
+                    ApplyLayout();
+                    MarkLayoutDirty();
+                }
+
+                m_pendingEffects = NeedsDeferredTextEffects;
+                m_emojiTimer = 0f;
+                if (m_hasEmojis)
+                {
+                    UpdateEmojiFrames();
+                }
             }
-
-            // 清理解析后的元素
-            foreach (var element in elements)
+            finally
             {
-                element.Dispose();
+                RichTextParser.Recycle(elements);
             }
         }
 
@@ -340,6 +404,8 @@ namespace GameLogic
 
             if (param == null) param = CreateParamsFromInspector();
             m_currentParams = param;
+            m_content = content;
+            m_nativeIconSizes.Clear();
 
             m_originalWidth = RectTransform.sizeDelta.x;
             m_originalHeight = RectTransform.sizeDelta.y;
@@ -362,9 +428,14 @@ namespace GameLogic
 
             try
             {
+                token.ThrowIfCancellationRequested();
                 if (useAsync)
                 {
-                    await BuildLayoutAsync(elements, token);
+                    await RenderLayoutAsync(elements, token);
+                }
+                else if (CanUseMergedText(elements))
+                {
+                    RenderMergedText(elements);
                 }
                 else
                 {
@@ -377,21 +448,15 @@ namespace GameLogic
 
                 ApplyLayout();
                 MarkLayoutDirty();
-                FinalizeRendering(elements, token);
-            }
-            catch (OperationCanceledException)
-            {
-                // 取消时清理元素
-                foreach (var element in elements)
-                {
-                    element.Dispose();
-                }
-
-                throw;
+                FinalizeRendering(token);
             }
             finally
             {
-                m_isRendering = false;
+                RichTextParser.Recycle(elements);
+                if (m_cts != null && m_cts.Token == token)
+                {
+                    m_isRendering = false;
+                }
             }
         }
 
@@ -410,6 +475,9 @@ namespace GameLogic
         public void Clear()
         {
             CancelPendingOperations();
+            m_content = null;
+            m_nativeIconSizes.Clear();
+            m_isRendering = false;
             ClearLinkElements();
             RecycleAllElements();
             ClearRows();
@@ -565,6 +633,658 @@ namespace GameLogic
         private float m_layoutMinHeight;
         private float m_layoutPreferredHeight;
 
+#if TextMeshPro
+        /// <summary>
+        /// 判断是否可以使用单 TMP 渲染。
+        /// 静态图标使用 TMP 文本占位并保留 UIImage 覆盖层；表情和链接继续使用旧路径。
+        /// </summary>
+        private bool CanUseMergedText(List<RichTextElement> elements)
+        {
+            if (elements == null || elements.Count == 0)
+            {
+                return true;
+            }
+
+            // 单图标、单行文本原本就只有一个 TMP，沿用原布局可省去占位解析和强制网格更新。
+            // 需要换行或截断时仍交给合并路径，保持换行边界与可见行语义。
+            if (elements.Count == 2 && elements[0].Type == RichTextElementType.Icon &&
+                elements[1].Type == RichTextElementType.Text &&
+                m_currentParams.VerticalOverflow == VerticalWrapMode.Overflow)
+            {
+                var text = elements[1];
+                var length = text.Content != null ? text.Content.Length : text.TextBuilder.Length;
+                var isSingleLine = length > 0;
+                var width = m_currentParams.IconSize.x;
+                for (var i = 0; i < length; i++)
+                {
+                    var character = text.Content != null ? text.Content[i] : text.TextBuilder[i];
+                    // TMP 标签和代理对由 TMP 解释，不能使用逐 char 的旧宽度估算。
+                    if (character == '\n' || character == '\r' || character == '<' || char.IsSurrogate(character))
+                    {
+                        isSingleLine = false;
+                        break;
+                    }
+
+                    width += GetCharacterAdvance(character) + m_currentParams.CharacterSpacing;
+                }
+
+                if (isSingleLine && (m_currentParams.HorizontalOverflow == HorizontalWrapMode.Overflow ||
+                                    m_originalWidth <= 0 || width <= m_originalWidth))
+                {
+                    return false;
+                }
+            }
+
+            var iconLineHeight = 0f;
+            var hasText = false;
+            var hasIcon = false;
+            for (var index = 0; index < elements.Count; index++)
+            {
+                var type = elements[index].Type;
+                if (type == RichTextElementType.Emoji || type == RichTextElementType.Link)
+                {
+                    return false;
+                }
+
+                if (type == RichTextElementType.Icon)
+                {
+                    hasIcon = true;
+                    // 原图尺寸图标需要等待资源后重新参与换行，继续使用旧布局路径。
+                    if (m_currentParams.IconSize == Vector2.zero || !m_currentParams.SupportRichText)
+                    {
+                        return false;
+                    }
+
+                    if (iconLineHeight == 0f)
+                    {
+                        var font = m_tmpFont != null ? m_tmpFont : TMP_Settings.defaultFontAsset;
+                        var face = font.faceInfo;
+                        var scale = (float)m_currentParams.FontSize / face.pointSize * face.scale;
+                        var textHeight = (face.ascentLine - face.descentLine) * scale;
+                        var lineAdvance = face.lineHeight * scale +
+                                          m_currentParams.LineSpacing * m_currentParams.FontSize * 0.01f;
+                        iconLineHeight = Mathf.Min(textHeight, lineAdvance);
+                    }
+
+                    // space 不提供垂直度量；大图标由原行布局计算高度、行间距和截断预算。
+                    if (m_currentParams.IconSize.y > iconLineHeight)
+                    {
+                        return false;
+                    }
+                }
+                else if (type == RichTextElementType.Text && !hasText)
+                {
+                    var text = elements[index];
+                    var length = text.Content != null ? text.Content.Length : text.TextBuilder.Length;
+                    for (var i = 0; i < length; i++)
+                    {
+                        if (!char.IsWhiteSpace(text.Content != null ? text.Content[i] : text.TextBuilder[i]))
+                        {
+                            hasText = true;
+                            break;
+                        }
+                    }
+                }
+            }
+
+            // 纯图标内容无需创建 TMP，沿用图标自身的行高。
+            return !hasIcon || hasText;
+        }
+
+        /// <summary>
+        /// 使用一个 TMP 合并渲染普通文本和颜色片段。
+        /// </summary>
+        private void RenderMergedText(List<RichTextElement> elements)
+        {
+            if (!PrepareMergedText(elements)) return;
+
+            for (var index = 0; index < m_mergedIconAnchors.Count; index++)
+            {
+                CreateMergedIcon(index);
+            }
+
+            RefreshMergedTextLayout();
+        }
+
+        private async UniTask RenderMergedTextAsync(List<RichTextElement> elements, CancellationToken token)
+        {
+            if (elements.Count == 0)
+            {
+                RenderMergedText(elements);
+                return;
+            }
+
+            PrepareMergedText(null, true);
+            // 每次渲染独占拼接器，进度回调和跨帧期间不使用共享 StringBuilder。
+            var builder = new StringBuilder(256);
+            string iconFontSize = null;
+            var batchSize = Mathf.Max(1, m_elementsPerFrame);
+            for (var index = 0; index < elements.Count; index++)
+            {
+                token.ThrowIfCancellationRequested();
+                AppendMergedElement(builder, elements[index], ref iconFontSize);
+                if (elements[index].Type == RichTextElementType.Icon)
+                {
+                    CreateMergedIcon(m_mergedIconAnchors.Count - 1);
+                }
+
+                var processed = index + 1;
+                var endOfBatch = processed % batchSize == 0 || processed == elements.Count;
+                if (endOfBatch)
+                {
+                    m_mergedText.text = builder.ToString();
+                    RefreshMergedTextLayout();
+                    OnRenderProgress?.Invoke((float)processed / elements.Count);
+                    token.ThrowIfCancellationRequested();
+                }
+
+                if (endOfBatch && processed < elements.Count)
+                {
+                    await UniTask.Yield(PlayerLoopTiming.PreLateUpdate, token);
+                }
+            }
+        }
+
+        private bool PrepareMergedText(List<RichTextElement> elements, bool allowEmpty = false)
+        {
+            ClearLinkElements();
+            RecycleAllElements();
+            ClearRows();
+            RecycleEmojiInstances();
+            m_hasEmojis = false;
+            m_mergedIconAnchors.Clear();
+            m_mergedText = null;
+
+            var isWrapMode = m_currentParams.HorizontalOverflow == HorizontalWrapMode.Wrap;
+            var isTruncateMode = m_currentParams.VerticalOverflow == VerticalWrapMode.Truncate;
+            m_layoutWidth = isWrapMode && m_originalWidth > 0 ? m_originalWidth : 0f;
+            m_layoutHeight = isTruncateMode && m_originalHeight > 0 ? m_originalHeight : 0f;
+
+            var content = BuildMergedText(elements);
+            if (string.IsNullOrEmpty(content) && !allowEmpty)
+            {
+                UpdateLayoutMetrics(m_layoutWidth > 0 ? m_layoutWidth : 0f, 0f);
+                MarkLayoutDirty();
+                return false;
+            }
+
+            var label = GetOrCreateText();
+            SetupTextCommon(label);
+
+            label.alignment = m_currentParams.Alignment switch
+            {
+                RichTextAlignment.Center => TextAlignmentOptions.Top,
+                RichTextAlignment.Right => TextAlignmentOptions.TopRight,
+                _ => TextAlignmentOptions.TopLeft
+            };
+            label.enableWordWrapping = m_layoutWidth > 0;
+            // 按实际行信息统一截断文字与图标，避免 TMP 在高度不足一行时裁空整个文本。
+            label.overflowMode = TextOverflowModes.Overflow;
+            label.text = content;
+
+            SetupRectTransform(label.rectTransform);
+            label.rectTransform.anchoredPosition = Vector2.zero;
+            m_activeTexts.Add(label);
+            m_mergedText = label;
+
+            return true;
+        }
+
+        private void CreateMergedIcon(int index)
+        {
+            var anchor = m_mergedIconAnchors[index];
+            var image = GetOrCreateImage();
+            SetupImageCommon(image, anchor.Element.RaycastEnabled);
+            image.rectTransform.sizeDelta = anchor.ReservedSize;
+            anchor.Image = image;
+            m_mergedIconAnchors[index] = anchor;
+            m_activeImages.Add(image);
+            RichTextConfig.SetSprite(
+                image,
+                anchor.Element.FormatData,
+                false,
+                null,
+                m_cts?.Token ?? default);
+        }
+
+        private void RefreshMergedTextLayout()
+        {
+            var label = m_mergedText;
+            if (!label.gameObject.activeInHierarchy)
+            {
+                // 首次隐藏创建时 TMP 可能尚未 Awake，尺寸、截断和图标都等启用后的 LateUpdate 更新。
+                m_pendingIconLayoutRefresh = true;
+                return;
+            }
+
+            label.maxVisibleLines = int.MaxValue;
+            var preferred = m_layoutWidth > 0
+                ? label.GetPreferredValues(label.text, m_layoutWidth, 0f)
+                : label.GetPreferredValues(label.text);
+            var finalWidth = m_layoutWidth > 0
+                ? m_layoutWidth
+                : preferred.x;
+            var finalHeight = Mathf.Max(
+                m_currentParams.FontSize + m_currentParams.LineSpacing,
+                preferred.y);
+            label.rectTransform.sizeDelta = new Vector2(finalWidth, finalHeight);
+
+            // GetPreferredValues 的预测换行可能与实际 TMP 排版不同（例如彩色中文和图标混排）。
+            // 用实际行度量更新布局尺寸，确保 ScrollRect 能滚到最后一行 / 最右端。
+            label.ForceMeshUpdate(true);
+            var textInfo = label.textInfo;
+            if (textInfo.lineCount > 0)
+            {
+                var lines = textInfo.lineInfo;
+                var firstLineTop = lines[0].ascender;
+                var actualWidth = 0f;
+                var actualHeight = 0f;
+                for (var index = 0; index < textInfo.lineCount; index++)
+                {
+                    var line = lines[index];
+                    if (line.characterCount > 0)
+                    {
+                        // lineInfo.maxAdvance 会混入水平对齐偏移，使用同一行字符的相对推进量。
+                        var firstCharacter = textInfo.characterInfo[line.firstCharacterIndex];
+                        var lastCharacter = textInfo.characterInfo[line.lastCharacterIndex];
+                        actualWidth = Mathf.Max(actualWidth, lastCharacter.xAdvance - firstCharacter.origin);
+                    }
+                    actualHeight = Mathf.Max(actualHeight, firstLineTop - lines[index].descender);
+                }
+
+                if (m_layoutWidth <= 0)
+                {
+                    finalWidth = Mathf.Ceil(actualWidth * 100f) / 100f;
+                }
+                finalHeight = Mathf.Max(m_currentParams.FontSize + m_currentParams.LineSpacing,
+                    Mathf.Ceil(actualHeight * 100f) / 100f);
+
+                if (m_layoutHeight > 0)
+                {
+                    var heightLimit = Mathf.Max(m_layoutHeight, firstLineTop - lines[0].descender);
+                    var visibleLineCount = 1;
+                    while (visibleLineCount < textInfo.lineCount &&
+                           firstLineTop - lines[visibleLineCount].descender <= heightLimit + 0.001f)
+                    {
+                        visibleLineCount++;
+                    }
+
+                    label.maxVisibleLines = visibleLineCount;
+                    finalHeight = Mathf.Min(heightLimit, finalHeight);
+                }
+            }
+
+            var widthChanged = !Mathf.Approximately(label.rectTransform.sizeDelta.x, finalWidth);
+            label.rectTransform.sizeDelta = new Vector2(finalWidth, finalHeight);
+            if (m_mergedIconAnchors.Count > 0)
+            {
+                // 无约束宽度发生修正时，居中 / 右对齐的图标要使用新宽度下的字符位置。
+                if (widthChanged)
+                {
+                    label.ForceMeshUpdate(true);
+                }
+                ApplyMergedIconLayout();
+            }
+            UpdateLayoutMetrics(finalWidth, finalHeight);
+            MarkLayoutDirty();
+        }
+
+        private string BuildMergedText(List<RichTextElement> elements)
+        {
+            if (elements != null && elements.Count == 1 &&
+                elements[0] != null && elements[0].Type == RichTextElementType.Text &&
+                string.IsNullOrEmpty(elements[0].FormatData))
+            {
+                return elements[0].GetText() ?? string.Empty;
+            }
+
+            var builder = TextBuilder;
+            builder.Clear();
+
+            if (elements == null)
+            {
+                return string.Empty;
+            }
+
+            string iconFontSize = null;
+            for (var index = 0; index < elements.Count; index++)
+            {
+                AppendMergedElement(builder, elements[index], ref iconFontSize);
+            }
+
+            return builder.ToString();
+        }
+
+        private void AppendMergedElement(StringBuilder builder, RichTextElement element, ref string iconFontSize)
+        {
+            if (element.Type == RichTextElementType.Icon)
+            {
+                var reservedSize = m_currentParams.IconSize;
+                if (iconFontSize == null)
+                {
+                    var font = m_tmpFont != null ? m_tmpFont : TMP_Settings.defaultFontAsset;
+                    var face = font.faceInfo;
+                    iconFontSize = (reservedSize.y * face.pointSize /
+                                   ((face.ascentLine - face.descentLine) * face.scale))
+                        .ToString("R", CultureInfo.InvariantCulture);
+                }
+
+                // 图标占位同时提供水平推进量、断行点和真实宽度。
+                builder.Append("<size=");
+                builder.Append(iconFontSize);
+                builder.Append('>');
+                builder.Append('\u200B');
+                builder.Append("<space=");
+                builder.Append(Mathf.Max(1, Mathf.CeilToInt(reservedSize.x)));
+                builder.Append('>');
+                m_mergedIconAnchors.Add(new MergedIconAnchor
+                {
+                    Element = element,
+                    TextIndex = builder.Length,
+                    ReservedSize = reservedSize
+                });
+                builder.Append('\u2060');
+                builder.Append('\u200B');
+                builder.Append("</size>");
+                return;
+            }
+
+            var text = element.GetText();
+            if (string.IsNullOrEmpty(text)) return;
+
+            if (!string.IsNullOrEmpty(element.FormatData))
+            {
+                builder.Append("<color=");
+                builder.Append(element.FormatData);
+                builder.Append('>');
+                builder.Append(text);
+                builder.Append("</color>");
+            }
+            else
+            {
+                builder.Append(text);
+            }
+        }
+
+        private void ApplyMergedIconLayout()
+        {
+            var textInfo = m_mergedText.textInfo;
+            for (var index = 0; index < m_mergedIconAnchors.Count; index++)
+            {
+                var image = m_mergedIconAnchors[index].Image;
+                if (image != null)
+                {
+                    image.gameObject.SetActive(false);
+                    image.rectTransform.anchoredPosition = Vector2.zero;
+                }
+            }
+
+            var anchorIndex = 0;
+            for (var characterIndex = 0;
+                 characterIndex < textInfo.characterCount && anchorIndex < m_mergedIconAnchors.Count;
+                 characterIndex++)
+            {
+                var character = textInfo.characterInfo[characterIndex];
+                while (anchorIndex < m_mergedIconAnchors.Count &&
+                       m_mergedIconAnchors[anchorIndex].TextIndex < character.index)
+                {
+                    anchorIndex++;
+                }
+
+                if (anchorIndex >= m_mergedIconAnchors.Count ||
+                    m_mergedIconAnchors[anchorIndex].TextIndex != character.index)
+                {
+                    continue;
+                }
+
+                var anchor = m_mergedIconAnchors[anchorIndex++];
+                if (anchor.Image == null)
+                {
+                    continue;
+                }
+
+                var lineIndex = character.lineNumber;
+                var lineVisible = lineIndex >= 0 && lineIndex < textInfo.lineCount &&
+                                  lineIndex < m_mergedText.maxVisibleLines;
+
+                if (!lineVisible)
+                {
+                    continue;
+                }
+
+                var iconSize = anchor.Image.rectTransform.sizeDelta;
+                // 零宽占位字符自身的字形高度接近 0，使用它的 topLeft/bottomLeft
+                // 会让图标漂到基线附近。使用 TMP 当前行的 ascender/descender 才能得到真实行高。
+                var lineTop = textInfo.lineInfo[lineIndex].ascender;
+                var lineBottom = textInfo.lineInfo[lineIndex].descender;
+                var lineHeight = Mathf.Abs(lineTop - lineBottom);
+                if (lineHeight <= 0f)
+                {
+                    lineTop = character.topLeft.y;
+                    lineBottom = character.bottomLeft.y;
+                    lineHeight = Mathf.Max(Mathf.Abs(lineTop - lineBottom), m_currentParams.FontSize);
+                }
+
+                var y = lineTop;
+                switch (m_currentParams.IconAlignment)
+                {
+                    case RichTextIconAlignment.Center:
+                        y -= (lineHeight - iconSize.y) * 0.5f;
+                        break;
+                    case RichTextIconAlignment.Bottom:
+                        y = lineBottom + iconSize.y;
+                        break;
+                }
+
+                anchor.Image.rectTransform.anchoredPosition =
+                    new Vector2(character.origin - Mathf.Max(1, Mathf.CeilToInt(anchor.ReservedSize.x)), y) + m_iconOffset;
+                anchor.Image.gameObject.SetActive(true);
+            }
+        }
+
+#else
+        private RichTextLabel m_nativeMergedText;
+        private int m_nativeMergedRowCount;
+
+        /// <summary>
+        /// 原生 Text 合并普通文本和颜色片段。
+        /// 图标、表情、链接和非零字间距继续使用元素布局。
+        /// </summary>
+        private bool CanUseMergedText(List<RichTextElement> elements)
+        {
+            if (elements == null || elements.Count == 0)
+            {
+                return true;
+            }
+
+            if (m_currentParams.CharacterSpacing != 0)
+            {
+                return false;
+            }
+
+            for (var index = 0; index < elements.Count; index++)
+            {
+                if (elements[index] == null || elements[index].Type != RichTextElementType.Text)
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private void RenderMergedText(List<RichTextElement> elements)
+        {
+            if (!PrepareNativeMergedText(elements)) return;
+            RefreshNativeMergedTextLayout();
+        }
+
+        private async UniTask RenderMergedTextAsync(List<RichTextElement> elements, CancellationToken token)
+        {
+            if (elements == null || elements.Count == 0)
+            {
+                RenderMergedText(elements);
+                return;
+            }
+
+            PrepareNativeMergedText(null, true);
+            var builder = new StringBuilder(256);
+            var batchSize = Mathf.Max(1, m_elementsPerFrame);
+            for (var index = 0; index < elements.Count; index++)
+            {
+                token.ThrowIfCancellationRequested();
+                AppendNativeMergedElement(builder, elements[index]);
+
+                var processed = index + 1;
+                var endOfBatch = processed % batchSize == 0 || processed == elements.Count;
+                if (endOfBatch)
+                {
+                    m_nativeMergedText.text = builder.ToString();
+                    RefreshNativeMergedTextLayout();
+                    OnRenderProgress?.Invoke((float)processed / elements.Count);
+                    token.ThrowIfCancellationRequested();
+                }
+
+                if (endOfBatch && processed < elements.Count)
+                {
+                    await UniTask.Yield(PlayerLoopTiming.PreLateUpdate, token);
+                }
+            }
+        }
+
+        private bool PrepareNativeMergedText(List<RichTextElement> elements, bool allowEmpty = false)
+        {
+            ClearLinkElements();
+            RecycleAllElements();
+            ClearRows();
+            RecycleEmojiInstances();
+            m_hasEmojis = false;
+            m_nativeMergedText = null;
+            m_nativeMergedRowCount = 0;
+
+            var isWrapMode = m_currentParams.HorizontalOverflow == HorizontalWrapMode.Wrap;
+            var isTruncateMode = m_currentParams.VerticalOverflow == VerticalWrapMode.Truncate;
+            m_layoutWidth = isWrapMode && m_originalWidth > 0 ? m_originalWidth : 0f;
+            m_layoutHeight = isTruncateMode && m_originalHeight > 0 ? m_originalHeight : 0f;
+
+            var content = BuildNativeMergedText(elements);
+            if (string.IsNullOrEmpty(content) && !allowEmpty)
+            {
+                UpdateLayoutMetrics(m_layoutWidth > 0 ? m_layoutWidth : 0f, 0f);
+                MarkLayoutDirty();
+                return false;
+            }
+
+            var label = GetOrCreateText();
+            SetupTextCommon(label);
+            label.alignment = m_currentParams.Alignment switch
+            {
+                RichTextAlignment.Center => TextAnchor.UpperCenter,
+                RichTextAlignment.Right => TextAnchor.UpperRight,
+                _ => TextAnchor.UpperLeft
+            };
+            label.horizontalOverflow = m_layoutWidth > 0
+                ? HorizontalWrapMode.Wrap
+                : HorizontalWrapMode.Overflow;
+            label.verticalOverflow = m_layoutHeight > 0
+                ? VerticalWrapMode.Truncate
+                : VerticalWrapMode.Overflow;
+            // Text.lineSpacing 是倍率，RichTextParams.LineSpacing 是额外像素间隔。
+            var lineHeight = label.font != null && label.font.fontSize > 0
+                ? (float)label.font.lineHeight * m_currentParams.FontSize / label.font.fontSize
+                : m_currentParams.FontSize;
+            label.lineSpacing = lineHeight > 0 ? 1f + m_currentParams.LineSpacing / lineHeight : 1f;
+            label.text = content;
+            SetupRectTransform(label.rectTransform);
+            label.rectTransform.anchoredPosition = Vector2.zero;
+            m_activeTexts.Add(label);
+            m_nativeMergedText = label;
+            return true;
+        }
+
+        private string BuildNativeMergedText(List<RichTextElement> elements)
+        {
+            var builder = TextBuilder;
+            builder.Clear();
+            if (elements == null) return string.Empty;
+
+            for (var index = 0; index < elements.Count; index++)
+            {
+                AppendNativeMergedElement(builder, elements[index]);
+            }
+            return builder.ToString();
+        }
+
+        private void AppendNativeMergedElement(StringBuilder builder, RichTextElement element)
+        {
+            if (element == null || element.Type != RichTextElementType.Text) return;
+            var text = element.GetText();
+            if (string.IsNullOrEmpty(text)) return;
+
+            if (string.IsNullOrEmpty(element.FormatData))
+            {
+                builder.Append(text);
+            }
+            else
+            {
+                builder.Append("<color=");
+                builder.Append(element.FormatData);
+                builder.Append('>');
+                builder.Append(text);
+                builder.Append("</color>");
+            }
+        }
+
+        private void RefreshNativeMergedTextLayout()
+        {
+            var label = m_nativeMergedText;
+            if (label == null) return;
+            if (!label.gameObject.activeInHierarchy)
+            {
+                m_pendingIconLayoutRefresh = true;
+                return;
+            }
+
+            var finalWidth = m_layoutWidth > 0 ? m_layoutWidth : label.preferredWidth;
+            label.rectTransform.sizeDelta = new Vector2(finalWidth, m_currentParams.FontSize);
+            var finalHeight = Mathf.Max(m_currentParams.FontSize + m_currentParams.LineSpacing,
+                Mathf.Ceil(label.preferredHeight));
+            m_nativeMergedRowCount = Mathf.Max(1, CountNativeTextRows(label.text, finalWidth));
+
+            if (m_layoutHeight > 0)
+            {
+                finalHeight = Mathf.Min(
+                    Mathf.Max(m_layoutHeight, m_currentParams.FontSize + m_currentParams.LineSpacing),
+                    finalHeight);
+            }
+
+            label.rectTransform.sizeDelta = new Vector2(finalWidth, finalHeight);
+            UpdateLayoutMetrics(finalWidth, finalHeight);
+            if (NeedsDeferredTextEffects) ApplyTextEffects(label);
+            MarkLayoutDirty();
+        }
+
+        private int CountNativeTextRows(string text, float width)
+        {
+            // 交给 TextGenerator 处理颜色标签、字号、单词换行和代理对，不逐字符估算。
+            var settings = m_nativeMergedText.GetGenerationSettings(new Vector2(width, 0f));
+            settings.verticalOverflow = VerticalWrapMode.Overflow;
+            var generator = m_nativeMergedText.cachedTextGeneratorForLayout;
+            generator.Populate(text, settings);
+            return generator.lineCount;
+        }
+
+#endif
+
+        private UniTask RenderLayoutAsync(List<RichTextElement> elements, CancellationToken token)
+        {
+            if (CanUseMergedText(elements))
+            {
+                return RenderMergedTextAsync(elements, token);
+            }
+            return BuildLayoutAsync(elements, token);
+        }
+
         private void BuildLayout(List<RichTextElement> elements)
         {
             ClearLinkElements();
@@ -648,6 +1368,7 @@ namespace GameLogic
 
             int processedCount = 0;
             int totalCount = elements.Count;
+            var batchSize = Mathf.Max(1, m_elementsPerFrame);
 
             // 分帧处理元素
             foreach (var element in elements)
@@ -674,37 +1395,32 @@ namespace GameLogic
                 }
 
                 processedCount++;
-
-                // 报告进度
-                float progress = (float)processedCount / totalCount;
-                OnRenderProgress?.Invoke(progress);
+                var endOfBatch = processedCount % batchSize == 0 || processedCount == totalCount;
+                if (endOfBatch)
+                {
+                    // 已创建的节点在交出本帧前排好位置，取消后保留的部分内容也不会堆叠。
+                    CalculateTotalSize();
+                    ApplyLayout();
+                    MarkLayoutDirty();
+                    if (NeedsDeferredTextEffects) ApplyAllTextEffects();
+                    OnRenderProgress?.Invoke((float)processedCount / totalCount);
+                    token.ThrowIfCancellationRequested();
+                }
 
                 // 每处理 N 个元素暂停一帧 (使用 PreLateUpdate 不受 timeScale 影响)
-                if (processedCount % m_elementsPerFrame == 0)
+                if (endOfBatch && processedCount < totalCount)
                 {
                     await UniTask.Yield(PlayerLoopTiming.PreLateUpdate, token);
                 }
             }
-
-            // 计算尺寸
-            CalculateTotalSize();
-        }
-
-        /// <summary>
-        /// 完成渲染的收尾工作
-        /// </summary>
-        private void FinalizeRendering(List<RichTextElement> elements)
-        {
-            FinalizeRendering(elements, m_cts?.Token ?? default);
         }
 
         /// <summary>
         /// 完成渲染的收尾工作 (带取消令牌)
         /// </summary>
-        private void FinalizeRendering(List<RichTextElement> elements, CancellationToken token)
+        private void FinalizeRendering(CancellationToken token)
         {
-            // 标记下一帧应用特效
-            m_pendingEffects = m_currentParams.EnableShadow || m_currentParams.EnableOutline;
+            m_pendingEffects = NeedsDeferredTextEffects;
 
             // 如果有表情且未取消则启动动画
             m_emojiTimer = 0f;
@@ -714,14 +1430,9 @@ namespace GameLogic
                 UpdateEmojiFrames(token);
             }
 
-            // 清理解析后的元素
-            foreach (var element in elements)
-            {
-                element.Dispose();
-            }
-
-            // 触发完成回调 (即使取消也触发，让调用方知道处理结束)
+            // 回调可能开始新一轮渲染，取消后不再发送旧任务的完成事件。
             OnRenderProgress?.Invoke(1f);
+            token.ThrowIfCancellationRequested();
             OnRenderComplete?.Invoke();
         }
 
@@ -732,39 +1443,33 @@ namespace GameLogic
         {
             try
             {
-                await BuildLayoutAsync(elements, token);
+                token.ThrowIfCancellationRequested();
+                await RenderLayoutAsync(elements, token);
 
-                // 检查是否已被取消
-                if (token.IsCancellationRequested)
-                {
-                    // 清理元素但不执行渲染
-                    foreach (var element in elements)
-                    {
-                        element.Dispose();
-                    }
-
-                    m_isRendering = false;
-                    return;
-                }
-
+                token.ThrowIfCancellationRequested();
                 ApplyLayout();
                 MarkLayoutDirty();
-                FinalizeRendering(elements, token);
+                FinalizeRendering(token);
             }
             finally
             {
-                m_isRendering = false;
+                RichTextParser.Recycle(elements);
+                if (m_cts != null && m_cts.Token == token)
+                {
+                    m_isRendering = false;
+                }
             }
         }
 
         private float GetCharacterAdvance(char character)
         {
 #if TextMeshPro
-            if (m_tmpFont != null && m_tmpFont.characterLookupTable.TryGetValue(character, out var tmpCharacter)
-                && tmpCharacter.glyph != null && m_tmpFont.faceInfo.pointSize > 0)
+            var font = m_tmpFont != null ? m_tmpFont : TMP_Settings.defaultFontAsset;
+            if (font != null && font.characterLookupTable.TryGetValue(character, out var tmpCharacter)
+                && tmpCharacter.glyph != null && font.faceInfo.pointSize > 0)
             {
                 return tmpCharacter.glyph.metrics.horizontalAdvance
-                    * m_currentParams.FontSize / m_tmpFont.faceInfo.pointSize;
+                    * m_currentParams.FontSize / font.faceInfo.pointSize;
             }
 #endif
 
@@ -781,7 +1486,7 @@ namespace GameLogic
             string text = element.GetText();
             if (string.IsNullOrEmpty(text)) return;
 
-            m_font.RequestCharactersInTexture(text, m_currentParams.FontSize);
+            m_font?.RequestCharactersInTexture(text, m_currentParams.FontSize);
 
             // 使用静态缓存的 StringBuilder，避免每次调用都分配
             var sb = TextBuilder;
@@ -845,6 +1550,7 @@ namespace GameLogic
 
             Vector2 size = m_currentParams.IconSize;
             bool useNativeSize = size == Vector2.zero;
+            if (useNativeSize) m_nativeIconSizes.TryGetValue(element.FormatData, out size);
             image.rectTransform.sizeDelta = size;
 
             // 检查是否需要换行（仅当 m_layoutWidth > 0 时）
@@ -860,7 +1566,7 @@ namespace GameLogic
 
             if (useNativeSize)
             {
-                m_pendingNativeSizeIcons.Add(image);
+                m_pendingNativeSizeIcons[image] = element.FormatData;
             }
 
             RichTextConfig.SetSprite(image, element.FormatData, useNativeSize,
@@ -874,9 +1580,15 @@ namespace GameLogic
         {
             if (img == null || img.sprite == null) return;
 
-            if (m_pendingNativeSizeIcons.Remove(img))
+            if (m_pendingNativeSizeIcons.TryGetValue(img, out var spriteName))
             {
-                m_pendingIconLayoutRefresh = true;
+                m_pendingNativeSizeIcons.Remove(img);
+                var size = img.rectTransform.sizeDelta;
+                if (!m_nativeIconSizes.TryGetValue(spriteName, out var previous) || previous != size)
+                {
+                    m_nativeIconSizes[spriteName] = size;
+                    m_pendingIconLayoutRefresh = true;
+                }
             }
         }
 
@@ -889,6 +1601,15 @@ namespace GameLogic
             SetupImageCommon(image, emojiData.RaycastEnabled);
 
             Vector2 size = m_currentParams.IconSize;
+            if (size == Vector2.zero)
+            {
+                var firstFrame = emojiData.GetFrame(0);
+                if (!string.IsNullOrEmpty(firstFrame))
+                {
+                    m_nativeIconSizes.TryGetValue(firstFrame, out size);
+                    if (size == Vector2.zero) m_pendingNativeSizeIcons[image] = firstFrame;
+                }
+            }
             image.rectTransform.sizeDelta = size;
 
             // 使用对象池创建表情动画实例
@@ -1288,6 +2009,52 @@ namespace GameLogic
 
         private void RefreshIconLayout()
         {
+#if TextMeshPro
+            if (m_mergedText != null)
+            {
+                RefreshMergedTextLayout();
+                return;
+            }
+#else
+            if (m_nativeMergedText != null)
+            {
+                RefreshNativeMergedTextLayout();
+                return;
+            }
+#endif
+
+            if (m_currentParams.IconSize == Vector2.zero && m_content != null)
+            {
+                // 原图尺寸就绪后重新分行，而不是只调整旧行的宽高。
+                // 保存表情正在显示的帧，避免重排使动画回到首帧。
+                var frames = ListPool<int>.Get();
+                var elements = RichTextParser.Parse(m_content, RichTextConfig.IconPrefix);
+                try
+                {
+                    foreach (var instance in m_emojiInstances) frames.Add(instance.CurrentFrame);
+                    BuildLayout(elements);
+                    for (var index = 0; index < m_emojiInstances.Count; index++)
+                    {
+                        var instance = m_emojiInstances[index];
+                        var frameCount = instance.AnimationData.FrameCount;
+                        if (index < frames.Count && frameCount > 0)
+                        {
+                            instance.CurrentFrame = (frames[index] + frameCount - 1) % frameCount;
+                        }
+                    }
+                    UpdateEmojiFrames();
+                    ApplyLayout();
+                    MarkLayoutDirty();
+                    m_pendingEffects = NeedsDeferredTextEffects;
+                }
+                finally
+                {
+                    RichTextParser.Recycle(elements);
+                    ListPool<int>.Recycle(frames);
+                }
+                return;
+            }
+
             foreach (var row in m_rows)
             {
                 row.Width = 0;
@@ -1391,10 +2158,13 @@ namespace GameLogic
             text.overflowMode = m_currentParams.VerticalOverflow == VerticalWrapMode.Truncate
                 ? TextOverflowModes.Truncate
                 : TextOverflowModes.Overflow;
+            text.maxVisibleLines = int.MaxValue;
             text.richText = m_currentParams.SupportRichText;
             text.characterSpacing = m_currentParams.CharacterSpacing;
             text.lineSpacing = m_currentParams.LineSpacing;
             text.raycastTarget = false;
+            // 材质和 padding 必须先于 ForceMeshUpdate，避免图标定位后再次重建文字网格。
+            ApplyTextEffects(text);
 #else
             text.font = m_font;
             text.fontSize = m_currentParams.FontSize;
@@ -1402,6 +2172,7 @@ namespace GameLogic
             text.alignment = TextAnchor.MiddleLeft;
             text.horizontalOverflow = HorizontalWrapMode.Overflow;
             text.verticalOverflow = VerticalWrapMode.Overflow;
+            text.lineSpacing = 1f;
             text.supportRichText = m_currentParams.SupportRichText;
             text.raycastTarget = false;
 
@@ -1419,8 +2190,10 @@ namespace GameLogic
                 }
             }
 
-            // 注意: 文本特效（阴影/描边）在布局完成后通过 ApplyAllTextEffects() 应用
-            // 以确保正确渲染
+            // 关闭特效不依赖布局，先清除池内文本遗留的阴影和描边。
+            if (!NeedsDeferredTextEffects) ApplyTextEffects(text);
+
+            // 启用阴影/描边仍在布局完成后通过 ApplyAllTextEffects() 应用。
 #endif
         }
 
@@ -1464,7 +2237,14 @@ namespace GameLogic
             if (!useOutline && !useUnderlay)
             {
                 ReleaseTmpEffectMaterial(text);
-                text.fontSharedMaterial = text.font != null ? text.font.material : TMP_Settings.defaultFontAsset?.material;
+                var defaultMaterial = text.font != null ? text.font.material : TMP_Settings.defaultFontAsset?.material;
+                if (text.fontSharedMaterial == defaultMaterial)
+                {
+                    return;
+                }
+
+                text.fontSharedMaterial = defaultMaterial;
+                text.UpdateMeshPadding();
                 text.SetMaterialDirty();
                 return;
             }
@@ -1477,9 +2257,11 @@ namespace GameLogic
             }
 
             var outlineColor = useOutline ? m_currentParams.OutlineColor : Color.clear;
+            // 旧 1-10 档统一到与字体预设一致的 1-4 档。
             var outlineWidth = useOutline
-                ? Mathf.Clamp01(m_currentParams.OutlineWidth * 0.1f)
+                ? Mathf.Clamp(Mathf.RoundToInt(m_currentParams.OutlineWidth * 0.4f), 1, 4) * 0.1f
                 : 0f;
+            // TMP 沿用原生单色阴影，使用左上颜色；四色渐变由非 TMP 的 UIText 实现。
             var underlayColor = useUnderlay ? m_currentParams.ShadowTopLeftColor : Color.clear;
             var underlayOffsetX = useUnderlay ? m_currentParams.ShadowEffectDistance.x : 0f;
             var underlayOffsetY = useUnderlay ? m_currentParams.ShadowEffectDistance.y : 0f;
@@ -1497,7 +2279,7 @@ namespace GameLogic
                 ReleaseTmpEffectMaterial(text);
             }
 
-            if (!s_tmpEffectMaterials.TryGetValue(materialKey, out var entry))
+            if (!s_tmpEffectMaterials.TryGetValue(materialKey, out var entry) || entry.Material == null)
             {
                 var effectMaterial = new Material(sourceMaterial)
                 {
@@ -1523,8 +2305,9 @@ namespace GameLogic
                 effectMaterial.SetFloat(ShaderUtilities.ID_UnderlaySoftness, 0f);
                 effectMaterial.SetFloat(ShaderUtilities.ID_UnderlayOffsetX, underlayOffsetX);
                 effectMaterial.SetFloat(ShaderUtilities.ID_UnderlayOffsetY, underlayOffsetY);
-                entry = new TmpEffectMaterialEntry { Material = effectMaterial };
-                s_tmpEffectMaterials.Add(materialKey, entry);
+                entry ??= new TmpEffectMaterialEntry();
+                entry.Material = effectMaterial;
+                s_tmpEffectMaterials[materialKey] = entry;
             }
 
             if (!alreadyHeld)
@@ -1533,7 +2316,13 @@ namespace GameLogic
                 m_tmpEffectMaterialKeys[text] = materialKey;
             }
 
+            if (text.fontSharedMaterial == entry.Material)
+            {
+                return;
+            }
+
             text.fontSharedMaterial = entry.Material;
+            text.UpdateMeshPadding();
             text.SetMaterialDirty();
 #else
             // 阴影 - 使用 UIText 内置的阴影功能
@@ -1588,6 +2377,7 @@ namespace GameLogic
             if (text != null && text.fontSharedMaterial == entry.Material)
             {
                 text.fontSharedMaterial = text.font != null ? text.font.material : TMP_Settings.defaultFontAsset?.material;
+                text.UpdateMeshPadding();
                 text.SetMaterialDirty();
             }
 
@@ -1654,6 +2444,13 @@ namespace GameLogic
             // 清理待处理的图标尺寸
             m_pendingNativeSizeIcons.Clear();
             m_pendingIconLayoutRefresh = false;
+#if TextMeshPro
+            m_mergedIconAnchors.Clear();
+            m_mergedText = null;
+#else
+            m_nativeMergedText = null;
+            m_nativeMergedRowCount = 0;
+#endif
 
             // 回收下划线
             RecycleUnderlines();
@@ -1743,7 +2540,8 @@ namespace GameLogic
                     if (image != null && !string.IsNullOrEmpty(spriteName))
                     {
                         // 使用实例方法作为回调，避免 Lambda 闭包
-                        RichTextConfig.SetSprite(image, spriteName, false, OnEmojiSpriteLoaded, default);
+                        RichTextConfig.SetSprite(image, spriteName, m_pendingNativeSizeIcons.ContainsKey(image),
+                            OnEmojiSpriteLoaded, m_cts?.Token ?? default);
                     }
                     else
                     {
@@ -1758,6 +2556,7 @@ namespace GameLogic
         /// </summary>
         private void OnEmojiSpriteLoaded(Image img)
         {
+            OnIconSpriteLoaded(img);
             // 查找对应的 EmojiAnimationInstance 并标记加载完成
             foreach (var instance in m_emojiInstances)
             {
@@ -1784,7 +2583,8 @@ namespace GameLogic
                 {
                     if (image != null && !string.IsNullOrEmpty(spriteName) && !token.IsCancellationRequested)
                     {
-                        RichTextConfig.SetSprite(image, spriteName, false, OnEmojiSpriteLoaded, token);
+                        RichTextConfig.SetSprite(image, spriteName, m_pendingNativeSizeIcons.ContainsKey(image),
+                            OnEmojiSpriteLoaded, token);
                     }
                     else
                     {
