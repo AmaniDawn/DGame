@@ -20,23 +20,22 @@ namespace GameLogic
             @"^\[link:(\d+)\|([^|\]]+)(?:\|([^|\]]+))?(?:\|([^|\]]+))?\]$",
             RegexOptions.Compiled);
 
-        private static readonly List<RichTextElement> s_resultCache = new List<RichTextElement>(32);
         private static readonly Stack<string> s_colorStack = new Stack<string>(8);
 
         // 静态缓冲区，用于减少字符串分配
         private static readonly char[] s_charBuffer = new char[256];
 
         /// <summary>
-        /// 解析富文本内容为元素列表
+        /// 解析富文本内容为独占的元素列表；调用方在渲染完成或取消后调用 Recycle。
         /// </summary>
         public static List<RichTextElement> Parse(string text, string iconPrefix)
         {
-            s_resultCache.Clear();
+            var elements = ListPool<RichTextElement>.Get();
             s_colorStack.Clear();
 
             if (string.IsNullOrEmpty(text))
             {
-                return s_resultCache;
+                return elements;
             }
 
             // 仅在包含 Tab 时才进行替换，避免不必要的字符串分配
@@ -56,7 +55,7 @@ namespace GameLogic
                 // 检查颜色开始标签
                 if (c == '<' && TryMatchColorStart(text, index, out int colorEndIndex, out string colorValue))
                 {
-                    FlushElement(currentElement);
+                    FlushElement(currentElement, elements);
                     s_colorStack.Push(colorValue);
                     currentElement = CreateTextElement(colorValue);
                     index = colorEndIndex + 1;
@@ -66,7 +65,7 @@ namespace GameLogic
                 // 检查颜色结束标签
                 if (c == '<' && TryMatchColorEnd(text, index))
                 {
-                    FlushElement(currentElement);
+                    FlushElement(currentElement, elements);
 
                     if (s_colorStack.Count > 0)
                     {
@@ -90,9 +89,9 @@ namespace GameLogic
                         // 检查是否为表情 (使用 Span 快速检查)
                         if (RichTextConfig.IsEmojiSpan(tagSpan))
                         {
-                            FlushElement(currentElement);
+                            FlushElement(currentElement, elements);
                             string tagContent = tagSpan.ToString();
-                            s_resultCache.Add(RichTextElement.Create(RichTextElementType.Emoji, tagContent));
+                            elements.Add(RichTextElement.Create(RichTextElementType.Emoji, tagContent));
                             currentElement = CreateTextElementFromStack();
                             index = bracketEnd + 1;
                             continue;
@@ -101,10 +100,10 @@ namespace GameLogic
                         // 检查是否为图标 (使用 Span 快速检查)
                         if (!string.IsNullOrEmpty(iconPrefix) && SpanContains(tagSpan, iconPrefix.AsSpan()))
                         {
-                            FlushElement(currentElement);
+                            FlushElement(currentElement, elements);
                             string tagContent = tagSpan.ToString();
                             string spriteName = ExtractSpriteName(tagContent, iconPrefix);
-                            s_resultCache.Add(RichTextElement.Create(RichTextElementType.Icon, spriteName));
+                            elements.Add(RichTextElement.Create(RichTextElementType.Icon, spriteName));
                             currentElement = CreateTextElementFromStack();
                             index = bracketEnd + 1;
                             continue;
@@ -116,8 +115,8 @@ namespace GameLogic
                             string tagContent = tagSpan.ToString();
                             if (s_linkRegex.IsMatch(tagContent))
                             {
-                                FlushElement(currentElement);
-                                s_resultCache.Add(RichTextElement.Create(RichTextElementType.Link, tagContent));
+                                FlushElement(currentElement, elements);
+                                elements.Add(RichTextElement.Create(RichTextElementType.Link, tagContent));
                                 currentElement = CreateTextElementFromStack();
                                 index = bracketEnd + 1;
                                 continue;
@@ -139,10 +138,20 @@ namespace GameLogic
                 index++;
             }
 
-            FlushElement(currentElement);
-            RemoveEmptyElements();
+            FlushElement(currentElement, elements);
+            RemoveEmptyElements(elements);
 
-            return s_resultCache;
+            return elements;
+        }
+
+        public static void Recycle(List<RichTextElement> elements)
+        {
+            foreach (var element in elements)
+            {
+                element.Dispose();
+            }
+
+            ListPool<RichTextElement>.Recycle(elements);
         }
 
         private static bool TryMatchColorStart(string text, int startIndex, out int endIndex, out string colorValue)
@@ -270,11 +279,11 @@ namespace GameLogic
             return RichTextElement.Create(RichTextElementType.Text);
         }
 
-        private static void FlushElement(RichTextElement element)
+        private static void FlushElement(RichTextElement element, List<RichTextElement> elements)
         {
             if (element != null && element.TextBuilder.Length > 0)
             {
-                s_resultCache.Add(element);
+                elements.Add(element);
             }
             else
             {
@@ -282,15 +291,15 @@ namespace GameLogic
             }
         }
 
-        private static void RemoveEmptyElements()
+        private static void RemoveEmptyElements(List<RichTextElement> elements)
         {
-            for (int i = s_resultCache.Count - 1; i >= 0; i--)
+            for (int i = elements.Count - 1; i >= 0; i--)
             {
-                var element = s_resultCache[i];
+                var element = elements[i];
                 if (element.Type == RichTextElementType.Text && element.TextBuilder.Length == 0)
                 {
                     element.Dispose();
-                    s_resultCache.RemoveAt(i);
+                    elements.RemoveAt(i);
                 }
             }
         }
