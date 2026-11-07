@@ -103,7 +103,11 @@ class LubanConfigHelper:
         self.schema_dir = self._resolve_schema_dir(requested_data_dir)
         self.data_dir = self._resolve_data_dir(requested_data_dir, self.schema_dir)
         self.cache_dir = Path(cache_dir)
-        self.cache_dir.mkdir(exist_ok=True)
+        self.cache_dir.mkdir(parents=True, exist_ok=True)
+        self.USER_PREFERENCES = dict(type(self).USER_PREFERENCES)
+        preference_file = self.cache_dir / "preferences.json"
+        if preference_file.is_file():
+            self.USER_PREFERENCES.update(json.loads(preference_file.read_text(encoding="utf-8")))
 
         # 定义文件路径
         self.enums_file = self.schema_dir / "__enums__.xlsx"
@@ -135,6 +139,35 @@ class LubanConfigHelper:
                 return parent_dir
 
         return requested_data_dir
+
+    @staticmethod
+    def _guard_workbook_write(path):
+        if Path(path).suffix.lower() == ".xlsm":
+            raise ValueError(".xlsm 只能使用 xlsm edit 的 Excel COM 副本流程，禁止普通工作簿写入")
+
+    @classmethod
+    def _load_writable_workbook(cls, path):
+        cls._guard_workbook_write(path)
+        return openpyxl.load_workbook(path)
+
+    @classmethod
+    def _save_workbook(cls, workbook, path):
+        cls._guard_workbook_write(path)
+        workbook.save(path)
+
+    @staticmethod
+    def _normalize_group(value):
+        if isinstance(value, (list, tuple)):
+            return ",".join(value)
+        value = str(value or "").strip()
+        return "c,s" if value == "cs" else value
+
+    def _format_input_path(self, path, sheet_name=None):
+        relative = Path(path).resolve().relative_to(self.data_dir.resolve())
+        if not sheet_name:
+            return relative.as_posix()
+        prefix = relative.parent.as_posix()
+        return (prefix + "/" if prefix != "." else "") + sheet_name + "@" + relative.name
 
     # ==================== 枚举操作 ====================
 
@@ -208,7 +241,7 @@ class LubanConfigHelper:
             print(f"错误: 枚举 {full_name} 已存在")
             return False
 
-        wb = openpyxl.load_workbook(self.enums_file)
+        wb = self._load_writable_workbook(self.enums_file)
         sheet = wb.active
 
         # 找到最后一行
@@ -237,7 +270,7 @@ class LubanConfigHelper:
             sheet.cell(row=row_num, column=10, value=item.get("value"))
             sheet.cell(row=row_num, column=11, value=item.get("comment", ""))
 
-        wb.save(self.enums_file)
+        self._save_workbook(wb, self.enums_file)
         wb.close()
 
         print(f"✓ 已添加枚举: {full_name}")
@@ -270,7 +303,7 @@ class LubanConfigHelper:
             print(f"错误: 文件不存在 {self.enums_file}")
             return False
 
-        wb = openpyxl.load_workbook(self.enums_file)
+        wb = self._load_writable_workbook(self.enums_file)
         found = self._find_enum_range(wb, enum_name)
 
         if not found:
@@ -282,7 +315,7 @@ class LubanConfigHelper:
         for row_num in range(end_row, start_row - 1, -1):
             sheet.delete_rows(row_num)
 
-        wb.save(self.enums_file)
+        self._save_workbook(wb, self.enums_file)
         wb.close()
 
         print(f"✓ 已删除枚举: {enum_name}")
@@ -300,7 +333,7 @@ class LubanConfigHelper:
             print(f"错误: 文件不存在 {self.enums_file}")
             return False
 
-        wb = openpyxl.load_workbook(self.enums_file)
+        wb = self._load_writable_workbook(self.enums_file)
         found = self._find_enum_range(wb, enum_name)
 
         if not found:
@@ -322,7 +355,7 @@ class LubanConfigHelper:
             wb.close()
             return False
 
-        wb.save(self.enums_file)
+        self._save_workbook(wb, self.enums_file)
         wb.close()
 
         print(f"✓ 已更新枚举: {enum_name}")
@@ -405,7 +438,7 @@ class LubanConfigHelper:
             parent: 父类名称
             comment: 注释
             alias: 别名
-            value_type: 是否为值类型（0=普通类，1=值类型/struct），用于 list<Bean> 中的 Bean 必须设为1
+            value_type: 是否为值类型（0=普通类，1=值类型/struct），用于 list,Bean 中的 Bean 必须设为1
             sep: 分隔符（用于 list 类型元素分隔）
         """
         if not self.beans_file.exists():
@@ -418,7 +451,7 @@ class LubanConfigHelper:
             print(f"错误: Bean {full_name} 已存在")
             return False
 
-        wb = openpyxl.load_workbook(self.beans_file)
+        wb = self._load_writable_workbook(self.beans_file)
         sheet = wb.active
 
         # 找到最后一行
@@ -449,7 +482,7 @@ class LubanConfigHelper:
             sheet.cell(row=row_num, column=12, value=field.get("type"))
             sheet.cell(row=row_num, column=14, value=field.get("comment", ""))
 
-        wb.save(self.beans_file)
+        self._save_workbook(wb, self.beans_file)
         wb.close()
 
         print(f"✓ 已添加 Bean: {full_name}")
@@ -461,7 +494,7 @@ class LubanConfigHelper:
             print(f"错误: 文件不存在 {self.beans_file}")
             return False
 
-        wb = openpyxl.load_workbook(self.beans_file)
+        wb = self._load_writable_workbook(self.beans_file)
         sheet = wb.active
 
         # 找到 Bean 的起始和结束行
@@ -489,7 +522,7 @@ class LubanConfigHelper:
         for row_num in range(end_row, start_row - 1, -1):
             sheet.delete_rows(row_num)
 
-        wb.save(self.beans_file)
+        self._save_workbook(wb, self.beans_file)
         wb.close()
 
         print(f"✓ 已删除 Bean: {bean_name}")
@@ -511,7 +544,7 @@ class LubanConfigHelper:
             print(f"错误: 文件不存在 {self.beans_file}")
             return False
 
-        wb = openpyxl.load_workbook(self.beans_file)
+        wb = self._load_writable_workbook(self.beans_file)
         sheet = wb.active
 
         # 找到 Bean 定义行
@@ -550,7 +583,7 @@ class LubanConfigHelper:
             wb.close()
             return False
 
-        wb.save(self.beans_file)
+        self._save_workbook(wb, self.beans_file)
         wb.close()
 
         print(f"✓ 已更新 Bean: {bean_name}")
@@ -690,8 +723,8 @@ class LubanConfigHelper:
     }
 
     def set_preference(self, key: str, value: Any) -> None:
-        """设置用户偏好"""
         self.USER_PREFERENCES[key] = value
+        (self.cache_dir / "preferences.json").write_text(json.dumps(self.USER_PREFERENCES, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         print(f"✓ 已保存偏好设置: {key} = {value}")
 
     def get_preference(self, key: str, default: Any = None) -> Any:
@@ -719,6 +752,7 @@ class LubanConfigHelper:
             vertical: 是否使用纵表模式（适合单例表）
             read_schema_from_file: 是否从业务 Excel 的标记行读取 schema；不传时根据现有文件或新建表结构明确推断
         """
+        fields = [{**field, "group": self._normalize_group(field.get("group") or groups or self._infer_field_group(field.get("name", ""), field.get("type", "")))} for field in fields]
         # 决定是否使用自动导入格式（DGame 默认在 __tables__.xlsx 显式注册）
         use_auto_import = auto_import if auto_import is not None else self.get_preference("prefer_auto_import", False)
 
@@ -777,7 +811,14 @@ class LubanConfigHelper:
             else:
                 input_file = f"{record_type.lower()}.xlsx"
 
-        data_file = self.data_dir / input_file
+        if "@" in input_file:
+            data_file, input_sheet = self._resolve_input_path(input_file)
+            sheet_name = sheet_name or input_sheet or ""
+        else:
+            data_file = self.data_dir / input_file
+        self._guard_workbook_write(data_file)
+        if vertical:
+            mode = mode or "one"
         if read_schema_from_file is None:
             read_schema_from_file = True
             if data_file.is_file():
@@ -790,7 +831,7 @@ class LubanConfigHelper:
                         else source_wb.active
                     )
                     read_schema_from_file = any(
-                        source_sheet.cell(row=row, column=1).value in ("##var", "##type")
+                        source_sheet.cell(row=row, column=1).value in ("##var", "##type", "##column", "##vertical")
                         for row in range(1, min(source_sheet.max_row, 30) + 1)
                     )
                 except Exception:
@@ -799,9 +840,30 @@ class LubanConfigHelper:
                     if source_wb is not None:
                         source_wb.close()
 
+        excel_path = data_file
+        if not sheet_name:
+            sheet_name = full_name.split(".")[-1] if excel_path.exists() else "Sheet1"
+        reuse_existing_sheet = False
+        if excel_path.exists():
+            existing_wb = openpyxl.load_workbook(excel_path, read_only=True, data_only=True)
+            try:
+                if sheet_name in existing_wb.sheetnames:
+                    existing_sheet = existing_wb[sheet_name]
+                    markers = {
+                        existing_sheet.cell(row=row, column=1).value
+                        for row in range(1, min(existing_sheet.max_row, 30) + 1)
+                    }
+                    if markers & {"##var", "##type", "##column", "##vertical"}:
+                        reuse_existing_sheet = True
+                    else:
+                        print(f"错误: Sheet '{sheet_name}' 已存在且没有 Luban 表头，拒绝覆盖已有数据")
+                        return False
+            finally:
+                existing_wb.close()
+
         # 1. 在 __tables__.xlsx 中注册表定义
         if self.tables_file.exists():
-            wb = openpyxl.load_workbook(self.tables_file)
+            wb = self._load_writable_workbook(self.tables_file)
             sheet = wb.active
             last_row = sheet.max_row
 
@@ -810,12 +872,16 @@ class LubanConfigHelper:
             sheet.cell(row=row_num, column=2, value=full_name)  # full_name
             sheet.cell(row=row_num, column=3, value=value_type)  # value
             sheet.cell(row=row_num, column=4, value=bool(read_schema_from_file))  # read_schema_from_file
-            sheet.cell(row=row_num, column=5, value=input_file)  # input (E列)
+            registry_input = self._format_input_path(data_file, sheet_name) if sheet_name else self._format_input_path(data_file)
+            sheet.cell(row=row_num, column=5, value=registry_input)  # input (E列)
             sheet.cell(row=row_num, column=6, value=index)  # index (F列)
             sheet.cell(row=row_num, column=7, value=mode)  # mode (G列)
+            field_groups = {part for field in fields for part in self._normalize_group(field.get("group")).split(",") if part}
+            if len(field_groups) == 1:
+                sheet.cell(row=row_num, column=8, value=next(iter(field_groups)))
             sheet.cell(row=row_num, column=9, value=comment)  # comment (I列)
 
-            wb.save(self.tables_file)
+            self._save_workbook(wb, self.tables_file)
             wb.close()
 
         # 2. 创建数据表 Excel 文件（或添加 sheet）
@@ -829,16 +895,8 @@ class LubanConfigHelper:
             else:
                 input_file = f"{record_type.lower()}.xlsx"
 
-        excel_path = self.data_dir / input_file
-        # 确定默认 sheet 名
-        if not sheet_name:
-            if excel_path.exists():
-                # 已有文件：默认使用表名作为 sheet 名
-                sheet_name = full_name.split(".")[-1] if "." in full_name else full_name
-            else:
-                # 新建文件：默认使用 Sheet1（Luban 兼容）
-                sheet_name = "Sheet1"
-        self._create_table_excel(excel_path, fields, sheet_name, groups, vertical)
+        if not reuse_existing_sheet:
+            self._create_table_excel(excel_path, fields, sheet_name, groups, vertical)
 
         # 3. 自动 validate 创建的 xlsx
         validate_result = self.validate_table(full_name)
@@ -946,7 +1004,7 @@ class LubanConfigHelper:
 
         # 从 __tables__.xlsx 中删除这些表的定义
         if self.tables_file.exists():
-            wb = openpyxl.load_workbook(self.tables_file)
+            wb = self._load_writable_workbook(self.tables_file)
             sheet = wb.active
 
             rows_to_delete = []
@@ -961,7 +1019,7 @@ class LubanConfigHelper:
             for row in sorted(rows_to_delete, reverse=True):
                 sheet.delete_rows(row)
 
-            wb.save(self.tables_file)
+            self._save_workbook(wb, self.tables_file)
             wb.close()
 
         print()
@@ -988,7 +1046,7 @@ class LubanConfigHelper:
         # 检查文件是否已存在
         if excel_path.exists():
             # 打开已有文件，添加新 sheet
-            wb = openpyxl.load_workbook(excel_path)
+            wb = self._load_writable_workbook(excel_path)
             # 检查 sheet 是否已存在
             if sheet_name in wb.sheetnames:
                 print(f"  警告: Sheet '{sheet_name}' 已存在，将覆盖")
@@ -1003,20 +1061,14 @@ class LubanConfigHelper:
             sheet.title = sheet_name
 
         if vertical:
-            # 纵表模式：一行一个字段
-            sheet.cell(row=1, column=1, value="##column")
-            # 标题行
-            sheet.cell(row=2, column=1, value="##var")
-            sheet.cell(row=2, column=2, value="##type")
-            sheet.cell(row=2, column=3, value="##")
-            sheet.cell(row=2, column=4, value="##group")
-
-            # 字段行
-            for i, field in enumerate(fields, start=3):
-                sheet.cell(row=i, column=1, value=field.get("name", ""))
-                sheet.cell(row=i, column=2, value=field.get("type", ""))
-                sheet.cell(row=i, column=3, value=field.get("comment", ""))
-                sheet.cell(row=i, column=4, value=field.get("group", ""))
+            for column, marker in enumerate(("##column", "##type", "##", "##group"), 1):
+                sheet.cell(row=1, column=column, value=marker)
+            for row, field in enumerate(fields, 2):
+                for column, value in enumerate((field.get("name", ""), field.get("type", ""), field.get("comment", ""), field.get("group", "")), 1):
+                    sheet.cell(row=row, column=column, value=value)
+                kind = field.get("type", "")
+                default = field.get("default", None if kind.endswith("?") else False if kind == "bool" else 0 if kind in ("byte", "short", "int", "long", "float", "double") else "")
+                sheet.cell(row=row, column=5, value=default)
         else:
             # 横表模式（默认）
             # 行1: ##var 行 (字段名)
@@ -1062,7 +1114,7 @@ class LubanConfigHelper:
 
         # 保存文件
         excel_path.parent.mkdir(parents=True, exist_ok=True)
-        wb.save(excel_path)
+        self._save_workbook(wb, excel_path)
         wb.close()
 
     def delete_table(self, table_name: str, delete_data: bool = False) -> bool:
@@ -1076,17 +1128,19 @@ class LubanConfigHelper:
             print(f"错误: 文件不存在 {self.tables_file}")
             return False
 
-        wb = openpyxl.load_workbook(self.tables_file)
+        wb = self._load_writable_workbook(self.tables_file)
         sheet = wb.active
 
         # 找到表定义行
         target_row = None
         target_input = None
+        target_full_name = None
 
         for i, row in enumerate(sheet.iter_rows(min_row=4, values_only=True), start=4):
             full_name = row[1]
             if full_name == table_name or (full_name and full_name.endswith("." + table_name)):
                 target_row = i
+                target_full_name = full_name
                 target_input = self._cell(row, 4, None)  # E列 = input
                 break
 
@@ -1097,15 +1151,37 @@ class LubanConfigHelper:
 
         # 删除表定义行
         sheet.delete_rows(target_row)
-        wb.save(self.tables_file)
+        self._save_workbook(wb, self.tables_file)
         wb.close()
 
         # 可选：删除数据文件
         if delete_data and target_input:
-            data_file = self.data_dir / str(target_input)
-            if data_file.exists():
-                data_file.unlink()
-                print(f"✓ 已删除数据文件: {data_file}")
+            data_files = {}
+            for data_file, _ in self._resolve_input_paths(str(target_input)):
+                data_files[str(data_file.resolve())] = data_file
+            other_tables = [table for table in self.list_tables()
+                            if table.get("full_name") != target_full_name]
+            for data_file in data_files.values():
+                if not data_file.exists():
+                    continue
+                shared_tables = []
+                resolved_data_file = data_file.resolve()
+                for table in other_tables:
+                    input_value = table.get("input")
+                    if not isinstance(input_value, str) or not input_value:
+                        continue
+                    try:
+                        candidates = self._resolve_input_paths(input_value)
+                        if any(candidate.resolve() == resolved_data_file for candidate, _ in candidates):
+                            shared_tables.append(table.get("full_name", "<unknown>"))
+                    except (OSError, ValueError):
+                        continue
+
+                if shared_tables:
+                    print(f"⚠ 数据文件被其他表共享，保留文件: {data_file}；共享表: {', '.join(shared_tables)}")
+                else:
+                    data_file.unlink()
+                    print(f"✓ 已删除数据文件: {data_file}")
 
         print(f"✓ 已删除表: {table_name}")
         return True
@@ -1125,7 +1201,7 @@ class LubanConfigHelper:
             print(f"错误: 文件不存在 {self.tables_file}")
             return False
 
-        wb = openpyxl.load_workbook(self.tables_file)
+        wb = self._load_writable_workbook(self.tables_file)
         sheet = wb.active
 
         # 找到表定义行
@@ -1162,7 +1238,7 @@ class LubanConfigHelper:
             wb.close()
             return False
 
-        wb.save(self.tables_file)
+        self._save_workbook(wb, self.tables_file)
         wb.close()
 
         print(f"✓ 已更新表: {table_name}")
@@ -1209,6 +1285,14 @@ class LubanConfigHelper:
         else:
             # 无 @ 语法: 直接作为相对路径
             return (self.data_dir / input_str, None)
+
+    def _resolve_input_paths(self, input_val: str) -> List[Tuple[Path, Optional[str]]]:
+        """解析单文件或逗号分隔的多个 Luban input 文件。"""
+        return [
+            self._resolve_input_path(part.strip())
+            for part in str(input_val or "").split(",")
+            if part.strip()
+        ]
 
     def _get_table_excel_path(self, table_name: str, sheet_name: str = None) -> Optional[tuple]:
         """获取表对应的 Excel 文件路径和 sheet 名
@@ -1340,7 +1424,7 @@ class LubanConfigHelper:
         # 特殊字段名判断
         # id 通常是两边都需要
         if field_name_lower == 'id' or field_name_lower.endswith('_id'):
-            return 'cs'
+            return 'c,s'
 
         # 类型判断
         if field_type:
@@ -1350,7 +1434,7 @@ class LubanConfigHelper:
                 return 'c'
 
         # 无法明确判断，默认两边都有
-        return 'cs'
+        return 'c,s'
 
     @staticmethod
     def _compact_field_columns(sheet) -> int:
@@ -1446,7 +1530,7 @@ class LubanConfigHelper:
         excel_path, actual_sheet = result
 
         try:
-            wb = openpyxl.load_workbook(excel_path)
+            wb = self._load_writable_workbook(excel_path)
 
             # 确定 sheet
             if actual_sheet:
@@ -1530,7 +1614,7 @@ class LubanConfigHelper:
             if group_row:
                 sheet.cell(row=group_row, column=insert_col, value=field_group)
 
-            wb.save(excel_path)
+            self._save_workbook(wb, excel_path)
             wb.close()
 
             print(f"✓ 已添加字段: {field_name} ({field_type})")
@@ -1567,7 +1651,7 @@ class LubanConfigHelper:
         excel_path, actual_sheet = result
 
         try:
-            wb = openpyxl.load_workbook(excel_path)
+            wb = self._load_writable_workbook(excel_path)
 
             if actual_sheet:
                 if actual_sheet not in wb.sheetnames:
@@ -1657,7 +1741,7 @@ class LubanConfigHelper:
                 if group_row:
                     sheet.cell(row=group_row, column=field_col, value=new_group)
 
-            wb.save(excel_path)
+            self._save_workbook(wb, excel_path)
             wb.close()
 
             print(f"✓ 已修改字段: {field_name}")
@@ -1685,7 +1769,7 @@ class LubanConfigHelper:
         excel_path, actual_sheet = result
 
         try:
-            wb = openpyxl.load_workbook(excel_path)
+            wb = self._load_writable_workbook(excel_path)
 
             if actual_sheet:
                 if actual_sheet not in wb.sheetnames:
@@ -1732,7 +1816,7 @@ class LubanConfigHelper:
             # 删除后同步压缩剩余字段，避免下次追加再次落到空列末尾
             self._compact_field_columns(sheet)
 
-            wb.save(excel_path)
+            self._save_workbook(wb, excel_path)
             wb.close()
 
             print(f"✓ 已删除字段: {field_name}")
@@ -1760,7 +1844,7 @@ class LubanConfigHelper:
         excel_path, actual_sheet = result
 
         try:
-            wb = openpyxl.load_workbook(excel_path)
+            wb = self._load_writable_workbook(excel_path)
 
             if actual_sheet:
                 if actual_sheet not in wb.sheetnames:
@@ -1794,7 +1878,7 @@ class LubanConfigHelper:
             # 在字段名前添加 ## 前缀
             sheet.cell(row=1, column=field_col, value=f"##{field_name}")
 
-            wb.save(excel_path)
+            self._save_workbook(wb, excel_path)
             wb.close()
 
             print(f"✓ 已禁用字段: {field_name} (导表时将被忽略)")
@@ -1822,7 +1906,7 @@ class LubanConfigHelper:
         excel_path, actual_sheet = result
 
         try:
-            wb = openpyxl.load_workbook(excel_path)
+            wb = self._load_writable_workbook(excel_path)
 
             if actual_sheet:
                 if actual_sheet not in wb.sheetnames:
@@ -1858,7 +1942,7 @@ class LubanConfigHelper:
             new_name = actual_field_name[2:]  # 去掉前两个字符 ##
             sheet.cell(row=1, column=field_col, value=new_name)
 
-            wb.save(excel_path)
+            self._save_workbook(wb, excel_path)
             wb.close()
 
             print(f"✓ 已启用字段: {new_name}")
@@ -2051,6 +2135,10 @@ class LubanConfigHelper:
     def list_rows(self, table_name: str, sheet_name: str = None,
                   start: int = 0, limit: int = 100) -> Optional[List[Dict[str, Any]]]:
         """列出表的数据行，按真实 Excel 列号映射字段和值。"""
+        if limit < 0 or start < 0:
+            raise ValueError("分页参数不能为负数")
+        if limit == 0:
+            return []
         result = self._get_table_excel_path(table_name, sheet_name)
         if not result:
             print(f"错误: 未找到表 {table_name} 的数据文件")
@@ -2134,12 +2222,11 @@ class LubanConfigHelper:
         """从纵表获取字段值
 
         纵表结构:
-        行1: ##column
-        行2: ##var | ##type | ## | ##group
-        行3+: 字段名 | 类型 | 注释 | 分组 | 值
+        行1: ##column（或 ##vertical）
+        行2+: 字段名 | 类型 | 注释 | 分组 | 值
         """
-        # 从第3行开始查找字段名
-        for row in sheet.iter_rows(min_row=3, values_only=True):
+        # 原生 Luban 会在加载时转置纵表；源工作簿从第2行开始就是字段记录。
+        for row in sheet.iter_rows(min_row=2, values_only=True):
             if row[0] == field_name:
                 result = {
                     "name": row[0],
@@ -2153,7 +2240,7 @@ class LubanConfigHelper:
 
         # 列出可用字段
         available_fields = []
-        for row in sheet.iter_rows(min_row=3, values_only=True):
+        for row in sheet.iter_rows(min_row=2, values_only=True):
             if row[0]:
                 available_fields.append(row[0])
 
@@ -2189,6 +2276,10 @@ class LubanConfigHelper:
     def query_rows(self, table_name: str, conditions: Dict[str, Any],
                    sheet_name: str = None, limit: int = 100) -> Optional[List[Dict[str, Any]]]:
         """按多条件查询数据行。"""
+        if limit < 0:
+            raise ValueError("分页参数不能为负数")
+        if limit == 0:
+            return []
         result = self._get_table_excel_path(table_name, sheet_name)
         if not result:
             print(f"错误: 未找到表 {table_name} 的数据文件")
@@ -2241,7 +2332,7 @@ class LubanConfigHelper:
 
 
         try:
-            wb = openpyxl.load_workbook(excel_path)
+            wb = self._load_writable_workbook(excel_path)
 
             if actual_sheet:
                 if actual_sheet not in wb.sheetnames:
@@ -2334,7 +2425,7 @@ class LubanConfigHelper:
                     if value is not None:
                         sheet.cell(row=insert_row, column=field["column"] + 1, value=value)
 
-            wb.save(excel_path)
+            self._save_workbook(wb, excel_path)
             wb.close()
 
             if smart_insert and any(str(key).lower() == primary_key for key in data.keys()):
@@ -2359,7 +2450,7 @@ class LubanConfigHelper:
         excel_path, actual_sheet = result
 
         try:
-            wb = openpyxl.load_workbook(excel_path)
+            wb = self._load_writable_workbook(excel_path)
 
             if actual_sheet:
                 if actual_sheet not in wb.sheetnames:
@@ -2379,12 +2470,19 @@ class LubanConfigHelper:
                 wb.close()
                 return False
 
+            known_fields = {field["name"] for field in structure.fields}
+            updates = {name: value for name, value in data.items() if name in known_fields}
+            if not updates:
+                print(f"错误: 未找到可更新字段: {', '.join(map(str, data.keys()))}")
+                wb.close()
+                return False
+
             for field in structure.fields:
                 field_name = field["name"]
-                if field_name in data:
-                    sheet.cell(row=target_row, column=field["column"] + 1, value=data[field_name])
+                if field_name in updates:
+                    sheet.cell(row=target_row, column=field["column"] + 1, value=updates[field_name])
 
-            wb.save(excel_path)
+            self._save_workbook(wb, excel_path)
             wb.close()
 
             print(f"✓ 已更新行 {row_index}")
@@ -2412,7 +2510,7 @@ class LubanConfigHelper:
         excel_path, actual_sheet = result
 
         try:
-            wb = openpyxl.load_workbook(excel_path)
+            wb = self._load_writable_workbook(excel_path)
 
             if actual_sheet:
                 if actual_sheet not in wb.sheetnames:
@@ -2443,7 +2541,7 @@ class LubanConfigHelper:
             # 删除行
             sheet.delete_rows(target_row)
 
-            wb.save(excel_path)
+            self._save_workbook(wb, excel_path)
             wb.close()
 
             print(f"✓ 已删除行 {row_index}")
@@ -2829,7 +2927,7 @@ class LubanConfigHelper:
             print("错误: .xlsm 必须使用 Excel COM 流程清理，不能用 openpyxl 删除行")
             return False
         try:
-            wb = openpyxl.load_workbook(excel_path)
+            wb = self._load_writable_workbook(excel_path)
             sheet = wb[actual_sheet] if actual_sheet else wb.active
             structure = self._parse_luban_sheet(sheet)
             data_start = structure.data_start_row or self._get_data_start_row(sheet)
@@ -2846,7 +2944,7 @@ class LubanConfigHelper:
                               "apply": apply}, ensure_ascii=False, indent=2))
             if apply and remove_count:
                 sheet.delete_rows(last_data + 1, remove_count)
-                wb.save(excel_path)
+                self._save_workbook(wb, excel_path)
                 print(f"✓ 已删除末尾连续空白行: {remove_count}")
             wb.close()
             return True
@@ -2910,7 +3008,7 @@ class LubanConfigHelper:
         # 移除容器类型
         type_str = type_str.strip()
 
-        # 处理 list<xxx>, array<xxx>
+        # 处理 list/array 容器（兼容旧的尖括号写法）
         import re
         container_match = re.match(r'(list|array|vector)<(.+)>', type_str, re.IGNORECASE)
         if container_match:
@@ -3022,7 +3120,7 @@ class LubanConfigHelper:
         "item": {
             "name": "道具表",
             "fields": [
-                {"name": "id", "type": "int", "comment": "道具ID", "group": "c"},
+                {"name": "id", "type": "int", "comment": "道具ID", "group": "c,s"},
                 {"name": "name", "type": "string", "comment": "道具名称", "group": "c"},
                 {"name": "type", "type": "int", "comment": "道具类型", "group": "c"},
                 {"name": "quality", "type": "int", "comment": "品质(1-5)", "group": "c"},
@@ -3034,7 +3132,7 @@ class LubanConfigHelper:
         "skill": {
             "name": "技能表",
             "fields": [
-                {"name": "id", "type": "int", "comment": "技能ID", "group": "c"},
+                {"name": "id", "type": "int", "comment": "技能ID", "group": "c,s"},
                 {"name": "name", "type": "string", "comment": "技能名称", "group": "c"},
                 {"name": "type", "type": "int", "comment": "技能类型", "group": "c"},
                 {"name": "target_type", "type": "int", "comment": "目标类型", "group": "s"},
@@ -3046,29 +3144,29 @@ class LubanConfigHelper:
         "hero": {
             "name": "英雄表",
             "fields": [
-                {"name": "id", "type": "int", "comment": "英雄ID", "group": "c"},
+                {"name": "id", "type": "int", "comment": "英雄ID", "group": "c,s"},
                 {"name": "name", "type": "string", "comment": "英雄名称", "group": "c"},
                 {"name": "quality", "type": "int", "comment": "品质", "group": "c"},
                 {"name": "hp", "type": "int", "comment": "生命值", "group": "s"},
                 {"name": "attack", "type": "int", "comment": "攻击力", "group": "s"},
                 {"name": "defense", "type": "int", "comment": "防御力", "group": "s"},
                 {"name": "speed", "type": "int", "comment": "速度", "group": "s"},
-                {"name": "skill_ids", "type": "list<int>", "comment": "技能列表", "group": "s"},
+                {"name": "skill_ids", "type": "list,int", "comment": "技能列表", "group": "s"},
                 {"name": "description", "type": "string", "comment": "描述", "group": "c"},
             ]
         },
         "reward": {
             "name": "奖励表",
             "fields": [
-                {"name": "id", "type": "int", "comment": "奖励ID", "group": "c"},
+                {"name": "id", "type": "int", "comment": "奖励ID", "group": "c,s"},
                 {"name": "name", "type": "string", "comment": "奖励名称", "group": "c"},
-                {"name": "items", "type": "list<test.RewardItem>", "comment": "奖励列表", "group": "s"},
+                {"name": "items", "type": "list,test.RewardItem", "comment": "奖励列表", "group": "s"},
             ]
         },
         "level": {
             "name": "等级表",
             "fields": [
-                {"name": "level", "type": "int", "comment": "等级", "group": "c"},
+                {"name": "level", "type": "int", "comment": "等级", "group": "c,s"},
                 {"name": "exp", "type": "int", "comment": "所需经验", "group": "s"},
                 {"name": "reward_id", "type": "int", "comment": "升级奖励", "group": "s"},
             ]
@@ -3098,6 +3196,11 @@ class LubanConfigHelper:
             return False
 
         template = self.TEMPLATES[template_name]
+        if template_name == "reward":
+            bean_name = f"{module}.RewardItem"
+            if self.get_bean(bean_name) is None:
+                self.add_bean(bean_name, [{"name": "id", "type": "int", "group": "c,s"}, {"name": "num", "type": "int", "group": "c,s"}])
+            template = {**template, "fields": [{**field, "type": field["type"].replace("test.RewardItem", bean_name)} for field in template["fields"]]}
         full_name = f"{module}.{table_name}"
 
         if not input_file:
@@ -3129,10 +3232,10 @@ class LubanConfigHelper:
             print(f"错误: 文件不存在 {self.tables_file}")
             return False
 
-        wb = openpyxl.load_workbook(self.tables_file)
-        sheet = wb.active
+        import shutil
 
-        # 找到表定义行
+        wb = self._load_writable_workbook(self.tables_file)
+        sheet = wb.active
         target_row = None
         for i, row in enumerate(sheet.iter_rows(min_row=4, values_only=True), start=4):
             full_name = row[1]
@@ -3145,40 +3248,58 @@ class LubanConfigHelper:
             wb.close()
             return False
 
-        # 更新表名
-        sheet.cell(row=target_row, column=2, value=new_name)
+        old_input = sheet.cell(row=target_row, column=5).value
+        source_path = source_sheet = None
+        destination_path = None
+        moved = False
+        try:
+            if migrate_data:
+                if not old_input or not isinstance(old_input, str):
+                    raise ValueError("表没有可迁移的 input 文件")
+                source_path, source_sheet = self._resolve_input_path(old_input)
+                source_path = source_path.resolve()
+                data_root = self.data_dir.resolve()
+                source_path.relative_to(data_root)
+                if not source_path.is_file():
+                    raise FileNotFoundError(f"数据文件不存在: {old_input}")
 
-        wb.save(self.tables_file)
-        wb.close()
+                old_short = old_name.split(".")[-1]
+                new_short = new_name.split(".")[-1]
+                stem = source_path.stem
+                new_stem = stem.replace(old_short, new_short) if old_short in stem else f"{stem}_{new_short}"
+                destination_path = source_path.with_name(new_stem + source_path.suffix)
+                destination_path.relative_to(data_root)
+                if destination_path.exists():
+                    raise FileExistsError(f"目标数据文件已存在: {destination_path}")
 
-        print(f"✓ 已重命名表: {old_name} -> {new_name}")
+                # 先迁移物理文件，再一次性更新所有共享该文件的 input，保留各自 Sheet 选择器。
+                destination_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.move(str(source_path), str(destination_path))
+                moved = True
+                for row in range(4, sheet.max_row + 1):
+                    input_value = sheet.cell(row=row, column=5).value
+                    if not isinstance(input_value, str) or not input_value:
+                        continue
+                    try:
+                        candidate_path, candidate_sheet = self._resolve_input_path(input_value)
+                        if candidate_path.resolve() == source_path:
+                            sheet.cell(row=row, column=5, value=self._format_input_path(destination_path, candidate_sheet))
+                    except (OSError, ValueError):
+                        continue
 
-        # 迁移数据文件
-        if migrate_data:
-            # 获取原输入文件
-            table = self.get_table(new_name)
-            if table:
-                old_input = table.get("input", "")
-                if old_input:
-                    old_path = self.data_dir / str(old_input)
-                    if old_path.exists():
-                        # 构建新文件名
-                        new_input = old_input.replace(old_name.split(".")[-1], new_name.split(".")[-1])
-                        new_path = self.data_dir / new_input
+                print(f"✓ 已迁移数据文件: {source_path} -> {destination_path}")
 
-                        import shutil
-                        shutil.move(str(old_path), str(new_path))
-
-                        # 更新 input 字段
-                        wb = openpyxl.load_workbook(self.tables_file)
-                        sheet = wb.active
-                        sheet.cell(row=target_row, column=5, value=new_input)  # E列 = input
-                        wb.save(self.tables_file)
-                        wb.close()
-
-                        print(f"✓ 已迁移数据文件: {old_input} -> {new_input}")
-
-        return True
+            sheet.cell(row=target_row, column=2, value=new_name)
+            self._save_workbook(wb, self.tables_file)
+            wb.close()
+            print(f"✓ 已重命名表: {old_name} -> {new_name}")
+            return True
+        except Exception as exc:
+            wb.close()
+            if moved and destination_path is not None and not source_path.exists() and destination_path.exists():
+                shutil.move(str(destination_path), str(source_path))
+            print(f"错误: 重命名失败: {exc}")
+            return False
 
     def copy_table(self, source_name: str, target_name: str,
                    copy_data: bool = False) -> bool:
@@ -3188,51 +3309,73 @@ class LubanConfigHelper:
             print(f"错误: 源表 {source_name} 不存在")
             return False
 
+        if self.get_table(target_name):
+            print(f"错误: 表 {target_name} 已存在")
+            return False
+
+        import shutil
         source_input = source_table.get("input", "")
         target_input = source_input
+        copied_path = None
+        copied_path_preexisting = False
 
-        if copy_data and source_input:
-            source_path = self.data_dir / str(source_input)
-            if source_path.exists():
+        try:
+            if copy_data:
+                if not isinstance(source_input, str) or not source_input:
+                    raise ValueError("源表没有可复制的 input 文件")
+                source_path, source_sheet = self._resolve_input_path(source_input)
+                source_path = source_path.resolve()
+                source_path.relative_to(self.data_dir.resolve())
+                if not source_path.is_file():
+                    raise FileNotFoundError(f"数据文件不存在: {source_input}")
                 source_short = source_name.split(".")[-1]
                 target_short = target_name.split(".")[-1]
-                target_input = str(source_input).replace(source_short, target_short)
-                if target_input == source_input:
-                    stem = source_path.stem
-                    suffix = source_path.suffix
-                    target_input = f"{stem}_{target_short}{suffix}"
-
-                target_path = self.data_dir / target_input
-
-                import shutil
-                shutil.copy2(str(source_path), str(target_path))
-
+                stem = source_path.stem
+                target_stem = stem.replace(source_short, target_short) if source_short in stem else f"{stem}_{target_short}"
+                copied_path = source_path.with_name(target_stem + source_path.suffix)
+                copied_path.relative_to(self.data_dir.resolve())
+                copied_path_preexisting = copied_path.exists()
+                if copied_path_preexisting:
+                    raise FileExistsError(f"目标数据文件已存在: {copied_path}")
+                copied_path.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copy2(str(source_path), str(copied_path))
+                target_input = self._format_input_path(copied_path, source_sheet)
                 print(f"✓ 已复制数据文件: {source_input} -> {target_input}")
 
-        wb = openpyxl.load_workbook(self.tables_file)
-        sheet = wb.active
+            wb = self._load_writable_workbook(self.tables_file)
+            sheet = wb.active
 
-        source_row = None
-        for i, row in enumerate(sheet.iter_rows(min_row=4, values_only=True), start=4):
-            if row[1] == source_name or (row[1] and row[1].endswith("." + source_name)):
-                source_row = i
-                break
+            source_row = None
+            for i, row in enumerate(sheet.iter_rows(min_row=4, values_only=True), start=4):
+                if row[1] == source_name or (row[1] and row[1].endswith("." + source_name)):
+                    source_row = i
+                    break
 
-        if source_row:
+            if not source_row:
+                wb.close()
+                raise ValueError(f"未找到表 {source_name}")
             new_row = sheet.max_row + 1
             for col in range(1, sheet.max_column + 1):
                 value = sheet.cell(row=source_row, column=col).value
                 if col == 2:
                     value = target_name
                 if col == 5 and copy_data:
-                    value = target_input if source_input else value
+                    value = target_input
                 sheet.cell(row=new_row, column=col, value=value)
 
-            wb.save(self.tables_file)
+            self._save_workbook(wb, self.tables_file)
+            wb.close()
             print(f"✓ 已复制表定义: {source_name} -> {target_name}")
-
-        wb.close()
-        return True
+            return True
+        except Exception as exc:
+            try:
+                wb.close()
+            except UnboundLocalError:
+                pass
+            if copied_path is not None and not copied_path_preexisting and copied_path.exists():
+                copied_path.unlink()
+            print(f"错误: 复制失败: {exc}")
+            return False
 
     # ==================== 差异对比 ====================
 
@@ -3437,7 +3580,7 @@ class LubanConfigHelper:
         if comment:
             sheet.cell(row=3, column=1, value=f"## {comment}")
 
-        wb.save(excel_path)
+        self._save_workbook(wb, excel_path)
         wb.close()
 
         print(f"✓ 已创建自动导入表: {excel_path}")
@@ -3483,7 +3626,7 @@ class LubanConfigHelper:
             sheet.cell(row=1, column=2, value="value")
             sheet.cell(row=1, column=3, value="comment")
         else:
-            wb = openpyxl.load_workbook(constalias_file)
+            wb = self._load_writable_workbook(constalias_file)
             sheet = wb.active
 
         # 检查是否已存在
@@ -3499,7 +3642,7 @@ class LubanConfigHelper:
         sheet.cell(row=new_row, column=2, value=value)
         sheet.cell(row=new_row, column=3, value=comment)
 
-        wb.save(constalias_file)
+        self._save_workbook(wb, constalias_file)
         wb.close()
 
         print(f"✓ 已添加常量别名: {name} = {value}")
@@ -3513,14 +3656,14 @@ class LubanConfigHelper:
             print(f"错误: 常量别名文件不存在")
             return False
 
-        wb = openpyxl.load_workbook(constalias_file)
+        wb = self._load_writable_workbook(constalias_file)
         sheet = wb.active
 
         # 查找并删除
         for i, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), start=2):
             if row[0] == name:
                 sheet.delete_rows(i)
-                wb.save(constalias_file)
+                self._save_workbook(wb, constalias_file)
                 wb.close()
                 print(f"✓ 已删除常量别名: {name}")
                 return True
@@ -3546,7 +3689,7 @@ class LubanConfigHelper:
             return []
 
         excel_path, actual_sheet = result
-        wb = openpyxl.load_workbook(excel_path)
+        wb = openpyxl.load_workbook(excel_path, read_only=True, data_only=True)
 
         if actual_sheet:
             sheet = wb[actual_sheet]
@@ -3591,7 +3734,7 @@ class LubanConfigHelper:
             return False
 
         excel_path, actual_sheet = result
-        wb = openpyxl.load_workbook(excel_path)
+        wb = self._load_writable_workbook(excel_path)
 
         if actual_sheet:
             sheet = wb[actual_sheet]
@@ -3616,7 +3759,7 @@ class LubanConfigHelper:
         else:
             sheet.cell(row=target_row, column=1, value=f"#{tag}")
 
-        wb.save(excel_path)
+        self._save_workbook(wb, excel_path)
         wb.close()
 
         print(f"✓ 已为行 {row_index} 添加标签: {tag}")
@@ -3630,7 +3773,7 @@ class LubanConfigHelper:
             return False
 
         excel_path, actual_sheet = result
-        wb = openpyxl.load_workbook(excel_path)
+        wb = self._load_writable_workbook(excel_path)
 
         if actual_sheet:
             sheet = wb[actual_sheet]
@@ -3648,7 +3791,7 @@ class LubanConfigHelper:
         # 清除标签
         sheet.cell(row=target_row, column=1, value=None)
 
-        wb.save(excel_path)
+        self._save_workbook(wb, excel_path)
         wb.close()
 
         print(f"✓ 已移除行 {row_index} 的标签")
@@ -3664,7 +3807,7 @@ class LubanConfigHelper:
             return []
 
         excel_path, actual_sheet = result
-        wb = openpyxl.load_workbook(excel_path)
+        wb = openpyxl.load_workbook(excel_path, read_only=True, data_only=True)
 
         if actual_sheet:
             sheet = wb[actual_sheet]
@@ -3706,7 +3849,7 @@ class LubanConfigHelper:
             return False
 
         excel_path, actual_sheet = result
-        wb = openpyxl.load_workbook(excel_path)
+        wb = self._load_writable_workbook(excel_path)
 
         if actual_sheet:
             sheet = wb[actual_sheet]
@@ -3746,7 +3889,7 @@ class LubanConfigHelper:
         sheet.cell(row=1, column=base_col + 1, value=variant_name)
         sheet.cell(row=2, column=base_col + 1, value=base_type)
 
-        wb.save(excel_path)
+        self._save_workbook(wb, excel_path)
         wb.close()
 
         print(f"✓ 已添加字段变体: {field_name}@{variant}")
@@ -3768,7 +3911,7 @@ class LubanConfigHelper:
             return False
 
         excel_path, actual_sheet = result
-        wb = openpyxl.load_workbook(excel_path)
+        wb = self._load_writable_workbook(excel_path)
 
         if actual_sheet:
             sheet = wb[actual_sheet]
@@ -3786,7 +3929,7 @@ class LubanConfigHelper:
                     new_name = field_name.lstrip("*")
 
                 sheet.cell(row=1, column=col, value=new_name)
-                wb.save(excel_path)
+                self._save_workbook(wb, excel_path)
                 wb.close()
 
                 status = "启用" if enable else "禁用"
@@ -3830,12 +3973,19 @@ class LubanConfigHelper:
         """
         import re
 
-        # 匹配 array<int>, list<int>, set<int>
+        # Luban 原生容器类型使用逗号；兼容旧的尖括号输入并解析为同一结构。
         match = re.match(r'(array|list|set)<(.+)>', type_str, re.IGNORECASE)
         if match:
             return {
                 "container": match.group(1).lower(),
                 "element_type": match.group(2)
+            }
+
+        match = re.match(r'(array|list|set),(.+)', type_str, re.IGNORECASE)
+        if match:
+            return {
+                "container": match.group(1).lower(),
+                "element_type": match.group(2).strip()
             }
 
         # 匹配 map<int,string>
@@ -3845,6 +3995,14 @@ class LubanConfigHelper:
                 "container": "map",
                 "key_type": match.group(1),
                 "value_type": match.group(2)
+            }
+
+        match = re.match(r'map,([^,]+),(.+)', type_str, re.IGNORECASE)
+        if match:
+            return {
+                "container": "map",
+                "key_type": match.group(1).strip(),
+                "value_type": match.group(2).strip()
             }
 
         return {"container": None, "type": type_str}
@@ -3910,7 +4068,7 @@ class LubanConfigHelper:
         # 基本类型
         basic_types = [
             {"name": "bool", "description": "布尔值", "example": "true/false"},
-            {"name": "byte", "description": "8位有符号整数", "example": "-128 ~ 127"},
+            {"name": "byte", "description": "8位无符号整数", "example": "0 ~ 255"},
             {"name": "short", "description": "16位有符号整数", "example": "-32768 ~ 32767"},
             {"name": "int", "description": "32位有符号整数", "example": "常用数字类型"},
             {"name": "long", "description": "64位有符号整数", "example": "大整数"},
@@ -3923,10 +4081,10 @@ class LubanConfigHelper:
 
         # 容器类型模板
         container_templates = [
-            {"name": "array<T>", "description": "定长数组", "example": "array<int>"},
-            {"name": "list<T>", "description": "变长列表", "example": "list<string>"},
-            {"name": "set<T>", "description": "集合（去重）", "example": "set<int>"},
-            {"name": "map<K,V>", "description": "键值对映射", "example": "map<int,string>"}
+            {"name": "array,T", "description": "定长数组", "example": "array,int"},
+            {"name": "list,T", "description": "变长列表", "example": "list,string"},
+            {"name": "set,T", "description": "集合（去重）", "example": "set,int"},
+            {"name": "map,K,V", "description": "键值对映射", "example": "map,int,string"}
         ]
 
         if category in ["basic", "all"]:
@@ -3978,7 +4136,7 @@ class LubanConfigHelper:
         """验证类型字符串是否有效
 
         Args:
-            type_str: 类型字符串，如 "list<int>", "test.EQuality"
+            type_str: 类型字符串，如 "list,int", "test.EQuality"
 
         Returns:
             验证结果，包含 is_valid 和详细信息
@@ -4104,11 +4262,11 @@ class LubanConfigHelper:
             r".*url$": ["string"],
 
             # 列表/数组（复数形式）
-            r".*s$": ["list<int>", "array<int>"],
-            r".*_list$": ["list<int>", "list<string>"],
-            r".*_ids$": ["list<int>", "list<long>"],
-            r".*drops$": ["list<int>", "list<DropItem>"],
-            r".*rewards$": ["list<RewardItem>", "list<int>"],
+            r".*s$": ["list,int", "array,int"],
+            r".*_list$": ["list,int", "list,string"],
+            r".*_ids$": ["list,int", "list,long"],
+            r".*drops$": ["list,int", "list,DropItem"],
+            r".*rewards$": ["list,RewardItem", "list,int"],
 
             # 坐标/位置
             r".*pos.*": ["float", "double"],
@@ -4149,13 +4307,13 @@ class LubanConfigHelper:
                 "hp": ["int", "long"],
                 "atk": ["int"],
                 "def": ["int"],
-                "drops": ["list<int>", "list<DropItem>"],
+                "drops": ["list,int", "list,DropItem"],
             },
             "quest": {
                 "type": ["int", "EQuestType"],
                 "status": ["int", "EQuestStatus"],
                 "npc_id": ["int"],
-                "reward": ["list<int>", "list<RewardItem>"],
+                "reward": ["list,int", "list,RewardItem"],
             }
         }
 
@@ -4274,7 +4432,7 @@ class LubanConfigHelper:
                 "description": "Luban 支持的基本数据类型",
                 "types": [
                     {"type": "bool", "usage": "true/false", "note": "布尔值"},
-                    {"type": "byte", "usage": "-128 ~ 127", "note": "小整数"},
+                    {"type": "byte", "usage": "0 ~ 255", "note": "8位无符号整数"},
                     {"type": "short", "usage": "-32768 ~ 32767", "note": "短整数"},
                     {"type": "int", "usage": "常用数字", "note": "32位整数，最常用"},
                     {"type": "long", "usage": "大整数", "note": "64位整数"},
@@ -4290,12 +4448,12 @@ class LubanConfigHelper:
                 "description": "用于存储多个元素的数据结构",
                 "types": [
                     {"type": "array<T>", "usage": "array<int>", "note": "定长数组，大小固定"},
-                    {"type": "list<T>", "usage": "list<string>", "note": "变长列表，最常用"},
-                    {"type": "set<T>", "usage": "set<int>", "note": "元素不重复"},
-                    {"type": "map<K,V>", "usage": "map<int,string>", "note": "键值对映射"}
+                    {"type": "list,T", "usage": "list,string", "note": "变长列表，最常用"},
+                    {"type": "set,T", "usage": "set,int", "note": "元素不重复"},
+                    {"type": "map,K,V", "usage": "map,int,string", "note": "键值对映射"}
                 ],
                 "examples": [
-                    {"scenario": "道具ID列表", "type": "list<int>", "data_example": "1001,1002,1003"},
+                    {"scenario": "道具ID列表", "type": "list,int", "data_example": "1001,1002,1003"},
                     {"scenario": "技能等级伤害", "type": "map<int,int>", "data_example": "1:100,2:200,3:300"},
                     {"scenario": "标签集合", "type": "set<string>", "data_example": "tag1,tag2,tag3"}
                 ]
@@ -4307,7 +4465,7 @@ class LubanConfigHelper:
                 "examples": [
                     {"type": "int?", "meaning": "整数或空", "use_case": "可选数值"},
                     {"type": "string?", "meaning": "字符串或空", "use_case": "可选描述"},
-                    {"type": "list<int>?", "meaning": "列表或空", "use_case": "可选列表"}
+                    {"type": "list,int?", "meaning": "列表或空", "use_case": "可选列表"}
                 ],
                 "note": "可空类型在数据表中可以留空，Luban 会将其解析为 null"
             },
@@ -4338,7 +4496,7 @@ class LubanConfigHelper:
                 "example": {
                     "bean_name": "test.RewardItem",
                     "fields": "id:int, count:int",
-                    "field_usage": "rewards:list<test.RewardItem>"
+                    "field_usage": "rewards:list,test.RewardItem"
                 }
             }
         }
@@ -4355,44 +4513,11 @@ class LubanConfigHelper:
             return {"error": f"未知主题: {topic}", "available_topics": list(guides.keys())}
 
     def get_table_data(self, table_name: str) -> Optional[Dict[str, Any]]:
-        """获取表的数据（从 Excel 文件）"""
-        # 查找匹配的表定义
-        tables = self.list_tables()
-        target_table = None
-        for t in tables:
-            if t["full_name"] == table_name or t["full_name"].endswith("." + table_name):
-                target_table = t
-                break
-
-        if not target_table:
+        resolved = self._get_table_excel_path(table_name)
+        if not resolved:
             return None
-
-        # 解析 input 字段找到对应的 Excel 文件
-        input_val = target_table.get("input", "")
-        if not input_val or isinstance(input_val, bool):
-            # 如果是布尔值 true，尝试直接从 mode 字段找文件名
-            mode_str = target_table.get("mode", "")
-            if mode_str and isinstance(mode_str, str):
-                excel_files = list(self.data_dir.glob(f"**/{mode_str}"))
-                if excel_files:
-                    try:
-                        return self._parse_excel_data(excel_files[0])
-                    except Exception as e:
-                        print(f"读取 {excel_files[0]} 失败：{e}")
-            return None
-
-        # 简单的文件名提取（去掉路径和@符号后的内容）
-        file_part = str(input_val).split("@")[0] if "@" in str(input_val) else str(input_val)
-        excel_files = list(self.data_dir.glob("**/*.xlsx"))
-
-        for excel_file in excel_files:
-            if file_part in excel_file.as_posix() or file_part == excel_file.name:
-                try:
-                    return self._parse_excel_data(excel_file)
-                except Exception as e:
-                    print(f"读取 {excel_file} 失败：{e}")
-
-        return None
+        path, sheet_name = resolved
+        return self._parse_excel_data(path, sheet_name)
 
     def _parse_excel_data(self, excel_file: Path, sheet_name: str = None) -> Dict[str, Any]:
         """解析 Excel 文件为数据结构，保留字段对应的原始 Excel 列号。"""
@@ -4406,6 +4531,12 @@ class LubanConfigHelper:
             sheet = wb[sheet_name]
         else:
             sheet = wb.active
+
+        first_cell = sheet.cell(row=1, column=1).value
+        if first_cell in ("##column", "##vertical"):
+            data = self._parse_vertical_data(sheet, excel_file)
+            wb.close()
+            return data
 
         data = {
             "file": str(excel_file),
@@ -4477,6 +4608,37 @@ class LubanConfigHelper:
         wb.close()
         return data
 
+    def _parse_vertical_data(self, sheet, excel_file: Path) -> Dict[str, Any]:
+        """解析 Luban 原生纵表。
+
+        纵表源工作簿的第一行为 ``##column``（或 ``##vertical``），其后每行
+        一个字段：字段名、类型、注释、分组和值分别位于 A-E 列。Luban 读取
+        时会转置该布局，因此这里直接按源文件布局读取，避免把字段和值错当
+        成横表的记录行。
+        """
+        data = {"file": str(excel_file), "fields": [], "rows": [], "vertical": True}
+        for row_index, row in enumerate(sheet.iter_rows(min_row=2, values_only=True), 2):
+            if not row or all(value is None for value in row):
+                continue
+            field_name = row[0] if len(row) > 0 else None
+            if not field_name or str(field_name).startswith("##"):
+                continue
+            field = {
+                "index": len(data["fields"]),
+                "column": 1,
+                "row": row_index,
+                "name": str(field_name),
+                "type": self._cell(row, 1, ""),
+                "comment": self._cell(row, 2, "") or "",
+                "group": self._cell(row, 3, None),
+            }
+            field["value"] = self._json_safe_value(self._cell(row, 4, None))
+            data["fields"].append(field)
+
+        if data["fields"]:
+            data["rows"].append({field["name"]: field["value"] for field in data["fields"]})
+        return data
+
     # ==================== 缓存操作 ====================
 
     def get_file_hash(self, file_path: Path) -> str:
@@ -4509,11 +4671,8 @@ class LubanConfigHelper:
         return True
 
     def clear_cache(self) -> bool:
-        """清除缓存"""
-        import shutil
-        if self.cache_dir.exists():
-            shutil.rmtree(self.cache_dir)
-            self.cache_dir.mkdir(exist_ok=True)
+        # Preferences are persistent project state, not disposable generated cache.
+        (self.cache_dir / "config_cache.json").unlink(missing_ok=True)
         print("✓ 已清除缓存")
         return True
 
@@ -4551,9 +4710,20 @@ def _parse_fields_arg(fields_str: str) -> list:
         fields.append({
             "name": parts[0].strip(),
             "type": parts[1].strip() if len(parts) > 1 else "",
-            "comment": parts[2].strip() if len(parts) > 2 else ""
+            "comment": parts[2].strip() if len(parts) > 2 else "",
+            "group": parts[3].strip() if len(parts) > 3 else ""
         })
     return fields
+
+
+def _excel_values_equal(actual, expected):
+    if expected is None:
+        return actual is None
+    if isinstance(expected, bool):
+        return isinstance(actual, bool) and actual == expected
+    if isinstance(expected, (int, float)) and not isinstance(expected, bool):
+        return isinstance(actual, (int, float)) and not isinstance(actual, bool) and actual == expected
+    return type(actual) is type(expected) and actual == expected
 
 
 def edit_xlsm_with_excel(source: str, output: str, changes: list) -> bool:
@@ -4613,7 +4783,7 @@ def edit_xlsm_with_excel(source: str, output: str, changes: list) -> bool:
             expected = change.get("value")
             verified.append({"sheet": change["sheet"], "cell": change["cell"],
                              "expected": expected, "actual": actual,
-                             "matched": str(actual) == str(expected)})
+                             "matched": _excel_values_equal(actual, expected)})
         check.Close(SaveChanges=False)
         check = None
         if not all(item["matched"] for item in verified):
@@ -4679,7 +4849,7 @@ def main():
     bean_add.add_argument("--file", default="", help="从 JSON 文件读取字段定义")
     bean_add.add_argument("--parent", default="", help="父类名称")
     bean_add.add_argument("--comment", default="", help="Bean 注释")
-    bean_add.add_argument("--value-type", type=int, default=0, dest="value_type", help="是否为值类型（0=普通类，1=值类型/struct），用于 list<Bean> 中的 Bean 必须设为1")
+    bean_add.add_argument("--value-type", type=int, default=0, dest="value_type", help="是否为值类型（0=普通类，1=值类型/struct），用于 list,Bean 中的 Bean 必须设为1")
     bean_add.add_argument("--sep", default="", help="分隔符（用于 list 类型元素分隔）")
     bean_delete = bean_subparsers.add_parser("delete", help="删除 Bean")
     bean_delete.add_argument("name", metavar="NAME", help="Bean 名称")
@@ -5010,7 +5180,7 @@ def main():
 
     # type info - 查询单个类型详情
     type_info = type_subparsers.add_parser("info", help="查询类型详情")
-    type_info.add_argument("name", metavar="NAME", help="类型名，如 'int', 'list<int>', 'test.EQuality'")
+    type_info.add_argument("name", metavar="NAME", help="类型名，如 'int', 'list,int', 'test.EQuality'")
 
     # type list - 列出所有可用类型
     type_list = type_subparsers.add_parser("list", help="列出所有可用类型")
@@ -5070,7 +5240,7 @@ def main():
                 parts = item_str.split("=")
                 name = parts[0]
                 value_alias = parts[1].split(":") if len(parts) > 1 else ["", ""]
-                value = value_alias[0] if value_alias[0].isdigit() else None
+                value = int(value_alias[0]) if value_alias[0] else None
                 alias = value_alias[1] if len(value_alias) > 1 else ""
                 if value is None:
                     value = len(items) + 1
@@ -5582,4 +5752,8 @@ def main():
 
 
 if __name__ == "__main__":
-    raise SystemExit(main() or 0)
+    try:
+        raise SystemExit(main() or 0)
+    except ValueError as error:
+        print(f"错误: {error}", file=sys.stderr)
+        raise SystemExit(2)

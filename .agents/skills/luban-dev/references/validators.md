@@ -1,5 +1,11 @@
 # Luban 验证器完整说明
 
+## 使用与排错
+
+校验在配置加载/生成期执行。先用官方 Agent 的 `describe` / `schema` 确认引用表全名，再修改 XML `type` 或 Excel `##type`，保留原有分组和注释。容器大小等约束写在容器上，例如 `(list#size=4),int`。
+
+修改后运行 `python .agents/skills/luban-dev/scripts/luban_ai.py validate`。失败时先修数据或按需求修 Schema，不用删校验、放宽范围或添加 `unchecked` 来掩盖错误。结构化错误不一定带完整位置，需同时保留 stderr，详见 [排错流程](generate-debug.md)。
+
 ## 1. notDefaultValue (!)
 
 防止字段使用默认值。
@@ -221,8 +227,8 @@ public TbItemConfig TbItemConfig
 ### 基础用法
 
 ```xml
-<var name="rarity" type="int#set=1;2;3"/>
-<var name="slot" type="EEquipSlot#set=Head;Body"/>
+<var name="rarity" type="int#set=1,2,3"/>
+<var name="slot" type="EEquipSlot#set=Head,Body"/>
 ```
 
 ### 包含逗号的值

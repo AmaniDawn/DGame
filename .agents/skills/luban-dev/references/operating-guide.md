@@ -6,10 +6,16 @@
 
 **执行方式**：
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas <command>
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas <command>
 ```
 
 **注意**：`--data-dir` 必须放在子命令之前。PowerShell 中使用分号 `;` 作为命令分隔符，不要使用 `&&`。
+
+helper 依赖 `openpyxl`，依赖定义见 [requirements.txt](../scripts/requirements.txt)。未指定字段 `--group` 时工具会按字段名做辅助推断，不能替代目标表的分组约定。编译后的结构和最终校验使用 [官方工具](official-ai.md)。
+
+PowerShell 中传递 JSON 前先查相应子命令的 `--help`；仅在该命令支持 `--file` 时从文件读取，例如 `bean add --file`。不要将它当作所有写入命令的通用参数。
+
+表尾空白行警告先用 `cleanup blank-rows TABLE` 预览，确认 `last_data_row` 后再加 `--apply`；只清理尾部全空行，不删除中间空行或含业务数据的行。
 
 ### 参数类型说明
 
@@ -23,10 +29,10 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas <command>
 **常见错误**：
 ```bash
 # 错误 — 位置参数不能加 -- 前缀
-python luban_helper.py table get --name TbItemConfig
+python .agents/skills/luban-dev/scripts/luban_helper.py table get --name TbItemConfig
 
 # 正确 — 位置参数直接传值
-python luban_helper.py table get TbItemConfig
+python .agents/skills/luban-dev/scripts/luban_helper.py table get TbItemConfig
 ```
 
 ---
@@ -35,19 +41,19 @@ python luban_helper.py table get TbItemConfig
 
 ### enum list - 列出所有枚举
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas enum list
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas enum list
 ```
 
 ### enum get - 查询枚举详情
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas enum get test.ETestQuality
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas enum get test.ETestQuality
 ```
 
 **参数**：`name`（位置参数）— 枚举名称
 
 ### enum add - 新增枚举
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas enum add test.EWeaponType --values "SWORD=1:剑,BOW=2:弓,STAFF=3:法杖" --comment "武器类型"
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas enum add test.EWeaponType --values "SWORD=1:剑,BOW=2:弓,STAFF=3:法杖" --comment "武器类型"
 ```
 
 **参数**：
@@ -58,8 +64,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas enum add test.EWeapon
 
 ### enum delete - 删除枚举
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas enum delete test.EWeaponType
-python scripts/luban_helper.py --data-dir GameConfig/Datas enum delete test.EWeaponType --force  # 强制删除
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas enum delete test.EWeaponType
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas enum delete test.EWeaponType --force  # 强制删除
 ```
 
 **参数**：
@@ -68,8 +74,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas enum delete test.EWea
 
 ### enum update - 更新枚举属性
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas enum update test.EWeaponType --comment "武器类型枚举"
-python scripts/luban_helper.py --data-dir GameConfig/Datas enum update test.EWeaponType --flags
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas enum update test.EWeaponType --comment "武器类型枚举"
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas enum update test.EWeaponType --flags
 ```
 
 **参数**：
@@ -83,19 +89,19 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas enum update test.EWea
 
 ### bean list - 列出所有 Bean
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas bean list
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas bean list
 ```
 
 ### bean get - 查询 Bean 详情
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas bean get test.TestBean1
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas bean get test.TestBean1
 ```
 
 **参数**：`name`（位置参数）— Bean 名称
 
 ### bean add - 新增 Bean
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas bean add test.Weapon --fields "attack:int:攻击力,speed:float:攻击速度" --parent Item --comment "武器"
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas bean add test.Weapon --fields "attack:int:攻击力,speed:float:攻击速度" --parent Item --comment "武器"
 ```
 
 **参数**：
@@ -109,8 +115,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas bean add test.Weapon 
 
 ### bean delete - 删除 Bean
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas bean delete test.Weapon
-python scripts/luban_helper.py --data-dir GameConfig/Datas bean delete test.Weapon --force  # 强制删除
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas bean delete test.Weapon
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas bean delete test.Weapon --force  # 强制删除
 ```
 
 **参数**：
@@ -119,8 +125,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas bean delete test.Weap
 
 ### bean update - 更新 Bean 属性
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas bean update test.ItemList --sep "|"
-python scripts/luban_helper.py --data-dir GameConfig/Datas bean update test.ItemList --comment "道具列表"
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas bean update test.ItemList --sep "|"
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas bean update test.ItemList --comment "道具列表"
 ```
 
 **参数**：
@@ -145,12 +151,12 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas bean update test.Item
 
 ### table list - 列出所有表
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas table list
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas table list
 ```
 
 ### table get - 查询表详情
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas table get TbItemConfig
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas table get TbItemConfig
 ```
 
 **参数**：`name`（位置参数）— 表名称
@@ -158,10 +164,10 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas table get TbItemConfi
 ### table add - 新增配置表
 ```bash
 # 默认在 __tables__.xlsx 中显式注册（DGame 推荐）
-python scripts/luban_helper.py --data-dir GameConfig/Datas table add TbItemConfig --fields "id:int:道具ID,name:string:道具名称" --comment "道具表"
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas table add TbItemConfig --fields "id:int:道具ID,name:string:道具名称" --comment "道具表"
 
 # 使用 # 前缀自动导入格式（DGame 支持但不默认推荐）
-python scripts/luban_helper.py --data-dir GameConfig/Datas table add TbItemConfig --fields "id:int:道具ID,name:string:道具名称" --auto-import
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas table add TbItemConfig --fields "id:int:道具ID,name:string:道具名称" --auto-import
 ```
 
 **参数**：
@@ -190,8 +196,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas table add TbItemConfi
 
 ### table delete - 删除配置表
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas table delete TbItemConfig
-python scripts/luban_helper.py --data-dir GameConfig/Datas table delete TbItemConfig --delete-data  # 同时删除数据文件
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas table delete TbItemConfig
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas table delete TbItemConfig --delete-data  # 同时删除数据文件
 ```
 
 **参数**：
@@ -200,8 +206,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas table delete TbItemCo
 
 ### table update - 更新表属性
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas table update TbItemConfig --comment "道具配置表"
-python scripts/luban_helper.py --data-dir GameConfig/Datas table update TbItemConfig --input "道具配置表_v2.xlsx"
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas table update TbItemConfig --comment "道具配置表"
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas table update TbItemConfig --input "道具配置表_v2.xlsx"
 ```
 
 **参数**：
@@ -213,28 +219,27 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas table update TbItemCo
 
 ### table check-legacy - 列出显式注册表及可选自动导入文件名
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas table check-legacy
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas table check-legacy
 ```
 
 ### table migrate-auto - 禁用：DGame 默认不迁移到自动导入格式
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas table migrate-auto
-python scripts/luban_helper.py --data-dir GameConfig/Datas table migrate-auto TbItemConfig  # 迁移指定表
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas table migrate-auto
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas table migrate-auto TbItemConfig  # 迁移指定表
 ```
 
 **参数**：`name`（位置参数，可选）— 表名称，不指定则迁移所有
 
 ### 纵表（单例表）
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas table add test.TbGlobalConfig --fields "guild_open_level:int:公会开启等级,bag_init_size:int:初始格子数" --comment "全局配置" --vertical
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas table add test.TbGlobalConfig --fields "guild_open_level:int:公会开启等级,bag_init_size:int:初始格子数" --comment "全局配置" --vertical
 ```
 
 **纵表结构**：
 ```
-| ##column |          |          |         |
-| ##var    | ##type   | ##       | ##group |
-| guild_open_level | int | 公会开启等级 | c |
-| bag_init_size    | int | 初始格子数   | c |
+| ##column | ##type | ## | ##group | 值 |
+| guild_open_level | int | 公会开启等级 | c | 0 |
+| bag_init_size    | int | 初始格子数   | c | 0 |
 ```
 
 ---
@@ -243,14 +248,14 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas table add test.TbGlob
 
 ### field list - 列出表的所有字段
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas field list TbItemConfig
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas field list TbItemConfig
 ```
 
 **参数**：`table`（位置参数）— 表名称
 
 ### field add - 添加字段
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas field add TbItemConfig desc --type "string" --comment "道具描述"
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas field add TbItemConfig desc --type "string" --comment "道具描述"
 ```
 
 **参数**：
@@ -269,7 +274,7 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas field add TbItemConfi
 
 ### field update - 修改字段
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas field update TbItemConfig desc --new-name "description" --comment "详细描述"
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas field update TbItemConfig desc --new-name "description" --comment "详细描述"
 ```
 
 **参数**：
@@ -283,7 +288,7 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas field update TbItemCo
 
 ### field delete - 删除字段（危险操作）
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas field delete TbItemConfig desc
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas field delete TbItemConfig desc
 ```
 
 **参数**：
@@ -296,8 +301,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas field delete TbItemCo
 
 ### field disable / enable - 禁用/启用字段
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas field disable TbItemConfig desc
-python scripts/luban_helper.py --data-dir GameConfig/Datas field enable TbItemConfig desc
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas field disable TbItemConfig desc
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas field enable TbItemConfig desc
 ```
 
 **参数**：
@@ -313,16 +318,16 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas field enable TbItemCo
 
 ### row list - 列出数据行
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas row list TbItemConfig
-python scripts/luban_helper.py --data-dir GameConfig/Datas row list TbItemConfig --start 10 --limit 20
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas row list TbItemConfig
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas row list TbItemConfig --start 10 --limit 20
 ```
 
 **参数**：`table`（位置参数）— 表名称
 
 ### row get - 按字段值查询数据行
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas row get TbItemConfig --field id --value 1004
-python scripts/luban_helper.py --data-dir GameConfig/Datas row get TbItemConfig --field name --value "屠龙刀"
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas row get TbItemConfig --field id --value 1004
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas row get TbItemConfig --field name --value "屠龙刀"
 ```
 
 **参数**：
@@ -338,8 +343,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas row get TbItemConfig 
 
 ### row query - 多条件查询
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas row query TbItemConfig --conditions '{"type":"Weapon","quality":5}'
-python scripts/luban_helper.py --data-dir GameConfig/Datas row query TbItemConfig --conditions '{"type":"Consumable"}' --limit 10
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas row query TbItemConfig --conditions '{"type":"Weapon","quality":5}'
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas row query TbItemConfig --conditions '{"type":"Consumable"}' --limit 10
 ```
 
 **参数**：
@@ -350,7 +355,7 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas row query TbItemConfi
 
 ### row add - 添加数据行
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas row add TbItemConfig --data '{"id":1001,"name":"宝剑","count":1}'
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas row add TbItemConfig --data '{"id":1001,"name":"宝剑","count":1}'
 ```
 
 **参数**：
@@ -365,7 +370,7 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas row add TbItemConfig 
 
 ### row update - 更新数据行
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas row update TbItemConfig 0 --data '{"name":"神剑"}'
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas row update TbItemConfig 0 --data '{"name":"神剑"}'
 ```
 
 **参数**：
@@ -377,8 +382,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas row update TbItemConf
 
 ### row delete - 删除数据行
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas row delete TbItemConfig 0
-python scripts/luban_helper.py --data-dir GameConfig/Datas row delete TbItemConfig 0 --force
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas row delete TbItemConfig 0
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas row delete TbItemConfig 0 --force
 ```
 
 **参数**：
@@ -393,12 +398,12 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas row delete TbItemConf
 
 ### batch fields - 批量添加字段
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas batch fields TbItemConfig --data '[{"name":"price","type":"int","comment":"价格"},{"name":"quality","type":"int","comment":"品质"}]'
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas batch fields TbItemConfig --data '[{"name":"price","type":"int","comment":"价格"},{"name":"quality","type":"int","comment":"品质"}]'
 ```
 
 ### batch rows - 批量添加数据行
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas batch rows TbItemConfig --data '[{"id":1001,"name":"宝剑"},{"id":1002,"name":"铁剑"}]'
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas batch rows TbItemConfig --data '[{"id":1001,"name":"宝剑"},{"id":1002,"name":"铁剑"}]'
 ```
 
 **参数**：
@@ -412,8 +417,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas batch rows TbItemConf
 
 ### export - 导出表数据为 JSON
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas export TbItemConfig
-python scripts/luban_helper.py --data-dir GameConfig/Datas export TbItemConfig --output item_backup.json
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas export TbItemConfig
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas export TbItemConfig --output item_backup.json
 ```
 
 **参数**：
@@ -423,7 +428,7 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas export TbItemConfig -
 
 ### import - 从 JSON 导入数据
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas import TbItemConfig item_backup.json
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas import TbItemConfig item_backup.json
 ```
 
 **参数**：
@@ -438,8 +443,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas import TbItemConfig i
 
 ### validate - 验证表数据
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas validate TbItemConfig
-python scripts/luban_helper.py --data-dir GameConfig/Datas validate --all
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas validate TbItemConfig
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas validate --all
 ```
 
 **参数**：
@@ -458,15 +463,15 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas validate --all
 
 ### ref - 引用完整性检查
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas ref test.RewardItem
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas ref test.RewardItem
 ```
 
 **参数**：`type`（位置参数）— 类型名称（枚举或 Bean）
 
 ### template - 配置模板
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas template list
-python scripts/luban_helper.py --data-dir GameConfig/Datas template create item TbEquip --module test
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas template list
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas template create item TbEquip --module test
 ```
 
 **参数**（template create）：
@@ -477,8 +482,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas template create item 
 
 ### rename - 重命名表
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas rename TbItemConfig TbItemConfigNew
-python scripts/luban_helper.py --data-dir GameConfig/Datas rename TbItemConfig TbItemConfigNew --migrate-data
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas rename TbItemConfig TbItemConfigNew
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas rename TbItemConfig TbItemConfigNew --migrate-data
 ```
 
 **参数**：
@@ -488,7 +493,7 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas rename TbItemConfig T
 
 ### copy - 复制表
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas copy TbItemConfig TbItemConfigCopy
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas copy TbItemConfig TbItemConfigCopy
 ```
 
 **参数**：
@@ -498,7 +503,7 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas copy TbItemConfig TbI
 
 ### diff - 差异对比
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas diff TbItemConfig TbItemConfigV2
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas diff TbItemConfig TbItemConfigV2
 ```
 
 **参数**：
@@ -508,8 +513,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas diff TbItemConfig TbI
 
 ### auto - 自动导入表操作（支持但不默认推荐）
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas auto list
-python scripts/luban_helper.py --data-dir GameConfig/Datas auto create #ItemConfig --fields "id:int:ID,name:string:名称"
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas auto list
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas auto create #ItemConfig --fields "id:int:ID,name:string:名称"
 ```
 
 **参数**（auto create）：
@@ -518,10 +523,10 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas auto create #ItemConf
 
 ### alias - 常量别名操作
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas alias list
-python scripts/luban_helper.py --data-dir GameConfig/Datas alias add MAX_LEVEL 100 --comment "最大等级"
-python scripts/luban_helper.py --data-dir GameConfig/Datas alias delete MAX_LEVEL
-python scripts/luban_helper.py --data-dir GameConfig/Datas alias resolve MAX_LEVEL
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas alias list
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas alias add MAX_LEVEL 100 --comment "最大等级"
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas alias delete MAX_LEVEL
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas alias resolve MAX_LEVEL
 ```
 
 **参数**（alias add）：
@@ -531,9 +536,9 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas alias resolve MAX_LEV
 
 ### tag - 数据标签操作
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas tag list TbItemConfig
-python scripts/luban_helper.py --data-dir GameConfig/Datas tag add TbItemConfig 0 TEST_TAG
-python scripts/luban_helper.py --data-dir GameConfig/Datas tag remove TbItemConfig 0
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas tag list TbItemConfig
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas tag add TbItemConfig 0 TEST_TAG
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas tag remove TbItemConfig 0
 ```
 
 **参数**（tag add）：
@@ -544,8 +549,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas tag remove TbItemConf
 
 ### variant - 字段变体操作
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas variant list TbItemConfig name
-python scripts/luban_helper.py --data-dir GameConfig/Datas variant add TbItemConfig name zh
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas variant list TbItemConfig name
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas variant add TbItemConfig name zh
 ```
 
 **参数**（variant add）：
@@ -556,8 +561,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas variant add TbItemCon
 
 ### multirow - 多行结构列表操作
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas multirow TbItemConfig rewards
-python scripts/luban_helper.py --data-dir GameConfig/Datas multirow TbItemConfig rewards --disable
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas multirow TbItemConfig rewards
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas multirow TbItemConfig rewards --disable
 ```
 
 **参数**：
@@ -568,8 +573,8 @@ python scripts/luban_helper.py --data-dir GameConfig/Datas multirow TbItemConfig
 
 ### cache - 缓存操作
 ```bash
-python scripts/luban_helper.py --data-dir GameConfig/Datas cache build
-python scripts/luban_helper.py --data-dir GameConfig/Datas cache clear
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas cache build
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas cache clear
 ```
 
 ---
@@ -685,7 +690,7 @@ Weapon      # 枚举名
 在 Windows 且安装 Excel 时，使用安全副本命令：
 
 ```powershell
-python scripts/luban_helper.py xlsm edit GameConfig/Datas/业务配置表.xlsm `
+python .agents/skills/luban-dev/scripts/luban_helper.py xlsm edit GameConfig/Datas/业务配置表.xlsm `
   --output GameConfig/Datas/业务配置表__edit_test.xlsm `
   --file changes.json
 ```
@@ -716,13 +721,13 @@ python scripts/luban_helper.py xlsm edit GameConfig/Datas/业务配置表.xlsm `
 Luban 如果提示某张表存在大量表尾空白数据，先执行预览：
 
 ```powershell
-python scripts/luban_helper.py --data-dir GameConfig/Datas cleanup blank-rows TbItemConfig
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas cleanup blank-rows TbItemConfig
 ```
 
 确认输出的 `last_data_row`、`max_row` 和 `trailing_blank_rows` 后，再执行：
 
 ```powershell
-python scripts/luban_helper.py --data-dir GameConfig/Datas cleanup blank-rows TbItemConfig --apply
+python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas cleanup blank-rows TbItemConfig --apply
 ```
 
 清理规则只删除最后一条真实数据之后、所有业务列都为空的连续行；不会删除中间空行、表头、注释行或任何含数据的行。`.xlsm` 不走此命令，必须使用 Excel COM 流程。清理后应重新运行 `validate --all` 和导表脚本。
