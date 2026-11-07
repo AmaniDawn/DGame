@@ -60,7 +60,7 @@ using System.Globalization;
 using System.Linq;
 using System.Text;
 
-namespace SimpleJSON
+namespace Luban.SimpleJSON
 {
     public enum JSONNodeType
     {

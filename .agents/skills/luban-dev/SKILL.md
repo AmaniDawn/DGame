@@ -1,199 +1,91 @@
 ---
 name: luban-dev
-description: DGame Luban 游戏配置全栈工具，支持枚举/Bean/数据表/字段/数据行的增删改查、配置校验、引用检查、导表脚本调用、ConfigMgr 封装与运行时消费链路排查。触发场景：(1) 编辑 GameConfig/Datas 下的游戏配置数据（道具表、文本表、模型表、音效表、特效表、GM 表等），(2) 新增/修改/删除配置表结构、字段、枚举或 Bean，(3) 处理 __tables__.xlsx/__beans__.xlsx/__enums__.xlsx、# 自动导入表或 DGame Sheet 拆表规则，(4) 修改 luban.conf、Defines、CustomTemplate 或 GenerateTool_Binary 导表脚本，(5) 生成/校验客户端 GameProto 配置代码和二进制配置数据，(6) 排查 ConfigSystem、Tables、GameLogic/ConfigMgr 配置访问问题。即使用户未明确说 “Luban”，只要是在编辑或排查游戏配置数据，也应使用此技能。
+description: DGame Luban 配置开发与排错。用于 GameConfig 数据、表结构、Bean/Enum、校验规则、自定义模板、导表脚本及 ConfigSystem/ConfigMgr 消费链路，也用于本项目官方 Agent CLI 和 MCP 的部署与查询。
 ---
 
 # DGame Luban 配置开发
 
-## 核心约定
+## 先选择入口
 
-### 现有 Excel 表结构保护
+| 任务 | 入口 |
+| --- | --- |
+| 查询编译后的表、Bean、Enum、Schema，执行 Luban 校验 | 官方 Agent CLI；已加载时也可用 Luban MCP |
+| 修改 Excel、字段、数据行，检查引用 | `scripts/luban_helper.py`；写入前读取 [操作指南](references/operating-guide.md) |
+| 校验现有导表流程、隔离导表、生产导表 | 仓库 Workflow，见下方导表流程 |
+| 工具安装、恢复、版本、MCP 配置 | [工具恢复指南](references/tool-recovery.md)；来源与兼容范围见 [官方工具接入](references/official-ai.md) |
 
-- 修改已有业务表字段前，先按逻辑字段名压缩并删除字段区间内、字段末尾的空列，再追加字段。
-- DGame 普通表通常包含 `##var`、`##type`、`##group` 和 `##` 注释标记行，但这不是固定行号规则。修改前必须读取当前 Sheet 的全部标记行；多行 `##var/##type`、纵表和额外注释行必须按原顺序保留，字段工具应复用现有注释行。
-- 追加/删除字段后必须检查 `field list` 的列号连续、`validate --all` 通过，再执行导表。
-
-- 源头：`GameConfig/Datas/`、`GameConfig/Defines/`、`GameConfig/CustomTemplate/`，不要手改生成产物。
-- 默认生成：客户端 `cs-bin` 代码 + `bin/json` 数据，优先走 LazyLoad。
-- 默认脚本：`GameConfig/GenerateTool_Binary/gen_bin_client_lazyload.bat`。
-- 代码输出：`GameUnity/Assets/Scripts/HotFix/GameProto/LubanConfig/`。
-- 桥接文件：`ConfigSystem.cs`、`ExternalTypeUtil.cs` 由模板复制到 `GameUnity/Assets/Scripts/HotFix/GameProto/`。
-- 数据输出：二进制到 `GameUnity/Assets/BundleAssets/Configs/Binary/`；Json 路径以 `GenerateTool_Binary/path_define.*` 当前配置为准。
-- 命名空间/顶层模块：`GameProto`；总表管理器：`Tables`。
-- 业务访问：优先在 `GameUnity/Assets/Scripts/HotFix/GameLogic/ConfigMgr/` 封装 `XxxConfigMgr`，不要把 `TbXXX` 访问散落到业务层。
-
-### 导出脚本
-
-所有脚本位于 `GameConfig/GenerateTool_Binary/`，使用相对路径调用。
-
-| 脚本 | 用途 | 说明 |
-|:---|:---|:---|
-| `gen_bin_client_lazyload` | 客户端（**推荐**，LazyLoad 模板） | AI 默认调用此脚本 |
-| `gen_bin_client` | 客户端（标准模板） | 非懒加载 |
-| `gen_bin_server_lazyload` | 服务端（LazyLoad 模板） | 需要服务端配置时使用 |
-| `gen_bin_server` | 服务端（标准模板） | 非懒加载 |
-| `gen_bin_all_lazyload` | 客户端 + 服务端（LazyLoad 模板） | 一键导出两端 |
-| `gen_bin_all` | 客户端 + 服务端（标准模板） | 一键导出两端，非懒加载 |
-
-### AI 调用导表命令
-
-根据操作系统选择对应扩展名。默认只导客户端 LazyLoad：
-
-**Windows：**
+所有命令从仓库根执行。查询示例：
 
 ```powershell
-cmd /c "set AI_MODE=1 && GameConfig\GenerateTool_Binary\gen_bin_client_lazyload.bat"
+python .agents/skills/luban-dev/scripts/luban_ai.py list-tables
+python .agents/skills/luban-dev/scripts/luban_ai.py describe --name TbModelConfig
+python .agents/skills/luban-dev/scripts/luban_ai.py schema --name TbModelConfig
+python .agents/skills/luban-dev/scripts/luban_ai.py validate
+python .agents/skills/luban-dev/scripts/luban_helper.py table get TbModelConfig
 ```
 
-**macOS/Linux：**
+Agent CLI 默认目标为 `client`，可显式使用 `--target server/all`。MCP 的 `list_tables`、`get_schema`、`describe`、`validate` 调用应传本工程 `GameConfig/luban.conf` 的绝对路径和目标 `client`。工具未暴露时直接用 CLI，不假定技能加载就代表 MCP 可用。
 
-```bash
-bash GameConfig/GenerateTool_Binary/gen_bin_client_lazyload.sh
-```
+## 项目约定
 
-### Workflow 导表边界
+- 数据源：`GameConfig/Datas/`；表、Bean、Enum 注册位于 `GameConfig/Datas/Defines/`。具体文件以 `GameConfig/luban.conf` 为准。
+- XML 类型定义：`GameConfig/Defines/`；生成模板：`GameConfig/CustomTemplate/`。
+- 默认导表：客户端 `cs-bin` + `bin/json`，使用 `GenerateTool_Binary/gen_bin_client_lazyload.*`。
+- 生成代码：`GameUnity/Assets/Scripts/HotFix/GameProto/LubanConfig/`；Binary：`GameUnity/Assets/BundleAssets/Configs/Binary/`；JSON：`GameUnity/Configs/Json/`。输出路径以 `path_define.*` 为准。
+- `ConfigSystem.cs`、`ExternalTypeUtil.cs` 来源于 `CustomTemplate/Client/Bin/`，改动应落在模板；生成代码不手改。
+- 命名空间为 `GameProto`，总表为 `Tables`。业务访问通过 `GameLogic/ConfigMgr/XxxConfigMgr` 封装；运行时沿用 ConfigSystem、LazyLoad 和 DGame 资源加载规则。
+- 运行时消费遵守项目文本规范，不将玩家可见文本硬编码进业务代码。
+- 字段分组以现有定义和需求为准，helper 自动推断只作辅助；联合导表分别校验 client / server，保证各目标的表主键可见。
+- 正式导表、Agent CLI 和 MCP 统一固定 5.1.0；兼容范围和部署方式见 [官方工具接入](references/official-ai.md)。不能将上游 `main` 的示例视为本地命令保证。
 
-跨配置或需要写入生产输出时，优先使用仓库 Workflow：
+## 配置修改流程
+
+1. 先区分数据、表结构、Bean/Enum、模板、导表脚本或运行时消费，再读取实际定义和调用点。
+2. 修改已有表前读取目标 Sheet 的全部标记行；保留多行 `##var/##type`、纵表、分组、注释和原始行序。表头不是固定四行。
+3. 写入前用 `table get` / `field list` 确认文件、Sheet 和字段；新增数据行前用 `row get` 核对主键，避免覆盖已有数据。
+4. 表/字段改名、删除或改类型前，检查配置与代码引用，读取 [兼容性说明](references/dgame-integration.md)；不能假设 `cs-bin` 新旧结构兼容。删除按仓库已授权范围执行。
+5. 字段操作先按逻辑字段压缩字段区间及末尾空列，再用 `field list` 检查列号连续。字段注释复用现有注释行；不要覆盖 `##group` 或复合字段续行。
+6. 只改源数据或模板。字段类型、主键、分组的变化须符合需求；不得为让生成通过而削弱原有校验。
+7. helper 的 `validate --all` / `ref` 用作辅助诊断；`ref` 查询 Bean/Enum 类型引用，表/字段及业务调用还要搜索实际源码。最终以真实 Luban 校验和相关导表结果为准，见 [排错流程](references/generate-debug.md)。
+8. 需要更新生产产物时按下方流程执行。代码与 Binary 必须来自同一次导表；字段/表结构及 `tags`、`group_by`、`read_schema_from_file` 变化要检查生成 API、ConfigMgr 调用和相关 Unity 编译与消费。
+
+新增表优先在 `Datas/Defines/__tables__.xlsx` 显式注册；根据实际表头填写 `read_schema_from_file`。从表头推断字段时，不在 `__beans__` 再定义同名 Bean。文件级 `#` 自动导入可用；Sheet 级拆分需手动执行 `split_sheets.py`，默认导表脚本已注释该步骤。完整规则见 [表注册](references/dgame-table-rules.md)。
+
+## 导表流程
 
 ```powershell
 python .agents/scripts/workflow.py luban validate
 python .agents/scripts/workflow.py luban test
 python .agents/scripts/workflow.py luban preview --mode lazyload
-python .agents/scripts/workflow.py approve --plan <preview.json> --by <实际确认人> --reason <实际确认记录> --high-risk
-python .agents/scripts/workflow.py luban apply --plan <preview.json> --approval <approval.json>
 ```
 
-`validate` 和 `test` 不写生产目录；`preview` 会先执行一次隔离导表并记录 manifest，再生成绑定当前工作区、输入文件和输出范围的计划。需要 Unity 测试时，在 preview 中显式填写 `--editmode-filter` / `--playmode-filter`；未填写时 apply 只验证构建和 Editor 编译，并在报告中明确记录未执行测试。`apply` 必须使用同一计划和一次性审批，并在导表后比对隔离产物清单。直接调用 `gen` 只适用于用户已经明确授权生产目录写入的场景。
+`validate` 和 `test` 使用隔离目录；`preview` 记录隔离产物与当前输入，生产写入按仓库授权执行 `approve` / `apply`。需要 Unity 测试时在 preview 中显式指定 `--editmode-filter` / `--playmode-filter`。命令超时先核对真实状态，不自动重放。
 
-## 导表与发布成对约束
-
-- Luban 生成的 `GameUnity/Assets/Scripts/HotFix/GameProto/LubanConfig/` 代码与 `GameUnity/Assets/BundleAssets/Configs/Binary/` 二进制必须来自同一次导表；只更新其中一侧会造成运行时反序列化或字段错位。
-- 修改 `__tables__.xlsx` 的 `tags`、`group_by` 或 `read_schema_from_file` 后，必须重新执行对应客户端/全量导表脚本，并检查生成代码、Binary 和 Unity 编译结果。
-- `read_schema_from_file` 是表级开关：业务 Excel 已带 `##var/##type/##group` 表头时通常设为 `true`；schema 已在 Defines 中维护、业务文件只提供数据时设为 `false`。不要凭表名猜值。
-
-## 默认工作流
-
-1. 先判断改动属于数据、表结构、Bean/Enum、schema、模板、导表脚本还是运行时消费。
-2. 读现有定义：`__tables__.xlsx`、`__beans__.xlsx`、`__enums__.xlsx`、目标业务表和相关 `ConfigMgr`。
-3. 改源文件，不改 `LubanConfig/` 下生成代码。
-4. 运行或提示运行默认导表脚本。
-5. 验证生成目录、Unity 编译、`ConfigSystem.Instance.Tables` 访问和业务管理器封装。
-
-## 新增配置表
-
-1. 在 `GameConfig/Datas/` 新增业务 Excel，普通表可使用 `##var`、`##type`、`##group`、`##` 标记行；这是推荐格式，不代表所有现有表都固定为四行。
-2. 需要复合字段时补 `__beans__.xlsx`，需要枚举时补 `__enums__.xlsx`。
-3. 默认推荐在 `__tables__.xlsx` 显式注册 `full_name`、`value_type`、`input`、`mode`、`tags`。
-4. Luban 支持文件名 `#<value_type>-<comment>.xlsx` 自动导入，不需要在 `__tables__.xlsx` 注册；DGame 可用但不作为默认推荐。
-5. DGame 扩展支持 Sheet 名 `#<value_type>-<comment>` 自动拆表；导表前会拆成临时 `#` 文件，同样不需要注册，但仍按自动导入场景谨慎使用。
-6. 需要按字段分组访问时，优先在 `__tables__.xlsx` 的 `tags` 写 `group_by:字段名`。例如 `group_by:GroupId` 会为表生成 `GroupedDataMap` 和 `GetListByGroupId(int)`，按组快速取得数据；自动导入表如需特殊 tags，先确认当前 Luban 支持方式。
-7. 配置 `__tables__.xlsx` 时必须明确写入 `read_schema_from_file`：`true` 表示从业务 Excel 表头读取字段定义，`false` 表示使用 Defines/schema 中的定义。新增表工具会根据实际 Sheet 标记行推断并写入布尔值，也可通过 `--read-schema-from-file` 或 `--schema-in-defines` 显式指定；该值错误会导致 schema 解析或导表失败。
-8. 单例配置可用 `mode=one`。
-9. 导表后在 `GameLogic/ConfigMgr/` 补 `XxxConfigMgr`。
-
-业务层常用访问：
-
-```csharp
-using GameLogic;
-
-var modelCfg = ModelConfigMgr.Instance.GetOrDefault(modelId);
-var hasModel = ModelConfigMgr.Instance.ContainsKey(modelId);
-var ok = SoundConfigMgr.Instance.TryGetValue(soundId, out var soundCfg);
-```
-
-只有在 `XxxConfigMgr` 内部封装时才直接碰 `TbXXX`：
-
-```csharp
-using GameProto;
-
-public ModelConfig GetOrDefault(int modelID) => TbModelConfig.GetOrDefault(modelID);
-```
-
-## 操作工具
-
-可用 `scripts/luban_helper.py` 读写 Excel 配置，适合批量增删字段、查引用、校验数据。
-
-### 前置条件
-
-Python 3.8+，`pip install -r .agents/skills/luban-dev/scripts/requirements.txt`
-
-### 执行方式
+已明确授权直接导表时，Windows 非交互调用必须设置 `AUTO_CONTINUE`：
 
 ```powershell
-python .agents/skills/luban-dev/scripts/luban_helper.py --data-dir GameConfig/Datas <command>
+cmd /c "set AI_MODE=1 && set AUTO_CONTINUE=1 && GameConfig\GenerateTool_Binary\gen_bin_client_lazyload.bat"
 ```
 
-`--data-dir` 默认就是 `GameConfig/Datas`，可省略；PowerShell 中 JSON 参数推荐用 `--file` 从文件读取。
+MCP 配置默认只启用查询和校验；生产生成沿用 Workflow。工具安装与升级本身不授权生产导表、提交或发布。
 
-**参数类型**：位置参数直接传值，不加 `--` 前缀。例如 `table get TbItemConfig`，不是 `table get --name TbItemConfig`。
+## 按主题读取
 
-### 命令速查
-
-| 分类 | 命令 | 功能 |
-|------|------|------|
-| 枚举 | `enum list/get/add/update/delete` | 枚举 CRUD |
-| 结构 | `bean list/get/add/update/delete` | Bean CRUD |
-| 表 | `table list/get/add/update/delete` | 表 CRUD；默认显式注册到 `__tables__.xlsx` |
-| 字段 | `field list/add/update/delete/disable/enable` | 字段操作，支持 `##` 禁用字段 |
-| 数据 | `row list/get/query/add/update/delete` | 数据行操作 |
-| 批量 | `batch fields/rows` | 批量字段/数据行操作 |
-| 导入导出 | `export/import` | JSON 导入导出 |
-| 验证 | `validate` / `ref` | 数据验证 / 引用检查 |
-| 类型 | `type list/validate/suggest/search/guide/info` | 类型系统 |
-| 自动 | `auto list/create` | `#` 自动导入表；DGame 支持但不默认推荐 |
-| 管理 | `rename/copy/diff/template` | 表管理工具 |
-| 附加 | `alias/tag/variant/multirow/cache` | 常量别名、标签、字段变体、多行结构、缓存 |
-
-### 操作规范
-
-- **只读操作**（`list/get/query/search/validate/ref/diff`）：可直接执行。
-- **写入操作**（`add/update/delete/import/rename/copy/template/create`）：先确认目标表、字段、Sheet 和影响面。
-- **删除操作**：先跑 `ref` 检查引用，提醒兼容性风险，再二次确认。
-- **修改前**：先 `table get` / `field list` 确认结构，`row get` 避免主键冲突。
-- **修改后**：跑 `validate --all`，再运行 DGame 导表脚本。
-- **自动导入**：Luban 支持 `#` 文件，DGame 支持 `#` Sheet 拆表，但默认仍推荐 `__tables__.xlsx` 显式注册。
-- **迁移自动导入**：`migrate-auto` 在 DGame 版本中保留命令入口但禁止执行，避免把推荐的显式注册表误迁移。
-
-### 分组自动推断
-
-添加字段时不指定 `--group`，脚本会按字段名和类型做保守推断：
-
-- `c`（客户端）：`name`、`desc`、`icon`、`image`、`sprite`、`model`、`spine`、`effect`、`sound`、`audio`、`ui`、`location`、`path`、`prefab`、`asset`、`local` 等。
-- `s`（服务端）：`server`、`backend`、`logic`、`damage`、`hp`、`mp`、`exp`、`level`、`rate`、`attack`、`defense`、`platform`、`channel` 等。
-- `cs`（两端）：`id`、`*_id`、无法明确归属的字段。
-
-这是辅助推断，不是架构决策；关键配置仍以目标表现有 `##group` 和需求为准。
-
-## 红线
-
-- 不直接改 `GameUnity/Assets/Scripts/HotFix/GameProto/LubanConfig/`。
-- 字段改名、删字段、改类型要当作兼容性风险处理。
-- 资源加载链路以当前 `ConfigSystem` 和 DGame 资源模块为准；若文档和代码冲突，优先信任代码。
-- 配置表运行时中文文本仍遵守项目文本规范，不把玩家可见文本硬编码进业务代码。
-
-## 按需说明
+按实际操作读取对应参考；表/字段结构修改先读表规则和 Excel 格式，运行时消费修改先读运行时加载说明。命令清单和示例按需读取，入口中的核心约束始终适用。
 
 | 场景 | 文档 |
 | --- | --- |
-| DGame 集成、目录、导表、运行时加载 | [dgame-integration.md](references/dgame-integration.md) |
-| DGame 表注册、自动导入、Sheet 拆表 | [dgame-table-rules.md](references/dgame-table-rules.md) |
-| 工具命令详解、Excel CRUD | [operating-guide.md](references/operating-guide.md) |
-| Luban 类型系统 | [type-system.md](references/type-system.md) |
-| Schema / Bean / Enum / Table 定义 | [schema.md](references/schema.md) |
-| `luban.conf` 配置项 | [luban-conf.md](references/luban-conf.md) |
-| 校验器与引用检查 | [validators.md](references/validators.md) |
-| Excel 数据格式 | [excel-format.md](references/excel-format.md) |
-| CLI 参数 | [command-reference.md](references/command-reference.md) |
+| 工具缺失、安装恢复、版本切换、MCP 配置 | [tool-recovery.md](references/tool-recovery.md) |
+| 固定版本、CLI/MCP、官方来源与许可 | [official-ai.md](references/official-ai.md) |
+| 生成失败、结构化错误、校验失败 | [generate-debug.md](references/generate-debug.md) |
+| DGame 目录、脚本、运行时链路 | [dgame-integration.md](references/dgame-integration.md) |
+| 新增表、注册、自动导入、分组索引 | [dgame-table-rules.md](references/dgame-table-rules.md) |
+| Excel CRUD、字段与行、空白行清理 | [operating-guide.md](references/operating-guide.md) |
+| 类型与容器约束 | [type-system.md](references/type-system.md) |
+| Schema、Bean、Enum、继承与多态 | [schema.md](references/schema.md) |
+| 配置文件与目标分组 | [luban-conf.md](references/luban-conf.md) |
+| 引用、范围、路径等校验器 | [validators.md](references/validators.md) |
+| 标记行、复杂结构与填表 | [excel-format.md](references/excel-format.md) |
+| 主生成器参数 | [command-reference.md](references/command-reference.md) |
 | JSON/XML/YAML/Lua 数据源 | [data-sources.md](references/data-sources.md) |
-| DGame 运行时加载、ConfigMgr 封装、类型映射 | [runtime.md](references/runtime.md) |
-
-示例：DGame 当前不额外内置 `examples/`，以真实项目 `GameConfig/Datas/`、`GameConfig/Defines/`、`GameConfig/CustomTemplate/`、`GameConfig/GenerateTool_Binary/` 作为示例来源。
-
-脚本：`scripts/luban_helper.py`（DGame 化配置表操作工具）、`scripts/requirements.txt`（依赖）。
-
-官方文档：https://www.datable.cn/docs/intro
-
-
-## 导表空白行警告
-
-Luban 提示表尾空白数据影响性能时，先执行 `cleanup blank-rows TABLE` 预览，确认 `last_data_row` 后再加 `--apply`。工具只删除表尾连续且所有业务列为空的行，不删除中间空行或含数据的行。清理后重新执行 `validate --all` 和导表脚本。
+| 运行时加载、ConfigMgr、类型映射 | [runtime.md](references/runtime.md) |

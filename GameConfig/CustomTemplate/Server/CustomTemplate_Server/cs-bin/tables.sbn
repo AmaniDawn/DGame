@@ -32,6 +32,9 @@ using Luban;
 
         public void Reload()
         {
+            {{~for table in __tables ~}}
+            {{if __namespace}}global::{{__namespace}}.{{table.full_name}}{{else}}global::{{table.full_name}}{{end}}.ResetCache();
+            {{~end~}}
             Init();
         }
 

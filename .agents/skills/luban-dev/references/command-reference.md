@@ -1,5 +1,7 @@
 # Luban 命令行完整说明
 
+正式导表与 AI 工具统一固定为 Luban 5.1.0，主 CLI 支持 `--errorFormat json`、`--strict` 和 `-c schema-json`。查询与无产物校验优先使用 [官方 Agent CLI](official-ai.md)，生产生成沿用项目 Workflow。参数以实际工具帮助为准。
+
 ## 基本命令格式
 
 ```bash
@@ -32,24 +34,28 @@ dotnet <luban.dll路径> [参数]
 | `-v` | `--verbose` | 详细输出 | `-v` |
 | `--variant` | - | 字段变体 | `--variant default=cn` |
 | `--timeZone` | - | 目标时区 | `--timeZone Asia/Shanghai` |
+| `--errorFormat` | - | 结构化错误格式 | `--errorFormat json` |
+| `--strict` | - | 校验失败时返回失败退出码 | `--strict` |
 
 ## 代码目标 (codeTarget)
 
 | 目标 | 说明 |
 |------|------|
 | `cs-bin` | C# + Binary 格式（ByteBuf 加载，最小体积，推荐 Unity 生产环境） |
-| `cs-simple-json` | C# + SimpleJSON（第三方轻量 JSON 库） |
+| `cs-simple-json` | C# + `Luban.SimpleJSON` |
 | `cs-dotnet-json` | C# + System.Text.Json（.NET 6+ 内置，推荐 .NET 运行时） |
 | `cs-newtonsoft-json` | C# + Newtonsoft.Json（兼容性最广） |
 | `java-bin` | Java + Binary |
 | `java-json` | Java + JSON |
 | `go-bin` | Go + Binary |
 | `go-json` | Go + JSON |
-| `ts-json` | TypeScript + JSON |
-| `lua` | Lua |
-| `py-json` | Python + JSON |
-| `cpp-bin` | C++ + Binary |
-| `cpp-json` | C++ + JSON |
+| `typescript-json` | TypeScript + JSON |
+| `lua-lua` | Lua + Lua 数据 |
+| `python-json` | Python + JSON |
+| `cpp-rawptr-bin` | C++ 原始指针 + Binary |
+| `cpp-sharedptr-bin` | C++ shared_ptr + Binary |
+
+Go 代码目标必须额外提供模块名，例如 `-x lubanGoModule=example.com/game/config`；缺少该选项时应由 CLI 明确拒绝。
 
 ## 数据目标 (dataTarget)
 
@@ -162,7 +168,7 @@ dotnet Luban.dll \
 ### 生成多平台代码
 
 ```bash
-cmd /c "set AI_MODE=1 && GameConfig\GenerateTool_Binary\gen_bin_all_lazyload.bat"
+cmd /c "set AI_MODE=1 && set AUTO_CONTINUE=1 && GameConfig\GenerateTool_Binary\gen_bin_all_lazyload.bat"
 ```
 
 ### 排除测试数据

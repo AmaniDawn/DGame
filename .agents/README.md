@@ -9,6 +9,8 @@
 
 技能目录遵循 Agent Skills 结构：入口为 `SKILL.md`，详细资料放在 `references/`，可执行辅助脚本放在 `scripts/`。`agents/openai.yaml` 只提供 Codex 的界面元数据，不影响 Claude Code 读取 `SKILL.md`。
 
+Luban 正式生成器、官方 Agent CLI / MCP 统一固定为 5.1.0，AI 工具通过 `python .agents/skills/luban-dev/scripts/luban_ai.py` 调用。工具缺失恢复、项目级 MCP 配置和生成器升级见 [工具恢复指南](skills/luban-dev/references/tool-recovery.md)；版本来源与兼容范围见 [官方工具接入](skills/luban-dev/references/official-ai.md)，技能加载本身不注册工具。
+
 需要仓库结构检查或环境报告时，从仓库根目录运行 Workflow：
 
 ```powershell
