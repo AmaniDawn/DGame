@@ -1,5 +1,12 @@
 # DGame Luban 运行时加载
 
+## 集成检查
+
+- 生成格式成对匹配：本项目为 `cs-bin` + `bin`，JSON 同时输出供检查。
+- 命名空间与总表沿用 `GameProto.Tables`，通过现有 ConfigSystem 和 ConfigMgr 使用配置。
+- 客户端使用 `client` 目标，不加载仅服务端分组的数据；加载器地址以 DGame 资源模块和实际产物为准。
+- 不将通用示例中的 `cfg.Tables`、StreamingAssets 或 Addressables 路径直接替换进当前链路。
+
 ## 当前链路
 
 DGame 客户端配置运行时入口：

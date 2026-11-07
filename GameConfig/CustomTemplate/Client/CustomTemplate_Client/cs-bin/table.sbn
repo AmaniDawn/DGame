@@ -55,7 +55,7 @@ public partial class {{__name}}
             _dataList.Add(_v);
             _dataMap.Add(_v.{{format_property_name __code_style __table.index_field.name}}, _v);
             {{~ if __table.tags.group_by ~}}
-            int gid = _v.{{__table.tags.group_by}};
+            int gid = _v.{{format_property_name __code_style __table.tags.group_by}};
             if (!_groupedDataMap.TryGetValue(gid, out var list))
             {
                 list = new System.Collections.Generic.List<{{declaring_type_name value_type}}>();
@@ -70,6 +70,7 @@ public partial class {{__name}}
 
     private static {{__name}} m_instance;
     public static {{__name}} Instance => m_instance == null ? m_instance = ConfigSystem.Instance.Tables.{{__name}} : m_instance;
+    public static void ResetCache() => m_instance = null;
     public static bool ContainsKey({{declaring_type_name key_type}} key) => Instance._dataMap.ContainsKey(key);
     public static bool TryGetValue({{declaring_type_name key_type}} key, out {{declaring_type_name value_type}} v) => Instance._dataMap.TryGetValue(key, out v);
     public static {{declaring_type_name value_type}} GetOrDefault({{declaring_type_name key_type}} key) => Instance._dataMap.TryGetValue(key, out var v) ? v : null;
@@ -95,7 +96,7 @@ public partial class {{__name}}
     public System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<{{declaring_type_name value_type}}>> _groupedDataMap;
     public static System.Collections.Generic.Dictionary<int, System.Collections.Generic.List<{{declaring_type_name value_type}}>> GroupedDataMap => Instance._groupedDataMap;
 
-    public static System.Collections.Generic.List<{{declaring_type_name value_type}}> GetListBy{{__table.tags.group_by}}(int groupID)
+    public static System.Collections.Generic.List<{{declaring_type_name value_type}}> GetListBy{{format_property_name __code_style __table.tags.group_by}}(int groupID)
         => Instance._groupedDataMap.TryGetValue(groupID, out var list) ? list : null;
 
     #endregion
@@ -155,6 +156,7 @@ public partial class {{__name}}
 
     private static {{__name}} m_instance;
     public static {{__name}} Instance => m_instance == null ? m_instance = ConfigSystem.Instance.Tables.{{__name}} : m_instance;
+    public static void ResetCache() => m_instance = null;
     public static System.Collections.Generic.List<{{declaring_type_name value_type}}> DataList => Instance._dataList;
 
     {{~if __table.is_union_index~}}
@@ -203,6 +205,7 @@ public partial class {{__name}}
 
     private static {{__name}} m_instance;
     public static {{__name}} Instance => m_instance == null ? m_instance = ConfigSystem.Instance.Tables.{{__name}} : m_instance;
+    public static void ResetCache() => m_instance = null;
 
     #endregion
 

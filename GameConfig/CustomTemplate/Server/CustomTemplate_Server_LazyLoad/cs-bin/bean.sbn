@@ -17,24 +17,28 @@ func generate_copy_field
     fieldName = format_property_name __code_style field.name
     if field.ctype.type_name == 'list' || field.ctype.type_name == 'set'
         if is_field_array_like_need_resolve_ref field
-            ret 'other.' + fieldName + ' = ' + fieldName + ' == null ? null : new ' + (declaring_type_name field.ctype) + '(); if (' + fieldName + ' != null) foreach (var _e in ' + fieldName + ') { var _copy = _e; _e?.CopyTo(ref _copy); other.' + fieldName + '.Add(_copy); }'
+            elementType = declaring_type_name field.ctype.element_type
+            ret 'other.' + fieldName + ' = ' + fieldName + ' == null ? null : new ' + (declaring_type_name field.ctype) + '(); if (' + fieldName + ' != null) foreach (var _e in ' + fieldName + ') { other.' + fieldName + '.Add(_e == null ? null : (' + elementType + ')_e.DeepCopyObject()); }'
         else
             ret 'other.' + fieldName + ' = ' + fieldName + ' == null ? null : new ' + (declaring_type_name field.ctype) + '(' + fieldName + ');'
         end
     else if field.ctype.type_name == 'array'
         if is_field_array_like_need_resolve_ref field
-            ret 'other.' + fieldName + ' = ' + fieldName + ' == null ? null : new ' + (declaring_type_name field.ctype.element_type) + '[' + fieldName + '.Length]; if (' + fieldName + ' != null) for (var _i = 0; _i < ' + fieldName + '.Length; _i++) { var _copy = ' + fieldName + '[_i]; ' + fieldName + '[_i]?.CopyTo(ref _copy); other.' + fieldName + '[_i] = _copy; }'
+            elementType = declaring_type_name field.ctype.element_type
+            ret 'other.' + fieldName + ' = ' + fieldName + ' == null ? null : new ' + elementType + '[' + fieldName + '.Length]; if (' + fieldName + ' != null) for (var _i = 0; _i < ' + fieldName + '.Length; _i++) { other.' + fieldName + '[_i] = ' + fieldName + '[_i] == null ? null : (' + elementType + ')' + fieldName + '[_i].DeepCopyObject(); }'
         else
             ret 'other.' + fieldName + ' = ' + fieldName + ' == null ? null : ((' + (declaring_type_name field.ctype) + ')' + fieldName + '.Clone());'
         end
     else if field.ctype.type_name == 'map'
         if is_field_map_need_resolve_ref field
-            ret 'other.' + fieldName + ' = ' + fieldName + ' == null ? null : new ' + (declaring_type_name field.ctype) + '(); if (' + fieldName + ' != null) foreach (var _e in ' + fieldName + ') { var _copy = _e.Value; _e.Value?.CopyTo(ref _copy); other.' + fieldName + '.Add(_e.Key, _copy); }'
+            valueType = declaring_type_name field.ctype.value_type
+            ret 'other.' + fieldName + ' = ' + fieldName + ' == null ? null : new ' + (declaring_type_name field.ctype) + '(); if (' + fieldName + ' != null) foreach (var _e in ' + fieldName + ') { other.' + fieldName + '.Add(_e.Key, _e.Value == null ? null : (' + valueType + ')_e.Value.DeepCopyObject()); }'
         else
             ret 'other.' + fieldName + ' = ' + fieldName + ' == null ? null : new ' + (declaring_type_name field.ctype) + '(' + fieldName + ');'
         end
     else if is_field_bean_need_resolve_ref field
-        ret fieldName + '?.CopyTo(ref other.' + fieldName + ');'
+        beanType = declaring_type_name field.ctype
+        ret 'other.' + fieldName + ' = ' + fieldName + ' == null ? null : (' + beanType + ')' + fieldName + '.DeepCopyObject();'
     else
         ret 'other.' + fieldName + ' = ' + fieldName + ';'
     end
@@ -55,24 +59,24 @@ func generate_resolve_field_ref
     if can_generate_ref field
         tableName = format_property_name __code_style refTable.name
         if field.is_nullable
-            ret (get_ref_name field) + ' = ' + fieldName + '!= null ? tables.' + tableName + '.GetOrDefault(' + (get_value_of_nullable_type field.ctype fieldName) + ') : null;'
+            ret (get_ref_name field) + ' = ' + fieldName + '!= null ? tables.' + tableName + '.GetOrDefaultNoStatic(' + (get_value_of_nullable_type field.ctype fieldName) + ') : null;'
         else
-            ret (get_ref_name field) + ' = tables.' + tableName + '.GetOrDefault(' + fieldName + ');'
+            ret (get_ref_name field) + ' = tables.' + tableName + '.GetOrDefaultNoStatic(' + fieldName + ');'
         end
     else if can_generate_collection_ref field
         collection_ref_table = get_collection_ref_table field
         tableName = format_property_name __code_style collection_ref_table.name
 		if field.ctype.type_name == 'list' || field.ctype.type_name == 'set'
             line1 = (get_ref_name field) + ' = new ' + (declaring_collection_ref_name field.ctype) + '();' + '\n'
-            line2 = 'foreach (var _v in ' + fieldName + ') { ' + (get_ref_name field) + '.Add(tables.' + tableName + '.GetOrDefault(_v)); }' + '\n'
+            line2 = 'foreach (var _v in ' + fieldName + ') { ' + (get_ref_name field) + '.Add(tables.' + tableName + '.GetOrDefaultNoStatic(_v)); }' + '\n'
             ret line1 + line2
         else if field.ctype.type_name == 'array'
             line1 = (get_ref_name field) + ' = new ' + (declaring_type_name collection_ref_table.value_ttype) + '[' + fieldName + '.Length];' + '\n'
-            line2 = 'for (int _i = 0; _i < ' + fieldName + '.Length; _i++) { ' + (get_ref_name field) + '[_i] = tables.' + tableName + '.GetOrDefault(' + fieldName + '[_i]); }' + '\n'
+            line2 = 'for (int _i = 0; _i < ' + fieldName + '.Length; _i++) { ' + (get_ref_name field) + '[_i] = tables.' + tableName + '.GetOrDefaultNoStatic(' + fieldName + '[_i]); }' + '\n'
             ret line1 + line2
 		else if field.ctype.type_name == 'map'
             line1 = (get_ref_name field) + ' = new ' + (declaring_collection_ref_name field.ctype) + '();' + '\n'
-			line2 = 'foreach (var kvp in ' + fieldName + ') { ' + (get_ref_name field) + '.Add(kvp.Key, tables.' + tableName + '.GetOrDefault(kvp.Value)); }' + '\n'
+            line2 = 'foreach (var kvp in ' + fieldName + ') { ' + (get_ref_name field) + '.Add(kvp.Key, tables.' + tableName + '.GetOrDefaultNoStatic(kvp.Value)); }' + '\n'
 			ret line1 + line2
 		else
 			ret ''
@@ -170,6 +174,18 @@ public {{class_modifier __bean}} partial class {{__name}} : {{if parent_def_type
         {{~end~}}
     }
 
+{{~if !__bean.is_value_type~}}
+    {{if parent_def_type}}protected{{else if __bean.is_abstract_type}}protected{{else}}private{{end}} void CopyToBase({{__name}} other)
+    {
+        {{~if parent_def_type~}}
+        base.CopyToBase(other);
+        {{~end~}}
+        {{~for field in export_fields~}}
+        {{generate_copy_field field}}
+        {{~end~}}
+    }
+{{~end~}}
+
     {{~if !__bean.is_abstract_type}}
     public void CopyTo(ref {{__name}} other)
     {
@@ -179,8 +195,12 @@ public {{class_modifier __bean}} partial class {{__name}} : {{if parent_def_type
             other = new {{__name}}();
         }
         {{~end~}}
+        {{~if !__bean.is_value_type~}}
+        CopyToBase(other);
+        {{~else~}}
         {{~for field in export_fields~}}
         {{generate_copy_field field}}
+        {{~end~}}
         {{~end~}}
     }
 
@@ -191,6 +211,17 @@ public {{class_modifier __bean}} partial class {{__name}} : {{if parent_def_type
         return other;
     }
     {{~end~}}
+
+{{~if !__bean.is_value_type~}}
+    public {{if parent_def_type}}override{{else if __bean.is_abstract_type}}virtual{{end}} object DeepCopyObject()
+    {
+        {{~if __bean.is_abstract_type~}}
+        throw new System.InvalidOperationException("Cannot copy an abstract bean directly");
+        {{~else~}}
+        return DeepCopy();
+        {{~end~}}
+    }
+{{~end~}}
     
     public override string ToString()
     {

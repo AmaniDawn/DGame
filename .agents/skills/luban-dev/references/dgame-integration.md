@@ -4,7 +4,7 @@
 
 ```text
 GameConfig/
-├── Datas/                  # Excel 源数据、__tables__/__beans__/__enums__
+├── Datas/                  # Excel 源数据；注册文件在 Datas/Defines/
 ├── Defines/                # Luban schema 与外部类型映射
 ├── CustomTemplate/         # ConfigSystem、ExternalTypeUtil、LazyLoad 模板
 ├── GenerateTool_Binary/    # bin/json 导表脚本
@@ -28,17 +28,17 @@ GameUnity/Assets/Scripts/HotFix/GameLogic/ConfigMgr/  # 业务配置管理器
 ## luban.conf
 
 - `groups`：`c`、`s`、`e`，当前均为默认组。
-- `schemaFiles`：`Defines`、`Datas/__tables__.xlsx`、`Datas/__beans__.xlsx`、`Datas/__enums__.xlsx`。
+- `schemaFiles`：`Defines`、`Datas/Defines/__tables__.xlsx`、`Datas/Defines/__beans__.xlsx`、`Datas/Defines/__enums__.xlsx`。
 - `dataDir`：`Datas`。
 - `targets`：`server`、`client`、`all`。
 - 客户端 target：`manager=Tables`、`groups=["c"]`、`topModule=GameProto`。
 
 ## 导表脚本
 
-优先使用客户端 LazyLoad：
+生产导表先遵循仓库 Workflow 和授权边界。已明确授权直接导表时优先客户端 LazyLoad；非交互调用设置 `AUTO_CONTINUE`：
 
 ```powershell
-cmd /c "set AI_MODE=1 && GameConfig\GenerateTool_Binary\gen_bin_client_lazyload.bat"
+cmd /c "set AI_MODE=1 && set AUTO_CONTINUE=1 && GameConfig\GenerateTool_Binary\gen_bin_client_lazyload.bat"
 ```
 
 脚本行为：
@@ -63,7 +63,7 @@ cmd /c "set AI_MODE=1 && GameConfig\GenerateTool_Binary\gen_bin_client_lazyload.
 
 - `ConfigSystem.Instance.Tables` 首次访问时自动 `Load()`。
 - `Load()` 构造 `new Tables(LoadByteBuf)`。
-- `LoadByteBuf(string file)` 通过 `IResourceModule.LoadAsset<TextAsset>(file)` 读取 bytes，复制字节数组后调用 `UnloadAsset(textAsset)`，再包装为 `Luban.ByteBuf`；不要把仍由资源模块管理的 `TextAsset` 交给运行时长期持有。
+- `LoadByteBuf(string file)` 通过 `IResourceModule.LoadAsset<TextAsset>(file)` 加载资源，取 `textAsset.bytes` 后调用 `UnloadAsset(textAsset)`，再包装为 `Luban.ByteBuf`；不长期持有 `TextAsset`。
 - `Reload()` 在已初始化后调用 `m_tables.Reload()`。
 
 注意：当前实现通过 `ModuleSystem.GetModule<IResourceModule>()` 取资源模块；若项目规范和实际代码不同，先信任实际代码并标注差异。
@@ -151,7 +151,7 @@ namespace GameLogic
 
 配置结构改动会同时影响热更代码（`GameProto/LubanConfig/` 由 HybridCLR 热更程序集加载）与热更资源（`Binary/` 二进制数据由 YooAsset 分发），改字段前先评估兼容性：
 
-- **新增字段**：前向兼容，旧数据缺列时取类型默认值，旧代码忽略新字段。
+- **新增字段**：不能假设二进制前向兼容；`cs-bin` 按生成的顺序读取字段，应重新导出并成对更新代码和 Binary。
 - **删除字段**：不兼容，仍引用该字段的代码会编译报错，旧二进制数据需重新导出。
 - **修改字段类型**：不兼容，需同步改数据、重新导表、更新引用代码。
 - **重命名字段/表**：不兼容，等价于删除加新增，会影响热更包，需代码与数据同版本更新。

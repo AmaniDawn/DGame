@@ -15,9 +15,9 @@
     ],
     "schemaFiles": [
         {"fileName": "Defines", "type": ""},
-        {"fileName": "Datas/__tables__.xlsx", "type": "table"},
-        {"fileName": "Datas/__beans__.xlsx", "type": "bean"},
-        {"fileName": "Datas/__enums__.xlsx", "type": "enum"}
+        {"fileName": "Datas/Defines/__tables__.xlsx", "type": "table"},
+        {"fileName": "Datas/Defines/__beans__.xlsx", "type": "bean"},
+        {"fileName": "Datas/Defines/__enums__.xlsx", "type": "enum"}
     ],
     "dataDir": "Datas",
     "targets": [
@@ -60,9 +60,9 @@ Schema 定义文件列表。
 ```json
 "schemaFiles": [
     {"fileName": "Defines", "type": ""},
-    {"fileName": "Datas/__tables__.xlsx", "type": "table"},
-    {"fileName": "Datas/__beans__.xlsx", "type": "bean"},
-    {"fileName": "Datas/__enums__.xlsx", "type": "enum"}
+    {"fileName": "Datas/Defines/__tables__.xlsx", "type": "table"},
+    {"fileName": "Datas/Defines/__beans__.xlsx", "type": "bean"},
+    {"fileName": "Datas/Defines/__enums__.xlsx", "type": "enum"}
 ]
 ```
 

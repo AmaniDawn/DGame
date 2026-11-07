@@ -61,7 +61,7 @@
 #endregion License and information
 using UnityEngine;
 
-namespace SimpleJSON
+namespace Luban.SimpleJSON
 {
     public enum JSONContainerType { Array, Object }
 	public partial class JSONNode
