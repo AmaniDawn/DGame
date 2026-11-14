@@ -38,6 +38,8 @@ namespace DGame
 
         private static readonly Dictionary<UnityEngine.Object, LoadingState> m_loadingStates = new Dictionary<UnityEngine.Object, LoadingState>();
 
+        private bool m_isDestroyed;
+
         private void InitializedResources()
         {
             m_resourceModule = ModuleSystem.GetModule<IResourceModule>();
@@ -53,17 +55,13 @@ namespace DGame
         {
             var target = setAssetObject.TargetObject;
             var location = setAssetObject.Location;
-            if (target == null)
+            if (target == null || m_isDestroyed)
             {
                 MemoryPool.Release(setAssetObject);
                 return;
             }
-            // 创建新的加载状态
-            var linkedTokenSource = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-            var loadingState = MemoryObject.Spawn<LoadingState>();
-            loadingState.Cts = linkedTokenSource;
-            loadingState.Location = location;
-            ReplaceLoadingState(target, loadingState);
+            var loadingState = CreateLoadingState(target, location, cancellationToken);
+            var linkedTokenSource = loadingState.Cts;
 
             var hasLoadingMarker = false;
             var setAssetObjectTransferred = false;
@@ -154,6 +152,15 @@ namespace DGame
             }
         }
 
+        private LoadingState CreateLoadingState(UnityEngine.Object target, string location, CancellationToken cancellationToken)
+        {
+            var loadingState = MemoryObject.Spawn<LoadingState>();
+            loadingState.Cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            loadingState.Location = location;
+            ReplaceLoadingState(target, loadingState);
+            return loadingState;
+        }
+
         private void DetachCurrentRequest(UnityEngine.Object target, LoadingState expectedState)
         {
             if(m_loadingStates.TryGetValue(target, out var curState)
@@ -174,7 +181,7 @@ namespace DGame
         
         private bool IsCurrentRequest(UnityEngine.Object target, LoadingState expectedState)
         {
-            if (target == null)
+            if (target == null || m_isDestroyed || expectedState.Cts.IsCancellationRequested)
             {
                 return false;
             }
@@ -187,6 +194,11 @@ namespace DGame
         /// </summary>
         private void OnDestroy()
         {
+            m_isDestroyed = true;
+            if (Instance == this)
+            {
+                Instance = null;
+            }
             var loadingStates = new LoadingState[m_loadingStates.Count];
             m_loadingStates.Values.CopyTo(loadingStates, 0);
             m_loadingStates.Clear();
@@ -194,6 +206,16 @@ namespace DGame
             {
                 state.Cancel();
             }
+            if (m_loadedAssetObjectsLinkedList != null)
+            {
+                foreach (var loadedAssetObject in m_loadedAssetObjectsLinkedList)
+                {
+                    ReleaseAsset(loadedAssetObject, true);
+                }
+                m_loadedAssetObjectsLinkedList.Clear();
+            }
+            m_currentProcessNode = null;
+            ReleaseSubSpriteAssets();
         }
     }
 }

@@ -310,7 +310,7 @@ class WorkflowCoreTests(unittest.TestCase):
         class RuntimeClient:
             def raw(self, args):
                 self.args = args
-                return json.dumps({"IsPlaying": True, "UnityVersion": "2022.3"})
+                return json.dumps({"IsPlaying": True, "UnityVersion": "2022.3", "Platform": "WindowsPlayer"})
 
         client = RuntimeClient()
         result = runtime_status(client, player)
@@ -325,7 +325,7 @@ class WorkflowCoreTests(unittest.TestCase):
                         "port": 7900, "evalToken": "token"}), encoding="utf-8")
         class RuntimeClient:
             def raw(self, args):
-                return json.dumps({"IsPlaying": True})
+                return json.dumps({"IsPlaying": True, "UnityVersion": "2022.3", "Platform": "WindowsPlayer"})
         result = runtime_status(RuntimeClient(), player)
         self.assertEqual(result["port"], 7900)
 
