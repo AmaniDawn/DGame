@@ -20,14 +20,17 @@ namespace DGame
 #endif
         public UnityEngine.Object assetTarget { get; }
 
+        public bool IsSubSprite { get; }
+
 #if UNITY_EDITOR
         public bool isSelect { get; }
 #endif
 
-        public LoadedAssetObject(ISetAssetObject assetObject, UnityEngine.Object assetTarget)
+        public LoadedAssetObject(ISetAssetObject assetObject, UnityEngine.Object assetTarget, bool isSubSprite = false)
         {
             this.assetObject = assetObject;
             this.assetTarget = assetTarget;
+            IsSubSprite = isSubSprite;
         }
     }
 }

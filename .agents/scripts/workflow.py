@@ -9,7 +9,7 @@ import sys
 
 from workflow_lib import checks, domains, evaluations, luban
 from workflow_lib.core import (Context, Run, WorkflowError, approve, blocked, ensure_project_unity_cli,
-                                project_lock, read_json, render_report)
+                                project_lock, read_json, redact, render_report)
 from workflow_lib.unity import Unity, decode_response
 
 
@@ -36,6 +36,8 @@ def parser():
     unity = commands.add_parser("unity", help="Audited project-bound Unity operations.")
     sub = unity.add_subparsers(dest="action", required=True)
     sub.add_parser("list")
+    describe = sub.add_parser("describe", help="Read a registered command's exact parameters and schema.")
+    describe.add_argument("name")
     for action in ("query", "preview"):
         command = sub.add_parser(action)
         command.add_argument("name")
@@ -79,7 +81,9 @@ def dispatch(run, args):
         unity = Unity(run)
         with project_lock(run.context):
             if args.action == "list":
-                run.step("registered-commands", unity.discover)
+                run.step("registered-commands", lambda: unity.discover(require_ready=False))
+            elif args.action == "describe":
+                run.step("command-schema", lambda: unity.describe(args.name))
             elif args.action == "runtime-status":
                 run.step("runtime-status", lambda: runtime_status(unity, args.runtime_path))
             elif args.action == "apply":
@@ -166,6 +170,12 @@ def runtime_status(unity, path):
     value = decode_response(unity.raw(["command", "--runtime-path", str(path), "runtime", "status"]))
     if not isinstance(value, dict):
         blocked("Runtime status response is not an object.")
+    version = value.get("unityVersion", value.get("UnityVersion"))
+    platform = value.get("platform", value.get("Platform"))
+    playing = value.get("isPlaying", value.get("IsPlaying"))
+    if (not isinstance(version, str) or not version.strip()
+            or not isinstance(platform, str) or not platform.strip() or not isinstance(playing, bool)):
+        blocked("Runtime result does not match the Player status contract.")
     return {"runtimePath": str(path), "workingDirectory": descriptor_directory,
             "port": port, "status": value}
 
@@ -200,7 +210,7 @@ def main(argv=None):
         run.data["steps"].append({"name": "unexpected-error", "status": "failed", "message": f"{type(exc).__name__}: {exc}", "required": True})
     code = run.finish()
     print(f"{run.data['status']}: {run.path / 'report.md'}")
-    for step in run.data["steps"]:
+    for step in redact(run.data)["steps"]:
         print(f"  {step['name']}: {step['status']}")
         if step.get("message"):
             print("    " + step["message"])

@@ -26,6 +26,10 @@ $taskExpectedVersion = (Get-Content -LiteralPath '.agents/scripts/tool-versions.
 
 复杂参数按当前工具描述传入；MCP 使用结构化输入，CLI 使用终端能可靠传递的 JSON 参数。`--params-file` 属于 Workflow，不是原生 CLI 的统一参数。
 
+需要 Workflow 保存命令参数与 Schema 时使用 `python .agents/scripts/workflow.py unity describe "scene get_hierarchy"`；目录保留完整的 group/name 身份，禁止仅凭同名 list/get/status 推断命令。JSON 响应可能是原始结果、响应外壳或 NDJSON；不能剥掉测试的 summary/results，业务 error 和 busy 必须分别报告失败与阻塞。
+
+Workflow 构建预览要求显式给出 `target`、`output-path` 和非空 `scenes`；原生 dry-run 结果必须同时满足 `status=dry_run`、`valid=true`、`validationErrors=[]`，才可生成计划。审批后执行前再次预检，不能让 Editor 默认设置改变授权范围。
+
 ## 编译与测试
 
 MCP 使用对应工具；CLI 复用上面的绝对路径，按阶段执行以下命令，每次检查响应后才继续：
