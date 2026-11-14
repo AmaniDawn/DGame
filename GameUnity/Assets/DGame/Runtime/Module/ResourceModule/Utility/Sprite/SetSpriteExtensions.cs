@@ -62,7 +62,8 @@ namespace DGame
             {
                 return;
             }
-            ResourceExtComponent.Instance.SetSubSprite(image, location, spriteName, setNativeSize, cancellationToken)
+            ResourceExtComponent.Instance.SetSubSprite(
+                SetSpriteObject.Create(image, location, setNativeSize, ct: cancellationToken), spriteName, cancellationToken)
                 .Forget();
         }
 
@@ -80,7 +81,8 @@ namespace DGame
             {
                 return;
             }
-            ResourceExtComponent.Instance.SetSubSprite(spriteRenderer, location, spriteName, cancellationToken)
+            ResourceExtComponent.Instance.SetSubSprite(
+                SetSpriteObject.Create(spriteRenderer, location, ct: cancellationToken), spriteName, cancellationToken)
                 .Forget();
         }
     }

@@ -76,6 +76,10 @@ namespace DGame
         {
             Instance = this;
             await UniTask.Yield(PlayerLoopTiming.LastPostLateUpdate);
+            if (m_isDestroyed)
+            {
+                return;
+            }
             IObjectPoolModule poolModule = ModuleSystem.GetModule<IObjectPoolModule>();
             m_assetItemPool = poolModule.CreateMultiSpawnObjectPool<AssetItemObject>("SetAssetPool",
                 autoReleaseInternal, 16, 60, 0);
@@ -121,8 +125,7 @@ namespace DGame
                 var next = current.Next;
                 if(current.Value.assetObject.IsCanRelease())
                 {
-                    m_assetItemPool.Recycle(current.Value.assetTarget);
-                    MemoryPool.Release(current.Value.assetObject);
+                    ReleaseAsset(current.Value);
                     m_loadedAssetObjectsLinkedList.Remove(current);
                 }
                 current = next;
@@ -137,10 +140,24 @@ namespace DGame
             // Debugger.Info("======== ResourceExtComponent.释放无引用资源 ========");
         }
 
-        private void SetAsset(ISetAssetObject setAssetObject, UnityEngine.Object assetObject)
+        private void SetAsset(ISetAssetObject setAssetObject, UnityEngine.Object assetObject, bool isSubSprite = false)
         {
-            m_loadedAssetObjectsLinkedList.AddLast(new LoadedAssetObject(setAssetObject, assetObject));
+            m_loadedAssetObjectsLinkedList.AddLast(new LoadedAssetObject(setAssetObject, assetObject, isSubSprite));
             setAssetObject.SetAsset(assetObject);
+        }
+
+        private void ReleaseAsset(LoadedAssetObject loadedAssetObject, bool isShutdown = false)
+        {
+            if (loadedAssetObject.IsSubSprite)
+            {
+                ReleaseSubSprite(loadedAssetObject.assetObject.Location);
+            }
+            else if (!isShutdown || (m_assetItemPool != null && m_assetItemPool.Count > 0))
+            {
+                // 模块关闭时对象池可能先于组件清空。
+                m_assetItemPool.Recycle(loadedAssetObject.assetTarget);
+            }
+            MemoryPool.Release(loadedAssetObject.assetObject);
         }
 
         private async UniTask TryWaitingLoading(string assetObjectKey)

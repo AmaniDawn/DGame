@@ -140,7 +140,7 @@ if (asyncHandle.IsValid) { var clip = asyncHandle.AssetObject as AudioClip; }
 | 手动持有 YooAsset 句柄 | `LoadAssetAsyncHandle<T>(location, packageName)` | 是，持有者调用 `handle.Dispose()` |
 | 实例化 GameObject Prefab | `LoadGameObjectAsync(location, parent, cancellationToken)` / `LoadGameObject(location, parent)` | 否，不对实例调 `UnloadAsset`，销毁实例 GameObject |
 | UI `Image` / `SpriteRenderer` 设置图片 | `image.SetSprite(...)` / `spriteRenderer.SetSprite(...)` | 否，不存在 `ReleaseSprite`；传取消令牌，组件链路管理已设置资源 |
-| 图集子图 | `SetSubSprite(image, atlasLocation, spriteName, ...)` | 否，不存在 `ReleaseSprite`；窗口销毁或重新设置时由组件链路处理 |
+| 图集子图 | `SetSubSprite(image, atlasLocation, spriteName, ...)` | 否；组件跟踪使用记录，清空、换图或销毁后由分帧扫描归还引用 |
 | UI Widget Prefab | `CreateWidgetByPath<T>` / `CreateWidgetByPathAsync<T>` | 否，走 `UIWidget.Destroy` / UI 生命周期 |
 | AudioClip 播放 | AudioModule 相关播放接口 | 通常否，由 AudioModule handle 池和停止逻辑管理 |
 
@@ -173,6 +173,9 @@ public static void SetSubSprite(this SpriteRenderer spriteRenderer, string locat
 - `Image.SetSprite` 的 callback 是 `Action<Image>`，不是 `Action<Sprite>`。
 - `SpriteRenderer.SetSprite` 的 callback 是 `Action<SpriteRenderer>`。
 - `SetSubSprite` 当前没有 callback 参数。
+- `SetSubSprite` 支持 `.spriteatlas/.spriteatlasv2` 和纹理切片；同地址共享句柄，图集 `GetSprite` 克隆按名称复用并随最后一份引用释放。
+- `SetSprite` 与 `SetSubSprite` 共用目标组件的请求顺序，新请求替换旧请求；失败或取消保留当前图片。直接清空 `sprite` 不会取消尚未完成的加载。
+- 隐藏或禁用目标但仍持有图片时保留资源；清空、替换或销毁目标后由既有分帧扫描回收，扩展组件销毁时清理全部句柄与克隆。
 - UI 中传入 `gameObject.GetCancellationTokenOnDestroy()`，避免窗口销毁后继续设置 Sprite。
 
 ---
