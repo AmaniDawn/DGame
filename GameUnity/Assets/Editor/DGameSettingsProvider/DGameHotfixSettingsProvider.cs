@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Generic;
 using DGame;
-using HybridCLR.Editor.Settings;
+using HybridCLR.Settings;
 using UnityEditor;
 using UnityEngine;
 using YooAsset.Editor;
@@ -239,7 +239,7 @@ public static class DGameHotfixSettingsProvider
 
     private static void RefreshHybridClrState()
     {
-        HybridCLRSettings settings = HybridCLRSettings.LoadOrCreate();
+        HybridCLRSettings settings = HybridCLRSettings.instance;
         m_isHybridClrSettingsEnabled = settings != null && settings.enable;
     }
 

@@ -6,8 +6,8 @@ using UnityEngine;
 
 #if ENABLE_HYBRIDCLR
 
-using HybridCLR.Editor;
-using HybridCLR.Editor.Commands;
+using HybridCLR;
+using HybridCLR.Commands;
 
 #endif
 
@@ -101,7 +101,7 @@ namespace DGame
             bool success = true;
 
             // 遍历配置中指定的所有AOT元数据程序集
-            foreach (var aotDll in SettingsUtil.AOTAssemblyNames)
+            foreach (var aotDll in DGame.Settings.UpdateSettings.AOTMetaAssemblies)
             {
                 // 构建源DLL文件的完整路径
                 string srcDllPath = $"{aotAssembliesSrcDir}/{aotDll}";
