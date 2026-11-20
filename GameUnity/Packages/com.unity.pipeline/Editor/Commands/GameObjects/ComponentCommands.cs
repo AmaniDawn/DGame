@@ -6,6 +6,7 @@ using Unity.Pipeline.Editor.Authoring;
 using Unity.Pipeline.Models;
 using UnityEditor;
 using UnityEngine;
+using static Unity.Pipeline.Editor.Commands.CommandFailure;
 
 namespace Unity.Pipeline.Editor.Commands.GameObjects
 {
@@ -28,28 +29,33 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
         /// <summary>
         /// Add a component (resolved by type name) to a GameObject. Registered with
         /// <see cref="Undo.AddComponent{T}(GameObject)"/> via the non-generic overload so the addition
-        /// is reversible. Returns the new component's identity so its properties can be set next.
+        /// is reversible. Writes the new component's identity so its properties can be set next.
         /// </summary>
-        [CliGroupCommand(Group, "Add a component (by type name) to a GameObject.", Tags = new[] { "gameobjects/components" })]
-        public static AuthoringResult Add(
+        [CliGroupCommand(Group, "Add a component (by type name) to a GameObject.", Tags = new[] { "gameobjects/components" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode Add(CommandContext cmd,
             [CliArg("target", "Handle of the GameObject.", Required = true)] ObjectRef target,
             [CliArg("type", "Component type name (e.g. 'Rigidbody' or 'UnityEngine.Camera').", Required = true)] string type)
         {
-            var go = GameObjectCommands.ResolveGameObject(target, "target");
+            var code = GameObjectCommands.TryResolveGameObject(target, "target", out var go, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
+
             var componentType = TypeResolver.ResolveComponentType(type);
             if (componentType == null)
-                throw new ArgumentException($"Could not resolve component type '{type}'.");
+                return Fail(cmd, ExitCode.NotFound, $"Could not resolve component type '{type}'.");
 
             using (new AuthoringUndoScope("Add Component"))
             {
                 var component = Undo.AddComponent(go, componentType);
                 if (component == null)
-                    throw new InvalidOperationException(
+                    return Fail(cmd, ExitCode.Failed,
                         $"Failed to add component '{componentType.Name}' to '{go.name}' (it may be disallowed on this GameObject).");
 
                 GameObjectCommands.MarkDirty(go);
-                return ObjectResolver.Describe(component);
+                cmd.Result.Write(ObjectResolver.Describe(component));
             }
+
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -59,12 +65,16 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
         /// </summary>
         [CliGroupCommand(Group,
             "Remove a component from a GameObject. Provide either a component handle (target) or a GameObject handle (target) plus a type name.",
-            Tags = new[] { "gameobjects/components" })]
-        public static AuthoringResult Remove(
+            Tags = new[] { "gameobjects/components" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode Remove(CommandContext cmd,
             [CliArg("target", "Handle of the component to remove, OR of the GameObject when 'type' is given.", Required = true)] ObjectRef target,
             [CliArg("type", "Component type name to remove from the target GameObject (omit when 'target' already points at a component).")] string type = null)
         {
-            var component = ResolveComponent(target, type);
+            var code = TryResolveComponent(target, type, out var component, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
+
             var go = component.gameObject;
             var described = ObjectResolver.Describe(component);
 
@@ -74,7 +84,8 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
                 GameObjectCommands.MarkDirty(go);
             }
 
-            return described;
+            cmd.Result.Write(described);
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -84,12 +95,74 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
         /// </summary>
         [CliGroupCommand(Group,
             "Get a component's serialized properties as a JSON map. Address the component by handle, or by GameObject handle + type.",
-            Tags = new[] { "gameobjects/components" })]
-        public static ComponentPropertiesResult GetProperties(
+            Tags = new[] { "gameobjects/components" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetProperties(CommandContext cmd,
             [CliArg("target", "Handle of the component, OR of the GameObject when 'type' is given.", Required = true)] ObjectRef target,
             [CliArg("type", "Component type name on the target GameObject (omit when 'target' is a component handle).")] string type = null)
         {
-            var component = ResolveComponent(target, type);
+            var code = TryResolveComponent(target, type, out var component, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
+
+            cmd.Result.Write(ReadProperties(cmd, component));
+            return ExitCode.Success;
+        }
+
+        /// <summary>
+        /// Set one or more serialized properties on a component. Each entry in <paramref name="properties"/>
+        /// maps a property path (e.g. "m_Mass" or "myField") to a JSON value. The whole batch is one
+        /// Undo step: <see cref="Undo.RecordObject"/> snapshots the component, every property is written
+        /// through <see cref="SerializedPropertyConverter.Write"/>, and
+        /// <see cref="SerializedObject.ApplyModifiedProperties"/> commits + dirties as one operation.
+        /// An unknown property name fails the whole batch with a clear error (no partial apply).
+        /// </summary>
+        [CliGroupCommand(Group,
+            "Set serialized properties on a component (one Undo step). 'properties' maps property name -> value; object references accept an ObjectRef handle.",
+            Tags = new[] { "gameobjects/components" },
+            Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetProperties(CommandContext cmd,
+            [CliArg("target", "Handle of the component, OR of the GameObject when 'type' is given.", Required = true)] ObjectRef target,
+            [CliArg("properties", "Map of serialized property name to value. Vectors/colors are arrays; object refs are handle objects.", Required = true)] JObject properties,
+            [CliArg("type", "Component type name on the target GameObject (omit when 'target' is a component handle).")] string type = null)
+        {
+            if (properties == null || properties.Count == 0)
+                return Fail(cmd, ExitCode.InvalidUsage, "'properties' must contain at least one property to set.");
+
+            var code = TryResolveComponent(target, type, out var component, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
+
+            using (new AuthoringUndoScope("Set Component Properties"))
+            {
+                Undo.RecordObject(component, "Set Component Properties");
+                var so = new SerializedObject(component);
+
+                foreach (var pair in properties)
+                {
+                    var property = so.FindProperty(pair.Key);
+                    // Nothing is applied until ApplyModifiedProperties, so returning here writes nothing.
+                    if (property == null)
+                        return Fail(cmd, ExitCode.NotFound,
+                            $"Component '{component.GetType().Name}' has no serialized property '{pair.Key}'.");
+
+                    SerializedPropertyConverter.Write(property, pair.Value);
+                }
+
+                // Applies the changes, registers Undo, and dirties the object/scene.
+                so.ApplyModifiedProperties();
+                GameObjectCommands.MarkDirty(component.gameObject);
+            }
+
+            // Re-read so the caller sees the committed values.
+            cmd.Result.Write(ReadProperties(cmd, component));
+            return ExitCode.Success;
+        }
+
+        #region Helpers
+
+        static ComponentPropertiesResult ReadProperties(CommandContext cmd, Component component)
+        {
             var so = new SerializedObject(component);
 
             var properties = new Dictionary<string, JToken>();
@@ -107,7 +180,9 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
                 }
                 catch (Exception ex)
                 {
+                    // Degrade per property rather than failing the whole read.
                     properties[iterator.name] = new JValue($"<error:{ex.Message}>");
+                    cmd.Log.Warning($"Could not read property '{iterator.name}': {ex.Message}");
                 }
             }
 
@@ -119,60 +194,38 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
         }
 
         /// <summary>
-        /// Set one or more serialized properties on a component. Each entry in <paramref name="properties"/>
-        /// maps a property path (e.g. "m_Mass" or "myField") to a JSON value. The whole batch is one
-        /// Undo step: <see cref="Undo.RecordObject"/> snapshots the component, every property is written
-        /// through <see cref="SerializedPropertyConverter.Write"/>, and
-        /// <see cref="SerializedObject.ApplyModifiedProperties"/> commits + dirties as one operation.
-        /// An unknown property name fails the whole batch with a clear error (no partial apply).
-        /// </summary>
-        [CliGroupCommand(Group,
-            "Set serialized properties on a component (one Undo step). 'properties' maps property name -> value; object references accept an ObjectRef handle.",
-            Tags = new[] { "gameobjects/components" })]
-        public static ComponentPropertiesResult SetProperties(
-            [CliArg("target", "Handle of the component, OR of the GameObject when 'type' is given.", Required = true)] ObjectRef target,
-            [CliArg("properties", "Map of serialized property name to value. Vectors/colors are arrays; object refs are handle objects.", Required = true)] JObject properties,
-            [CliArg("type", "Component type name on the target GameObject (omit when 'target' is a component handle).")] string type = null)
-        {
-            if (properties == null || properties.Count == 0)
-                throw new ArgumentException("'properties' must contain at least one property to set.");
-
-            var component = ResolveComponent(target, type);
-
-            using (new AuthoringUndoScope("Set Component Properties"))
-            {
-                Undo.RecordObject(component, "Set Component Properties");
-                var so = new SerializedObject(component);
-
-                foreach (var pair in properties)
-                {
-                    var property = so.FindProperty(pair.Key);
-                    if (property == null)
-                        throw new ArgumentException(
-                            $"Component '{component.GetType().Name}' has no serialized property '{pair.Key}'.");
-
-                    SerializedPropertyConverter.Write(property, pair.Value);
-                }
-
-                // Applies the changes, registers Undo, and dirties the object/scene.
-                so.ApplyModifiedProperties();
-                GameObjectCommands.MarkDirty(component.gameObject);
-            }
-
-            // Re-read so the caller sees the committed values.
-            return GetProperties(target, type);
-        }
-
-        #region Helpers
-
-        /// <summary>
         /// Resolve a component either directly (the handle points at a Component) or by GameObject
-        /// handle + type name. Throws a descriptive error when neither resolves.
+        /// handle + type name. Throws an <see cref="ArgumentException"/> with a descriptive message
+        /// when neither resolves.
         /// </summary>
         internal static Component ResolveComponent(ObjectRef handle, string type)
         {
-            if (!ObjectResolver.TryResolve(handle, out var obj, out var error))
-                throw new ArgumentException($"Could not resolve 'target': {error}");
+            if (TryResolveComponent(handle, type, out var component, out var error) != ExitCode.Success)
+                throw new ArgumentException(error);
+            return component;
+        }
+
+        /// <summary>
+        /// Resolve a component either directly (the handle points at a Component) or by GameObject
+        /// handle + type name. Returns <see cref="ExitCode.NotFound"/> when the handle, the type or the
+        /// component doesn't exist and <see cref="ExitCode.InvalidUsage"/> when the arguments don't
+        /// fit together, with <paramref name="error"/> saying why.
+        /// </summary>
+        internal static ExitCode TryResolveComponent(ObjectRef handle, string type, out Component component, out string error)
+        {
+            component = null;
+            error = null;
+            if (handle == null || handle.IsEmpty)
+            {
+                error = "'target' is required.";
+                return ExitCode.InvalidUsage;
+            }
+
+            if (!ObjectResolver.TryResolve(handle, out var obj, out var resolveError))
+            {
+                error = $"Could not resolve 'target': {resolveError}";
+                return ExitCode.NotFound;
+            }
 
             // The handle already points at a specific Component: honour it directly so we never
             // mutate/remove the wrong instance when the GameObject has several components of the same
@@ -184,32 +237,52 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
                 {
                     var requestedType = TypeResolver.ResolveComponentType(type);
                     if (requestedType == null)
-                        throw new ArgumentException($"Could not resolve component type '{type}'.");
+                    {
+                        error = $"Could not resolve component type '{type}'.";
+                        return ExitCode.NotFound;
+                    }
+
                     if (!requestedType.IsInstanceOfType(directComponent))
-                        throw new ArgumentException(
-                            $"'target' resolves to a {directComponent.GetType().Name}, which is not a '{requestedType.Name}'.");
+                    {
+                        error = $"'target' resolves to a {directComponent.GetType().Name}, which is not a '{requestedType.Name}'.";
+                        return ExitCode.InvalidUsage;
+                    }
                 }
 
-                return directComponent;
+                component = directComponent;
+                return ExitCode.Success;
             }
 
             var go = obj as GameObject;
             if (go == null)
-                throw new ArgumentException($"'target' did not resolve to a GameObject or Component (got {obj.GetType().Name}).");
+            {
+                error = $"'target' did not resolve to a GameObject or Component (got {obj.GetType().Name}).";
+                return ExitCode.InvalidUsage;
+            }
 
             if (string.IsNullOrEmpty(type))
-                throw new ArgumentException("'type' is required when 'target' is a GameObject.");
+            {
+                error = "'type' is required when 'target' is a GameObject.";
+                return ExitCode.InvalidUsage;
+            }
 
             var componentType = TypeResolver.ResolveComponentType(type);
             if (componentType == null)
-                throw new ArgumentException($"Could not resolve component type '{type}'.");
+            {
+                error = $"Could not resolve component type '{type}'.";
+                return ExitCode.NotFound;
+            }
 
-            var component = go.GetComponent(componentType);
+            component = go.GetComponent(componentType);
             if (component == null)
-                throw new ArgumentException($"GameObject '{go.name}' has no component of type '{componentType.Name}'.");
+            {
+                error = $"GameObject '{go.name}' has no component of type '{componentType.Name}'.";
+                return ExitCode.NotFound;
+            }
 
-            return component;
+            return ExitCode.Success;
         }
+
 
         #endregion
     }

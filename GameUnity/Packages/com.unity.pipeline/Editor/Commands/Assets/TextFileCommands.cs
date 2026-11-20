@@ -24,33 +24,43 @@ namespace Unity.Pipeline.Editor.Commands.Assets
     {
         const string Group = "asset";
 
-        [CliGroupCommand(Group, "Read a UTF-8 text file under the authoring root and return its contents.", MainThreadRequired = true, Tags = new[] { "assets/text" })]
-        public static ReadTextFileResult ReadText(
+        [CliGroupCommand(Group, "Read a UTF-8 text file under the authoring root and return its contents.", MainThreadRequired = true, Tags = new[] { "assets/text" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode ReadText(CommandContext cmd,
             [CliArg("path", "Text file path relative to the authoring root. The Assets/ prefix is optional.", Required = true)] string path,
             [CliArg("max-bytes", "Reject files larger than this many bytes (default 1048576 = 1 MiB) to avoid huge payloads.")] int maxBytes = 1024 * 1024)
         {
             var normalized = ProjectPaths.Resolve(path, out var error);
             if (normalized == null)
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.InvalidUsage;
+            }
 
             var absolute = ToAbsolute(normalized);
             if (!File.Exists(absolute))
-                throw new ArgumentException($"No file at '{normalized}'.");
+            {
+                cmd.Log.Error($"No file at '{normalized}'.");
+                return ExitCode.NotFound;
+            }
 
             var length = new FileInfo(absolute).Length;
             if (length > maxBytes)
-                throw new ArgumentException($"File '{normalized}' is {length} bytes, which exceeds max-bytes={maxBytes}.");
+            {
+                cmd.Log.Error($"File '{normalized}' is {length} bytes, which exceeds max-bytes={maxBytes}. Pass a larger max-bytes to read it.");
+                return ExitCode.InvalidUsage;
+            }
 
-            return new ReadTextFileResult
+            cmd.Result.Write(new ReadTextFileResult
             {
                 AssetPath = normalized,
                 Bytes = (int)length,
                 Contents = File.ReadAllText(absolute)
-            };
+            });
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Write UTF-8 text to a file under the authoring root, then import it. Overwriting an existing file requires confirm=true.", Tags = new[] { "assets/text" })]
-        public static AuthoringResult WriteText(
+        [CliGroupCommand(Group, "Write UTF-8 text to a file under the authoring root, then import it. Overwriting an existing file requires confirm=true.", Tags = new[] { "assets/text" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode WriteText(CommandContext cmd,
             [CliArg("path", "Text file path relative to the authoring root, including extension. The Assets/ prefix is optional.", Required = true)] string path,
             [CliArg("contents", "The full text content to write (replaces the file).", Required = true)] string contents,
             [CliArg("confirm", "Required (true) only when overwriting an existing file at the path.")] bool confirm = false,
@@ -58,18 +68,30 @@ namespace Unity.Pipeline.Editor.Commands.Assets
         {
             var normalized = ProjectPaths.Resolve(path, out var error);
             if (normalized == null)
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.InvalidUsage;
+            }
 
             if (contents == null)
-                throw new ArgumentException("contents is required (use an empty string to write an empty file).");
+            {
+                cmd.Log.Error("contents is required (use an empty string to write an empty file).");
+                return ExitCode.InvalidUsage;
+            }
 
             var absolute = ToAbsolute(normalized);
             var exists = File.Exists(absolute);
             if (exists && !confirm)
-                throw new ArgumentException($"A file already exists at '{normalized}'. Pass confirm=true to overwrite it.");
+            {
+                cmd.Log.Error($"A file already exists at '{normalized}'. Pass confirm=true to overwrite it.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (dryRun)
-                return new AuthoringResult { AssetPath = normalized, Type = "TextAsset" };
+            {
+                cmd.Result.Write(new AuthoringResult { AssetPath = normalized, Type = "TextAsset" });
+                return ExitCode.Success;
+            }
 
             EnsureParentFolder(normalized);
             File.WriteAllText(absolute, contents);
@@ -78,7 +100,8 @@ namespace Unity.Pipeline.Editor.Commands.Assets
             var loaded = AssetDatabase.LoadMainAssetAtPath(normalized);
             var result = ObjectResolver.Describe(loaded) ?? new AuthoringResult { Type = "TextAsset" };
             result.AssetPath = normalized;
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         private static void EnsureParentFolder(string assetPath)
@@ -112,7 +135,7 @@ namespace Unity.Pipeline.Editor.Commands.Assets
         }
     }
 
-    /// <summary>Result of <c>read_text_file</c>: the file contents plus its identity and size.</summary>
+    /// <summary>Result of <c>asset read_text</c>: the file contents plus its identity and size.</summary>
     [Serializable]
     class ReadTextFileResult
     {

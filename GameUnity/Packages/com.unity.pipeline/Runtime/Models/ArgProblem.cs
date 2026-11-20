@@ -18,7 +18,7 @@ namespace Unity.Pipeline
     /// localizes. The envelope's <c>errorDetails</c> carries the English fallback for curl, MCP,
     /// and for kinds a client has never heard of.
     /// </summary>
-    public class ArgProblem
+    internal class ArgProblem
     {
         /// <summary>The kind of issue with provided argument.</summary>
         [JsonProperty("kind")]
@@ -57,7 +57,7 @@ namespace Unity.Pipeline
     /// Kinds of argument-binding defect. Serialized camelCase (<c>unknownName</c>) to match the
     /// CLI's wire expectations; the C# spelling stays PascalCase per package convention.
     /// </summary>
-    public enum ArgProblemKind
+    internal enum ArgProblemKind
     {
         // Shape — schema-independent.
 

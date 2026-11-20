@@ -8,7 +8,7 @@ namespace Unity.Pipeline.Models
     /// Provides Editor state information for CLI tools and automation scripts.
     /// </summary>
     [Serializable]
-    public class StatusResponse
+    internal class StatusResponse
     {
         /// <summary>
         /// Current Editor status: "ready", "compiling", "busy"

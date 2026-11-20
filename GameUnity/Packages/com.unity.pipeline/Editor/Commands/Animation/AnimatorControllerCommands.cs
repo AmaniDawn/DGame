@@ -34,25 +34,38 @@ namespace Unity.Pipeline.Editor.Commands.Animation
         [CliGroupCommand(Group,
             "Create an .controller AnimatorController asset (with a default Base Layer) under the authoring root.",
             MainThreadRequired = true,
-            Tags = new[] { "animation/animator" })]
-        public static AuthoringResult CreateController(
+            Tags = new[] { "animation/animator" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode CreateController(CommandContext cmd,
             [CliArg("path", "Asset path ending in .controller, relative to the authoring root. The Assets/ prefix is optional.", Required = true)] string path,
             [CliArg("confirm", "Required (true) only when overwriting an existing asset at the path.")] bool confirm = false,
             [CliArg("dry-run", "If true, validate inputs and report what would be created without writing anything.")] bool dryRun = false)
         {
             var normalized = ProjectPaths.Resolve(path, out var error);
             if (normalized == null)
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.InvalidUsage;
+            }
 
             if (!string.Equals(Path.GetExtension(normalized), ".controller", StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException($"Animator controller path '{normalized}' must end in .controller.");
+            {
+                cmd.Log.Error($"Animator controller path '{normalized}' must end in .controller.");
+                return ExitCode.InvalidUsage;
+            }
 
             var exists = AssetDatabase.LoadMainAssetAtPath(normalized) != null;
             if (exists && !confirm)
-                throw new ArgumentException($"An asset already exists at '{normalized}'. Pass confirm=true to overwrite it.");
+            {
+                cmd.Log.Error($"An asset already exists at '{normalized}'. Pass confirm=true to overwrite it.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (dryRun)
-                return new AuthoringResult { AssetPath = normalized, Type = nameof(AnimatorController) };
+            {
+                cmd.Result.Write(new AuthoringResult { AssetPath = normalized, Type = nameof(AnimatorController) });
+                return ExitCode.Success;
+            }
 
             EnsureParentFolder(normalized);
 
@@ -67,28 +80,37 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             var loaded = AssetDatabase.LoadMainAssetAtPath(normalized);
             var result = ObjectResolver.Describe(loaded) ?? new AuthoringResult { Type = nameof(AnimatorController) };
             result.AssetPath = normalized;
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
-            "Add a parameter (Float | Int | Bool | Trigger) to an AnimatorController. A duplicate name returns code 'duplicate_parameter'.",
+            "Add a parameter (Float | Int | Bool | Trigger) to an AnimatorController. A duplicate name fails.",
             MainThreadRequired = true,
-            Tags = new[] { "animation/animator" })]
-        public static object AddParameter(
+            Tags = new[] { "animation/animator" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode AddParameter(CommandContext cmd,
             [CliArg("controller", "Reference to the AnimatorController to edit (path / guid / globalId).", Required = true)] ObjectRef controller,
             [CliArg("name", "Parameter name.", Required = true)] string name,
             [CliArg("type", "Parameter type: Float | Int | Bool | Trigger.", Required = true)] string type = null,
             [CliArg("default-value", "Default value for Float/Int/Bool (ignored for Trigger).")] JToken defaultValue = null,
             [CliArg("dry-run", "If true, validate inputs without writing the parameter.")] bool dryRun = false)
         {
-            var (ctrl, ctrlPath) = ResolveController(controller);
+            if (!TryResolveController(cmd, controller, out var ctrl, out var ctrlPath, out var failure))
+                return failure;
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("name is required.");
+            {
+                cmd.Log.Error("name is required.");
+                return ExitCode.InvalidUsage;
+            }
 
             var paramType = ParseParameterType(type);
 
             if (ctrl.parameters.Any(p => p.name == name))
-                return ErrorResult.PackageStyle("duplicate_parameter", $"A parameter named '{name}' already exists on '{ctrlPath}'.");
+            {
+                cmd.Log.Error($"A parameter named '{name}' already exists on '{ctrlPath}'.");
+                return ExitCode.Failed;
+            }
 
             // Resolve (and validate) the default value up front so dry-run also fails on a bad value.
             float defFloat = 0f;
@@ -120,7 +142,10 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             };
 
             if (dryRun)
-                return result;
+            {
+                cmd.Result.Write(result);
+                return ExitCode.Success;
+            }
 
             var parameter = new AnimatorControllerParameter
             {
@@ -134,26 +159,35 @@ namespace Unity.Pipeline.Editor.Commands.Animation
 
             Persist(ctrl);
             FillIdentity(result, ctrl);
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Add a layer to an AnimatorController.",
             MainThreadRequired = true,
-            Tags = new[] { "animation/animator" })]
-        public static object AddLayer(
+            Tags = new[] { "animation/animator" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode AddLayer(CommandContext cmd,
             [CliArg("controller", "Reference to the AnimatorController to edit (path / guid / globalId).", Required = true)] ObjectRef controller,
             [CliArg("name", "Layer name.", Required = true)] string name,
             [CliArg("weight", "Layer weight (default 1).")] float weight = 1f,
             [CliArg("blending-mode", "Blending mode: Override | Additive (default Override).")] string blendingMode = "Override",
             [CliArg("dry-run", "If true, validate inputs without writing the layer.")] bool dryRun = false)
         {
-            var (ctrl, ctrlPath) = ResolveController(controller);
+            if (!TryResolveController(cmd, controller, out var ctrl, out var ctrlPath, out var failure))
+                return failure;
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("name is required.");
+            {
+                cmd.Log.Error("name is required.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (!Enum.TryParse<AnimatorLayerBlendingMode>(blendingMode, ignoreCase: true, out var mode))
-                throw new ArgumentException($"Unknown blending-mode '{blendingMode}'. Use Override | Additive.");
+            {
+                cmd.Log.Error($"Unknown blending-mode '{blendingMode}'. Use Override | Additive.");
+                return ExitCode.InvalidUsage;
+            }
 
             var index = ctrl.layers.Length;
             var result = new AddLayerResult
@@ -164,7 +198,10 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             };
 
             if (dryRun)
-                return result;
+            {
+                cmd.Result.Write(result);
+                return ExitCode.Success;
+            }
 
             // AddLayer(name) appends a layer with a fresh state machine. We then set its weight/blending
             // by writing the layer array back (AnimatorControllerLayer is a value-like wrapper, so the
@@ -177,15 +214,17 @@ namespace Unity.Pipeline.Editor.Commands.Animation
 
             Persist(ctrl);
             FillIdentity(result, ctrl);
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Add a state to a layer, optionally with a motion (AnimationClip or BlendTree) and as the layer default. " +
-            "A layer name with no match returns code 'layer_not_found'.",
+            "A layer that doesn't exist fails with not-found.",
             MainThreadRequired = true,
-            Tags = new[] { "animation/animator" })]
-        public static object AddState(
+            Tags = new[] { "animation/animator" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode AddState(CommandContext cmd,
             [CliArg("controller", "Reference to the AnimatorController to edit (path / guid / globalId).", Required = true)] ObjectRef controller,
             [CliArg("layer", "Layer index (int) or name (string). Default 0 (Base Layer).")] JToken layer = null,
             [CliArg("name", "State name.", Required = true)] string name = null,
@@ -194,12 +233,19 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             [CliArg("position", "Optional [x, y] node position in the graph (cosmetic).")] JArray position = null,
             [CliArg("dry-run", "If true, validate inputs without writing the state.")] bool dryRun = false)
         {
-            var (ctrl, ctrlPath) = ResolveController(controller);
+            if (!TryResolveController(cmd, controller, out var ctrl, out var ctrlPath, out var failure))
+                return failure;
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("name is required.");
+            {
+                cmd.Log.Error("name is required.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (!TryResolveLayer(ctrl, layer, out var layerIndex, out var layerError))
-                return ErrorResult.PackageStyle("layer_not_found", layerError);
+            {
+                cmd.Log.Error(layerError);
+                return ExitCode.NotFound;
+            }
 
             // Resolve an optional motion. Only AnimationClip / Motion (BlendTree derives from Motion) are
             // valid. A handle that doesn't resolve to a Motion is a clear error.
@@ -207,10 +253,16 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             if (motion != null && !motion.IsEmpty)
             {
                 if (!ObjectResolver.TryResolve(motion, out var motionObj, out var motionError))
-                    throw new ArgumentException($"Could not resolve motion: {motionError}");
+                {
+                    cmd.Log.Error($"Could not resolve motion: {motionError}");
+                    return ExitCode.NotFound;
+                }
                 resolvedMotion = motionObj as UnityEngine.Motion;
                 if (resolvedMotion == null)
-                    throw new ArgumentException($"Motion reference '{motion}' resolved to a {motionObj.GetType().Name}, not an AnimationClip or BlendTree.");
+                {
+                    cmd.Log.Error($"Motion reference '{motion}' resolved to a {motionObj.GetType().Name}, not an AnimationClip or BlendTree.");
+                    return ExitCode.InvalidUsage;
+                }
 
                 // Re-confine the motion to the authoring root: a restricted root must not be bypassed by
                 // referencing an AnimationClip/BlendTree that lives outside the sandbox.
@@ -221,7 +273,10 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             if (position != null && position.Count > 0)
             {
                 if (position.Count < 2)
-                    throw new ArgumentException("position must be [x, y].");
+                {
+                    cmd.Log.Error("position must be [x, y].");
+                    return ExitCode.InvalidUsage;
+                }
                 nodePosition = new Vector3(position[0].ToObject<float>(), position[1].ToObject<float>(), 0f);
             }
 
@@ -239,7 +294,10 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             };
 
             if (dryRun)
-                return result;
+            {
+                cmd.Result.Write(result);
+                return ExitCode.Success;
+            }
 
             var stateMachine = ctrl.layers[layerIndex].stateMachine;
             var state = nodePosition.HasValue
@@ -254,15 +312,17 @@ namespace Unity.Pipeline.Editor.Commands.Animation
 
             Persist(ctrl);
             FillIdentity(result, ctrl);
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Add a transition between two states (or from AnyState/Entry, to Exit) on a layer, with optional conditions. " +
             "Validates that the states exist and each condition's parameter exists and its mode matches the parameter type.",
             MainThreadRequired = true,
-            Tags = new[] { "animation/animator" })]
-        public static object AddTransition(
+            Tags = new[] { "animation/animator" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode AddTransition(CommandContext cmd,
             [CliArg("controller", "Reference to the AnimatorController to edit (path / guid / globalId).", Required = true)] ObjectRef controller,
             [CliArg("layer", "Layer index (int) or name (string). Default 0 (Base Layer).")] JToken layer = null,
             [CliArg("from-state", "Source state name, or the special \"AnyState\" / \"Entry\".", Required = true)] string fromState = null,
@@ -274,22 +334,38 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             [CliArg("has-fixed-duration", "If true, duration is in seconds; otherwise normalized (default true).")] bool hasFixedDuration = true,
             [CliArg("dry-run", "If true, validate everything (states, parameters, mode/type) without writing the transition.")] bool dryRun = false)
         {
-            var (ctrl, ctrlPath) = ResolveController(controller);
+            if (!TryResolveController(cmd, controller, out var ctrl, out var ctrlPath, out var failure))
+                return failure;
             if (string.IsNullOrWhiteSpace(fromState))
-                throw new ArgumentException("from-state is required.");
+            {
+                cmd.Log.Error("from-state is required.");
+                return ExitCode.InvalidUsage;
+            }
             if (string.IsNullOrWhiteSpace(toState))
-                throw new ArgumentException("to-state is required.");
+            {
+                cmd.Log.Error("to-state is required.");
+                return ExitCode.InvalidUsage;
+            }
 
             // exitTime is normalized (0..1) and only meaningful with hasExitTime; duration must be
             // non-negative. Reject out-of-range values up front (writing nothing) rather than letting
             // Unity clamp them unpredictably.
             if (hasExitTime && (exitTime < 0f || exitTime > 1f))
-                throw new ArgumentException($"exit-time must be in [0, 1] when has-exit-time is set (got {exitTime}).");
+            {
+                cmd.Log.Error($"exit-time must be in [0, 1] when has-exit-time is set (got {exitTime}).");
+                return ExitCode.InvalidUsage;
+            }
             if (duration < 0f)
-                throw new ArgumentException($"duration must be >= 0 (got {duration}).");
+            {
+                cmd.Log.Error($"duration must be >= 0 (got {duration}).");
+                return ExitCode.InvalidUsage;
+            }
 
             if (!TryResolveLayer(ctrl, layer, out var layerIndex, out var layerError))
-                return ErrorResult.PackageStyle("layer_not_found", layerError);
+            {
+                cmd.Log.Error(layerError);
+                return ExitCode.NotFound;
+            }
 
             var stateMachine = ctrl.layers[layerIndex].stateMachine;
 
@@ -307,7 +383,10 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             {
                 fromAnimState = FindState(stateMachine, fromState);
                 if (fromAnimState == null)
-                    throw new ArgumentException($"Source state '{fromState}' not found in layer {layerIndex}.");
+                {
+                    cmd.Log.Error($"Source state '{fromState}' not found in layer {layerIndex}.");
+                    return ExitCode.NotFound;
+                }
             }
 
             // Resolve the destination state (unless it's Exit).
@@ -316,13 +395,24 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             {
                 toAnimState = FindState(stateMachine, toState);
                 if (toAnimState == null)
-                    throw new ArgumentException($"Destination state '{toState}' not found in layer {layerIndex}.");
+                {
+                    cmd.Log.Error($"Destination state '{toState}' not found in layer {layerIndex}.");
+                    return ExitCode.NotFound;
+                }
             }
 
             // Entry transitions cannot carry conditions/exit-time the same way; restrict combinations the
             // engine forbids so an agent gets a clear error rather than a malformed transition.
             if (fromIsEntry && toIsExit)
-                throw new ArgumentException("A transition from Entry directly to Exit is not supported.");
+            {
+                cmd.Log.Error("A transition from Entry directly to Exit is not supported.");
+                return ExitCode.InvalidUsage;
+            }
+            if (fromIsAny && toIsExit)
+            {
+                cmd.Log.Error("An AnyState transition to Exit is not supported.");
+                return ExitCode.InvalidUsage;
+            }
 
             // Validate conditions BEFORE creating anything (so a bad condition writes nothing).
             var parsedConditions = ParseConditions(conditions, ctrl);
@@ -340,7 +430,10 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             };
 
             if (dryRun)
-                return result;
+            {
+                cmd.Result.Write(result);
+                return ExitCode.Success;
+            }
 
             // Create the transition node matching the from/to kinds.
             AnimatorStateTransition stateTransition = null;
@@ -353,9 +446,7 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             }
             else if (fromIsAny)
             {
-                stateTransition = toIsExit ? null : stateMachine.AddAnyStateTransition(toAnimState);
-                if (stateTransition == null)
-                    throw new ArgumentException("An AnyState transition to Exit is not supported.");
+                stateTransition = stateMachine.AddAnyStateTransition(toAnimState);
             }
             else
             {
@@ -381,17 +472,20 @@ namespace Unity.Pipeline.Editor.Commands.Animation
 
             Persist(ctrl);
             FillIdentity(result, ctrl);
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Read an AnimatorController's full structure: parameters, layers, states (with motion / default), and transitions (with conditions).",
             MainThreadRequired = true,
-            Tags = new[] { "animation/animator" })]
-        public static AnimatorControllerInfo GetController(
+            Tags = new[] { "animation/animator" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetController(CommandContext cmd,
             [CliArg("controller", "Reference to the AnimatorController to read (path / guid / globalId).", Required = true)] ObjectRef controller)
         {
-            var (ctrl, ctrlPath) = ResolveController(controller);
+            if (!TryResolveController(cmd, controller, out var ctrl, out var ctrlPath, out var failure))
+                return failure;
 
             var info = new AnimatorControllerInfo { AssetPath = ctrlPath };
 
@@ -440,7 +534,8 @@ namespace Unity.Pipeline.Editor.Commands.Animation
                 info.Layers.Add(layerInfo);
             }
 
-            return info;
+            cmd.Result.Write(info);
+            return ExitCode.Success;
         }
 
         // ---- helpers ----
@@ -569,7 +664,7 @@ namespace Unity.Pipeline.Editor.Commands.Animation
 
         /// <summary>
         /// Resolve a layer selector (int index or string name; null/absent => 0). Returns false with an
-        /// error when a name doesn't match any layer (the caller surfaces 'layer_not_found').
+        /// error when a name doesn't match any layer (the caller fails with not-found).
         /// </summary>
         private static bool TryResolveLayer(AnimatorController ctrl, JToken layer, out int index, out string error)
         {
@@ -652,27 +747,53 @@ namespace Unity.Pipeline.Editor.Commands.Animation
                     $"{label} '{assetPath}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {confineError}");
         }
 
-        private static (AnimatorController controller, string path) ResolveController(ObjectRef controller)
+        /// <summary>
+        /// Resolve a controller handle to an on-disk <see cref="AnimatorController"/> and its
+        /// sandbox-confined path. Logs why and returns false, with the exit code to return, for a handle
+        /// that resolves to nothing (<see cref="ExitCode.NotFound"/>), to something other than an on-disk
+        /// AnimatorController, or outside the authoring root (<see cref="ExitCode.InvalidUsage"/>).
+        /// </summary>
+        private static bool TryResolveController(CommandContext cmd, ObjectRef controller, out AnimatorController ctrl, out string ctrlPath, out ExitCode failure)
         {
+            ctrl = null;
+            ctrlPath = null;
+            failure = ExitCode.InvalidUsage;
+
             if (controller == null || controller.IsEmpty)
-                throw new ArgumentException("controller is required.");
+            {
+                cmd.Log.Error("controller is required.");
+                return false;
+            }
 
             if (!ObjectResolver.TryResolve(controller, out var obj, out var error))
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                failure = ExitCode.NotFound;
+                return false;
+            }
 
-            if (!(obj is AnimatorController ctrl))
-                throw new ArgumentException($"Reference '{controller}' resolved to a {obj.GetType().Name}, not an AnimatorController.");
+            ctrl = obj as AnimatorController;
+            if (ctrl == null)
+            {
+                cmd.Log.Error($"Reference '{controller}' resolved to a {obj.GetType().Name}, not an AnimatorController.");
+                return false;
+            }
 
             var assetPath = AssetDatabase.GetAssetPath(ctrl);
             if (string.IsNullOrEmpty(assetPath))
-                throw new ArgumentException($"Reference '{controller}' does not point at an on-disk AnimatorController.");
+            {
+                cmd.Log.Error($"Reference '{controller}' does not point at an on-disk AnimatorController.");
+                return false;
+            }
 
-            var confined = ProjectPaths.Resolve(assetPath, out var confineError);
-            if (confined == null)
-                throw new ArgumentException(
-                    $"Controller '{assetPath}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {confineError}");
+            ctrlPath = ProjectPaths.Resolve(assetPath, out var confineError);
+            if (ctrlPath == null)
+            {
+                cmd.Log.Error($"Controller '{assetPath}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {confineError}");
+                return false;
+            }
 
-            return (ctrl, confined);
+            return true;
         }
 
         private static void Persist(AnimatorController ctrl)
@@ -717,19 +838,6 @@ namespace Unity.Pipeline.Editor.Commands.Animation
     }
 
     // ---- result models ----
-
-    /// <summary>A structured, non-throwing error envelope ({ error, code }) returned at HTTP 200.</summary>
-    [Serializable]
-    class ErrorResult
-    {
-        [JsonProperty("error")]
-        public string Error { get; set; }
-
-        [JsonProperty("code")]
-        public string Code { get; set; }
-
-        public static ErrorResult PackageStyle(string code, string error) => new ErrorResult { Code = code, Error = error };
-    }
 
     [Serializable]
     class ParameterInfo

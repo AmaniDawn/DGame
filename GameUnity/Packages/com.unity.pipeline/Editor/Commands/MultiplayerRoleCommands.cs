@@ -37,60 +37,74 @@ namespace Unity.Pipeline.Editor.Commands
 
         [CliGroupCommand(Group,
             "Get the multiplayer role the Editor runs as in Play Mode, and whether Multiplayer Roles are enabled for the project.",
-            Tags = new[] { "multiplayer/roles" })]
-        public static object GetActive()
+            Tags = new[] { "multiplayer/roles" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetActive(CommandContext cmd)
         {
-            return new
+            if (!EditorMultiplayerRolesManager.EnableMultiplayerRoles)
+                cmd.Log.Info($"Multiplayer Roles are disabled, so the role strips nothing. Enable them with {EnableRolesHint}.");
+
+            cmd.Result.Write(new
             {
                 activeRole = EditorMultiplayerRolesManager.ActiveMultiplayerRoleMask.ToString(),
-                enabled = EditorMultiplayerRolesManager.EnableMultiplayerRoles,
-                note = EditorMultiplayerRolesManager.EnableMultiplayerRoles
-                    ? null
-                    : $"Multiplayer Roles are disabled, so the role strips nothing. Enable them with {EnableRolesHint}."
-            };
+                enabled = EditorMultiplayerRolesManager.EnableMultiplayerRoles
+            });
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Set the multiplayer role the Editor runs as in Play Mode (Edit Mode only). role: " + RoleValues + ".",
-            Tags = new[] { "multiplayer/roles" })]
-        public static object SetActive(
+            Tags = new[] { "multiplayer/roles" },
+            Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetActive(CommandContext cmd,
             [CliArg("role", "Role to run as: " + RoleValues + ".", Required = true)] string role)
         {
             var mask = ParseRole(role);
-            GuardNotPlaying(Group + " set_active");
+            if (RefuseWhilePlaying(cmd, Group + " set_active"))
+                return ExitCode.Failed;
 
             var previous = EditorMultiplayerRolesManager.ActiveMultiplayerRoleMask;
             EditorMultiplayerRolesManager.ActiveMultiplayerRoleMask = mask;
             MainToolbar.Refresh(RoleToolbarElementPath);
 
-            return new
+            if (!EditorMultiplayerRolesManager.EnableMultiplayerRoles)
+                cmd.Log.Warning($"Multiplayer Roles are disabled, so the role strips nothing until they are enabled ({EnableRolesHint}).");
+
+            cmd.Result.Write(new
             {
                 activeRole = EditorMultiplayerRolesManager.ActiveMultiplayerRoleMask.ToString(),
-                previousRole = previous.ToString(),
-                note = EditorMultiplayerRolesManager.EnableMultiplayerRoles
-                    ? null
-                    : $"Multiplayer Roles are disabled, so the role strips nothing until they are enabled ({EnableRolesHint})."
-            };
+                previousRole = previous.ToString()
+            });
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Get the roles a GameObject is kept for. For one of its components, use multiplayer.role get_component.",
-            Tags = new[] { "multiplayer/roles", "gameobjects" })]
-        public static object GetGameObject(
+            Tags = new[] { "multiplayer/roles", "gameobjects" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetGameObject(CommandContext cmd,
             [CliArg("target", "Handle of the GameObject.", Required = true)] ObjectRef target)
         {
-            return DescribeObject(ResolveRoleGameObject(target));
+            var code = ResolveRoleGameObject(cmd, target, out var go);
+            if (code != ExitCode.Success)
+                return code;
+
+            cmd.Result.Write(DescribeObject(go));
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Set the roles a GameObject is kept for; it is stripped from the others. Undoable. For one of its components, use multiplayer.role set_component. role: " + RoleValues + ".",
-            Tags = new[] { "multiplayer/roles", "gameobjects" })]
-        public static object SetGameObject(
+            Tags = new[] { "multiplayer/roles", "gameobjects" },
+            Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetGameObject(CommandContext cmd,
             [CliArg("target", "Handle of the GameObject.", Required = true)] ObjectRef target,
             [CliArg("role", "Roles to keep the GameObject for: " + RoleValues + ".", Required = true)] string role)
         {
             var mask = ParseRole(role);
-            var go = ResolveRoleGameObject(target);
+            var code = ResolveRoleGameObject(cmd, target, out var go);
+            if (code != ExitCode.Success)
+                return code;
 
             using (new AuthoringUndoScope("Set Multiplayer Role"))
             {
@@ -100,34 +114,46 @@ namespace Unity.Pipeline.Editor.Commands
                 GameObjectCommands.MarkDirty(go);
             }
 
-            return DescribeObject(go);
+            cmd.Result.Write(DescribeObject(go));
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Get the roles a component is kept for. Address it by component handle (e.g. its GlobalObjectId), or by GameObject handle + type.",
-            Tags = new[] { "multiplayer/roles", "gameobjects/components" })]
-        public static object GetComponent(
+            Tags = new[] { "multiplayer/roles", "gameobjects/components" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetComponent(CommandContext cmd,
             [CliArg("target", "Handle of the component, OR of its GameObject when 'type' is given.", Required = true)] ObjectRef target,
             [CliArg("type", "Component type name on the target GameObject (omit when 'target' is a component handle).")] string type = null)
         {
-            return DescribeObject(ResolveRoleComponent(target, type));
+            var code = ResolveRoleComponent(cmd, target, type, out var component);
+            if (code != ExitCode.Success)
+                return code;
+
+            cmd.Result.Write(DescribeObject(component));
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Set the roles a component is kept for; it is stripped from the others. Address it by component handle (e.g. its GlobalObjectId), or by GameObject handle + type. Undoable. role: " + RoleValues + ".",
-            Tags = new[] { "multiplayer/roles", "gameobjects/components" })]
-        public static object SetComponent(
+            Tags = new[] { "multiplayer/roles", "gameobjects/components" },
+            Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetComponent(CommandContext cmd,
             [CliArg("target", "Handle of the component, OR of its GameObject when 'type' is given.", Required = true)] ObjectRef target,
             [CliArg("role", "Roles to keep the component for: " + RoleValues + ".", Required = true)] string role,
             [CliArg("type", "Component type name on the target GameObject (omit when 'target' is a component handle).")] string type = null)
         {
             var mask = ParseRole(role);
-            var component = ResolveRoleComponent(target, type);
+            var code = ResolveRoleComponent(cmd, target, type, out var component);
+            if (code != ExitCode.Success)
+                return code;
 
             // The engine skips a restricted component with only a console warning; refuse it instead.
             if (Attribute.IsDefined(component.GetType(), typeof(MultiplayerRoleRestrictedAttribute), true))
-                throw new InvalidOperationException(
-                    $"{component.GetType().Name} is marked [MultiplayerRoleRestricted], so it is never stripped and its role can't be set.");
+            {
+                cmd.Log.Error($"{component.GetType().Name} is marked [MultiplayerRoleRestricted], so it is never stripped and its role can't be set.");
+                return ExitCode.Failed;
+            }
 
             using (new AuthoringUndoScope("Set Multiplayer Role"))
             {
@@ -136,28 +162,37 @@ namespace Unity.Pipeline.Editor.Commands
                 GameObjectCommands.MarkDirty(component.gameObject);
             }
 
-            return DescribeObject(component);
+            cmd.Result.Write(DescribeObject(component));
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Get the role a build profile builds for. Defaults to the active build profile, or the active build target when no profile is active.",
-            Tags = new[] { "multiplayer/roles", "build" })]
-        public static object GetBuild(
+            Tags = new[] { "multiplayer/roles", "build" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetBuild(CommandContext cmd,
             [CliArg("profile", "Build profile asset path or name (defaults to the active profile or build target).")] string profile = null)
         {
-            return DescribeBuildRole(profile);
+            if (!TryResolveBuildProfile(cmd, profile, out var buildProfile))
+                return ExitCode.NotFound;
+
+            cmd.Result.Write(DescribeBuildRole(buildProfile));
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Set the role a build profile builds for. Defaults to the active build profile, or the active build target when no profile is active. role: " + RoleValues + ".",
-            Tags = new[] { "multiplayer/roles", "build" })]
-        public static object SetBuild(
+            Tags = new[] { "multiplayer/roles", "build" },
+            Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetBuild(CommandContext cmd,
             [CliArg("role", "Role to build for: " + RoleValues + ".", Required = true)] string role,
             [CliArg("profile", "Build profile asset path or name (defaults to the active profile or build target).")] string profile = null)
         {
             var mask = ParseRole(role);
 
-            var buildProfile = ResolveBuildProfile(profile);
+            if (!TryResolveBuildProfile(cmd, profile, out var buildProfile))
+                return ExitCode.NotFound;
+
             if (buildProfile != null)
             {
                 EditorMultiplayerRolesManager.SetMultiplayerRoleForBuildProfile(buildProfile, mask);
@@ -173,44 +208,54 @@ namespace Unity.Pipeline.Editor.Commands
                     EditorMultiplayerRolesManager.SetMultiplayerRoleForClassicTarget(target, mask);
             }
 
-            return DescribeBuildRole(profile);
+            cmd.Result.Write(DescribeBuildRole(buildProfile));
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "List the component types the project automatically keeps for specific roles, beyond the server's audio, rendering and UI stripping.",
-            Tags = new[] { "multiplayer/roles" })]
-        public static object ListComponentTypes()
+            Tags = new[] { "multiplayer/roles" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode ListComponentTypes(CommandContext cmd)
         {
             var types = EditorMultiplayerRolesManager.AutomaticSelection.GetCustomComponents()
                 .Select(entry => new { type = entry.Key.FullName, role = entry.Value.ToString() })
-                .OrderBy(entry => entry.type, StringComparer.Ordinal)
-                .ToList();
+                .OrderBy(entry => entry.type, StringComparer.Ordinal);
 
-            return new { count = types.Count, componentTypes = types };
+            foreach (var type in types)
+                cmd.Result.WriteRecord(type);
+
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Keep every component of a type for the given roles only, project-wide. client_and_server keeps it everywhere. role: " + RoleValues + ".",
-            Tags = new[] { "multiplayer/roles" })]
-        public static object SetComponentType(
+            Tags = new[] { "multiplayer/roles" },
+            Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetComponentType(CommandContext cmd,
             [CliArg("type", "Component type name (e.g. 'AudioSource' or 'UnityEngine.Camera').", Required = true)] string type,
             [CliArg("role", "Roles to keep the component type for: " + RoleValues + ".", Required = true)] string role)
         {
             var mask = ParseRole(role);
             var componentType = TypeResolver.ResolveComponentType(type);
             if (componentType == null)
-                throw new ArgumentException($"Could not resolve component type '{type}'.");
+            {
+                cmd.Log.Error($"Could not resolve component type '{type}'.");
+                return ExitCode.NotFound;
+            }
 
-            GuardNotPlaying(Group + " set_component_type");
+            if (RefuseWhilePlaying(cmd, Group + " set_component_type"))
+                return ExitCode.Failed;
 
             EditorMultiplayerRolesManager.AutomaticSelection.SetMultiplayerRoleMaskForComponentType(componentType, mask);
 
-            return new
+            cmd.Log.Info($"List every type with an automatic role with {ListComponentTypesCommand}.");
+            cmd.Result.Write(new
             {
                 type = componentType.FullName,
-                role = EditorMultiplayerRolesManager.AutomaticSelection.GetMultiplayerRoleMaskForComponentType(componentType).ToString(),
-                note = $"List every type with an automatic role with {ListComponentTypesCommand}."
-            };
+                role = EditorMultiplayerRolesManager.AutomaticSelection.GetMultiplayerRoleMaskForComponentType(componentType).ToString()
+            });
+            return ExitCode.Success;
         }
 
         // Accepts the MultiplayerRoleFlags names in any case, ignoring whitespace, '_' and '-', so
@@ -231,30 +276,49 @@ namespace Unity.Pipeline.Editor.Commands
             throw new ArgumentException($"Unknown multiplayer role '{role}'. Use {RoleValues}.");
         }
 
-        static GameObject ResolveRoleGameObject(ObjectRef target)
+        static ExitCode ResolveRoleGameObject(CommandContext cmd, ObjectRef target, out GameObject go)
         {
+            go = null;
             if (!ObjectResolver.TryResolve(target, out var obj, out var error))
-                throw new ArgumentException($"Could not resolve 'target': {error}");
+            {
+                cmd.Log.Error($"Could not resolve 'target': {error}");
+                return ExitCode.NotFound;
+            }
 
             if (obj is Component component)
-                throw new ArgumentException(
-                    $"'target' is a {component.GetType().Name} component, not a GameObject. Use {SetComponentCommand} for a component.");
+            {
+                cmd.Log.Error($"'target' is a {component.GetType().Name} component, not a GameObject. Use {SetComponentCommand} for a component.");
+                return ExitCode.InvalidUsage;
+            }
 
-            return obj as GameObject
-                ?? throw new ArgumentException($"'target' did not resolve to a GameObject (got {obj.GetType().Name}).");
+            go = obj as GameObject;
+            if (go == null)
+            {
+                cmd.Log.Error($"'target' did not resolve to a GameObject (got {obj.GetType().Name}).");
+                return ExitCode.InvalidUsage;
+            }
+
+            return ExitCode.Success;
         }
 
-        static Component ResolveRoleComponent(ObjectRef target, string type)
+        static ExitCode ResolveRoleComponent(CommandContext cmd, ObjectRef target, string type, out Component component)
         {
+            component = null;
+
             // Name the GameObject command too, since a GameObject handle without a type is most
             // likely meant for the GameObject itself.
             if (string.IsNullOrEmpty(type)
                 && ObjectResolver.TryResolve(target, out var obj, out _)
                 && obj is GameObject)
-                throw new ArgumentException(
-                    $"'target' is a GameObject. Pass 'type' to pick one of its components, or use {SetGameObjectCommand} for the GameObject itself.");
+            {
+                cmd.Log.Error($"'target' is a GameObject. Pass 'type' to pick one of its components, or use {SetGameObjectCommand} for the GameObject itself.");
+                return ExitCode.InvalidUsage;
+            }
 
-            return ComponentCommands.ResolveComponent(target, type);
+            var code = ComponentCommands.TryResolveComponent(target, type, out component, out var error);
+            if (code != ExitCode.Success)
+                cmd.Log.Error(error);
+            return code;
         }
 
         static object DescribeObject(UnityEngine.Object obj)
@@ -266,9 +330,9 @@ namespace Unity.Pipeline.Editor.Commands
             return new { target = ObjectResolver.Describe(obj), role = role.ToString() };
         }
 
-        static object DescribeBuildRole(string profile)
+        // A null buildProfile means the active build target.
+        static object DescribeBuildRole(BuildProfile buildProfile)
         {
-            var buildProfile = ResolveBuildProfile(profile);
             if (buildProfile != null)
             {
                 return new
@@ -292,18 +356,23 @@ namespace Unity.Pipeline.Editor.Commands
             };
         }
 
-        // Null means "use the active build target": no profile was named and none is active.
-        static BuildProfile ResolveBuildProfile(string profile)
+        // A null buildProfile means "use the active build target": no profile was named and none is
+        // active. False when a named profile doesn't exist.
+        static bool TryResolveBuildProfile(CommandContext cmd, string profile, out BuildProfile buildProfile)
         {
             if (string.IsNullOrEmpty(profile))
-                return BuildProfile.GetActiveBuildProfile();
+            {
+                buildProfile = BuildProfile.GetActiveBuildProfile();
+                return true;
+            }
 
             var info = BuildProfiles.FindByPath(profile) ?? BuildProfiles.FindByName(profile);
-            var asset = info == null ? null : AssetDatabase.LoadAssetAtPath<BuildProfile>(AssetDatabase.GUIDToAssetPath(info.Guid));
-            if (asset == null)
-                throw new ArgumentException($"No build profile '{profile}'. Pass an asset path or a name from {CommandNames.BuildListProfiles}.");
+            buildProfile = info == null ? null : AssetDatabase.LoadAssetAtPath<BuildProfile>(AssetDatabase.GUIDToAssetPath(info.Guid));
+            if (buildProfile != null)
+                return true;
 
-            return asset;
+            cmd.Log.Error($"No build profile '{profile}'. Pass an asset path or a name from {CommandNames.BuildListProfiles}.");
+            return false;
         }
 
         static bool IsStandalone(BuildTarget target) =>
@@ -311,12 +380,15 @@ namespace Unity.Pipeline.Editor.Commands
 
         // Roles decide what is stripped when the Editor enters Play Mode, so a change made in Play
         // Mode would not apply until the next entry; refuse it rather than appear to succeed.
-        static void GuardNotPlaying(string command)
+        static bool RefuseWhilePlaying(CommandContext cmd, string command)
         {
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
-                throw new InvalidOperationException(
-                    $"'{command}' cannot run while the Editor is in (or entering) Play Mode, where roles have already been applied. " +
-                    $"Exit Play Mode ({CommandNames.EditorPlaymodeStop}) and retry. Nothing was changed.");
+            if (!EditorApplication.isPlayingOrWillChangePlaymode)
+                return false;
+
+            cmd.Log.Error(
+                $"'{command}' cannot run while the Editor is in (or entering) Play Mode, where roles have already been applied. " +
+                $"Exit Play Mode ({CommandNames.EditorPlaymodeStop}) and retry. Nothing was changed.");
+            return true;
         }
     }
 }

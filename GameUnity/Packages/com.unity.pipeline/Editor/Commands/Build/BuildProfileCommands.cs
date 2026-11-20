@@ -35,23 +35,32 @@ namespace Unity.Pipeline.Editor.Commands.Build
             "List the platforms a Build Profile can target, with their platform id (Unity 6 only). Lists only " +
             "platforms whose build support is installed; pass show-all=true for every known platform.",
             MainThreadRequired = true,
-            Tags = new[] { "build/settings" })]
-        public static object ListPlatforms(
+            Tags = new[] { "build/settings" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode ListPlatforms(CommandContext cmd,
             [CliArg("show-all", "Include platforms whose build support module is not installed.")] bool showAll = false)
         {
             if (!BuildProfilePlatforms.IsSupported)
-                return new { error = BuildProfilePlatforms.UnavailableReason, code = "feature_unavailable" };
+            {
+                cmd.Log.Error(BuildProfilePlatforms.UnavailableReason);
+                return ExitCode.Failed;
+            }
 
-            var platforms = BuildProfilePlatforms.List();
-            return showAll ? platforms : platforms.Where(p => p.IsInstalled).ToList();
+            foreach (var platform in BuildProfilePlatforms.List())
+            {
+                if (showAll || platform.IsInstalled)
+                    cmd.Result.WriteRecord(platform);
+            }
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Create a Build Profile asset for a platform (Unity 6 only). Call " + CommandNames.BuildListPlatforms + " first to " +
-            "get a platform id. Returns feature_unavailable on earlier versions.",
+            "get a platform id. Fails on earlier versions.",
             MainThreadRequired = true,
-            Tags = new[] { "build/settings" })]
-        public static object CreateProfile(
+            Tags = new[] { "build/settings" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode CreateProfile(CommandContext cmd,
             [CliArg("name", "Profile name (e.g. \"Meta Quest\"). A Build Profile is named after its file, so this is also the file name and the name " + CommandNames.BuildRun + " --profile-name matches.", Required = true)] string name = "",
             [CliArg("platform", "Platform id, display name (\"Meta Quest\") or BuildTarget name (\"Android\"). See " + CommandNames.BuildListPlatforms + ".", Required = true)] string platform = "",
             [CliArg("subtarget", "Standalone only: Player | Server. Disambiguates desktop platforms; ignored elsewhere.")] string subtarget = "",
@@ -61,7 +70,10 @@ namespace Unity.Pipeline.Editor.Commands.Build
             [CliArg("dry-run", "Validate the name, platform and folder and report what would be created, without writing anything.")] bool dryRun = false)
         {
             if (!BuildProfiles.IsSupported || !BuildProfilePlatforms.IsSupported)
-                return new { error = BuildProfilePlatforms.UnavailableReason, code = "feature_unavailable" };
+            {
+                cmd.Log.Error(BuildProfilePlatforms.UnavailableReason);
+                return ExitCode.Failed;
+            }
 
             var profileName = ValidateProfileName(name);
 
@@ -103,15 +115,15 @@ namespace Unity.Pipeline.Editor.Commands.Build
 
             if (dryRun)
             {
-                return new CreateBuildProfileResult
+                cmd.Log.Info($"Dry run — would create a '{resolved.DisplayName}' Build Profile at '{assetPath}'" +
+                             (exists ? " (overwriting the existing asset)." : "."));
+                cmd.Result.Write(new CreateBuildProfileResult
                 {
-                    Success = true,
                     DryRun = true,
                     AssetPath = assetPath,
-                    Platform = resolved,
-                    Message = $"Dry run — would create a '{resolved.DisplayName}' Build Profile at '{assetPath}'" +
-                              (exists ? " (overwriting the existing asset)." : ".")
-                };
+                    Platform = resolved
+                });
+                return ExitCode.Success;
             }
 
             EnsureParentFolder(assetPath);
@@ -143,27 +155,29 @@ namespace Unity.Pipeline.Editor.Commands.Build
                 created.IsActive = activated;
             }
 
-            var createdMessage = $"Created the '{resolved.DisplayName}' Build Profile at '{assetPath}'.";
-            return new CreateBuildProfileResult
+            cmd.Log.Info($"Created the '{resolved.DisplayName}' Build Profile at '{assetPath}'." + (activated ? " It is now active." : ""));
+            if (activate && !activated)
+                cmd.Log.Warning($"The '{resolved.DisplayName}' Build Profile was created but could not be activated" +
+                                (activationError != null ? $": {activationError}" : "."));
+
+            cmd.Result.Write(new CreateBuildProfileResult
             {
-                Success = true,
                 AssetPath = assetPath,
                 Platform = resolved,
                 Profile = created,
-                Activated = activated,
-                Message = !activate ? createdMessage
-                    : activated ? createdMessage + " It is now active."
-                    : createdMessage + " It could not be activated" + (activationError != null ? $": {activationError}" : ".")
-            };
+                Activated = activated
+            });
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Edit an existing Build Profile's scene list and scripting defines (Unity 6 only). Every setting is " +
             "optional; only the ones supplied change. The platform cannot be changed here: recreate the profile " +
-            "with " + CommandNames.BuildCreateProfile + " and confirm=true. Returns feature_unavailable on earlier versions.",
+            "with " + CommandNames.BuildCreateProfile + " and confirm=true. Fails on earlier versions.",
             MainThreadRequired = true,
-            Tags = new[] { "build/settings" })]
-        public static object SetProfile(
+            Tags = new[] { "build/settings" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode SetProfile(CommandContext cmd,
             [CliArg("name", "Name of the profile to edit (see " + CommandNames.BuildListProfiles + ").", Required = true)] string name = "",
             [CliArg("folder", "Folder holding the profile. Only needed when several profiles share the name.")] string folder = "",
             [CliArg("override-global-scenes", "Build with the profile's own scene list instead of the global Build Settings list. Omit to leave unchanged.")] bool? overrideGlobalScenes = null,
@@ -173,7 +187,10 @@ namespace Unity.Pipeline.Editor.Commands.Build
             [CliArg("dry-run", "Validate the changes and report what would change, without writing anything.")] bool dryRun = false)
         {
             if (!BuildProfiles.IsSupported)
-                return new { error = "Build Profiles require Unity 6 (6000.0) or later", code = "feature_unavailable" };
+            {
+                cmd.Log.Error("Build Profiles require Unity 6 (6000.0) or later.");
+                return ExitCode.Failed;
+            }
 
             if (overrideGlobalScenes == null && scenes == null && scriptingDefines == null)
                 throw new ArgumentException("Nothing to change. Pass at least one of override-global-scenes, scenes or scripting-defines.");
@@ -260,13 +277,14 @@ namespace Unity.Pipeline.Editor.Commands.Build
                 }
             }
 
-            result.Success = true;
             result.Profile = BuildProfiles.FindByPath(assetPath);
-            result.Message = (dryRun
-                    ? $"Dry run — {result.Applied.Count} setting(s) would change, {result.Skipped.Count} unchanged."
-                    : $"Applied {result.Applied.Count} setting(s); {result.Skipped.Count} unchanged.")
-                + EditNotes(effectiveOverride, requestedScenes != null, result);
-            return result;
+            cmd.Log.Info(dryRun
+                ? $"Dry run — {result.Applied.Count} setting(s) would change, {result.Skipped.Count} unchanged."
+                : $"Applied {result.Applied.Count} setting(s); {result.Skipped.Count} unchanged.");
+            foreach (var note in EditNotes(effectiveOverride, requestedScenes != null, result))
+                cmd.Log.Warning(note);
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         // ---- Helpers ---------------------------------------------------------------------------
@@ -448,19 +466,15 @@ namespace Unity.Pipeline.Editor.Commands.Build
         /// Consequences of the edit the caller would not otherwise see: a scene list that builds will ignore,
         /// and defines that change the active profile's script compilation.
         /// </summary>
-        static string EditNotes(bool? effectiveOverride, bool scenesRequested, EditBuildProfileResult result)
+        static IEnumerable<string> EditNotes(bool? effectiveOverride, bool scenesRequested, EditBuildProfileResult result)
         {
-            var notes = string.Empty;
-
             if (scenesRequested && effectiveOverride == false)
-                notes += " The profile's scene list is only used for builds when override-global-scenes is true, and it is false, " +
-                         "so builds still use the global Build Settings list.";
+                yield return "The profile's scene list is only used for builds when override-global-scenes is true, and it is false, " +
+                             "so builds still use the global Build Settings list.";
 
             if (result.Applied.ContainsKey("scripting-defines") && result.Profile != null && result.Profile.IsActive)
-                notes += " It is the active profile, so the new defines change script compilation; check " + CommandNames.ScriptRecompileStatus + " " +
-                         "before relying on them.";
-
-            return notes;
+                yield return "It is the active profile, so the new defines change script compilation; check " + CommandNames.ScriptRecompileStatus + " " +
+                             "before relying on them.";
         }
 
         /// <summary>
@@ -525,30 +539,43 @@ namespace Unity.Pipeline.Editor.Commands.Build
         /// </summary>
         static void RefuseActivationThatSwitchesTarget(BuildPlatformInfo resolved)
         {
-            var activeTarget = EditorUserBuildSettings.activeBuildTarget.ToString();
-            var targetDiffers = !string.Equals(resolved.BuildTarget, activeTarget, StringComparison.OrdinalIgnoreCase);
-
-            // Player and Server are separate standalone subtargets; switching between them is a switch too.
-            var activeSubtarget = EditorUserBuildSettings.standaloneBuildSubtarget.ToString();
-            var subtargetDiffers = !targetDiffers
-                && (resolved.Subtarget == "Player" || resolved.Subtarget == "Server")
-                && !string.Equals(resolved.Subtarget, activeSubtarget, StringComparison.OrdinalIgnoreCase);
-
-            if (!targetDiffers && !subtargetDiffers)
+            var change = ActivationSwitch(resolved, out var targetDiffers);
+            if (change == null)
                 return;
 
             // switch_build_target takes a target but no subtarget, so it only helps with a target change.
             if (targetDiffers)
                 throw new ArgumentException(
-                    $"activate=true would switch the build target from {activeTarget} to {resolved.BuildTarget}, a full reimport and " +
+                    $"activate=true would switch {change}, a full reimport and " +
                     $"domain reload. Run {CommandNames.BuildTargetSwitch} with target={resolved.BuildTarget} and confirm=true first, wait for " +
                     CommandNames.BuildTargetSwitchStatus + " to report completion, then create the profile with activate=true. " +
                     "Or omit activate to create it without switching.");
 
             throw new ArgumentException(
-                $"activate=true would switch the standalone subtarget from {activeSubtarget} to {resolved.Subtarget}, a full reimport " +
+                $"activate=true would switch {change}, a full reimport " +
                 "and domain reload. Omit activate to create the profile without switching, and switch the subtarget from the " +
                 "Build Profiles window.");
+        }
+
+        /// <summary>
+        /// What activating a profile on <paramref name="platform"/> would switch, as "the build target from A to B"
+        /// or "the standalone subtarget from A to B", or null when it switches nothing. Shared by
+        /// <c>create_build_profile --activate</c> and <c>build --profile-name</c>, which refuse the same switches.
+        /// </summary>
+        internal static string ActivationSwitch(BuildPlatformInfo platform, out bool targetDiffers)
+        {
+            var activeTarget = EditorUserBuildSettings.activeBuildTarget.ToString();
+            targetDiffers = !string.Equals(platform.BuildTarget, activeTarget, StringComparison.OrdinalIgnoreCase);
+            if (targetDiffers)
+                return $"the build target from {activeTarget} to {platform.BuildTarget}";
+
+            // Player and Server are separate standalone subtargets; switching between them is a switch too.
+            var activeSubtarget = EditorUserBuildSettings.standaloneBuildSubtarget.ToString();
+            if ((platform.Subtarget == "Player" || platform.Subtarget == "Server")
+                && !string.Equals(platform.Subtarget, activeSubtarget, StringComparison.OrdinalIgnoreCase))
+                return $"the standalone subtarget from {activeSubtarget} to {platform.Subtarget}";
+
+            return null;
         }
 
         /// <summary>

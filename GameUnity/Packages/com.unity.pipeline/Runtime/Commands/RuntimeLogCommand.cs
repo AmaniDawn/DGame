@@ -11,41 +11,50 @@ namespace Unity.Pipeline.Runtime.Commands
     {
         const string Group = "console";
 
-        [CliGroupCommand(Group, "Write a message to Unity console", MainThreadRequired = true, Tags = new[] { "observability/console", "runtime" })]
-        public static string Write(
+        [CliGroupCommand(Group, "Write a message to Unity console", MainThreadRequired = true, Tags = new[] { "observability/console", "runtime" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode Write(CommandContext cmd,
             [CliArg("message", "Message to log to console", Required = true)] string message,
             [CliArg("level", "Log level: info, warning, error")] string level = "info")
         {
             if (string.IsNullOrWhiteSpace(message))
             {
-                return "Error: Message cannot be empty";
+                cmd.Log.Error("Message cannot be empty.");
+                return ExitCode.InvalidUsage;
             }
 
             Debug.developerConsoleVisible = false;
-            var logLevel = level?.ToLowerInvariant() ?? "info";
+            string logged;
 
-            switch (logLevel)
+            switch (level?.ToLowerInvariant() ?? "info")
             {
                 case "info":
                 case "log":
                     Debug.Log($"[Pipeline] {message}");
-                    return $"Logged info message: {message}";
+                    logged = "info";
+                    break;
 
                 case "warning":
                 case "warn":
                     Debug.LogWarning($"[Pipeline] {message}");
-                    return $"Logged warning message: {message}";
+                    logged = "warning";
+                    break;
 
                 case "error":
                 case "err":
                     Debug.LogError($"[Pipeline] {message}");
-                    return $"Logged error message: {message}";
+                    logged = "error";
+                    break;
 
                 default:
                     Debug.LogWarning($"[Pipeline] Unknown log level '{level}', defaulting to info: {message}");
                     Debug.Log($"[Pipeline] {message}");
-                    return $"Logged message with default level: {message}";
+                    cmd.Log.Warning($"Unknown log level '{level}'; logged at info. Use info, warning or error.");
+                    logged = "info";
+                    break;
             }
+
+            cmd.Result.Write(new { level = logged, message });
+            return ExitCode.Success;
         }
     }
 }

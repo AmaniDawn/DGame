@@ -6,7 +6,7 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
 {
     /// <summary>
     /// <para>
-    /// Shared response for the project-settings get/set commands (CLI-202). One type backs every
+    /// Shared result of the project-settings get/set commands (CLI-202). One type backs every
     /// settings group (PlayerSettings, Quality, Graphics, Physics, Time, Input, Tags &amp; Layers,
     /// Audio) so agents get a uniform shape across them.
     /// </para>
@@ -21,18 +21,18 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
     /// <see cref="RequiresReimport"/> flag side effects an agent must wait out — e.g. switching the
     /// scripting backend or API level triggers a domain reload; some graphics/texture changes trigger
     /// an asset reimport. They describe the operation, so a <c>dry-run</c> still reports them.</para>
+    ///
+    /// <para>Status isn't part of it: a refused or failed write exits non-zero with the reason on the
+    /// command's log, and writes no result.</para>
     /// </summary>
     [Serializable]
     class ProjectSettingsResponse
     {
-        [JsonProperty("success")]
-        public bool Success { get; set; }
-
         /// <summary>Settings group this response is for (e.g. "player", "quality", "time").</summary>
         [JsonProperty("group")]
         public string Group { get; set; }
 
-        /// <summary>True only when a write actually mutated the project (false for get/dry-run/refused/failed).</summary>
+        /// <summary>True only when a write actually mutated the project (false for get and dry-run).</summary>
         [JsonProperty("applied")]
         public bool Applied { get; set; }
 
@@ -51,15 +51,5 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
         /// <summary>Current settings for the group as a name → value map.</summary>
         [JsonProperty("values")]
         public Dictionary<string, object> Values { get; set; }
-
-        [JsonProperty("message")]
-        public string Message { get; set; }
-
-        public static ProjectSettingsResponse Fail(string group, string message) => new ProjectSettingsResponse
-        {
-            Success = false,
-            Group = group,
-            Message = message
-        };
     }
 }

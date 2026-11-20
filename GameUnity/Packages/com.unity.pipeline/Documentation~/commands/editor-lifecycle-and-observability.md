@@ -3,12 +3,18 @@
 Commands to control Editor play mode, focus, and menus, and to observe the Editor's state, console, and performance.
 
 ### `editor.playmode start`
-Enter Unity Editor play mode.
+Enter Unity Editor play mode. Turns Run In Background on until play mode exits, so the game keeps running while the Editor is unfocused.
 
-No parameters.
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `run-in-background` | no | `true` | Turn Run In Background on for this Play session (`true`), or keep the project's own value (`false`) to reproduce how the game behaves when it loses focus. |
 
-**Returns:** `string`
-**Notes:** An Editor driven from a terminal is usually unfocused. Without `Application.runInBackground`, its player loop stops at the first frame while `editor status` still reports `"playing"`. `editor.playmode start` no longer changes `Application.runInBackground` itself — use [`editor.playmode set_run_in_background`](#editorplaymode-set_run_in_background) or the "Ensure editor runs in background in PlayMode" project setting instead.
+**Returns:** nothing. It logs `Entering play mode.` (or `Already in play mode.`, still a success) at the `info` level.
+**Notes:** An Editor driven from a terminal is usually unfocused, and Unity pauses the player of an unfocused Editor whose Run In Background (`Application.runInBackground`) is off: Play mode stops at the first frame while `editor status` still reports `"playing"`. Auto-tick ([`editor set_auto_tick`](#editor-set_auto_tick)) doesn't prevent this.
+
+When the project's value is off, the command turns Run In Background on with the same recorded override as [`editor.playmode set_run_in_background`](#editorplaymode-set_run_in_background), and logs so at the `info` level: `Run In Background on until play mode exits; the project's value, off, is restored then and builds keep it`. The project's value comes back when the Editor returns to Edit mode, through `editor.playmode stop` or the Stop button, or right away if Unity refuses to enter Play mode. A build and `ProjectSettings/ProjectSettings.asset` always keep the project's own value. During the session, game code reads `Application.runInBackground` as `true` and isn't sent `OnApplicationPause` when the Editor loses focus. With `run-in-background` set to `false` and the project's value off, it logs a warning that the game pauses while the Editor is unfocused. Entering Play mode from the Editor's Play button changes nothing.
+
+While scripts have compile errors the command fails without entering Play mode; fix them and run `script recompile` first.
 
 ### `editor.playmode set_run_in_background`
 Override the project's Run In Background Player Setting so the Play-mode player loop keeps running while the Editor is unfocused.
@@ -17,29 +23,30 @@ Override the project's Run In Background Player Setting so the Play-mode player 
 |-----------|----------|---------|-------------|
 | `enabled` | no | `true` | Turn the override on (`true`), recording the project's own value so it can be restored later — or stop the override and restore the project's own value (`false`), unless the "Ensure editor runs in background in PlayMode" setting is still forcing it on right now. |
 
-**Returns:** `string`
-**Notes:** The override lasts until reverted or until the Editor quits. Its record lives in the same `UserSettings/Packages/com.unity.pipeline/EditorPipelineConfig.json` file as the rest of the editor server's settings, which is per-user and not version-controlled. If you turn Run In Background off yourself while the override is active, your value wins and the override ends; run the command again to bring it back. An Editor restart reloads the project's own value, which reads the same way, so an override from the command does not survive a restart. It stacks with, and survives independently of, the "Ensure editor runs in background in PlayMode" project setting (Project Settings > Pipeline > Editor): either one alone is enough to force Run In Background on, and it comes back off only once neither still calls for it. In the Editor, Run In Background is the project's Player Settings value — a build always uses the project's own value regardless of either override, and saving the project or quitting the Editor writes the project's own value to `ProjectSettings/ProjectSettings.asset`, so neither override can leak into a shipped build or into version control.
+**Returns:** `{ runInBackground, overridden, projectValue }` — the live Run In Background value, whether an override (the command's or the Play-mode setting's) is holding it, and the project's own value. A sentence describing the state is logged at the `info` level; with `enabled: false` while the "Ensure editor runs in background in PlayMode" setting still forces it on, it is a warning instead.
+**Notes:** [`editor.playmode start`](#editorplaymode-start) already turns Run In Background on for the Play session it starts. In a Multiplayer Play Mode clone, this command changes that clone's value in memory only and records no override: clones share the main project's settings file, where the override record belongs to the main Editor. Use this command to keep it on across Play sessions, or during a session to take over from the one `editor.playmode start` made. The override lasts until reverted or until the Editor quits. Its record lives in the same `UserSettings/Packages/com.unity.pipeline/EditorPipelineConfig.json` file as the rest of the editor server's settings, which is per-user and not version-controlled. If you turn Run In Background off yourself while the override is active, your value wins and the override ends; run the command again to bring it back. An Editor restart reloads the project's own value, which reads the same way, so an override from the command does not survive a restart. It stacks with, and survives independently of, the "Ensure editor runs in background in PlayMode" project setting (Project Settings > Pipeline > Editor): either one alone is enough to force Run In Background on, and it comes back off only once neither still calls for it. In the Editor, Run In Background is the project's Player Settings value — a build always uses the project's own value regardless of either override, and saving the project or quitting the Editor writes the project's own value to `ProjectSettings/ProjectSettings.asset`, so neither override can leak into a shipped build or into version control.
 
 ### `editor.playmode stop`
 Exit Unity Editor play mode.
 
 No parameters.
 
-**Returns:** `string`
+**Returns:** nothing. It logs `Exiting play mode.` (or `Already in edit mode.`, still a success) at the `info` level.
 
 ### `editor.playmode pause`
 Toggle pause state of Unity Editor play mode (calling it again while paused resumes play mode).
 
 No parameters.
 
-**Returns:** `string`
+**Returns:** `{ paused }`, the pause state after the toggle.
+**Notes:** Outside play mode it changes nothing and fails (`Failed`, exit 6) with an error on stderr.
 
 ### `editor status`
 Get detailed Unity Editor status and state information.
 
 No parameters.
 
-**Returns:** `StatusResponse`
+**Returns:** `StatusResponse` — `{ status, compiling, domainReloadInProgress, codeLoadCount, autoRefresh, playMode, runInBackground, lastHeartbeat, projectPath, unityVersion, … }`, the same shape `/api/editor_status` answers with.
 **Notes:** Immediate: it doesn't wait for the commands before it, only for the main thread. In Play mode the response also carries `frameCount` (`Time.frameCount`) and `playerLoopTicking` (whether the frame count advanced in the last second, `false` while paused). Both keys are absent in Edit Mode. The response always carries `runInBackground` (`Application.runInBackground`, the setting; `playerLoopTicking` is whether frames actually advance). `/api/status` carries the same three keys in Play mode only; see [Play mode and the player loop](../connectivity.md#play-mode-and-the-player-loop).
 
 `editor status` also always carries:
@@ -52,7 +59,7 @@ Bring the Unity Editor window to the foreground.
 
 No parameters.
 
-**Returns:** `string`
+**Returns:** nothing. It logs which view it focused at the `info` level. When the Editor's internal window API can't be found or the focus call throws, it exits `Failed` (6) with the reason on stderr.
 **Notes:** `MainThreadRequired = true`.
 
 ### `editor invoke_menu`
@@ -62,8 +69,8 @@ Execute an Editor menu item by path, or list available items when no path is giv
 |-----------|----------|---------|-------------|
 | `path` | no | `–` | Menu item path to execute, e.g. "Assets/Reimport All". Omit to list available menu items. |
 
-**Returns:** `MenuResponse`
-**Notes:** `MainThreadRequired = true`. `File/Exit` is refused; use `editor quit`.
+**Returns:** with a `path`, `{ path }` of the item it executed; without one, one record `{ path }` per available menu item, with the count logged at the `info` level. A path that doesn't exist or is disabled exits `NotFound` (13); `File/Exit` exits `InvalidUsage` (2), pointing to `editor quit`; a menu item that throws exits `Failed` (6). The reason is on stderr.
+**Notes:** `MainThreadRequired = true`.
 
 ### `editor quit`
 Quit the Editor without a save prompt. Fails if scenes or a prefab have unsaved changes, unless `--save` or `--discard` is passed.
@@ -80,29 +87,8 @@ unity command editor quit --save      # saves them, then quits
 unity command editor quit --discard   # drops them, then quits
 ```
 
-**Returns:** `EditorQuitResult` (`quitting`, `exitCode`, `saved`, `discarded`)
+**Returns:** `EditorQuitResult` (`quitting`, `exitCode`, `saved`, `discarded`). Unsaved changes without `--save` or `--discard`, a failed save, or `--save` in Play Mode exit `Failed` (6) with guidance on stderr; `--save` with `--discard` exits `InvalidUsage` (2).
 **Notes:** `MainThreadRequired = true`. The Editor exits shortly after the reply is sent. In Play Mode, `--save` is refused; stop Play Mode first or pass `--discard`. Not batchable.
-
-### `capture screenshot`
-Deprecated: use [`capture game_view`](capture.md#capture-game_view) or [`capture scene_view`](capture.md#capture-scene_view)
-with `output-path`. They write the file with the same path rules, and the game view capture also includes
-Screen Space - Overlay UI, which this command misses. Every result carries a deprecation warning in `warnings`.
-
-```bash
-unity command capture game_view --output-path Screenshots/x.png   # instead of: capture screenshot --view game --output Screenshots/x.png
-```
-
-Capture the Scene or Game view as a PNG and return its file path.
-
-| Parameter | Required | Default | Description |
-|-----------|----------|---------|-------------|
-| `view` | no | `game` | Which view to capture: 'game' (default) or 'scene' |
-| `output-path` | no | `–` | Output PNG path (absolute, or relative to the project root). Defaults to a timestamped file under <project>/Temp/pipeline-screenshots/. |
-| `width` | no | `0` | Output width in pixels. 0 (default) uses the view camera's current width. |
-| `height` | no | `0` | Output height in pixels. 0 (default) uses the view camera's current height. |
-
-**Returns:** `ScreenshotResponse`
-**Notes:** `MainThreadRequired = true`.
 
 ### `editor set_auto_tick`
 Keep the editor ticking while unfocused by forcing EditorApplication.SignalTick at a throttled rate.
@@ -113,8 +99,8 @@ Keep the editor ticking while unfocused by forcing EditorApplication.SignalTick 
 | `interval-ms` | no | `16` | Minimum milliseconds between forced ticks. 0 = every update (max rate, pegs a CPU core). Default 16 (~60Hz). |
 | `persist` | no | `true` | Persist this choice to SessionState so it survives a domain reload. Set `false` for a one-off/expensive setting (e.g. `interval-ms=0`) that should revert to the last persisted choice (or the default) after the next recompile instead of sticking for the rest of the session. |
 
-**Returns:** `string`
-**Notes:** `MainThreadRequired = true`. Persisted in SessionState by default: your enabled/interval choice survives a domain reload (dies with the editor process/session).
+**Returns:** `{ enabled, intervalMs, persisted }` — the auto-tick state after the call, and whether it was persisted. What changed is logged at the `info` level. Exits `Failed` (6) when the Editor's internal tick API can't be found.
+**Notes:** `MainThreadRequired = true`. Persisted in SessionState by default: your enabled/interval choice survives a domain reload (dies with the editor process/session). Auto-tick keeps the Editor's update loop, and with it compiles, test runs and command handling, at full rate while the Editor is unfocused. Unity runs `EditorApplication.delayCall` only while the Editor has focus; auto-tick runs it for an unfocused or minimized Editor, every 150 ms as Unity does. It doesn't keep Play mode running: an unfocused Editor pauses its player unless Run In Background is on, which [`editor.playmode start`](#editorplaymode-start) handles.
 
 Use `persist=false` for a change you only want in effect until the next unrelated recompile — e.g. a short profiling run at `interval-ms=0` (pegs a CPU core) or a one-off test/CI script — so it can't outlive its purpose and silently burn CPU for the rest of the session. Leave `persist` at its default `true` for a setting you want to remain in effect across recompiles, such as the normal always-on 16ms tick.
 
@@ -123,7 +109,7 @@ Read render, memory, and frame-timing stats (structured, read-only).
 
 No parameters.
 
-**Returns:** `PerformanceStats`
+**Returns:** `PerformanceStats` — `{ render, memory, frameTiming }`.
 
 ### `diagnostics run_audit`
 Run a Project Auditor static-analysis scan. Returns immediately; poll `diagnostics audit_status` until status is `completed`, then read the CSV.
@@ -133,8 +119,8 @@ Run a Project Auditor static-analysis scan. Returns immediately; poll `diagnosti
 | `categories` | no | `–` | Comma-separated issue categories to scan (e.g. `Code,ProjectSetting,Texture`). Default: all categories. An unknown name is rejected with an error listing the valid values. |
 | `output-path` | no | `–` | CSV output path (absolute, or relative to the project root). Defaults to `<project>/Temp/pipeline-audit/<scanId>.csv`. |
 
-**Returns:** `object` — `{ status, scanId, csvPath }` on start, or `{ status: "unavailable" | "error" | "busy", message }`.
-**Notes:** Requires Project Auditor in the Editor. Only one scan runs at a time (a second call returns `busy`). Not cancellable: stop polling to abandon a scan.
+**Returns:** `object` — `{ status: "scanning", scanId, csvPath }`. Exits `InvalidUsage` for an unknown category, and `Failed` when Project Auditor is absent or a scan is already queued or running, with the reason on stderr.
+**Notes:** Requires Project Auditor in the Editor. Only one scan runs at a time (a second call fails). Not cancellable: stop polling to abandon a scan.
 
 ### `diagnostics audit_status`
 Get the status of the last audit: `idle` | `scanning` | `completed` | `failed` | `interrupted` | `unavailable`.
@@ -148,7 +134,7 @@ No parameters.
 
 `diagnostics run_audit` needs both Project Auditor **and** its rules:
 
-- **Project Auditor absent** — `diagnostics run_audit` returns `unavailable` immediately.
+- **Project Auditor absent** — `diagnostics run_audit` fails immediately, and `diagnostics audit_status` reports `unavailable`.
 - **Rules absent** — when Project Auditor ships as a built-in editor module, its rules (descriptors,
   API/obsolete databases, Roslyn analyzers) come from the separate `com.unity.project-auditor-rules`
   package. Without it Project Auditor registers no analysis modules and cannot analyze anything, so
@@ -171,16 +157,16 @@ Aggregate the local eval-usage telemetry into a ranked report: API fingerprint f
 
 ## Eval usage telemetry
 
-The `script eval` and `script eval_file` commands are the workhorse of autonomous agent sessions, but they are opaque: raw C# through the protocol, unauditable, and hard to displace with typed commands without knowing what agents actually run. This telemetry closes that loop by recording, **locally**, what each eval does — so the [eval-displacement epic (AUTHAPI-24)](https://jira.unity3d.com/browse/AUTHAPI-24) can be triaged from data instead of anecdotes.
+The `script eval` command is the workhorse of autonomous agent sessions, but it is opaque: raw C# through the protocol, unauditable, and hard to displace with typed commands without knowing what agents actually run. This telemetry closes that loop by recording, **locally**, what each eval does — so the [eval-displacement epic (AUTHAPI-24)](https://jira.unity3d.com/browse/AUTHAPI-24) can be triaged from data instead of anecdotes.
 
 ### What is recorded, and where
 
-Every `script eval` or `script eval_file` invocation appends one JSON object (one line, JSONL) to `<project>/Library/Pipeline/eval-usage.jsonl`:
+Every `script eval` invocation appends one JSON object (one line, JSONL) to `<project>/Library/Pipeline/eval-usage.jsonl`:
 
 | Field | Meaning |
 |-------|---------|
 | `time` | ISO-8601 UTC timestamp. |
-| `command` | The command that ran: `script eval` or `script eval_file`. |
+| `command` | The command that ran: `script eval` (records written before 1.0 may name `script eval_file`). |
 | `success` / `error` | Whether it succeeded; short error category on failure. |
 | `payloadLength` / `lineCount` | Size/shape of the eval body. |
 | `executionTimeMs` | How long it took. |
@@ -216,7 +202,7 @@ Get the base folder (under Assets/) that bare authoring paths resolve against.
 
 No parameters.
 
-**Returns:** `object`
+**Returns:** `{ root }`, the authoring root, e.g. `{ "root": "Assets" }`.
 
 ### `authoring set_root`
 Set the base folder (under Assets/) that bare authoring paths resolve against and are confined to. Use 'Assets' for full project access.
@@ -225,6 +211,7 @@ Set the base folder (under Assets/) that bare authoring paths resolve against an
 |-----------|----------|---------|-------------|
 | `root` | yes | `–` | Project-relative folder under Assets/, e.g. Assets/AgentWork. Use 'Assets' to allow the whole project. |
 
-**Returns:** `object`
+**Returns:** `{ root }`, the authoring root now in effect.
+**Fails:** `InvalidUsage` for a root outside `Assets/` or containing `..`.
 
 See [Creating commands](../creating-commands.md) and [Connectivity](../connectivity.md).

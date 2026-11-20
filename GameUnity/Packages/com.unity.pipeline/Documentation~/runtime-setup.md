@@ -15,7 +15,7 @@ The toggles are independent: turning on release builds alone leaves development 
 
 Each toggle writes a scripting define symbol — `ENABLE_RUNTIME_PIPELINE_DEV` and `ENABLE_RUNTIME_PIPELINE` respectively — for every installed build target, so flipping one recompiles the project. You never need to type either symbol: the toggle is the supported way to set it.
 
-Enable release builds deliberately. Such a build carries a local HTTP server that executes commands, available to anyone who can reach the machine.
+Enable release builds deliberately. Such a build carries a loopback HTTP server that executes commands for any local process that can read its descriptor file. The build logs a warning when it includes the server.
 
 ## Configuring the runtime server
 

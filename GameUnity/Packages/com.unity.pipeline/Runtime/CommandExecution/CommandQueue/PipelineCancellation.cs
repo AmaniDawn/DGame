@@ -20,7 +20,7 @@ namespace Unity.Pipeline
     /// <para>Arbitrary synchronous code cannot be aborted safely from outside, so a running job
     /// that never checks this flag runs to completion (its state still reports canceled).</para>
     /// <para>This is a thin static façade over the executing command (resolved via
-    /// <see cref="Commands.CommandContext.Current"/>) so command code — which has no reference to
+    /// <see cref="Commands.CommandExecutionContext.Current"/>) so command code — which has no reference to
     /// "which execution is running me" — can keep
     /// calling this the same way regardless of which server dispatched it.</para>
     /// </summary>
@@ -33,7 +33,7 @@ namespace Unity.Pipeline
 
         /// <summary>
         /// The cancellation of the command whose async code runs here, for code that resumes after an
-        /// await, where <see cref="Commands.CommandContext.Current"/> is no longer set. Flows with the
+        /// await, where <see cref="Commands.CommandExecutionContext.Current"/> is no longer set. Flows with the
         /// async code that sets it.
         /// </summary>
         internal static CancellationToken AmbientToken
@@ -47,7 +47,7 @@ namespace Unity.Pipeline
         {
             get
             {
-                return (Commands.CommandContext.Current?.IsCancellationRequested ?? false)
+                return (Commands.CommandExecutionContext.Current?.IsCancellationRequested ?? false)
                     || AmbientToken.IsCancellationRequested;
             }
         }

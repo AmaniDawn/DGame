@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Newtonsoft.Json.Linq;
 using Unity.Pipeline.Commands;
 using Unity.Pipeline.Editor.Testing;
-using Unity.Pipeline.Models;
 using UnityEditor.TestTools.TestRunner.Api;
 using UnityEngine;
 
@@ -20,102 +19,170 @@ namespace Unity.Pipeline.Editor.Commands
 
         /// <summary>
         /// Execute Unity tests with filtering options.
-        /// Synchronous by default (blocks until completion), async mode available with --async-tests flag.
+        /// Synchronous by default: it returns once the run ends, writing one record per test that ran;
+        /// failing tests, or none matching, fail the command. With --async-tests it starts the run and
+        /// writes nothing; test status has the results. PlayMode and all, whose domain reload drops the
+        /// request, run only asynchronously.
         /// </summary>
-        [CliGroupCommand(Group, "Execute Unity tests with filtering options", MainThreadRequired = true, Tags = new[] { "tests" })]
-        public static async Task<TestExecutionResponse> Run(
-            [CliArg("mode", "Test mode: all, editor, playmode (default: all)")] string mode = "all",
+        [CliGroupCommand(Group, "Execute Unity tests with filtering options", MainThreadRequired = true, Tags = new[] { "tests" }, Effect = CommandEffect.Additive)]
+        internal static async Task<ExitCode> Run(CommandContext cmd,
+            [CliArg("mode", "Test mode: editor, playmode or all (default: editor). playmode and all need --async-tests.")] string mode = "editor",
             [CliArg("filter", "Test name filter pattern (case-insensitive partial match)")] string filter = "",
-            [CliArg("filter-type", "Filter type: testName, assembly, category (default: testName)")] string filterType = "testName",
+            [CliArg("filter-type", "Filter type: TestName, Assembly, Category (case-insensitive; default: TestName)")] TestFilterType filterType = TestFilterType.TestName,
             [CliArg("include-explicit", "Include tests marked with [Explicit] attribute")] bool includeExplicit = false,
-            [CliArg("async-tests", "Run asynchronously - return immediately, poll /test-status for results")] bool asyncTests = false,
+            [CliArg("async-tests", "Start the run and return at once with no results; poll test status for them")] bool asyncTests = false,
             [CliArg("timeout", "Test execution timeout in seconds (default: 600)")] double timeoutInSeconds = 600)
         {
-            // Return the full structured response (including failures and the Error field on a
-            // failed run) rather than throwing: the server now awaits this Task and serializes the
-            // unwrapped response, so the client receives complete, structured reporting. Throwing
-            // would only surface an opaque message and discard the per-test results.
-            return await PipelineTestRunner.ExecuteTestsAsync(
+            var run = await PipelineTestRunner.ExecuteTestsAsync(
                 mode,
                 filter,
                 filterType,
                 includeExplicit,
                 asyncTests,
                 PipelineTimeout.FromSeconds(timeoutInSeconds));
+
+            // The per-test results are written on failure too: they say which tests failed and why.
+            if (run.Results != null)
+            {
+                foreach (var result in run.Results)
+                    cmd.Result.WriteRecord(result);
+            }
+
+            var summary = run.Summary;
+            if (summary != null && summary.Total > 0)
+                cmd.Log.Info($"{run.Mode}: {summary.Passed}/{summary.Total} passed, {summary.Failed} failed, " +
+                    $"{summary.Skipped} skipped, {summary.Inconclusive} inconclusive in {run.Duration}s.");
+            if (!string.IsNullOrEmpty(run.Message))
+                cmd.Log.Info(run.Message);
+
+            if (run.Success)
+                return ExitCode.Success;
+
+            cmd.Log.Error(string.IsNullOrEmpty(run.ErrorDetails) ? run.Error : $"{run.Error}: {run.ErrorDetails}");
+            return run.ErrorCode == TestRunVerdict.InvalidArgsCode ? ExitCode.InvalidUsage : ExitCode.Failed;
         }
 
         /// <summary>
         /// List all available tests without executing any of them.
         /// Enumerates the test tree via TestRunnerApi.RetrieveTestList for the requested mode(s).
         /// </summary>
-        [CliGroupCommand(Group, "List all available tests (EditMode and/or PlayMode) without running them", MainThreadRequired = true, Tags = new[] { "tests" })]
-        public static async Task<TestListResponse> List(
+        [CliGroupCommand(Group, "List all available tests (EditMode and/or PlayMode) without running them", MainThreadRequired = true, Tags = new[] { "tests" }, Effect = CommandEffect.ReadOnly)]
+        internal static async Task<ExitCode> List(CommandContext cmd,
             [CliArg("mode", "Test mode: all, editor, playmode (default: all)")] string mode = "all")
         {
-            try
+            if (!TryGetModes(mode, out var modes))
             {
-                if (!TryGetModes(mode, out var modes))
-                {
-                    return new TestListResponse
-                    {
-                        Success = false,
-                        Command = CommandNames.TestList,
-                        Error = $"Invalid mode '{mode}'. Use 'editor', 'playmode', or 'all'.",
-                        ExecutedAt = DateTime.UtcNow
-                    };
-                }
-
-                var tests = new List<TestListItem>();
-                foreach (var testMode in modes)
-                {
-                    tests.AddRange(await RetrieveTestsAsync(testMode));
-                }
-
-                return new TestListResponse
-                {
-                    Success = true,
-                    Command = CommandNames.TestList,
-                    Mode = modes.Count == 2 ? "All" : modes[0].ToString(),
-                    Count = tests.Count,
-                    Tests = tests,
-                    Message = $"Found {tests.Count} test(s).",
-                    ExecutedAt = DateTime.UtcNow
-                };
+                cmd.Log.Error($"Invalid mode '{mode}'. Use 'editor', 'playmode', or 'all'.");
+                return ExitCode.InvalidUsage;
             }
-            catch (Exception ex)
+
+            var count = 0;
+            foreach (var testMode in modes)
             {
-                Debug.LogError($"[TestCommands] {CommandNames.TestList} failed: {ex.Message}");
-                return new TestListResponse
+                cmd.CancellationToken.ThrowIfCancellationRequested();
+                foreach (var test in await RetrieveTestsAsync(testMode))
                 {
-                    Success = false,
-                    Command = CommandNames.TestList,
-                    Error = "Failed to list tests",
-                    ErrorDetails = ex.ToString(),
-                    ExecutedAt = DateTime.UtcNow
-                };
+                    cmd.Result.WriteRecord(test);
+                    count++;
+                }
             }
+
+            cmd.Log.Info($"Found {count} test(s).");
+            return ExitCode.Success;
         }
 
         /// <summary>
         /// Get current test status for async test execution
         /// </summary>
-        [CliGroupCommand(Group, "Get status of running async test execution", MainThreadRequired = false, Tags = new[] { "tests" })]
+        [CliGroupCommand(Group, "Get status of running async test execution", MainThreadRequired = false, Tags = new[] { "tests" }, Effect = CommandEffect.ReadOnly)]
         [ImmediateCommand]
-        public static JToken Status()
+        internal static ExitCode Status(CommandContext cmd,
+            [CliArg("detail", "full (default) for every test's result; failures for only the failed tests' results; summary for the counts and no per-test results.")] string detail = null)
+        {
+            var keep = ResultsFilter(detail);
+            if (keep == null)
+            {
+                cmd.Log.Error($"Invalid detail '{detail}'. Use 'full', 'failures' or 'summary'.");
+                return ExitCode.InvalidUsage;
+            }
+
+            // Judged on every result, so a failed run names its failed tests whatever the detail.
+            var status = RawStatus();
+            var code = TestRunVerdict.JudgeStatus(status, out var error);
+            if ((status as JObject)?["results"] is JArray results)
+                results.ReplaceAll(results.Where(keep).ToList());
+            cmd.Result.Write(status);
+
+            if (code != ExitCode.Success)
+                cmd.Log.Error(error);
+            return code;
+        }
+
+        /// <summary>Which results a <c>detail</c> keeps, or null for a value it doesn't know.</summary>
+        static Func<JToken, bool> ResultsFilter(string detail)
+        {
+            switch (detail?.ToLowerInvariant())
+            {
+                case null:
+                case "":
+                case "full":
+                    return r => true;
+                case "failures":
+                    return r => (string)r["status"] == "Failed";
+                case "summary":
+                    return r => false;
+                default:
+                    return null;
+            }
+        }
+
+        /// <summary>The asynchronous test run's status payload, unjudged: it always carries a status field.</summary>
+        internal static JToken RawStatus()
         {
             var status = PipelineTestRunner.GetTestStatus();
-            return status != null
-                ? StatusFileReader.Parse(status)
-                : new JObject { ["status"] = "no_tests", ["message"] = "No test run in progress" };
+            if (status == null)
+                return new JObject { ["status"] = "no_tests", ["message"] = "No test run in progress" };
+
+            var parsed = StatusFileReader.Parse(status);
+            CamelCaseResults(parsed);
+            return parsed;
+        }
+
+        /// <summary>The PascalCase result keys of a status file an earlier package wrote.</summary>
+        static readonly string[] k_PascalCaseResultKeys = { "FullName", "Status", "Duration", "Message", "StackTrace" };
+
+        /// <summary>
+        /// Renames the PascalCase keys of a status file's results to camelCase, in place. A status
+        /// file outlives a package update, so one written by an earlier package still names them so.
+        /// </summary>
+        static void CamelCaseResults(JToken status)
+        {
+            if (!((status as JObject)?["results"] is JArray results))
+                return;
+            foreach (var result in results.OfType<JObject>())
+            {
+                foreach (var key in k_PascalCaseResultKeys)
+                {
+                    var property = result.Property(key, StringComparison.Ordinal);
+                    var camel = char.ToLowerInvariant(key[0]) + key.Substring(1);
+                    if (property != null && result.Property(camel, StringComparison.Ordinal) == null)
+                        property.Replace(new JProperty(camel, property.Value));
+                }
+            }
         }
 
         /// <summary>
         /// Cancel running test execution
         /// </summary>
-        [CliGroupCommand(Group, "Cancel running test execution", MainThreadRequired = true, Tags = new[] { "tests" })]
-        public static object Cancel()
+        [CliGroupCommand(Group, "Cancel running test execution", MainThreadRequired = true, Tags = new[] { "tests" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode Cancel(CommandContext cmd)
         {
-            return PipelineTestRunner.CancelTests();
+            var cancelled = PipelineTestRunner.CancelTests();
+            if (cancelled.Status == "unsupported")
+                return CommandFailure.Fail(cmd, ExitCode.Failed, cancelled.Message);
+            cmd.Log.Info(cancelled.Message);
+            cmd.Result.Write(new { status = cancelled.Status });
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -197,17 +264,6 @@ namespace Unity.Pipeline.Editor.Commands
                     CollectLeafTests(child, testMode, items);
             }
         }
-    }
-
-    /// <summary>
-    /// Response for the list_tests command: the available tests, without execution results.
-    /// </summary>
-    [Serializable]
-    class TestListResponse : CommandExecutionResponse
-    {
-        public string Mode { get; set; }       // EditMode, PlayMode, or All
-        public int Count { get; set; }
-        public List<TestListItem> Tests { get; set; } = new List<TestListItem>();
     }
 
     /// <summary>

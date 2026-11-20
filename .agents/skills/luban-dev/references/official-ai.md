@@ -15,16 +15,6 @@
 
 工具目录被 Git 忽略。导出生成器切换时，安装脚本会先保留旧目录到同级 `Backups/`，再安装匹配版本；不会执行生产导表。
 
-AI 工具和正式生成器使用官方 `v5.1.0`。官方 Agent 对缺失 `luban.conf` 返回非成功退出码 `4`；调用方应通过 `ok`、`exitCode` 和 `errors` 判断失败。
-
-## 本项目兼容范围
-
-AI 工具 5.1.0 已通过当前 `client` 配置的查询和校验。客户端 LazyLoad / standard 隔离导出与 4.5.0 的 Binary、JSON 完全一致，C# 差异仅为新增 XML 注释。
-
-正式导表已按用户要求更新到 5.1.0。音效和引导共四张客户端专用表已将表级 `group` 设为 `c`，client / server 均通过校验及原一键脚本的隔离导表，客户端产物保持不变。
-
-`all` 目标已修正为 `groups=["c", "s", "e"]`，并通过 CLI、Agent 与 MCP 查询/校验。
-
 ## 部署
 
 前置条件：Python 3.11+、Git、可构建 net8.0 的 .NET SDK 与 .NET 8 运行时。
@@ -83,7 +73,7 @@ python .agents/skills/luban-dev/scripts/luban_ai.py configure-mcp
 
 上游示例的目录、命名和资源加载方式需按 DGame 适配；业务字段不因示例采用 `snake_case` 而改名。继续维护一个 `luban-dev` 入口，不重复安装同类技能。
 
-来源核对日期：2026-11-07。
+来源：
 
 - [官方 AI 目录与 Skills](https://github.com/focus-creative-games/luban/tree/df34215d2e22035073d1af83d44e3ac0744dc3b3/ai)
 - [Agent CLI](https://github.com/focus-creative-games/luban/tree/df34215d2e22035073d1af83d44e3ac0744dc3b3/src/Luban.Agent)

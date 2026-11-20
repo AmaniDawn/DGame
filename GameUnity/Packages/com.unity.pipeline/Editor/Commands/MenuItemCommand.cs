@@ -24,8 +24,8 @@ namespace Unity.Pipeline.Editor.Commands
     /// Execution wraps <see cref="EditorApplication.ExecuteMenuItem"/>, which returns <c>false</c>
     /// when the item could not be invoked — either because the path does not exist or because the
     /// item is currently disabled (its validation function returned false). The API does not
-    /// distinguish those cases, so a failure is reported as "not found or disabled"; the CLI maps a
-    /// failed result to its "menu item does not exist" exit code.
+    /// distinguish those cases, so a failure is reported as "not found or disabled" with the
+    /// <see cref="ExitCode.NotFound"/> exit code.
     ///
     /// Listing reflects the <em>actual</em> Editor menu via the internal
     /// <c>UnityEditor.Menu.GetMenuItems</c> API (accessed by reflection, mirroring
@@ -45,36 +45,27 @@ namespace Unity.Pipeline.Editor.Commands
         const string Group = "editor";
         const string k_QuitMenuPath = "File/Exit";
 
-        [CliGroupCommand(Group, "Execute an Editor menu item by path, or list available items when no path is given", MainThreadRequired = true, Tags = new[] { "editor" })]
-        public static MenuResponse InvokeMenu(
+        [CliGroupCommand(Group, "Execute an Editor menu item by path, or list available items when no path is given", MainThreadRequired = true, Tags = new[] { "editor" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode InvokeMenu(CommandContext cmd,
             [CliArg("path", "Menu item path to execute, e.g. \"Assets/Reimport All\". Omit to list available menu items.")] string path = "")
         {
-            // No path → discovery mode: return the available menu items instead of executing.
+            // No path → discovery mode: list the available menu items instead of executing.
             if (string.IsNullOrWhiteSpace(path))
             {
-                List<string> items;
-                try
-                {
-                    items = DiscoverMenuItems();
-                }
-                catch (Exception ex)
-                {
-                    return MenuResponse.Fail(null, $"Failed to list menu items: {ex.Message}");
-                }
-
-                return new MenuResponse
-                {
-                    Success = true,
-                    Items = items,
-                    Message = $"{items.Count} menu item(s) available."
-                };
+                var items = DiscoverMenuItems();
+                foreach (var item in items)
+                    cmd.Result.WriteRecord(new MenuItemResult { Path = item });
+                cmd.Log.Info($"{items.Count} menu item(s) available.");
+                return ExitCode.Success;
             }
 
             // File/Exit opens a save prompt for dirty scenes, which an unattended Editor silently cancels.
             if (string.Equals(path.Trim(), k_QuitMenuPath, StringComparison.OrdinalIgnoreCase))
-                return MenuResponse.Fail(path,
-                    $"'{k_QuitMenuPath}' is not run through this command. Use '{CommandNames.EditorQuit}' " +
+            {
+                cmd.Log.Error($"'{k_QuitMenuPath}' is not run through this command. Use '{CommandNames.EditorQuit}' " +
                     "(with --save or --discard when there are unsaved changes).");
+                return ExitCode.InvalidUsage;
+            }
 
             bool executed;
             try
@@ -83,18 +74,19 @@ namespace Unity.Pipeline.Editor.Commands
             }
             catch (Exception ex)
             {
-                return MenuResponse.Fail(path, $"Failed to execute menu item '{path}': {ex.Message}");
+                cmd.Log.Error($"Failed to execute menu item '{path}': {ex.Message}");
+                return ExitCode.Failed;
             }
 
             if (!executed)
-                return MenuResponse.Fail(path, $"Menu item '{path}' was not found or is currently disabled.");
-
-            return new MenuResponse
             {
-                Success = true,
-                Path = path,
-                Message = $"Executed menu item '{path}'"
-            };
+                cmd.Log.Error($"Menu item '{path}' was not found or is currently disabled. Run {CommandNames.EditorInvokeMenu} without a path to list the available items.");
+                return ExitCode.NotFound;
+            }
+
+            cmd.Log.Info($"Executed menu item '{path}'.");
+            cmd.Result.Write(new MenuItemResult { Path = path });
+            return ExitCode.Success;
         }
 
         const BindingFlags k_All = BindingFlags.Static | BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic;
@@ -229,30 +221,13 @@ namespace Unity.Pipeline.Editor.Commands
     }
 
     /// <summary>
-    /// Result of the <c>menu</c> command. On execution, <see cref="Success"/> false means the item
-    /// could not be invoked (not found or disabled). In list mode, <see cref="Items"/> holds the
-    /// available menu paths.
+    /// A menu item of the <c>editor invoke_menu</c> command: the one it executed, or one record per
+    /// available item when listing.
     /// </summary>
     [Serializable]
-    class MenuResponse
+    class MenuItemResult
     {
-        [JsonProperty("success")]
-        public bool Success { get; set; }
-
         [JsonProperty("path")]
         public string Path { get; set; }
-
-        [JsonProperty("items")]
-        public List<string> Items { get; set; }
-
-        [JsonProperty("message")]
-        public string Message { get; set; }
-
-        public static MenuResponse Fail(string path, string message) => new MenuResponse
-        {
-            Success = false,
-            Path = path,
-            Message = message
-        };
     }
 }

@@ -1,0 +1,16 @@
+{
+    "name": "Unity.Pipeline.ScenePreview",
+    "rootNamespace": "Unity.Pipeline.ScenePreview",
+    "references": [],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": true,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [
+        "UNITY_EDITOR || ENABLE_PIPELINE_SCENE_PREVIEW"
+    ],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -162,6 +162,7 @@ namespace Unity.Pipeline.Commands
             "Unity.Pipeline.Attributes",
             "Unity.Pipeline.IlInterpreter",
             "Unity.Pipeline.CodeGen",
+            "Unity.Pipeline.ScenePreview",
         };
 
         /// <summary>Whether <paramref name="assemblyName"/> is one of the <see cref="PackageAssemblyNames"/>.</summary>
@@ -248,6 +249,11 @@ namespace Unity.Pipeline.Commands
         /// Optional path-style tags describing facets of the command, e.g.
         /// <see cref="CommandInfo.RuntimeTag"/> for the Player command surface.
         /// </param>
+        /// <param name="effect">
+        /// What running the command does, served in the catalog as its <c>readOnly</c>,
+        /// <c>destructive</c> and <c>idempotent</c> hints. <see cref="CommandEffect.Unspecified"/>
+        /// serves none.
+        /// </param>
         /// <exception cref="ArgumentException">
         /// The group or the name breaks a format rule (see <see cref="FormatError"/>).
         /// </exception>
@@ -256,7 +262,7 @@ namespace Unity.Pipeline.Commands
         /// be replaced; a dynamic one must be unregistered first.
         /// </exception>
         public static void RegisterCommand(string group, string name, string description, Delegate handler,
-            bool mainThreadRequired = true, string[] tags = null)
+            bool mainThreadRequired = true, string[] tags = null, CommandEffect effect = CommandEffect.Unspecified)
         {
             if (group == null)
                 throw new ArgumentNullException(nameof(group));
@@ -271,16 +277,21 @@ namespace Unity.Pipeline.Commands
                 throw new ArgumentException(formatError, badParameter);
 
             var method = handler.Method;
+            var signatureError = CommandSignature.Error(method);
+            if (signatureError != null)
+                throw new ArgumentException($"The handler can't be a command: {signatureError}", nameof(handler));
             var command = new CommandInfo(
                 name,
                 description,
                 mainThreadRequired,
+                false,
                 method,
                 DiscoverParameters(method).ToList(),
                 tags,
                 method.DeclaringType?.Assembly.GetName().Name,
                 handler.Target,
-                group);
+                group,
+                effect);
 
             lock (m_DiscoveryLock)
             {
@@ -525,6 +536,13 @@ namespace Unity.Pipeline.Commands
                 return null;
             }
 
+            var signatureError = CommandSignature.Error(method);
+            if (signatureError != null)
+            {
+                Debug.LogError($"Command {method.DeclaringType?.FullName}.{method.Name} is not registered: {signatureError}");
+                return null;
+            }
+
             // Discover parameters
             var parameters = DiscoverParameters(method).ToList();
 
@@ -537,7 +555,9 @@ namespace Unity.Pipeline.Commands
                 parameters,
                 grouped != null ? grouped.Tags : cliCommand.Tags,
                 method.DeclaringType?.Assembly.GetName().Name,
-                group: group
+                null,
+                group,
+                grouped?.Effect ?? cliCommand.Effect
             );
         }
 
@@ -638,6 +658,10 @@ namespace Unity.Pipeline.Commands
         {
             foreach (var param in method.GetParameters())
             {
+                // The pipeline passes the context; it is no argument the user gives.
+                if (CommandSignature.IsContext(param))
+                    continue;
+
                 var argAttr = param.GetCustomAttribute<CliArgAttribute>();
 
                 // Parameters without CliArg attribute get default metadata

@@ -14,23 +14,26 @@ namespace Unity.Pipeline.Runtime.Commands
         const string Group = "pipeline";
 
         [CliGroupCommand(Group, "Get the progress of the running command, as /api/progress serves it: whether a command runs, and what it last reported.",
-            MainThreadRequired = false, Tags = new[] { "pipeline" })]
+            MainThreadRequired = false, Tags = new[] { "pipeline" },
+            Effect = CommandEffect.ReadOnly)]
         [ImmediateCommand]
-        public static object Progress()
+        internal static ExitCode Progress(CommandContext cmd)
         {
-            var state = CommandContext.Current.Progress;
+            var state = CommandExecutionContext.Current.Progress;
             var active = state.IsActive;
-            return new
+            cmd.Result.Write(new
             {
                 active,
                 progress = active ? BasePipelineServer.BuildProgressPayload(CommandProgress.From(state.Current)) : null
-            };
+            });
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group, "List the registered commands, filtered, sorted and grouped as /api/commands serves them.",
-            MainThreadRequired = false, Tags = new[] { "pipeline" })]
+            MainThreadRequired = false, Tags = new[] { "pipeline" },
+            Effect = CommandEffect.ReadOnly)]
         [ImmediateCommand]
-        public static object ListCommands(
+        internal static ExitCode ListCommands(CommandContext cmd,
             [CliArg("detail", "full (default) with parameters and schemas, compact, tags (an index of tags) or groups (an index of groups).")] string detail = null,
             [CliArg("query", "Keep the commands whose full name, description or a tag contains this, ignoring case.")] string query = null,
             [CliArg("group", "Keep a group and its subgroups.")] string group = null,
@@ -41,6 +44,43 @@ namespace Unity.Pipeline.Runtime.Commands
             [CliArg("order", "asc (default) or desc.")] string order = null,
             [CliArg("offset", "How many to skip, after sorting.")] int? offset = null,
             [CliArg("limit", "How many to return at most; all by default.")] int? limit = null)
+        {
+            var catalog = BuildCatalog(detail, query, group, tag, includeTests, groupBy, sort, order, offset, limit);
+
+            // JSON as the catalog unless --fields picks fields; otherwise one record per entry, which the
+            // result writes in the format picked. Human laid out as the CLI lays out a listing: output that isn't a result.
+            var current = CommandExecutionContext.Current;
+            if (!(current?.Result is ResultWriter writer) || current.Std == null)
+            {
+                cmd.Result.Write(catalog);
+                return ExitCode.Success;
+            }
+
+            var kind = CommandListing.KindOf(detail);
+            switch (writer.Format)
+            {
+                case OutputFormat.Json when !writer.SelectsFields:
+                    cmd.Result.Write(catalog);
+                    break;
+                case OutputFormat.Json:
+                case OutputFormat.Tsv:
+                    foreach (var entry in CommandListing.Entries(catalog, kind))
+                        cmd.Result.WriteRecord(entry);
+                    break;
+                default:
+                    cmd.Std.Out.Write(CommandListing.Human(catalog, kind, current.Std.OutIsTerminal));
+                    break;
+            }
+            return ExitCode.Success;
+        }
+
+        /// <summary>
+        /// The <c>/api/commands</c> answer for the same options, without its server block.
+        /// </summary>
+        /// <exception cref="ArgumentException">An option is unknown, or can't be combined with another.</exception>
+        internal static Dictionary<string, object> BuildCatalog(string detail = null, string query = null, string group = null,
+            string tag = null, bool includeTests = false, string groupBy = null, string sort = null, string order = null,
+            int? offset = null, int? limit = null)
         {
             var options = new Dictionary<string, string>
             {
@@ -55,29 +95,7 @@ namespace Unity.Pipeline.Runtime.Commands
                 ["offset"] = offset?.ToString(),
                 ["limit"] = limit?.ToString()
             };
-            var catalog = BasePipelineServer.BuildCommandCatalog(name => options[name], null, null);
-
-            // JSON as the catalog unless --fields picks fields; otherwise one record per entry, which the
-            // result writes in the format picked. Human laid out as the CLI lays out a listing: output that isn't a result.
-            var cmd = CommandContext.Current;
-            if (cmd?.Result == null || cmd.Std == null)
-                return catalog;
-            var kind = CommandListing.KindOf(detail);
-            switch (cmd.Result.Format)
-            {
-                case OutputFormat.Json when !cmd.Result.SelectsFields:
-                    return catalog;
-                case OutputFormat.Json:
-                case OutputFormat.Tsv:
-                    foreach (var entry in CommandListing.Entries(catalog, kind))
-                        cmd.Result.WriteRecord(entry);
-                    // No records written: an empty list, so the result writes nothing rather than null.
-                    return Array.Empty<object>();
-                default:
-                    cmd.Std.Out.Write(CommandListing.Human(catalog, kind, cmd.Std.OutIsTerminal));
-                    break;
-            }
-            return null;
+            return BasePipelineServer.BuildCommandCatalog(name => options[name], null);
         }
     }
 }

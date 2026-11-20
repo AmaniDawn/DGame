@@ -94,7 +94,6 @@ namespace Unity.Pipeline.Editor.Commands.Build
     [Serializable]
     class SetBuildSettingsResult
     {
-        [JsonProperty("success")] public bool Success { get; set; }
         [JsonProperty("dryRun")] public bool DryRun { get; set; }
 
         /// <summary>Field name → new value, for each field that changed (or would change on a dry run).</summary>
@@ -102,11 +101,6 @@ namespace Unity.Pipeline.Editor.Commands.Build
 
         /// <summary>Field name → current value, for supplied fields that already matched (no-ops).</summary>
         [JsonProperty("skipped")] public Dictionary<string, object> Skipped { get; set; } = new Dictionary<string, object>();
-
-        [JsonProperty("message")] public string Message { get; set; }
-
-        public static SetBuildSettingsResult Fail(string message) =>
-            new SetBuildSettingsResult { Success = false, Message = message };
     }
 
     /// <summary>One Build Profile asset, projected for <c>list_build_profiles</c> (Unity 6 only).</summary>
@@ -158,7 +152,6 @@ namespace Unity.Pipeline.Editor.Commands.Build
     [Serializable]
     class CreateBuildProfileResult
     {
-        [JsonProperty("success")] public bool Success { get; set; }
         [JsonProperty("dryRun")] public bool DryRun { get; set; }
 
         /// <summary>Project-relative path the profile was (or would be) created at.</summary>
@@ -172,8 +165,6 @@ namespace Unity.Pipeline.Editor.Commands.Build
 
         /// <summary>Whether the new profile was made the active Build Profile.</summary>
         [JsonProperty("activated")] public bool Activated { get; set; }
-
-        [JsonProperty("message")] public string Message { get; set; }
     }
 
     /// <summary>
@@ -185,7 +176,6 @@ namespace Unity.Pipeline.Editor.Commands.Build
     [Serializable]
     class EditBuildProfileResult
     {
-        [JsonProperty("success")] public bool Success { get; set; }
         [JsonProperty("dryRun")] public bool DryRun { get; set; }
 
         /// <summary>Project-relative path of the edited profile.</summary>
@@ -199,8 +189,6 @@ namespace Unity.Pipeline.Editor.Commands.Build
 
         /// <summary>Setting name → current value, for supplied settings that already matched (no-ops).</summary>
         [JsonProperty("skipped")] public Dictionary<string, object> Skipped { get; set; } = new Dictionary<string, object>();
-
-        [JsonProperty("message")] public string Message { get; set; }
     }
 
     /// <summary>One output file produced by the build (a row of <c>BuildReport.GetFiles()</c>).</summary>

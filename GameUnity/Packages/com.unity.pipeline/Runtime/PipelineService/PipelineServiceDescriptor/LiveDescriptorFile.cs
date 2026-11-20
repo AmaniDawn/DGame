@@ -199,7 +199,12 @@ namespace Unity.Pipeline
             }
             catch (Exception ex)
             {
-                Debug.LogWarning($"Pipeline: Failed to write descriptor '{m_FilePath}': {ex.Message}");
+                // Without a descriptor on disk, clients can't discover or authenticate to this instance.
+                if (File.Exists(m_FilePath))
+                    Debug.LogWarning($"Pipeline: Failed to refresh descriptor '{m_FilePath}': {ex.Message}");
+                else
+                    Debug.LogError($"Pipeline: Descriptor '{m_FilePath}' was not written, so clients can't connect: {ex.Message} " +
+                        "Check that the current user can change permissions on files in that folder.");
             }
         }
 

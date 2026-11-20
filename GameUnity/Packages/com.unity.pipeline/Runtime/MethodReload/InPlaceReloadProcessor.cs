@@ -211,7 +211,7 @@ namespace Unity.Pipeline.MethodReload
             // Build one compilation + semantic model for the transform, so Roslyn's metadata bind
             // is paid once per reload (shared with the string TransformMethodBodies overload).
             var model = SourceCodeTransformer.BuildSemanticModel(
-                sourceCode, extraction.TypeName, out var classDecl, preprocessorSymbols);
+                sourceCode, extraction.TypeName, out var classDecl, preprocessorSymbols, extraction.TypeArity);
             if (classDecl == null)
             {
                 prep.Error = $"Could not find class '{extraction.TypeName}' in source.";
@@ -381,7 +381,7 @@ namespace Unity.Pipeline.MethodReload
                 // Find the class containing [MethodReload] methods.
                 var classDeclaration = root.DescendantNodes()
                     .OfType<ClassDeclarationSyntax>()
-                    .FirstOrDefault(c => c.DescendantNodes().OfType<MethodDeclarationSyntax>().Any(HasMethodReloadAttribute));
+                    .FirstOrDefault(c => c.DescendantNodes().OfType<MethodDeclarationSyntax>().Any(SourceCodeTransformer.HasMethodReloadAttribute));
 
                 if (classDeclaration == null)
                 {
@@ -389,6 +389,9 @@ namespace Unity.Pipeline.MethodReload
                 }
 
                 result.TypeName = classDeclaration.Identifier.ValueText;
+                result.TypeArity = classDeclaration.Arity;
+                // A partial type can carry tagged methods in any of its parts in this file.
+                var parts = SourceCodeTransformer.TypeParts(classDeclaration);
 
                 // The transform lifts bodies into ONE override class for the top-level type chosen
                 // above. Tagged methods anywhere else in the file — in a NESTED type (which the
@@ -397,10 +400,10 @@ namespace Unity.Pipeline.MethodReload
                 // never finds an override. Surface each one loudly; when nothing else is
                 // reloadable, these become the reload's error.
                 foreach (var method in root.DescendantNodes()
-                             .OfType<MethodDeclarationSyntax>().Where(HasMethodReloadAttribute))
+                             .OfType<MethodDeclarationSyntax>().Where(SourceCodeTransformer.HasMethodReloadAttribute))
                 {
                     var owner = method.Ancestors().OfType<TypeDeclarationSyntax>().FirstOrDefault();
-                    if (owner == null || owner == classDeclaration)
+                    if (owner == null || (owner is ClassDeclarationSyntax ownerClass && parts.Contains(ownerClass)))
                         continue;
                     var ownerChain = string.Join(".", method.Ancestors()
                         .OfType<TypeDeclarationSyntax>().Reverse().Select(t => t.Identifier.ValueText));
@@ -411,9 +414,9 @@ namespace Unity.Pipeline.MethodReload
                           $"type with [MethodReload] methods, '{result.TypeName}', is reloaded per file; split the file)");
                 }
 
-                var methodReloadableMethods = classDeclaration.Members
-                    .OfType<MethodDeclarationSyntax>()
-                    .Where(HasMethodReloadAttribute);
+                var methodReloadableMethods = parts
+                    .SelectMany(p => p.Members.OfType<MethodDeclarationSyntax>())
+                    .Where(SourceCodeTransformer.HasMethodReloadAttribute);
 
                 foreach (var method in methodReloadableMethods)
                 {
@@ -446,35 +449,6 @@ namespace Unity.Pipeline.MethodReload
                 Debug.LogError($"MethodReload: Error extracting [MethodReload] methods: {ex.Message}");
                 return result;
             }
-        }
-
-        /// <summary>
-        /// Check if method has [MethodReload] attribute. The unqualified name must match exactly: a
-        /// looser match (a substring test) also catches [OnMethodReloaded] — the post-reload callback,
-        /// not a reload target — and pushing that name makes the player-side registry lookup fail for
-        /// the whole file.
-        /// Internal so <see cref="MethodReloadBaseline"/> hashes exactly the methods extraction picks.
-        /// </summary>
-        internal static bool HasMethodReloadAttribute(MethodDeclarationSyntax method)
-        {
-            return method.AttributeLists
-                .SelectMany(al => al.Attributes)
-                .Any(a => UnqualifiedAttributeName(a) == "MethodReload");
-        }
-
-        /// <summary>
-        /// Attribute name as the source wrote it, minus any namespace qualifier and the optional
-        /// "Attribute" suffix — [Foo.BarAttribute] and [Bar] both yield "Bar".
-        /// </summary>
-        private static string UnqualifiedAttributeName(AttributeSyntax attr)
-        {
-            var name = attr.Name.ToString();
-            var lastDot = name.LastIndexOf('.');
-            if (lastDot >= 0)
-                name = name.Substring(lastDot + 1);
-            if (name.EndsWith("Attribute"))
-                name = name.Substring(0, name.Length - "Attribute".Length);
-            return name;
         }
 
         /// <summary>
@@ -594,6 +568,11 @@ namespace Unity.Pipeline.MethodReload
             /// Name of the class containing [MethodReload] methods.
             /// </summary>
             public string TypeName { get; set; }
+
+            /// <summary>
+            /// Type parameter count of that class, so a same-name generic type isn't mistaken for it.
+            /// </summary>
+            public int TypeArity { get; set; }
 
             /// <summary>
             /// Dictionary of method names to their extracted body code.

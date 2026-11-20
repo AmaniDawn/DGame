@@ -1,5 +1,4 @@
 #if UNITY_2023_2_OR_NEWER
-using System.Collections.Generic;
 using Unity.Pipeline.Commands;
 
 namespace Unity.Pipeline.Editor.Commands.Observability
@@ -14,21 +13,26 @@ namespace Unity.Pipeline.Editor.Commands.Observability
 
         [CliGroupCommand(Group,
             "Start recording the analytics events the Pipeline sends, for diagnostics recent_analytics to list. Recording lasts until the next domain reload.",
-            Tags = new[] { "observability/analytics" })]
-        public static string RecordAnalytics()
+            Tags = new[] { "observability/analytics" },
+            Effect = CommandEffect.Idempotent)]
+        internal static ExitCode RecordAnalytics(CommandContext cmd)
         {
             PipelineAnalytics.IsRecording = true;
-            return "Recording analytics events.";
+            cmd.Log.Info("Recording analytics events.");
+            return ExitCode.Success;
         }
 
         // Main thread: a command's event is recorded by a main-thread post queued before its reply,
         // so a read that queues behind it always sees it.
         [CliGroupCommand(Group,
             "List the last analytics events the Pipeline sent while recording, newest last: each one's name, time and payload. Empty until diagnostics record_analytics starts recording.",
-            Tags = new[] { "observability/analytics" })]
-        public static IReadOnlyList<PipelineAnalytics.SentEvent> RecentAnalytics()
+            Tags = new[] { "observability/analytics" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode RecentAnalytics(CommandContext cmd)
         {
-            return PipelineAnalytics.RecentEvents;
+            foreach (var sent in PipelineAnalytics.RecentEvents)
+                cmd.Result.WriteRecord(sent);
+            return ExitCode.Success;
         }
     }
 }

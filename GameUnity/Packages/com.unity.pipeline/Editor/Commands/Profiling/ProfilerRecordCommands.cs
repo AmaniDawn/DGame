@@ -1,12 +1,14 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Unity.Pipeline.Commands;
 using UnityEditor;
 using UnityEditorInternal;
 using UnityEngine;
+using UnityEngine.Profiling;
 #if UNITY_6000_5_OR_NEWER
 using Unity.Scripting.LifecycleManagement;
 #endif
@@ -56,17 +58,23 @@ namespace Unity.Pipeline.Editor.Commands.Profiling
         static int s_RequestedFrames;
         static bool s_RequestedDeepProfile;
         static double s_RequestedTimeout;
+        static List<ProfilerArea> s_RequestedAreas;
+        static ProfilerMemoryRecordMode? s_RequestedCallstacks;
 
         static double s_StartTime;
         static double s_LastStatusWrite;
         static int s_BaselineFrameIndex;
         static string s_RecordingNote;
+        static string[] s_RecordedAreas;
+        static string[] s_RecordedCallstacks;
 
         // What StartRecording changed, so Release can put it back. Only set once recording started:
         // a request that fails before then has touched nothing.
         static bool s_Started;
         static bool s_PriorEnabled;
         static bool s_PriorProfileEditor;
+        static List<(ProfilerArea Area, bool Enabled)> s_PriorAreas = new List<(ProfilerArea Area, bool Enabled)>();
+        static ProfilerMemoryRecordMode s_PriorMemoryRecordMode;
 
         static ProfilerRecordCommands()
         {
@@ -80,27 +88,48 @@ namespace Unity.Pipeline.Editor.Commands.Profiling
         /// <summary>A recording is queued or running, so the live Profiler history belongs to it.</summary>
         internal static bool IsActive => s_State != State.Idle;
 
-        [CliGroupCommand(Group, "Record Unity Profiler frames from whatever the Editor's Profiler is connected to (see " + CommandNames.DiagnosticsProfilerConnect + ") and save them to a .data file. Returns immediately; poll " + CommandNames.DiagnosticsProfilerRecordStatus + " until status is 'completed', then read the path.", Tags = new[] { "observability/profiling" })]
-        public static object ProfilerRecord(
+        [CliGroupCommand(Group, "Record Unity Profiler frames from whatever the Editor's Profiler is connected to (see " + CommandNames.DiagnosticsProfilerConnect + ") and save them to a .data file. Returns immediately; poll " + CommandNames.DiagnosticsProfilerRecordStatus + " until status is 'completed', then read the path.", Tags = new[] { "observability/profiling" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode ProfilerRecord(CommandContext cmd,
             [CliArg("frames", "Number of frames to record before stopping and saving. Use 0 to record until " + CommandNames.DiagnosticsProfilerRecordStop + ". Default 300. The Profiler keeps a bounded history (Preferences > Analysis > Profiler > Frame Count, 300 by default), so a longer recording drops its earliest frames: the status reports framesSaved alongside framesRecorded.")] int frames = DefaultFrames,
             [CliArg("output-path", "Output .data path (absolute or relative to the project root). Defaults to <Profiler capture folder>/<product-name>_<timestamp>_<captureId>.data. Always written on the Editor machine, even when recording a Player.")] string output = "",
             [CliArg("deep-profile", "Whether this is a deep-profiling recording. Must match the Profiler's Deep Profile setting, which this command does not change: turn it on or off in the Profiler window first (for the Editor that reloads scripts). A Player must be a development build with Deep Profiling Support (see " + CommandNames.DiagnosticsProfilerTargets + ").")] bool deepProfile = false,
-            [CliArg("timeout-seconds", "Stop and save what was recorded after this long. Default 300.")] double timeoutSeconds = DefaultTimeoutSeconds)
+            [CliArg("timeout-seconds", "Stop and save what was recorded after this long. Default 300.")] double timeoutSeconds = DefaultTimeoutSeconds,
+            [CliArg("areas", "Comma-separated Profiler modules to turn on for this recording, as in the Profiler window: CPU, GPU, Rendering, Memory, Audio, Video, Physics, Physics2D, NetworkMessages, NetworkOperations, UI, UIDetails, GlobalIllumination, VirtualTexturing. GPU records per-sample GPU time. Modules not listed stay as they are; the listed ones go back to their previous setting when the recording ends.")] string areas = "",
+            [CliArg("callstacks", "Comma-separated allocation call stacks to record, as in the Profiler window's Call Stacks menu: GCAlloc, UnsafeUtilityMalloc, JobHandleComplete, NativeAlloc, or none. Empty leaves the setting as it is; it goes back to its previous value when the recording ends.")] string callstacks = "")
         {
             if (frames < 0)
-                return new { status = "error", message = "frames must be zero (record until " + CommandNames.DiagnosticsProfilerRecordStop + ") or greater." };
+            {
+                cmd.Log.Error("frames must be zero (record until " + CommandNames.DiagnosticsProfilerRecordStop + ") or greater.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (timeoutSeconds <= 0)
-                return new { status = "error", message = "timeout-seconds must be greater than zero." };
+            {
+                cmd.Log.Error("timeout-seconds must be greater than zero.");
+                return ExitCode.InvalidUsage;
+            }
+
+            if (!TryParseAreas(areas, out var requestedAreas, out var optionError)
+                || !TryParseCallstacks(callstacks, out var requestedCallstacks, out optionError))
+            {
+                cmd.Log.Error(optionError);
+                return ExitCode.InvalidUsage;
+            }
 
             var busy = ProfilerTargetCommands.BusyMessage();
             if (busy != null)
-                return new { status = "busy", message = busy };
+            {
+                cmd.Log.Error(busy);
+                return ExitCode.Failed;
+            }
 
             var target = ProfilerTarget.Current();
             var deepProfileError = DeepProfileError(target, deepProfile);
             if (deepProfileError != null)
-                return new { status = "error", message = deepProfileError };
+            {
+                cmd.Log.Error(deepProfileError);
+                return ExitCode.Failed;
+            }
 
             s_CaptureId = Guid.NewGuid().ToString("N").Substring(0, 8);
             s_Path = CaptureOutput.ResolvePath(output, ProfilerCaptureFolder.Resolve(), FallbackFolder, s_CaptureId, CaptureExtension);
@@ -108,6 +137,10 @@ namespace Unity.Pipeline.Editor.Commands.Profiling
             s_RequestedFrames = frames;
             s_RequestedDeepProfile = deepProfile;
             s_RequestedTimeout = timeoutSeconds;
+            s_RequestedAreas = requestedAreas;
+            s_RequestedCallstacks = requestedCallstacks;
+            s_RecordedAreas = null;
+            s_RecordedCallstacks = null;
             s_State = State.Pending;
 
             WriteStatus(new ProfilerRecordStatus
@@ -122,34 +155,50 @@ namespace Unity.Pipeline.Editor.Commands.Profiling
             });
             SubscribeUpdate();
 
-            return new
+            cmd.Log.Info("Recording queued. Poll " + CommandNames.DiagnosticsProfilerRecordStatus + " until status is 'completed'.");
+            cmd.Result.Write(new
             {
                 status = "queued",
                 captureId = s_CaptureId,
                 path = s_Path,
-                target = target.Name,
-                message = "Recording queued. Poll " + CommandNames.DiagnosticsProfilerRecordStatus + " until status is 'completed'."
-            };
+                target = target.Name
+            });
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Stop the Profiler recording early and save the frames recorded so far. Returns the final status.", Tags = new[] { "observability/profiling" })]
-        public static object ProfilerRecordStop()
+        [CliGroupCommand(Group, "Stop the Profiler recording early and save the frames recorded so far. Returns the final status.", Tags = new[] { "observability/profiling" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode ProfilerRecordStop(CommandContext cmd)
         {
+            ProfilerRecordStatus status;
             switch (s_State)
             {
                 case State.Pending:
-                    return Fail("Stopped by " + CommandNames.DiagnosticsProfilerRecordStop + " before recording started, so no frames were captured.");
+                    status = Fail("Stopped by " + CommandNames.DiagnosticsProfilerRecordStop + " before recording started, so no frames were captured.");
+                    break;
                 case State.Recording:
-                    return Finish(RecordedFrames(), "Stopped by " + CommandNames.DiagnosticsProfilerRecordStop + ".");
+                    status = Finish(RecordedFrames(), "Stopped by " + CommandNames.DiagnosticsProfilerRecordStop + ".");
+                    break;
                 default:
-                    return new { status = "idle", message = "No Profiler recording is queued or running." };
+                    cmd.Log.Warning("No Profiler recording is queued or running.");
+                    cmd.Result.Write(new { status = "idle" });
+                    return ExitCode.Success;
             }
+
+            if (status.Error != null)
+            {
+                cmd.Log.Error(status.Error);
+                return ExitCode.Failed;
+            }
+
+            cmd.Result.Write(status);
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Get the status of the last Profiler recording: idle | queued | recording | completed | failed | interrupted.", MainThreadRequired = false, Tags = new[] { "observability/profiling" })]
-        public static JToken ProfilerRecordStatus()
+        [CliGroupCommand(Group, "Get the status of the last Profiler recording: idle | queued | recording | completed | failed | interrupted.", MainThreadRequired = false, Tags = new[] { "observability/profiling" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode ProfilerRecordStatus(CommandContext cmd)
         {
-            return StatusFileReader.ReadOrIdle(StatusFile);
+            cmd.Result.Write(StatusFileReader.ReadOrIdle(StatusFile));
+            return ExitCode.Success;
         }
 
         static void SubscribeUpdate()
@@ -210,6 +259,74 @@ namespace Unity.Pipeline.Editor.Commands.Profiling
             return null;
         }
 
+        /// <summary>Parses a comma-separated list of <see cref="ProfilerArea"/> names, ignoring case and repeats. Empty text is an empty list.</summary>
+        internal static bool TryParseAreas(string text, out List<ProfilerArea> areas, out string error)
+        {
+            areas = new List<ProfilerArea>();
+            error = null;
+            foreach (var entry in (text ?? "").Split(','))
+            {
+                var name = entry.Trim();
+                if (name.Length == 0)
+                    continue;
+
+                if (!Enum.TryParse(name, true, out ProfilerArea area) || !Enum.IsDefined(typeof(ProfilerArea), area))
+                {
+                    error = $"Unknown area '{name}'. Use: {string.Join(", ", Enum.GetNames(typeof(ProfilerArea)))}.";
+                    return false;
+                }
+
+                if (!areas.Contains(area))
+                    areas.Add(area);
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Parses a comma-separated list of <see cref="ProfilerMemoryRecordMode"/> flags, ignoring case.
+        /// Empty text is null (leave the setting); <c>none</c> alone is <see cref="ProfilerMemoryRecordMode.None"/>.
+        /// </summary>
+        internal static bool TryParseCallstacks(string text, out ProfilerMemoryRecordMode? mode, out string error)
+        {
+            mode = null;
+            error = null;
+            var combined = ProfilerMemoryRecordMode.None;
+            var entries = 0;
+            var sawNone = false;
+            foreach (var entry in (text ?? "").Split(','))
+            {
+                var name = entry.Trim();
+                if (name.Length == 0)
+                    continue;
+
+                if (!Enum.TryParse(name, true, out ProfilerMemoryRecordMode flag) || !Enum.IsDefined(typeof(ProfilerMemoryRecordMode), flag))
+                {
+                    var names = Enum.GetValues(typeof(ProfilerMemoryRecordMode)).Cast<ProfilerMemoryRecordMode>()
+                        .Where(v => v != ProfilerMemoryRecordMode.None);
+                    error = $"Unknown callstack mode '{name}'. Use none, or: {string.Join(", ", names)}.";
+                    return false;
+                }
+
+                entries++;
+                if (flag == ProfilerMemoryRecordMode.None)
+                    sawNone = true;
+                combined |= flag;
+            }
+
+            if (entries == 0)
+                return true;
+
+            if (sawNone && entries > 1)
+            {
+                error = "callstacks 'none' cannot be combined with other modes.";
+                return false;
+            }
+
+            mode = combined;
+            return true;
+        }
+
         static void StartRecording()
         {
             s_Target.VerifyStillSelected();
@@ -224,6 +341,26 @@ namespace Unity.Pipeline.Editor.Commands.Profiling
             s_PriorEnabled = ProfilerDriver.enabled;
             s_PriorProfileEditor = ProfilerDriver.profileEditor;
             s_Started = true;
+
+            // Only the requested modules are touched, and only those are put back afterwards.
+            s_PriorAreas.Clear();
+            foreach (var area in s_RequestedAreas)
+            {
+                s_PriorAreas.Add((area, ProfilerDriver.IsAreaEnabled(area)));
+                ProfilerDriver.SetAreaEnabled(area, true);
+            }
+
+            if (s_RequestedCallstacks.HasValue)
+            {
+                s_PriorMemoryRecordMode = ProfilerDriver.memoryRecordMode;
+                ProfilerDriver.memoryRecordMode = s_RequestedCallstacks.Value;
+            }
+
+            s_RecordedAreas = Enum.GetValues(typeof(ProfilerArea)).Cast<ProfilerArea>()
+                .Where(ProfilerDriver.IsAreaEnabled).Select(a => a.ToString()).ToArray();
+            var memoryMode = ProfilerDriver.memoryRecordMode;
+            s_RecordedCallstacks = Enum.GetValues(typeof(ProfilerMemoryRecordMode)).Cast<ProfilerMemoryRecordMode>()
+                .Where(m => m != ProfilerMemoryRecordMode.None && memoryMode.HasFlag(m)).Select(m => m.ToString()).ToArray();
 
             // Without this an Editor target only records while in Play mode.
             if (s_Target.IsEditor)
@@ -348,6 +485,11 @@ namespace Unity.Pipeline.Editor.Commands.Profiling
                 ProfilerDriver.enabled = s_PriorEnabled;
                 if (s_Target.IsEditor)
                     ProfilerDriver.profileEditor = s_PriorProfileEditor;
+                foreach (var prior in s_PriorAreas)
+                    ProfilerDriver.SetAreaEnabled(prior.Area, prior.Enabled);
+                s_PriorAreas.Clear();
+                if (s_RequestedCallstacks.HasValue)
+                    ProfilerDriver.memoryRecordMode = s_PriorMemoryRecordMode;
                 s_Started = false;
             }
 
@@ -387,7 +529,9 @@ namespace Unity.Pipeline.Editor.Commands.Profiling
                 Target = s_Target?.Name,
                 TargetIsEditor = s_Target?.IsEditor,
                 FramesRequested = s_RequestedFrames,
-                DeepProfile = s_RequestedDeepProfile
+                DeepProfile = s_RequestedDeepProfile,
+                Areas = s_RecordedAreas,
+                Callstacks = s_RecordedCallstacks
             };
         }
 
@@ -535,6 +679,14 @@ namespace Unity.Pipeline.Editor.Commands.Profiling
 
         [JsonProperty("deepProfile", NullValueHandling = NullValueHandling.Ignore)]
         public bool? DeepProfile { get; set; }
+
+        /// <summary>The Profiler modules on while recording. Absent until recording starts.</summary>
+        [JsonProperty("areas", NullValueHandling = NullValueHandling.Ignore)]
+        public string[] Areas { get; set; }
+
+        /// <summary>The allocation call stacks on while recording, empty when none. Absent until recording starts.</summary>
+        [JsonProperty("callstacks", NullValueHandling = NullValueHandling.Ignore)]
+        public string[] Callstacks { get; set; }
 
         [JsonProperty("elapsedSeconds", NullValueHandling = NullValueHandling.Ignore)]
         public double? ElapsedSeconds { get; set; }

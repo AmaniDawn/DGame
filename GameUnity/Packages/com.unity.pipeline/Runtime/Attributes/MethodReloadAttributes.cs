@@ -12,12 +12,6 @@ namespace Unity.Pipeline.MethodReload
     public class MethodReloadAttribute : Attribute
     {
         /// <summary>
-        /// Optional identifier for this reloadable method.
-        /// If not specified, uses TypeName.MethodName format.
-        /// </summary>
-        public string Id { get; set; }
-
-        /// <summary>
         /// Whether this method requires main thread execution.
         /// Defaults to true for Unity API safety.
         /// </summary>
@@ -54,12 +48,6 @@ namespace Unity.Pipeline.MethodReload
         /// Must match a method marked with [MethodReload].
         /// </summary>
         public string TargetMethodId { get; }
-
-        /// <summary>
-        /// Optional description of what this method reload does.
-        /// Useful for debugging and method reload management.
-        /// </summary>
-        public string Description { get; set; }
 
         /// <summary>Mark a method as the method-reload override for the given target method.</summary>
         /// <param name="targetMethodId">Target method identifier, "TypeName.MethodName".</param>

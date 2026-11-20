@@ -492,7 +492,7 @@ namespace Unity.Pipeline.Compilation
     /// <summary>
     /// Request for Roslyn compilation with customizable options.
     /// </summary>
-    public class CompilationRequest
+    internal class CompilationRequest
     {
         /// <summary>
         /// Source code to compile.
@@ -579,7 +579,7 @@ namespace Unity.Pipeline.Compilation
     /// <summary>
     /// Result from Roslyn compilation.
     /// </summary>
-    public class CompilationResult
+    internal class CompilationResult
     {
         /// <summary>
         /// Whether compilation was successful.

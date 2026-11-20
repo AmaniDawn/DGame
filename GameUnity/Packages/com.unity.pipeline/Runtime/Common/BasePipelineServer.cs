@@ -21,7 +21,7 @@ namespace Unity.Pipeline
     /// HTTP server that enables CLI tools to execute commands in Unity Editor.
     /// Represents an Instance that can serve as a Pipeline Element for automation.
     /// </summary>
-    public abstract class BasePipelineServer
+    internal abstract class BasePipelineServer
     {
         private const long DefaultMaxRequestBodyBytes = 1 * 1024 * 1024;
 
@@ -98,7 +98,7 @@ namespace Unity.Pipeline
         /// EditorApplication.update in the editor; pumped by RuntimePipelineDriver.Update in a
         /// player; pumped explicitly by tests).
         /// </summary>
-        public Dispatcher Dispatcher => m_Dispatcher;
+        internal Dispatcher Dispatcher => m_Dispatcher;
 
         /// <summary>Creates the server, with its executor over this domain's command registry.</summary>
         protected BasePipelineServer()
@@ -186,6 +186,9 @@ namespace Unity.Pipeline
         public DateTime StartedAt => m_StartedAt;
 
         private DateTime m_StartedAt;
+
+        // Resolved in Start(), on the main thread: /api/commands is answered on a background thread.
+        private string m_PackageVersion;
 
         /// <summary>
         /// Whether this server registers its <c>http</c> endpoint in <see cref="PipelineEndpoints"/>
@@ -299,9 +302,6 @@ namespace Unity.Pipeline
         /// </summary>
         internal static readonly string[] Capabilities = { "exec.argv", "exec.commandLine", "exec.commandTimeouts" };
 
-        /// <summary>The capability of a server that answers <c>/api/commands?detail=obsolete_names</c>.</summary>
-        internal const string ObsoleteNamesCapability = "commands.obsoleteNames";
-
         /// <summary>
         /// The capability of a server whose <c>pipeline</c> endpoint speaks the Pipeline protocol
         /// with the unity CLI's exit codes. An Editor of 0.9.0-exp.1 lists that endpoint but answers
@@ -318,19 +318,19 @@ namespace Unity.Pipeline
         internal const string PipelineTerminalCapability = "pipeline.terminal";
 
         /// <summary>
-        /// <see cref="Capabilities"/> plus what only the Editor serves: the obsolete command names,
-        /// which ship as a package file a Player does not carry, and the Pipeline protocol transport.
+        /// The capability of a server whose <c>test run</c> and <c>test status</c> replies name every
+        /// field in camelCase (<c>summary.total</c>, <c>results[].fullName</c>). An older server
+        /// answers <c>test run</c> with <c>Summary.Total</c> and both with <c>results[].FullName</c>.
         /// </summary>
-        internal static readonly string[] EditorCapabilities =
-            Capabilities.Append(ObsoleteNamesCapability).Append(PipelineTransportCapability)
-                .Append(PipelineTerminalCapability).ToArray();
+        internal const string TestsCamelCaseCapability = "tests.camelCase";
 
         /// <summary>
-        /// Old command name to the full name that replaced it, served by
-        /// <c>/api/commands?detail=obsolete_names</c>. Null on a server that does not serve them,
-        /// which then refuses that detail value like an older package does.
+        /// <see cref="Capabilities"/> plus what only the Editor serves: the Pipeline protocol transport
+        /// and the test commands.
         /// </summary>
-        protected virtual IReadOnlyDictionary<string, string> ObsoleteCommandNames => null;
+        internal static readonly string[] EditorCapabilities =
+            Capabilities.Append(PipelineTransportCapability)
+                .Append(PipelineTerminalCapability).Append(TestsCamelCaseCapability).ToArray();
 
         /// <summary>Hook invoked once the listener is accepting requests. No-op by default.</summary>
         protected virtual void ServerStarted()
@@ -387,6 +387,8 @@ namespace Unity.Pipeline
                 // per-request auth runs on background threads and the Editor token is SessionState-
                 // backed (main-thread-only). Re-runs after every domain reload via [InitializeOnLoad].
                 SecurityTokenManager.GetOrCreateToken();
+
+                m_PackageVersion = PipelinePackageVersion.Current;
 
                 // Mark running before opening the listener so HandleRequests' loop guard stays true
                 // as soon as it starts on the threadpool.
@@ -1130,7 +1132,7 @@ namespace Unity.Pipeline
                 Dictionary<string, object> catalog;
                 try
                 {
-                    catalog = BuildCommandCatalog(name => request.QueryString[name], ObsoleteCommandNames, BuildServerBlock());
+                    catalog = BuildCommandCatalog(name => request.QueryString[name], BuildServerBlock());
                 }
                 catch (ArgumentException ex)
                 {
@@ -1171,9 +1173,7 @@ namespace Unity.Pipeline
         ///    own. Each count covers the tag's whole subtree, so it is exactly what
         ///    'tag=<that tag>' returns. 'groups' returns a 'groups' array of {group, count} the
         ///    same way, one row per group including parents that hold only subgroups; each
-        ///    count is exactly what 'group=<that group>' returns. 'obsolete_names', on a server
-        ///    that overrides <see cref="ObsoleteCommandNames"/>, returns an 'obsoleteNames' array of
-        ///    {oldName, command}: each flat name a command had before groups, and its full name now.
+        ///    count is exactly what 'group=<that group>' returns.
         ///  - query: case-insensitive substring match on full name, description, or any tag.
         ///  - group: scope to a group and its subgroups ('build' matches 'build' and
         ///    'build.target' but not 'buildx').
@@ -1193,17 +1193,14 @@ namespace Unity.Pipeline
         ///    pagination while 'count' is the number of commands actually returned.
         /// </summary>
         /// <param name="option">The value of each option above by its name, or null when it isn't given.</param>
-        /// <param name="obsoleteNames">The old command names for detail=obsolete_names; null when there are none to serve.</param>
         /// <param name="server">The responding server's identity, under 'server'; omitted when null.</param>
         /// <exception cref="ArgumentException">An option's value is unknown, or can't be combined with another's.</exception>
-        internal static Dictionary<string, object> BuildCommandCatalog(Func<string, string> option,
-            IReadOnlyDictionary<string, string> obsoleteNames, object server)
+        internal static Dictionary<string, object> BuildCommandCatalog(Func<string, string> option, object server)
         {
             var detail = option("detail") ?? "full";
             bool fullDetail = false;
             var tagIndex = false;
             var groupIndex = false;
-            var obsoleteIndex = false;
             if (string.Equals(detail, "full", StringComparison.OrdinalIgnoreCase))
                 fullDetail = true;
             else if (string.Equals(detail, "compact", StringComparison.OrdinalIgnoreCase))
@@ -1212,13 +1209,8 @@ namespace Unity.Pipeline
                 tagIndex = true;
             else if (string.Equals(detail, "groups", StringComparison.OrdinalIgnoreCase))
                 groupIndex = true;
-            else if (obsoleteNames != null && string.Equals(detail, "obsolete_names", StringComparison.OrdinalIgnoreCase))
-                obsoleteIndex = true;
             else
-            {
-                var accepted = obsoleteNames != null ? "compact, full, tags, groups, obsolete_names" : "compact, full, tags, groups";
-                throw new ArgumentException($"Unknown detail value '{detail}'. Accepted values: {accepted}");
-            }
+                throw new ArgumentException($"Unknown detail value '{detail}'. Accepted values: compact, full, tags, groups");
 
             var groupBy = option("group_by") ?? "flat";
             var groupByPackage = string.Equals(groupBy, "package", StringComparison.OrdinalIgnoreCase);
@@ -1250,15 +1242,6 @@ namespace Unity.Pipeline
                     + "package; use sort=name, or sort=package with detail=compact or detail=full.");
             }
 
-            // An obsolete name is not a command: it has no package, tag or group to order,
-            // group or scope it by.
-            if (obsoleteIndex && (groupByPackage || groupByTag || groupByGroup || sortByPackage
-                    || option("tag") != null || option("group") != null))
-            {
-                throw new ArgumentException("detail=obsolete_names cannot be combined with group_by, sort=package, tag or group. "
-                    + "Narrow it with query; order, offset and limit apply.");
-            }
-
             var order = option("order") ?? "asc";
             var descending = string.Equals(order, "desc", StringComparison.OrdinalIgnoreCase);
             if (!descending && !string.Equals(order, "asc", StringComparison.OrdinalIgnoreCase))
@@ -1278,8 +1261,6 @@ namespace Unity.Pipeline
             }
 
             var query = option("query");
-            if (obsoleteIndex)
-                return BuildObsoleteNamesIndex(obsoleteNames, query, descending, offset, limit, server);
 
             var tag = option("tag");
             var group = option("group");
@@ -1331,11 +1312,24 @@ namespace Unity.Pipeline
         {
             return new
             {
-                version = "0.0.1", // TODO: Get from package.json
+                version = ReportedVersion(m_PackageVersion),
                 port = m_Port,
                 startTime = StartedAt
             };
         }
+
+        /// <summary>What /api/commands reports as server.version when the package version is unknown.</summary>
+        internal const string UnknownVersion = "unknown";
+
+        /// <summary>
+        /// The server.version to report: the package version, or <see cref="UnknownVersion"/> when it
+        /// could not be resolved (a Player built without the Pipeline build processor). Always a
+        /// string, so clients that print it never show a null.
+        /// </summary>
+        /// <param name="packageVersion">The resolved package version, or null.</param>
+        /// <returns>The version to put on the wire.</returns>
+        internal static string ReportedVersion(string packageVersion) =>
+            string.IsNullOrEmpty(packageVersion) ? UnknownVersion : packageVersion;
 
         /// <summary>
         /// Serialize a 200 response body and write it out.
@@ -1352,40 +1346,6 @@ namespace Unity.Pipeline
 
             await response.OutputStream.WriteAsync(buffer, 0, buffer.Length);
             response.OutputStream.Close();
-        }
-
-        /// <summary>
-        /// The catalog for detail=obsolete_names: one {oldName, command} row per old command name, ordered
-        /// by old name. <paramref name="query"/> keeps the rows whose old or full name contains it.
-        /// </summary>
-        private static Dictionary<string, object> BuildObsoleteNamesIndex(IReadOnlyDictionary<string, string> obsoleteNames,
-            string query, bool descending, int offset, int? limit, object server)
-        {
-            bool Matches(string name) => string.IsNullOrEmpty(query) || name.IndexOf(query, StringComparison.OrdinalIgnoreCase) >= 0;
-
-            IEnumerable<KeyValuePair<string, string>> ordered = obsoleteNames
-                .Where(pair => Matches(pair.Key) || Matches(pair.Value))
-                .OrderBy(pair => pair.Key, StringComparer.Ordinal);
-            if (descending)
-                ordered = ordered.Reverse();
-            var all = ordered.ToList();
-
-            IEnumerable<KeyValuePair<string, string>> window = all.Skip(offset);
-            if (limit.HasValue)
-                window = window.Take(limit.Value);
-            var page = window.ToList();
-
-            var responseData = new Dictionary<string, object>
-            {
-                ["obsoleteNames"] = page.Select(pair => new { oldName = pair.Key, command = pair.Value }).ToList(),
-                ["count"] = page.Count,
-                ["total"] = all.Count,
-                ["offset"] = offset,
-                ["limit"] = limit
-            };
-            if (server != null)
-                responseData["server"] = server;
-            return responseData;
         }
 
         /// <summary>
@@ -1492,7 +1452,7 @@ namespace Unity.Pipeline
         /// </summary>
         private static object BuildCompactCommandResponse(CommandInfo command)
         {
-            return new
+            return WithEffectHints(JObject.FromObject(new
             {
                 command = command.FullName,
                 name = command.Name,
@@ -1500,7 +1460,41 @@ namespace Unity.Pipeline
                 description = command.Description,
                 tags = command.Tags,
                 package = command.Package
-            };
+            }), command.Effect);
+        }
+
+        /// <summary>
+        /// Adds the <c>readOnly</c>, <c>destructive</c> and <c>idempotent</c> hints that
+        /// <paramref name="effect"/> stands for to a catalog entry. A command that declares no effect
+        /// gets none, so a client tells "not declared" from "declared false" and decides on its own.
+        /// </summary>
+        internal static JObject WithEffectHints(JObject entry, CommandEffect effect)
+        {
+            bool readOnly, destructive, idempotent;
+            switch (effect)
+            {
+                case CommandEffect.ReadOnly:
+                    (readOnly, destructive, idempotent) = (true, false, true);
+                    break;
+                case CommandEffect.Idempotent:
+                    (readOnly, destructive, idempotent) = (false, false, true);
+                    break;
+                case CommandEffect.Additive:
+                    (readOnly, destructive, idempotent) = (false, false, false);
+                    break;
+                case CommandEffect.Destructive:
+                    (readOnly, destructive, idempotent) = (false, true, false);
+                    break;
+                default:
+                    return entry;
+            }
+
+            // ReadOnly also serves idempotent=true. MCP clients only weigh the idempotent hint
+            // when readOnly is false, so the pair carries no extra meaning.
+            entry["readOnly"] = readOnly;
+            entry["destructive"] = destructive;
+            entry["idempotent"] = idempotent;
+            return entry;
         }
 
         /// <summary>
@@ -1524,7 +1518,7 @@ namespace Unity.Pipeline
         /// </summary>
         private static JObject BuildCommandEntry(CommandInfo command)
         {
-            return JObject.FromObject(new
+            var entry = JObject.FromObject(new
             {
                 command = command.FullName,
                 name = command.Name,
@@ -1542,6 +1536,7 @@ namespace Unity.Pipeline
                     defaultValue = p.DefaultValue
                 }).ToList()
             });
+            return WithEffectHints(entry, command.Effect);
         }
 
         /// <summary>
@@ -2000,7 +1995,35 @@ namespace Unity.Pipeline
                     break;
                 default:
                     var written = job.Out.ToString();
-                    if (execution.Result == ExitCode.Cancelled)
+                    if (execution.Result == ProtocolExitCode.Cancelled && execution.CancellationRequested)
+                    {
+                        // Canceled on request; what it wrote before stopping is kept, and why it
+                        // stopped where it did, if it logged that.
+                        wireState = "canceled";
+                        if (execution.ReturnsExitCode && !string.IsNullOrEmpty(written) && written != "null")
+                            result = ExecResponseSerializer.ResultFromOutput(written, omitNulls);
+                        if (execution.ReturnsExitCode)
+                            errorDetails = ErrorText(job.Error);
+                    }
+                    else if (execution.ReturnsExitCode)
+                    {
+                        // Its exit code alone says how it ended; a failure keeps what it wrote.
+                        if (!string.IsNullOrEmpty(written) && written != "null")
+                            result = ExecResponseSerializer.ResultFromOutput(written, omitNulls);
+                        if (execution.Result == ProtocolExitCode.Success)
+                        {
+                            wireState = "completed";
+                        }
+                        else
+                        {
+                            wireState = "failed";
+                            error = FailureCategory(execution.Result);
+                            errorDetails = ErrorText(job.Error);
+                            if (execution.Result == ProtocolExitCode.TimedOut)
+                                errorCode = "TIMEOUT";
+                        }
+                    }
+                    else if (execution.Result == ProtocolExitCode.Cancelled)
                     {
                         wireState = "canceled";
                     }
@@ -2023,7 +2046,7 @@ namespace Unity.Pipeline
                     else
                     {
                         wireState = "failed";
-                        error = execution.Result == ExitCode.InvalidUsage
+                        error = execution.Result == ProtocolExitCode.InvalidUsage
                             ? "Parameter Validation Failed"
                             : "Command Execution Failed";
                         errorDetails = ErrorText(job.Error);
@@ -2049,6 +2072,56 @@ namespace Unity.Pipeline
                 // null when there is nothing to say.
                 warnings = warning == null ? null : new[] { warning }
             };
+        }
+
+        /// <summary>The <c>error</c> a failed reply names for a command that ended with <paramref name="code"/>.</summary>
+        private static string FailureCategory(ProtocolExitCode? code)
+        {
+            switch (code)
+            {
+                case ProtocolExitCode.InvalidUsage:
+                    return "Parameter Validation Failed";
+                case ProtocolExitCode.NotFound:
+                    return "Not Found";
+                case ProtocolExitCode.Cancelled:
+                    return "Command Cancelled";
+                case ProtocolExitCode.TimedOut:
+                    return "Request Timed Out";
+                default:
+                    return "Command Execution Failed";
+            }
+        }
+
+        /// <summary>
+        /// Answers a command that returns its exit code: 200 with what it wrote when it succeeded,
+        /// a null result when it wrote nothing; otherwise the failure its exit code names, with what
+        /// it logged as the details and what it wrote, if anything, kept as the result.
+        /// </summary>
+        private async Task SendExitCodeResponse(HttpListenerResponse response, string cmd, ProtocolExitCode code,
+            string written, string details, bool rawForm, IReadOnlyDictionary<string, object> bound,
+            string requestBody, bool verbose, bool omitNulls, CommandExecutionRequest commandRequest)
+        {
+            var returned = written.Length == 0 || written == "null" ? null : new JRaw(written);
+            if (code == ProtocolExitCode.Success)
+            {
+                await SendExecResponse(response, 200,
+                    WithBoundParameters(CommandExecutionResponse.CmdSuccess(cmd, returned), rawForm, bound),
+                    requestBody, verbose, omitNulls, commandRequest);
+                return;
+            }
+
+            var failed = code == ProtocolExitCode.TimedOut
+                ? CommandExecutionResponse.CmdTimeout(cmd, details)
+                : CommandExecutionResponse.CmdFailure(cmd, FailureCategory(code),
+                    details ?? (code == ProtocolExitCode.Cancelled ? "The command was cancelled before it ended." : null));
+            if (returned != null)
+            {
+                failed.Result = returned;
+                failed.KeepsResultOnFailure = true;
+            }
+            var status = code == ProtocolExitCode.TimedOut ? 504 : 400;
+            await SendExecResponse(response, status, WithBoundParameters(failed, rawForm, bound),
+                requestBody, verbose, omitNulls, commandRequest);
         }
 
         /// <summary>What a command wrote to its Error, without the line break that ends it; null when nothing.</summary>
@@ -2231,8 +2304,8 @@ namespace Unity.Pipeline
         }
 
         /// <summary>
-        /// Shared wire projection of a DialogInfo, used by /api/dialog, dialogsDuringExecution, the
-        /// busy-gate, and (internal, via InternalsVisibleTo) EditorPipelineServer's /api/status.
+        /// Shared wire projection of a DialogInfo, used by /api/dialog, the busy-gate, and (internal,
+        /// via InternalsVisibleTo) EditorPipelineServer's /api/status.
         /// </summary>
         internal static object BuildDialogPayload(DialogInfo info) => new
         {
@@ -2508,6 +2581,15 @@ namespace Unity.Pipeline
                 // reply's flags give the result, so it is embedded as it is; a null result as
                 // null, which the envelope's own settings keep or drop as they always did.
                 var written = output.ToString();
+                if (execution.ReturnsExitCode)
+                {
+                    // Its exit code alone says how it ended: a success with nothing written is a
+                    // null result, and a failure fails the reply, carrying what it wrote and why.
+                    await SendExitCodeResponse(response, cmd, result, written, ErrorText(error), rawForm,
+                        execution.Parameters, requestBody, verbose, omitNulls, commandRequest);
+                    return;
+                }
+
                 if (written.Length > 0 && execution.ReturnedFailure is { } failure)
                 {
                     // A returned failure that asks to fail the envelope: the reply fails with its
@@ -2535,17 +2617,17 @@ namespace Unity.Pipeline
                 var details = ErrorText(error);
                 switch (result)
                 {
-                    case ExitCode.TimedOut:
+                    case ProtocolExitCode.TimedOut:
                         await SendExecResponse(response, 504,
                             EchoIfRaw(CommandExecutionResponse.CmdTimeout(cmd, details)),
                             requestBody, verbose, omitNulls, commandRequest);
                         break;
-                    case ExitCode.InvalidUsage:
+                    case ProtocolExitCode.InvalidUsage:
                         await SendExecResponse(response, 400,
                             EchoIfRaw(CommandExecutionResponse.CmdFailure(cmd, "Parameter Validation Failed", details)),
                             requestBody, verbose, omitNulls, commandRequest);
                         break;
-                    case ExitCode.Cancelled:
+                    case ProtocolExitCode.Cancelled:
                         await SendExecResponse(response, 400,
                             EchoIfRaw(CommandExecutionResponse.CmdFailure(cmd, "Command Cancelled",
                                 details ?? "The command was cancelled before it ended.")),
@@ -2610,8 +2692,7 @@ namespace Unity.Pipeline
                 // form the caller typed: for `<group> <name>` that is both tokens, not just the
                 // group.
                 await SendExecResponse(response, 400,
-                    EchoIfRaw(CommandExecutionResponse.CmdFailure(ex.CommandName ?? cmd, "Command Not Found",
-                        ObsoleteCommandNameMessage.ForMiss(ex.CommandName, ObsoleteCommandNames) ?? ex.Message)), requestBody, verbose, omitNulls, commandRequest);
+                    EchoIfRaw(CommandExecutionResponse.CmdFailure(ex.CommandName ?? cmd, "Command Not Found", ex.Message)), requestBody, verbose, omitNulls, commandRequest);
             }
             catch (Exception ex)
             {

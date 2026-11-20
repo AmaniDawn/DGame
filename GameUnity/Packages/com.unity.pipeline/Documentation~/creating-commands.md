@@ -1,25 +1,47 @@
 # Creating commands
 
-A *command* is a `static` method that the Pipeline server can invoke over HTTP. The method's accessibility does not matter — `public`, `internal`, and `private` static methods can all be registered. This page covers the command-authoring API: how to declare a command, describe its parameters, return a result, and have it discovered automatically.
+A *command* is a `static` method that the Pipeline server can invoke over HTTP. This page covers the command-authoring API: how to declare a command, describe its parameters, write its result, and have it discovered automatically.
 
-## The handler + response pattern
+## The command method
 
-Authoring a command has two halves:
+A command is a static method marked with `[CliGroupCommand]`, which sets its name and the description shown in help. Each parameter marked with `[CliArg]` becomes a flag, such as `--path`, parsed into the parameter's type before the method runs. The method takes a `CommandContext`, which carries everything about its invocation, and returns its exit code:
 
-1. **The handler** — your `static` method, tagged `[CliGroupCommand]`. It does the work and returns a value.
-2. **The response** — the server wraps whatever your handler returns in a [`CommandExecutionResponse`](#the-commandexecutionresponse-envelope) and serializes it to JSON for the client.
+```csharp
+[CliGroupCommand(Group, "Print a greeting.", Effect = CommandEffect.ReadOnly)]
+internal static ExitCode Greet(
+    CommandContext cmd,
+    [CliArg("name", "Who to greet")] string name = "world")
+{
+    cmd.Result.Write($"Hello {name}!");
+    return ExitCode.Success;
+}
+```
 
-You never build the HTTP response yourself. Return a `string`, a number, an anonymous object, a typed model, or `null`; the server takes care of the envelope, timing, and error reporting.
+- Return `ExitCode` when the command finishes within a frame. Return `Task<ExitCode>` when it runs across frames (see [Commands that run across frames](#commands-that-run-across-frames)).
+- Taking a `CommandContext` is optional, but a command that writes a result or logs takes one. Put it first.
+- Keep command methods `internal`. Any accessibility registers, but a command is called by the pipeline, not by other code.
+
+`CommandContext` has:
+
+| Member | What it is |
+|--------|------------|
+| `Result` | Writes the command's result in the format the user picked: `Write(obj)` for a single result, `WriteRecord(obj)` per item for a list. See [Writing output](#writing-output). |
+| `Log` | `Error`, `Warning`, `Info`, `Debug`: messages to stderr, filtered by the user's `--log-level`. See [Logging](#logging). |
+| `Std` | The command's `Out` and `Error` streams, for output that isn't a result. |
+| `Arguments` | The arguments the command was called with, without the pipeline's own options. |
+| `CancellationToken` | Cancelled when the user stops the command: Ctrl-C, SIGTERM or its timeout. See [Handling cancellation](#handling-cancellation). |
+
+A method that returns anything else uses the [legacy signature](#the-legacy-signature), which is still supported.
 
 ## Declaring a command
 
-Declare the command's group as a `const` in the class that holds the commands, and tag a `static` method with `[CliGroupCommand]` (the examples below use `public`, but any accessibility works):
+Declare the command's group as a `const` in the class that holds the commands, and tag a `static` method with `[CliGroupCommand]`:
 
 ```csharp
 const string Group = "<group>";
 
-[CliGroupCommand(Group, "description", MainThreadRequired = true)]
-public static <ReturnType> <Verb>(...);
+[CliGroupCommand(Group, "description", MainThreadRequired = true, Effect = CommandEffect.ReadOnly)]
+internal static ExitCode <Verb>(CommandContext cmd, ...);
 ```
 
 | Argument | Meaning |
@@ -29,22 +51,39 @@ public static <ReturnType> <Verb>(...);
 | `Name` | Optional. The command's name within its group. **Default: derived from the method name** (see [Groups and names](#groups-and-names)). Set it only when the derived name is wrong. |
 | `MainThreadRequired` | Whether the handler must run on Unity's main thread. **Default `true`.** |
 | `Tags` | Optional hierarchical tags for browsing commands across groups. Path-style: a `/` separates tag from subtag (e.g. `"assets"`, `"assets/import"`). **Default: empty.** |
+| `Effect` | What running the command does (see [Declaring the effect](#declaring-the-effect)). **Default: `CommandEffect.Unspecified`.** |
 
 Every discovered command also carries the **package** it originates from (derived from the declaring assembly, e.g. `Unity.Pipeline.Editor`). The command (its full name), group, tags and package appear in both the compact and full `/api/commands` listings — `detail=full` (the default) includes the parameters and generated JSON schema, while `detail=compact` returns just the lightweight index (`command`, `name`, `group`, `description`, `tags`, `package`). `detail=groups` and `detail=tags` return the group or tag index alone, which is how a client offers discovery without holding a catalog of its own. Groups and tags also drive the endpoint's `group` and `tag` filters and its `group_by=group` and `group_by=tag` trees (see [Connectivity](connectivity.md)).
 
-The method **must be `static`**, but its accessibility does not matter: `public`, `internal`, and `private` static methods can all be registered. `CommandRegistry` invokes handlers through reflection, so a `private` handler runs exactly like a `public` one. Only a non-static (instance) method fails to register — `CommandRegistry` skips it and logs a warning. To expose an instance method as a command, register it dynamically instead (see [Registering a command dynamically](#registering-a-command-dynamically)).
+The method **must be `static`**. Its accessibility doesn't affect registration: `public`, `internal`, and `private` static methods can all be registered, and the package keeps its own `internal`. `CommandRegistry` invokes handlers through reflection, so a `private` handler runs exactly like a `public` one. Only a non-static (instance) method fails to register — `CommandRegistry` skips it and logs a warning. To expose an instance method as a command, register it dynamically instead (see [Registering a command dynamically](#registering-a-command-dynamically)).
+
+### Declaring the effect
+
+`Effect` tells a client what a call does, so it can run a read without asking and ask before a change it cannot take back. An MCP client shows it as the tool's annotations. The `/api/commands` listing serves it as three booleans on the command's entry:
+
+| `Effect` | `readOnly` | `destructive` | `idempotent` | Use for |
+|----------|-----------|---------------|--------------|---------|
+| `ReadOnly` | `true` | `false` | `true` | Commands that change nothing: `get`, `list`, `find`, `status`. |
+| `Idempotent` | `false` | `false` | `true` | Changes that a repeat leaves as they are and that lose nothing: most `set` commands. |
+| `Additive` | `false` | `false` | `false` | Changes that a repeat does not leave as they are, and that lose nothing: `create`, `add`, `run`, and a rename or reparent by a path the first call changed. |
+| `Destructive` | `false` | `true` | `false` | Changes that can delete or overwrite work, and commands that run code the caller supplies. |
+| `Unspecified` | — | — | — | Nothing is served; the client decides on its own. |
+
+Pick the strongest effect any call can have. A command that takes `confirm`, even for an occasional overwrite, is `Destructive`.
 
 ### Which assembly to reference
 
-`[CliGroupCommand]` and `[CliArg]` live in `Unity.Pipeline.Attributes`, which carries no define
-constraints. An assembly definition declaring commands needs only that reference — not
-`Unity.Pipeline` — so it compiles in every build, including a non-development Player where the
-pipeline assemblies are absent and the attributes are simply inert. Scripts that are not in an
-assembly definition need no reference at all.
+`[CliGroupCommand]`, `[CliArg]`, `CommandContext` and `ExitCode` live in `Unity.Pipeline.Attributes`,
+which carries no define constraints. An assembly definition declaring commands needs only that
+reference — not `Unity.Pipeline` — so it compiles in every build, including a non-development Player
+where the pipeline assemblies are absent and the commands are simply inert. Scripts that are not in
+an assembly definition need no reference at all.
 
 Referencing `Unity.Pipeline` is still required for the rest of the command API — response models,
-`IStructuredCommandInput`, and `CommandRegistry` — and that assembly only compiles for the
-editor and for the builds selected in Project Settings → Pipeline → Runtime.
+`IStructuredCommandInput` and `CommandRegistry` — and that assembly only compiles for the editor and
+for the builds selected in Project Settings → Pipeline → Runtime. A runtime command that uses them
+therefore only compiles in those builds: put it in an editor-only assembly, or guard it with the
+same defines.
 
 ### Shipping commands from another package
 
@@ -69,7 +108,7 @@ your namespace. For the group to use, see [Groups in the package](#groups-in-the
 
 ```csharp
 [CliCommand("lighting", "bake", "Bake every lightmap")]
-public static string Bake() { ... }
+internal static ExitCode Bake(CommandContext cmd) { ... }
 ```
 
 ```bash
@@ -80,7 +119,7 @@ unity command lighting bake
 
 ```csharp
 [CliCommand("animation.skeleton.set_bone", "Set a bone")]
-public static string SetBone() { ... }
+internal static ExitCode SetBone(CommandContext cmd) { ... }
 ```
 
 ```bash
@@ -91,7 +130,7 @@ Without a `.`, the command is in the `global` group and runs by its name alone o
 
 ```csharp
 [CliCommand("bake_lighting", "Bake every lightmap")]
-public static string Bake() { ... }
+internal static ExitCode Bake(CommandContext cmd) { ... }
 ```
 
 ```bash
@@ -106,7 +145,7 @@ namespace My.Tools
     static class Lighting
     {
         [CliCommand("Bake every lightmap")]
-        public static string Bake() { ... }
+        internal static ExitCode Bake(CommandContext cmd) { ... }
     }
 }
 ```
@@ -264,76 +303,194 @@ executor's own options (see [Output formats](connectivity.md#output-formats)): o
 the executor takes them out of the arguments, anywhere before `--`, before the command binds them,
 so such a parameter never gets its value from one.
 
-## Worked example 1 — returning a string
+## Writing output
 
-A command can return a plain `string`. The server places it in the response `result` field.
+Results go to stdout and everything else goes to stderr. Write results with `cmd.Result`, and the pipeline formats them for the `--format` the user passed (see [Output formats](connectivity.md#output-formats)), so every command supports every format.
+
+- **A list:** call `cmd.Result.WriteRecord(item)` once per item, as soon as it's ready, so output streams while the command runs. Each record is one table row, one tsv line or one JSON object per line. Don't wrap a list in an object that carries it with its count.
+- **A single result**, such as a status, a summary, or the object a command created: call `cmd.Result.Write(obj)` once.
+- **Output that isn't a result**, such as a file's raw contents: write it to `cmd.Std.Out`.
+
+A command writes its result one way only: the pipeline throws if it calls `Result.Write` twice or calls both `Result.Write` and `Result.WriteRecord`. Don't mix `Result` with `Std.Out` either: `--format json` output would stop being valid.
+
+An empty list writes nothing and exits with `0`. A command that should return one result but finds none fails with `ExitCode.NotFound`.
 
 ```csharp
-using Unity.Pipeline.Commands;
-using UnityEditor;
-using UnityEngine;
-
-public static class PlayModeCommands
+[CliGroupCommand(Group, "List the scenes in the build.", Effect = CommandEffect.ReadOnly)]
+internal static ExitCode ListBuildScenes(CommandContext cmd)
 {
-    const string Group = "demo";
-
-    [CliGroupCommand(Group, "Enter Unity Editor play mode")]
-    public static string EnterPlayMode()
-    {
-        if (EditorApplication.isPlaying)
-            return "Already in play mode";
-
-        EditorApplication.isPlaying = true;
-        return "Entered play mode";
-    }
+    foreach (var scene in EditorBuildSettings.scenes)
+        cmd.Result.WriteRecord(new { path = scene.path, enabled = scene.enabled });
+    return ExitCode.Success;
 }
 ```
 
-The method name `EnterPlayMode` makes the command name `enter_play_mode`, so the command is run as `unity command demo enter_play_mode`. It yields a `CommandExecutionResponse` whose `result` is `"Entered play mode"`.
+Any release can add fields to a result. Removing, renaming or changing the type of a field is a breaking change.
 
-## Worked example 2 — returning a response model
+## Logging
 
-For richer results, return a model. Extending `CommandExecutionResponse` lets you populate response fields directly; you can also return any plain serializable model (like `AuthoringResult`) and let the server wrap it.
+`cmd.Log` writes to stderr, as much as the user's `--log-level` picks (`warning` by default), in the `--log-format` they picked (see [Connectivity](connectivity.md)). The log level never changes stdout.
+
+| Level | Use for | Example |
+|-------|---------|---------|
+| `Error` | The command failed. Pair it with a non-zero exit code and, when possible, say what the user can do about it. | `cmd.Log.Error("Asset 'Assets/Player.prefab' not found.");` |
+| `Warning` | Something unexpected happened, but the result is still valid. | `cmd.Log.Warning("Skipped 2 of 40 scenes because they are read-only.");` |
+| `Info` | What the command did, at the level of milestones rather than individual items. | `cmd.Log.Info("Imported 38 assets.");` |
+| `Debug` | Decisions and internal state that help diagnose a problem. | `cmd.Log.Debug("Resolved 'Player' to Assets/Prefabs/Player.prefab.");` |
+
+## Exit codes
+
+The command returns how it ended:
+
+| `ExitCode` | When |
+|------------|------|
+| `Success` | The command did what it was asked. |
+| `InvalidUsage` | The arguments are wrong in a way the parser can't tell, such as two flags that exclude each other. |
+| `Failed` | The command failed. |
+| `NotFound` | What the command was asked to work on doesn't exist, such as an asset path. |
+| `TimedOut` | The command ran out of a time limit of its own, such as a batch's `timeout`. The request's own timeout is reported by the pipeline. |
+| `Cancelled` | The user stopped the command, such as by cancelling a dialog it opened. |
+
+Log why with `cmd.Log.Error` before returning anything but `Success`.
+
+A command may also throw. The pipeline then logs the exception's message as an error and exits with `Failed`, or `InvalidUsage` for an `ArgumentException`. Return an exit code for the failures the command expects, and let exceptions report the ones it doesn't.
 
 ```csharp
-using System;
-using Unity.Pipeline.Commands;
-using Unity.Pipeline.Models;
-
-public class WordCountResponse : CommandExecutionResponse
+[CliGroupCommand(Group, "Open a scene.", Effect = CommandEffect.Destructive)]
+internal static ExitCode Open(CommandContext cmd, [CliArg("path", "Scene to open", Required = true)] string path)
 {
-    public int WordCount { get; set; }
-
-    public static WordCountResponse Counted(int wordCount) => new WordCountResponse
+    if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(path)))
     {
-        Success = true,
-        WordCount = wordCount
-    };
-
-    public static WordCountResponse Failed(string error) => new WordCountResponse
-    {
-        Success = false,
-        Error = error
-    };
-}
-
-public static class TextCommands
-{
-    const string Group = "text";
-
-    [CliGroupCommand(Group, "Count the words in a string")]
-    public static WordCountResponse CountWords(
-        [CliArg("text", "Text to count words in", Required = true)] string text)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-            return WordCountResponse.Failed("text parameter is required and cannot be empty");
-
-        return WordCountResponse.Counted(text.Split((char[])null, StringSplitOptions.RemoveEmptyEntries).Length);
+        cmd.Log.Error($"No scene at '{path}'.");
+        return ExitCode.NotFound;
     }
+
+    EditorSceneManager.OpenScene(path, OpenSceneMode.Single);
+    cmd.Result.Write(new { path });
+    return ExitCode.Success;
 }
 ```
 
-`WordCountResponse` adds `wordCount` on top of the standard envelope. Another common shape is a domain model such as `AuthoringResult` — the canonical identity (asset path, GUID, instance id, hierarchy path) of an object a command created, returned so the client can reference it in a follow-up call.
+## Commands that run across frames
+
+A command that returns `ExitCode` holds the main thread until it returns: the editor doesn't repaint or show progress, and the user can't cancel it. Make a command async when it handles many items or waits for anything:
+
+```csharp
+[CliGroupCommand(Group, "Reimport each asset under a folder.", Effect = CommandEffect.Idempotent)]
+internal static async Task<ExitCode> Reimport(CommandContext cmd, [CliArg("folder", "Folder to reimport")] string folder)
+{
+    var imported = 0;
+    foreach (var guid in AssetDatabase.FindAssets("", new[] { folder }))
+    {
+        var path = AssetDatabase.GUIDToAssetPath(guid);
+        AssetDatabase.ImportAsset(path);
+        cmd.Result.WriteRecord(path);
+        imported++;
+        await Task.Yield(); // the frame goes back to the editor
+        cmd.CancellationToken.ThrowIfCancellationRequested();
+    }
+    cmd.Log.Info($"Reimported {imported} assets.");
+    return ExitCode.Success;
+}
+```
+
+An async command runs on the main thread, and each `await` gives the frame back to the editor. It should:
+
+- Give the frame back with `await Task.Yield()`. Don't use `Awaitable.NextFrameAsync`, which never completes in edit mode, or `Task.Delay`, which counts wall-clock time rather than frames.
+- Stay on the main thread. Don't move work off it with `Task.Run`, and don't add `ConfigureAwait(false)` to an `await`: most Unity APIs throw when called from another thread.
+- Yield after a batch of items rather than after each one when items are cheap.
+
+A `job batch` can't run an async command.
+
+## Handling cancellation
+
+A user can stop a command at any time: with Ctrl-C on a terminal, with SIGTERM from a script or CI job, or when its timeout runs out. The command finds out through `cmd.CancellationToken`. Cancellation is cooperative: a command that never checks the token runs to the end, and its result is thrown away.
+
+- Check the token between units of work, such as each asset, scene or test, and pass it to every API that takes one. In an async command, check it after each `await`.
+- Register the cancel method of a long Unity operation that has one: `using (cmd.CancellationToken.Register(Lightmapping.Cancel))`.
+- Let the `OperationCanceledException` propagate. Don't catch it to return a partial result, and don't log it as an error.
+- Leave the project in a consistent state: put cleanup in `finally` blocks and keep it short.
+
+## The legacy signature
+
+A command method that doesn't return `ExitCode` uses the legacy signature, which is still supported and isn't warned about. It returns its result, and the pipeline writes it: a list as records, anything else as a single result. A thrown exception, or a returned `CommandExecutionResponse` or `BaseResponse` that carries an error, fails the command.
+
+```csharp
+[CliGroupCommand(Group, "Print a greeting.")]
+static string Greet([CliArg("name", "Who to greet")] string name = "world") => $"Hello {name}!";
+```
+
+A legacy command can't take a `CommandContext`, so it can't log at a level or stream records. Every command the package ships uses the `CommandContext` definition; `CommandSignatureTests` holds it to that.
+
+## Commands that take a `CommandContext`
+
+Instead of returning its result, a command can take a `CommandContext` and return its exit code.
+The pipeline passes the context itself, so it is never a flag, and it may sit anywhere among the
+parameters:
+
+```csharp
+[CliGroupCommand(Group, "Print a greeting.", Effect = CommandEffect.ReadOnly)]
+internal static ExitCode Greet(
+    CommandContext cmd,
+    [CliArg("name", "Who to greet")] string name = "world")
+{
+    cmd.Log.Info($"Greeting {name}");
+    cmd.Result.Write($"Hello {name}!");
+    return ExitCode.Success;
+}
+```
+
+| Member | What it is |
+|--------|------------|
+| `Result` | Writes the result in the format the user picked (see [Output formats](connectivity.md#output-formats)): `Write(obj)` once for a single result, or `WriteRecord(obj)` per item, written as each is ready. Not both. |
+| `Log` | `Error`, `Warning`, `Info`, `Debug`: lines to stderr, as much as the user's [`--log-level`](connectivity.md#log-level) picks (`warning` by default). |
+| `Std.In` | What the client sends, such as text or a file piped to the `unity` CLI. `await ReadLineAsync()` reads a line as UTF-8 text, null once the input ends. `await ReadAsync(buffer)` reads the bytes as the client sent them, 0 once the input ends. Both wait for the client without holding the Editor, and read from one position, so a command may mix them, such as a header line followed by binary. Cancelling a command ends its input, so after reading to the end, check the cancellation token. |
+| `Std.Out`, `Std.Error` | Output that isn't a result, such as a file's contents: `Write(text)` and `WriteLine(text)` write UTF-8 text, `Write(bytes)` writes bytes as they are, in order with the text. A client that takes only text, such as one calling over HTTP, gets the bytes decoded as UTF-8. |
+| `Arguments` | The arguments the command was called with, without the pipeline's own options. |
+| `CancellationToken` | Cancelled when the user stops the command (Ctrl-C, SIGTERM) or it runs past its timeout. |
+
+### Exit codes
+
+Return the `ExitCode` that says how the command ended, and log why it failed with `cmd.Log.Error`:
+
+| `ExitCode` | When |
+|---|---|
+| `Success` | It did what it was asked. |
+| `InvalidUsage` | The arguments are wrong in a way the parser can't tell, such as two flags that exclude each other. |
+| `Failed` | It failed. |
+| `NotFound` | What it was asked to work on doesn't exist, such as an asset path. |
+| `TimedOut` | It ran out of a time limit of its own, such as a batch's `timeout`. |
+| `Cancelled` | The user stopped it, such as by cancelling a dialog it opened. |
+
+The pipeline decides the rest itself: a timeout, a server that can't run commands now, and a modal
+dialog that blocks the Editor. A command that fails without logging an error (a warning doesn't count) gets a one-line error
+from the pipeline. Once a command ends, including when it runs past its timeout, what it still
+writes is dropped. One that throws fails, its message logged as an error. One that stops on its
+`CancellationToken` lets the `OperationCanceledException` propagate and ends cancelled.
+
+### Commands that run across frames
+
+Return `Task<ExitCode>` from an `async` method when the command waits: on the Editor, on a file, or
+on its input:
+
+```csharp
+[CliGroupCommand(Group, "Count the lines piped in.", Effect = CommandEffect.ReadOnly)]
+internal static async Task<ExitCode> CountLines(CommandContext cmd)
+{
+    var count = 0;
+    while (await cmd.Std.In.ReadLineAsync() != null)
+        count++;
+    cmd.Result.Write(count);
+    return ExitCode.Success;
+}
+```
+
+The context works on any thread, so it can be used after any `await`; Unity APIs still need the
+main thread. A command that returns a `Task` can't run inside
+[`job batch`](commands/batch.md).
+
+A method that takes a `CommandContext` and returns anything other than `ExitCode` or
+`Task<ExitCode>` isn't registered: the Console says why.
 
 ## Structured (multi-field) parameters
 
@@ -341,7 +498,8 @@ When a command needs a structured argument with several fields, don't spread the
 
 ```csharp
 [CliGroupCommand(Group, "Change Time settings. Requires confirm=true; use dry-run to preview.")]
-public static CommandExecutionResponse Set(
+internal static ExitCode Set(
+    CommandContext cmd,
     [CliArg("settings", "Fields to change; omitted fields are left unchanged.")] TimeSettingsArgs settings = null,
     [CliArg("confirm", "Apply the change. Without it the call is refused.")] bool confirm = false,
     [CliArg("dry-run", "Preview the change without applying it.")] bool dryRun = false)
@@ -373,7 +531,7 @@ Whatever your handler returns, the client receives a `CommandExecutionResponse`:
 | Field | Type | Meaning | In lean reply? |
 |-------|------|---------|----------------|
 | `success` | `bool` | Whether the command ran without throwing. | always |
-| `result` | `object` | Your handler's return value (a string, model, anonymous object, or `null`). | always on success, explicitly `null` when null; omitted on failure |
+| `result` | `object` | The command's result: what it wrote with `cmd.Result` (its records as a list), or a legacy command's return value. | always on success, explicitly `null` when null; on failure, only when the command wrote one (e.g. [`test status`](commands/build-and-compilation.md#test-status) after a failed run) |
 | `error` | `string` | Error summary when `success` is `false`. | when non-null |
 | `errorDetails` | `string` | Extra error context. | when non-null |
 | `warnings` | `string[]` | Corrective guidance the server wants the caller to see (e.g. an unrecognized option value). | when non-null (omitted when there is nothing to say, in every mode) |
@@ -395,8 +553,10 @@ The boundaries of the lean contract, worth knowing:
   from a nonexistent or misspelled one.
 - **A successful reply always carries `result`, even when its value is null — in every mode.** A
   null result on success is the command's actual value (e.g. a `detail="value"` read of an
-  unassigned object-reference field), never a droppable envelope null. Only a *failure* omits the
-  `result` key.
+  unassigned object-reference field), never a droppable envelope null. A *failure* omits the
+  `result` key, unless the command returned a failure that keeps its payload: [`test status`](commands/build-and-compilation.md#test-status)
+  fails a poll for a failed run and still carries the run's counts and results, so a client must
+  not discard `result` on failure.
 - **The metadata gating applies to the whole graph.** A command whose result is itself a response
   model (e.g. `script eval` returns an `EvalResponse` nested under `result`) has its nested
   `executedAt`/`executionTimeMs` stripped in lean mode too — and restored by verbose along with
@@ -417,7 +577,7 @@ parameter instead. An unrecognized value (e.g. `omit_nulls=1`) is not silently c
 keeps its nulls and carries a `warnings` array naming the accepted values, so an agent can correct
 itself instead of guessing.
 
-If your handler throws, the server catches it and returns a failure envelope with `success = false` and the exception message in `error` — you do not need to catch-and-wrap yourself unless you want a tailored message.
+If your command throws, the server catches it and returns a failure envelope with `success = false` and the exception message in `error`.
 
 ## `MainThreadRequired`
 
@@ -435,19 +595,22 @@ the handler, declare a `timeout` parameter of type `double` (name the C# paramet
 
 ```csharp
 [CliGroupCommand(Group, "Bake every lightmap")]
-public static string BakeAll(
+internal static ExitCode BakeAll(
+    CommandContext cmd,
     [CliArg("timeout", "Timeout in seconds")] double timeoutInSeconds = 600)
 {
     // What is left of the request's timeout; positive infinity for a detached job.
     var timeout = double.IsPositiveInfinity(timeoutInSeconds)
         ? System.Threading.Timeout.InfiniteTimeSpan
         : TimeSpan.FromSeconds(timeoutInSeconds);
-    return Lightmaps.BakeAll(timeout);
+    cmd.Result.Write(Lightmaps.BakeAll(timeout));
+    return ExitCode.Success;
 }
 ```
 
-When the timeout runs out the server answers `504 TIMEOUT` whatever the handler is doing. A
-handler that wants to report its own timeout must stop a little before it.
+When the timeout runs out the server answers `504 TIMEOUT` whatever the command is doing, and
+cancels `cmd.CancellationToken`. A command that wants to report its own timeout must stop a little
+before it.
 
 ## The `runtime` tag
 
@@ -473,9 +636,10 @@ CommandRegistry.RegisterCommand(
     "mytool",
     "my_dynamic_command",
     "What this command does",
-    new Func<string, int, object>(MyHandler),
+    new Func<CommandContext, string, int, ExitCode>(MyHandler),
     mainThreadRequired: true,
-    tags: new[] { "mytool" });
+    tags: new[] { "mytool" },
+    effect: CommandEffect.Additive);
 ```
 
 The first two arguments are the group and the name, and the command is run as `mytool my_dynamic_command`. The same rules apply as for an attribute-declared command (see [Groups and names](#groups-and-names)): a group or name that breaks the format rules throws `ArgumentException`. To mark a command as targeting a Player, pass `tags: new[] { "runtime" }`.
@@ -485,11 +649,13 @@ The result is an ordinary command: it appears in `/api/commands`, carries the sa
 **Parameters still come from `[CliArg]`.** The registry reads the handler's own parameters, so a handler method annotates them exactly as an attribute-declared command does:
 
 ```csharp
-private static object MyHandler(
+private static ExitCode MyHandler(
+    CommandContext cmd,
     [CliArg("text", "Some input", Required = true)] string text,
     [CliArg("count", "How many times")] int count = 1)
 {
-    return new { echoed = text, count };
+    cmd.Result.Write(new { echoed = text, count });
+    return ExitCode.Success;
 }
 ```
 
@@ -522,17 +688,20 @@ All registrations survive a discovery-mechanism swap. Registering a group and na
 ```csharp
 using Unity.Pipeline.Commands;
 
-public static class MyCommands
+static class MyCommands
 {
     const string Group = "mytool";
 
     [CliGroupCommand(Group, "What this command does")]
-    public static object Echo(
+    internal static ExitCode Echo(
+        CommandContext cmd,
         [CliArg("text", "Some input", Required = true)] string text,
         [CliArg("count", "How many times")] int count = 1)
     {
-        // Do work on the main thread (MainThreadRequired defaults to true).
-        return new { echoed = text, count };   // anonymous object → response.result
+        // Runs on the main thread (MainThreadRequired defaults to true).
+        for (var i = 0; i < count; i++)
+            cmd.Result.WriteRecord(text);
+        return ExitCode.Success;
     }
 }
 ```
@@ -546,9 +715,11 @@ When the command ships in `com.unity.pipeline` itself:
 1. Reuse an existing group where one fits, or use a new one, and declare it as `const string Group` in the command class. Consider a subgroup when an object has several commands of its own; this is guidance, not a threshold.
 2. Name the method verb first, reusing the package's verbs where they fit. The command name is derived from it; use `Name =` only when the derived name is wrong.
 3. Add `Tags` for browsing across groups.
-4. Add a `CommandNames` constant if any code refers to the command by name.
-5. Document it on the matching page under `Documentation~/commands/` and add its row to [the index](index.md).
-6. Run `CommandNamesTests`.
+4. Set `Effect` (see [Declaring the effect](#declaring-the-effect)). Every command the package ships declares one.
+5. Use the [`CommandContext` definition](#the-command-method): `internal`, takes a `CommandContext`, returns `ExitCode` or `Task<ExitCode>`, writes results with `cmd.Result` and diagnostics with `cmd.Log`.
+6. Add a `CommandNames` constant if any code refers to the command by name.
+7. Document it on the matching page under `Documentation~/commands/` and add its row to [the index](index.md).
+8. Run `CommandNamesTests`, `CommandEffectTests` and `CommandSignatureTests`. To test the command itself, call it through `CommandRun` (see [Testing](testing.md)).
 
 Renaming a method renames its command, so treat it as a breaking change: add a changelog entry to the pull request description and check whether the CLI calls the command by name.
 

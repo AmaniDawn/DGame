@@ -17,6 +17,7 @@ development Player) over a local HTTP API by executing registered commands.
 | [Connectivity](connectivity.md) | How servers bind the loopback address, the port ranges, the port/descriptor file, and the bearer-token auth workflow. |
 | [Runtime connection & setup](runtime-setup.md) | Running the server in a Player via Project Settings → Pipeline → Runtime, and how the build gating works. |
 | [Reloading code](method-reload.md) | Updating `[MethodReload]` methods in a running game: the `Assembly.Load` and interpreter backends, supported changes, the watcher, and how the woven dispatch works. |
+| [Scene Preview](scene-preview.md) | Building a content archive for any asset on demand and loading it in a player: the preview build profile and preview assemblies settings, `PreviewSceneArtifactImporter`, and `ContentArchiveLoader`. |
 | [Tests architecture](testing.md) | Writing command tests via `PipelineClient` (over HTTP) and via direct command calls. |
 | [Analytics](analytics.md) | The three usage events the Editor server reports, what each field means, and what is deliberately not collected. |
 | [Samples](samples.md) | Where the samples live (`com.unity.pipeline.samples`), how to add the package and import a sample, and what each one demonstrates. |
@@ -96,7 +97,6 @@ Every available command, grouped by area. Each entry is the command as typed on 
 | [`component set_field`](commands/scripts.md#component-set_field) | Set a serialized field on a component / asset. |
 | [`component get_fields`](commands/scripts.md#component-get_fields) | Read serialized fields. |
 | [`script eval`](commands/scripts.md#script-eval) | Compile and run a C# script, inline or from a file, with `await` support. Editor and Player. |
-| [`script eval_file`](commands/scripts.md#script-eval_file) | Deprecated: use `script eval --file`. |
 | [`script run`](commands/scripts.md#script-run) | Compile a project `.cs` file in memory (no domain reload) and run a named static entry point — the builder-pattern path for bulk construction. |
 
 ### Animation commands
@@ -236,7 +236,6 @@ Every available command, grouped by area. Each entry is the command as typed on 
 | [`editor focus`](commands/editor-lifecycle-and-observability.md#editor-focus) | Bring the Editor to the foreground. |
 | [`editor invoke_menu`](commands/editor-lifecycle-and-observability.md#editor-invoke_menu) | Execute (or list) Editor menu items. |
 | [`editor quit`](commands/editor-lifecycle-and-observability.md#editor-quit) | Quit the Editor, saving or discarding unsaved changes. |
-| [`capture screenshot`](commands/editor-lifecycle-and-observability.md#capture-screenshot) | Capture Scene / Game view to a PNG file. |
 | [`editor set_auto_tick`](commands/editor-lifecycle-and-observability.md#editor-set_auto_tick) | Keep the editor ticking while unfocused. |
 | [`diagnostics get_performance`](commands/editor-lifecycle-and-observability.md#diagnostics-get_performance) | Read render / memory / frame stats. |
 | [`diagnostics run_audit`](commands/editor-lifecycle-and-observability.md#diagnostics-run_audit) | Run a Project Auditor scan, producing a CSV of issues. |
@@ -244,6 +243,25 @@ Every available command, grouped by area. Each entry is the command as typed on 
 | [`diagnostics report_evals`](commands/editor-lifecycle-and-observability.md#diagnostics-report_evals) | Ranked report of local eval-usage telemetry + command-coverage suggestions. |
 | [`authoring get_root`](commands/editor-lifecycle-and-observability.md#authoring-get_root) | Get the authoring-root folder. |
 | [`authoring set_root`](commands/editor-lifecycle-and-observability.md#authoring-set_root) | Set the authoring-root folder. |
+
+### Profiling & memory capture commands
+
+| Command | Description |
+|---------|-------------|
+| [`diagnostics profiler_targets`](commands/profiling-and-memory.md#diagnostics-profiler_targets) | List the Editor and connected Players the Profiler can connect to. |
+| [`diagnostics profiler_connect`](commands/profiling-and-memory.md#diagnostics-profiler_connect) | Point the Profiler connection at a target. |
+| [`diagnostics profiler_record`](commands/profiling-and-memory.md#diagnostics-profiler_record) | Record Profiler frames to a .data file. |
+| [`diagnostics profiler_record_stop`](commands/profiling-and-memory.md#diagnostics-profiler_record_stop) | Stop the recording early and save what was recorded. |
+| [`diagnostics profiler_record_status`](commands/profiling-and-memory.md#diagnostics-profiler_record_status) | Poll the recording; returns the .data path + frame counts. |
+| [`diagnostics profiler_session`](commands/profiling-and-memory.md#diagnostics-profiler_session) | Open a capture session on a saved .data capture, or list the open ones. |
+| [`diagnostics profiler_close`](commands/profiling-and-memory.md#diagnostics-profiler_close) | Close a capture session (or all of them). |
+| [`diagnostics profiler_summary`](commands/profiling-and-memory.md#diagnostics-profiler_summary) | Summarize a capture session: frame-time and GC statistics; rank frames by CPU, GC or GPU time and flag hiccups. |
+| [`diagnostics profiler_frame`](commands/profiling-and-memory.md#diagnostics-profiler_frame) | Break down one frame: bottleneck, hot path, top self-time and GC samples. |
+| [`diagnostics profiler_markers`](commands/profiling-and-memory.md#diagnostics-profiler_markers) | Aggregate CPU or GPU markers over a frame range. |
+| [`diagnostics profiler_counters`](commands/profiling-and-memory.md#diagnostics-profiler_counters) | List a capture's counters, or summarize chosen ones over a frame range. |
+| [`diagnostics profiler_sample`](commands/profiling-and-memory.md#diagnostics-profiler_sample) | Read one sample of a capture session, by marker path or sampleId, with its children's share of it. |
+| [`diagnostics memory_snapshot`](commands/profiling-and-memory.md#diagnostics-memory_snapshot) | Capture a memory snapshot to a .snap file. |
+| [`diagnostics memory_snapshot_status`](commands/profiling-and-memory.md#diagnostics-memory_snapshot_status) | Poll the snapshot; returns the .snap path + size. |
 
 ### Multiplayer Play Mode & instance commands
 

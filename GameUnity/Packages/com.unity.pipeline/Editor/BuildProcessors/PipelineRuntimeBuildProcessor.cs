@@ -5,6 +5,7 @@ using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
 using Unity.Pipeline.Config;
+using Unity.Pipeline.Runtime.Commands;
 using UnityEngine;
 using UnityEditor;
 using UnityEditor.Build;
@@ -139,7 +140,12 @@ namespace Unity.Pipeline.Editor.BuildProcessors
                 WriteConfigAsset(config);
                 WriteBuildInfoAsset(pushPublicKey);
 
-                Debug.Log("Pipeline: Runtime server ENABLED in build.");
+                if (InstrumentedOrProfiledBuild(namedTarget, buildOptions))
+                    Debug.Log("Pipeline: Runtime server ENABLED in build.");
+                else
+                    Debug.LogWarning("Pipeline: this release build includes the runtime server, which runs C# sent to it " +
+                        "over a loopback HTTP port by any local process that can read its descriptor file. Turn off " +
+                        "Project Settings > Pipeline > Runtime > Enable in Release Builds unless you mean to ship it.");
             }
             finally
             {
@@ -260,20 +266,7 @@ namespace Unity.Pipeline.Editor.BuildProcessors
         /// live anywhere on disk, not only under Packages).
         /// </summary>
         /// <returns>Absolute paths of the project's Assets folder and every loaded package.</returns>
-        public static List<string> CollectProjectRoots()
-        {
-            var roots = new List<string> { Path.GetFullPath(Application.dataPath) };
-
-            foreach (var package in UnityEditor.PackageManager.PackageInfo.GetAllRegisteredPackages())
-            {
-                if (!string.IsNullOrEmpty(package.resolvedPath))
-                {
-                    roots.Add(Path.GetFullPath(package.resolvedPath));
-                }
-            }
-
-            return roots;
-        }
+        public static List<string> CollectProjectRoots() => MethodReloadCommands.CollectProjectRoots();
 
         private static void WriteConfigAsset(RuntimePipelineConfig sourceConfig)
         {
@@ -303,6 +296,7 @@ namespace Unity.Pipeline.Editor.BuildProcessors
             var buildInfo = ScriptableObject.CreateInstance<RuntimePipelineBuildInfo>();
             buildInfo.allowedReloadRoots = CollectProjectRoots();
             buildInfo.pushPublicKey = pushPublicKey ?? "";
+            buildInfo.packageVersion = PipelinePackageVersion.Current ?? "";
             AssetDatabase.CreateAsset(buildInfo, BuildInfoAssetPath);
             AssetDatabase.SaveAssets();
         }

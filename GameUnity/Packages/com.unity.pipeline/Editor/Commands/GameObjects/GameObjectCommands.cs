@@ -9,6 +9,7 @@ using UnityEditor.SceneManagement;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 using Object = UnityEngine.Object;
+using static Unity.Pipeline.Editor.Commands.CommandFailure;
 
 namespace Unity.Pipeline.Editor.Commands.GameObjects
 {
@@ -40,32 +41,39 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
         /// </summary>
         [CliGroupCommand(Group,
             "Create an empty GameObject or a built-in primitive (cube/sphere/capsule/cylinder/plane/quad) in the active scene.",
-            Tags = new[] { "gameobjects" })]
-        public static AuthoringResult Create(
+            Tags = new[] { "gameobjects" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode Create(CommandContext cmd,
             [CliArg("name", "Name for the new GameObject. Defaults to 'GameObject' (or the primitive name).")] string name = null,
             [CliArg("primitive", "Optional primitive type: cube, sphere, capsule, cylinder, plane, quad. Omit for an empty GameObject.")] string primitive = null,
             [CliArg("parent", "Optional parent handle (globalId/path/guid/instanceId/hierarchyPath). The new object becomes a child of it.")] ObjectRef parent = null)
         {
-            // Resolve the parent once, outside the scope, so a bad handle fails before any creation.
-            var parentTransform = ResolveParentTransform(parent);
+            // Validate and resolve before the scope, so a bad argument creates nothing.
+            if (!TryParsePrimitive(primitive, out var primitiveType, out var error))
+                return Fail(cmd, ExitCode.InvalidUsage, error);
+            var code = TryResolveParent(parent, out var parentTransform, out error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
 
             using (new AuthoringUndoScope("Create GameObject"))
             {
-                var go = CreateOne(primitive, name, parentTransform);
+                var go = CreateOne(primitiveType, name, parentTransform);
                 MarkDirty(go);
-                return ObjectResolver.Describe(go);
+                cmd.Result.Write(ObjectResolver.Describe(go));
             }
+
+            return ExitCode.Success;
         }
 
         /// <summary>
         /// Create N GameObjects (empty or a primitive) in one server round-trip (CLI-223).
         ///
         /// WHY a separate plural command rather than overloading <see cref="Create"/>: the
-        /// single command's contract — one call returns one <see cref="AuthoringResult"/> — is relied
+        /// single command's contract — one call writes one <see cref="AuthoringResult"/> — is relied
         /// on by existing callers and tests, so it is left untouched. This plural command is the batch
-        /// surface and returns a <see cref="CreateGameObjectsResult"/> envelope (count + per-item
-        /// identities). When <paramref name="count"/> &gt; 1 and no explicit name array is supplied,
-        /// each object is suffixed Name1..NameN so they remain individually addressable.
+        /// surface and writes one <see cref="AuthoringResult"/> record per created object, in creation
+        /// order. When <paramref name="count"/> &gt; 1 and no explicit name array is supplied, each
+        /// object is suffixed Name1..NameN so they remain individually addressable.
         ///
         /// Per-index <paramref name="positions"/>/<paramref name="rotations"/>/<paramref name="scales"/>
         /// are arrays of [x,y,z] vectors. When a vectors array is supplied its length MUST equal
@@ -75,8 +83,9 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
         /// </summary>
         [CliGroupCommand(Group,
             "Batch-create N empty GameObjects or primitives in one call. Optional positions/rotations/scales are arrays of [x,y,z] (length must equal count). Returns the created identities.",
-            Tags = new[] { "gameobjects" })]
-        public static CreateGameObjectsResult CreateMany(
+            Tags = new[] { "gameobjects" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode CreateMany(CommandContext cmd,
             [CliArg("name", "Base name. With count>1 and no explicit names, objects are suffixed Name1..NameN.")] string name = null,
             [CliArg("primitive", "Optional primitive type: cube, sphere, capsule, cylinder, plane, quad. Omit for empty GameObjects.")] string primitive = null,
             [CliArg("parent", "Optional parent handle. Every created object becomes a child of it.")] ObjectRef parent = null,
@@ -85,17 +94,22 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
             [CliArg("rotations", "Local Euler rotations (degrees), one [x,y,z] per object. Length must equal count when supplied.")] float[][] rotations = null,
             [CliArg("scales", "Local scales, one [x,y,z] per object. Length must equal count when supplied.")] float[][] scales = null)
         {
+            // Validate and resolve before the scope, so a bad argument creates nothing.
             if (count < 1)
-                throw new ArgumentException($"'count' must be at least 1, got {count}.");
+                return Fail(cmd, ExitCode.InvalidUsage, $"'count' must be at least 1, got {count}.");
 
-            ValidateVectorArray(positions, count, "positions");
-            ValidateVectorArray(rotations, count, "rotations");
-            ValidateVectorArray(scales, count, "scales");
+            var error = ValidateVectorArray(positions, count, "positions")
+                ?? ValidateVectorArray(rotations, count, "rotations")
+                ?? ValidateVectorArray(scales, count, "scales");
+            if (error != null)
+                return Fail(cmd, ExitCode.InvalidUsage, error);
 
-            // Resolve the parent once, outside the scope, so a bad handle fails before any creation.
-            var parentTransform = ResolveParentTransform(parent);
+            if (!TryParsePrimitive(primitive, out var primitiveType, out error))
+                return Fail(cmd, ExitCode.InvalidUsage, error);
+            var code = TryResolveParent(parent, out var parentTransform, out error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
 
-            var result = new CreateGameObjectsResult();
             using (new AuthoringUndoScope("Create GameObjects"))
             {
                 for (int i = 0; i < count; i++)
@@ -103,39 +117,37 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
                     // count==1 keeps the bare name (no "1" suffix) so a single-item batch reads
                     // naturally; count>1 suffixes 1..N for individual addressability.
                     var itemName = count > 1 && !string.IsNullOrEmpty(name) ? name + (i + 1) : name;
-                    var go = CreateOne(primitive, itemName, parentTransform);
+                    var go = CreateOne(primitiveType, itemName, parentTransform);
 
-                    // Index the arg name so a null/mis-shaped entry names the offending element
-                    // (a JSON array may contain a null entry even when its length matches count).
                     if (positions != null)
-                        go.transform.localPosition = ToVector3(positions[i], $"positions[{i}]");
+                        go.transform.localPosition = ToVector3(positions[i]);
                     if (rotations != null)
-                        go.transform.localEulerAngles = ToVector3(rotations[i], $"rotations[{i}]");
+                        go.transform.localEulerAngles = ToVector3(rotations[i]);
                     if (scales != null)
-                        go.transform.localScale = ToVector3(scales[i], $"scales[{i}]");
+                        go.transform.localScale = ToVector3(scales[i]);
 
                     MarkDirty(go);
-                    result.GameObjects.Add(ObjectResolver.Describe(go));
+                    cmd.Result.WriteRecord(ObjectResolver.Describe(go));
                 }
             }
 
-            result.Count = result.GameObjects.Count;
-            return result;
+            return ExitCode.Success;
         }
 
         /// <summary>
         /// Find GameObjects in the loaded scenes by name, tag, component type, and/or hierarchy path.
-        /// All supplied filters are combined (AND). Returns the canonical identity of each match so an
-        /// agent can act on the results without a second lookup.
+        /// All supplied filters are combined (AND). Writes the canonical identity of each match as a
+        /// record so an agent can act on the results without a second lookup.
         ///
         /// This is intentionally a structured query rather than a single-object resolve: agents need
-        /// to discover what exists before they can reference it, and the result set carries the same
+        /// to discover what exists before they can reference it, and the records carry the same
         /// <see cref="AuthoringResult"/> identities used everywhere else.
         /// </summary>
         [CliGroupCommand(Group,
             "Find GameObjects in loaded scenes by name, tag, component type, and/or hierarchy path (filters are combined). Returns structured identities.",
-            Tags = new[] { "gameobjects" })]
-        public static FindGameObjectsResult Find(
+            Tags = new[] { "gameobjects" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Find(CommandContext cmd,
             [CliArg("name", "Exact name to match.")] string name = null,
             [CliArg("tag", "Tag to match (e.g. 'Player').")] string tag = null,
             [CliArg("type", "Component type name to match (e.g. 'Rigidbody', 'UnityEngine.Camera').")] string type = null,
@@ -147,7 +159,7 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
             {
                 componentType = TypeResolver.ResolveComponentType(type);
                 if (componentType == null)
-                    throw new ArgumentException($"Could not resolve component type '{type}'.");
+                    return Fail(cmd, ExitCode.NotFound, $"Could not resolve component type '{type}'.");
             }
 
             // Resolve the hierarchy filter once so it is comparable to each object's computed path.
@@ -156,11 +168,15 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
             // Validate the tag up front: comparing against an undefined tag (CompareTag / .tag) would
             // log a Unity error per object. An unknown tag simply yields no matches.
             if (!string.IsNullOrEmpty(tag) && !InternalEditorTagExists(tag))
-                return new FindGameObjectsResult { Count = 0, GameObjects = new List<AuthoringResult>() };
+            {
+                cmd.Log.Debug($"Tag '{tag}' is not defined in the project, so nothing matches it.");
+                return ExitCode.Success;
+            }
 
-            var matches = new List<AuthoringResult>();
             foreach (var go in EnumerateSceneGameObjects(includeInactive))
             {
+                cmd.CancellationToken.ThrowIfCancellationRequested();
+
                 if (!string.IsNullOrEmpty(name) && go.name != name)
                     continue;
 
@@ -175,10 +191,10 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
 
                 var described = ObjectResolver.Describe(go);
                 if (described != null)
-                    matches.Add(described);
+                    cmd.Result.WriteRecord(described);
             }
 
-            return new FindGameObjectsResult { Count = matches.Count, GameObjects = matches };
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -188,29 +204,40 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
         /// </summary>
         [CliGroupCommand(Group,
             "Set a GameObject's local position/rotation(euler)/scale. Omitted channels are left unchanged.",
-            Tags = new[] { "gameobjects" })]
-        public static AuthoringResult SetTransform(
+            Tags = new[] { "gameobjects" },
+            Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetTransform(CommandContext cmd,
             [CliArg("target", "Handle of the GameObject to modify.", Required = true)] ObjectRef target,
             [CliArg("position", "Local position as [x,y,z].")] float[] position = null,
             [CliArg("rotation", "Local rotation as Euler angles [x,y,z] in degrees.")] float[] rotation = null,
             [CliArg("scale", "Local scale as [x,y,z].")] float[] scale = null)
         {
-            var go = ResolveGameObject(target, "target");
+            // Validate every channel before changing any, so a bad one leaves the transform as it was.
+            var error = ValidateVector(position, "position") ?? ValidateVector(rotation, "rotation") ?? ValidateVector(scale, "scale");
+            if (error != null)
+                return Fail(cmd, ExitCode.InvalidUsage, error);
+
+            var code = TryResolveGameObject(target, "target", out var go, out error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
+
             using (new AuthoringUndoScope("Set Transform"))
             {
                 var transform = go.transform;
                 Undo.RegisterCompleteObjectUndo(transform, "Set Transform");
 
                 if (position != null)
-                    transform.localPosition = ToVector3(position, "position");
+                    transform.localPosition = ToVector3(position);
                 if (rotation != null)
-                    transform.localEulerAngles = ToVector3(rotation, "rotation");
+                    transform.localEulerAngles = ToVector3(rotation);
                 if (scale != null)
-                    transform.localScale = ToVector3(scale, "scale");
+                    transform.localScale = ToVector3(scale);
 
                 MarkDirty(go);
-                return ObjectResolver.Describe(go);
+                cmd.Result.Write(ObjectResolver.Describe(go));
             }
+
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -221,102 +248,127 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
         /// </summary>
         [CliGroupCommand(Group,
             "Reparent a GameObject under a new parent, or detach it to scene root when no parent is given.",
-            Tags = new[] { "gameobjects" })]
-        public static AuthoringResult SetParent(
+            Tags = new[] { "gameobjects" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode SetParent(CommandContext cmd,
             [CliArg("target", "Handle of the GameObject to reparent.", Required = true)] ObjectRef target,
             [CliArg("parent", "Handle of the new parent. Omit (or empty) to move the object to the scene root.")] ObjectRef parent = null,
             [CliArg("world-position-stays", "Keep the object's world position when reparenting. Default true.")] bool worldPositionStays = true)
         {
-            var go = ResolveGameObject(target, "target");
-            Transform parentTransform = null;
-            if (parent != null && !parent.IsEmpty)
-                parentTransform = ResolveGameObject(parent, "parent").transform;
+            var code = TryResolveGameObject(target, "target", out var go, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
+            code = TryResolveParent(parent, out var parentTransform, out error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
 
             using (new AuthoringUndoScope("Set Parent"))
             {
                 Undo.SetTransformParent(go.transform, parentTransform, worldPositionStays, "Set Parent");
                 MarkDirty(go);
-                return ObjectResolver.Describe(go);
+                cmd.Result.Write(ObjectResolver.Describe(go));
             }
+
+            return ExitCode.Success;
         }
 
         /// <summary>Set a GameObject's active self-state.</summary>
-        [CliGroupCommand(Group, "Set a GameObject's active self-state (activeSelf).", Tags = new[] { "gameobjects" })]
-        public static AuthoringResult SetActive(
+        [CliGroupCommand(Group, "Set a GameObject's active self-state (activeSelf).", Tags = new[] { "gameobjects" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetActive(CommandContext cmd,
             [CliArg("target", "Handle of the GameObject.", Required = true)] ObjectRef target,
             [CliArg("active", "Desired active state.", Required = true)] bool active)
         {
-            var go = ResolveGameObject(target, "target");
+            var code = TryResolveGameObject(target, "target", out var go, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
+
             using (new AuthoringUndoScope("Set Active"))
             {
                 Undo.RegisterCompleteObjectUndo(go, "Set Active");
                 go.SetActive(active);
                 MarkDirty(go);
-                return ObjectResolver.Describe(go);
+                cmd.Result.Write(ObjectResolver.Describe(go));
             }
+
+            return ExitCode.Success;
         }
 
         /// <summary>
         /// Set a GameObject's tag. The tag must already exist in the project's Tag Manager; an unknown
-        /// tag surfaces a clear error rather than silently creating one (tag creation is a project
+        /// tag fails with a clear error rather than silently creating one (tag creation is a project
         /// settings mutation outside this command's scope).
         /// </summary>
-        [CliGroupCommand(Group, "Set a GameObject's tag (the tag must already exist in the project).", Tags = new[] { "gameobjects" })]
-        public static AuthoringResult SetTag(
+        [CliGroupCommand(Group, "Set a GameObject's tag (the tag must already exist in the project).", Tags = new[] { "gameobjects" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetTag(CommandContext cmd,
             [CliArg("target", "Handle of the GameObject.", Required = true)] ObjectRef target,
             [CliArg("tag", "Tag to assign (must exist in the Tag Manager).", Required = true)] string tag)
         {
-            var go = ResolveGameObject(target, "target");
+            var code = TryResolveGameObject(target, "target", out var go, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
             if (!InternalEditorTagExists(tag))
-                throw new ArgumentException($"Tag '{tag}' does not exist in the project. Add it via the Tag Manager first.");
+                return Fail(cmd, ExitCode.NotFound, $"Tag '{tag}' does not exist in the project. Add it via the Tag Manager first.");
 
             using (new AuthoringUndoScope("Set Tag"))
             {
                 Undo.RegisterCompleteObjectUndo(go, "Set Tag");
                 go.tag = tag;
                 MarkDirty(go);
-                return ObjectResolver.Describe(go);
+                cmd.Result.Write(ObjectResolver.Describe(go));
             }
+
+            return ExitCode.Success;
         }
 
         /// <summary>
         /// Set a GameObject's layer by name or numeric index. A name is resolved via
         /// <see cref="LayerMask.NameToLayer"/>; an out-of-range index or unknown name is rejected.
         /// </summary>
-        [CliGroupCommand(Group, "Set a GameObject's layer by name or numeric index (0-31).", Tags = new[] { "gameobjects" })]
-        public static AuthoringResult SetLayer(
+        [CliGroupCommand(Group, "Set a GameObject's layer by name or numeric index (0-31).", Tags = new[] { "gameobjects" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetLayer(CommandContext cmd,
             [CliArg("target", "Handle of the GameObject.", Required = true)] ObjectRef target,
             [CliArg("layer", "Layer name (e.g. 'UI') or numeric index 0-31.", Required = true)] string layer)
         {
-            var go = ResolveGameObject(target, "target");
-            var layerIndex = ResolveLayer(layer);
+            var code = TryResolveGameObject(target, "target", out var go, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
+            code = TryResolveLayer(layer, out var layerIndex, out error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
 
             using (new AuthoringUndoScope("Set Layer"))
             {
                 Undo.RegisterCompleteObjectUndo(go, "Set Layer");
                 go.layer = layerIndex;
                 MarkDirty(go);
-                return ObjectResolver.Describe(go);
+                cmd.Result.Write(ObjectResolver.Describe(go));
             }
+
+            return ExitCode.Success;
         }
 
         /// <summary>Rename a GameObject.</summary>
-        [CliGroupCommand(Group, "Rename a GameObject.", Tags = new[] { "gameobjects" })]
-        public static AuthoringResult Rename(
+        [CliGroupCommand(Group, "Rename a GameObject.", Tags = new[] { "gameobjects" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode Rename(CommandContext cmd,
             [CliArg("target", "Handle of the GameObject.", Required = true)] ObjectRef target,
             [CliArg("name", "New name.", Required = true)] string name)
         {
             if (string.IsNullOrEmpty(name))
-                throw new ArgumentException("New name must not be empty.");
+                return Fail(cmd, ExitCode.InvalidUsage, "New name must not be empty.");
 
-            var go = ResolveGameObject(target, "target");
+            var code = TryResolveGameObject(target, "target", out var go, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
+
             using (new AuthoringUndoScope("Rename GameObject"))
             {
                 Undo.RegisterCompleteObjectUndo(go, "Rename GameObject");
                 go.name = name;
                 MarkDirty(go);
-                return ObjectResolver.Describe(go);
+                cmd.Result.Write(ObjectResolver.Describe(go));
             }
+
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -324,11 +376,14 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
         /// deletion is reversible. The result describes the object's identity captured *before*
         /// destruction (the live object is gone afterwards).
         /// </summary>
-        [CliGroupCommand(Group, "Delete a GameObject from the scene (reversible via Undo).", Tags = new[] { "gameobjects" })]
-        public static AuthoringResult Delete(
+        [CliGroupCommand(Group, "Delete a GameObject from the scene (reversible via Undo).", Tags = new[] { "gameobjects" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Delete(CommandContext cmd,
             [CliArg("target", "Handle of the GameObject to delete.", Required = true)] ObjectRef target)
         {
-            var go = ResolveGameObject(target, "target");
+            var code = TryResolveGameObject(target, "target", out var go, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
+
             // Capture identity before destruction; the live object is invalid afterwards.
             var described = ObjectResolver.Describe(go);
             var scene = go.scene;
@@ -340,7 +395,8 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
                     EditorSceneManager.MarkSceneDirty(scene);
             }
 
-            return described;
+            cmd.Result.Write(described);
+            return ExitCode.Success;
         }
 
         #region Helpers
@@ -348,19 +404,34 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
         /// <summary>
         /// Resolve an <see cref="ObjectRef"/> to a GameObject. Accepts either a GameObject handle or a
         /// Component handle (in which case its owning GameObject is used), matching how agents tend to
-        /// hold references. Throws a descriptive error rather than returning null so the command
-        /// surfaces a clear message to the caller.
+        /// hold references. Returns <see cref="ExitCode.NotFound"/> when the handle matches nothing and
+        /// <see cref="ExitCode.InvalidUsage"/> when it is empty or names something that isn't a
+        /// GameObject, with <paramref name="error"/> saying why.
         /// </summary>
-        internal static GameObject ResolveGameObject(ObjectRef handle, string argName)
+        internal static ExitCode TryResolveGameObject(ObjectRef handle, string argName, out GameObject go, out string error)
         {
-            if (!ObjectResolver.TryResolve(handle, out var obj, out var error))
-                throw new ArgumentException($"Could not resolve '{argName}': {error}");
+            go = null;
+            if (handle == null || handle.IsEmpty)
+            {
+                error = $"'{argName}' is required.";
+                return ExitCode.InvalidUsage;
+            }
 
-            var go = obj as GameObject ?? (obj as Component)?.gameObject;
+            if (!ObjectResolver.TryResolve(handle, out var obj, out var resolveError))
+            {
+                error = $"Could not resolve '{argName}': {resolveError}";
+                return ExitCode.NotFound;
+            }
+
+            go = obj as GameObject ?? (obj as Component)?.gameObject;
             if (go == null)
-                throw new ArgumentException($"'{argName}' did not resolve to a GameObject (got {obj.GetType().Name}).");
+            {
+                error = $"'{argName}' did not resolve to a GameObject (got {obj.GetType().Name}).";
+                return ExitCode.InvalidUsage;
+            }
 
-            return go;
+            error = null;
+            return ExitCode.Success;
         }
 
         /// <summary>Mark a GameObject and its scene dirty so changes persist and the Editor refreshes.</summary>
@@ -371,27 +442,17 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
                 EditorSceneManager.MarkSceneDirty(go.scene);
         }
 
-        /// <summary>
-        /// Create a single GameObject (empty or a primitive), apply an optional name, register it for
-        /// Undo, and parent it under <paramref name="parentTransform"/> when given. Shared by the
-        /// single <see cref="Create"/> and the batch <see cref="CreateMany"/> so both
-        /// build objects identically. MUST be called inside an <see cref="AuthoringUndoScope"/>.
-        /// </summary>
-        private static GameObject CreateOne(string primitive, string name, Transform parentTransform)
-        {
-            GameObject go;
-            if (!string.IsNullOrEmpty(primitive))
-            {
-                if (!TryParsePrimitive(primitive, out var primitiveType))
-                    throw new ArgumentException(
-                        $"Unknown primitive '{primitive}'. Expected one of: cube, sphere, capsule, cylinder, plane, quad.");
 
-                go = GameObject.CreatePrimitive(primitiveType);
-            }
-            else
-            {
-                go = new GameObject();
-            }
+        /// <summary>
+        /// Create a single GameObject (empty, or a primitive when <paramref name="primitiveType"/> is
+        /// set), apply an optional name, register it for Undo, and parent it under
+        /// <paramref name="parentTransform"/> when given. Shared by the single <see cref="Create"/> and
+        /// the batch <see cref="CreateMany"/> so both build objects identically. MUST be called inside
+        /// an <see cref="AuthoringUndoScope"/>.
+        /// </summary>
+        private static GameObject CreateOne(PrimitiveType? primitiveType, string name, Transform parentTransform)
+        {
+            var go = primitiveType.HasValue ? GameObject.CreatePrimitive(primitiveType.Value) : new GameObject();
 
             if (!string.IsNullOrEmpty(name))
                 go.name = name;
@@ -405,45 +466,66 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
         }
 
         /// <summary>
-        /// Resolve an optional parent handle to its Transform, or null when no parent is supplied.
-        /// Resolved before any creation so an invalid handle fails fast (and a batch creates nothing).
+        /// Resolve an optional parent handle to its Transform; null (and success) when no parent is
+        /// supplied. Resolved before any creation so an invalid handle fails fast (and a batch creates
+        /// nothing).
         /// </summary>
-        private static Transform ResolveParentTransform(ObjectRef parent)
+        private static ExitCode TryResolveParent(ObjectRef parent, out Transform parentTransform, out string error)
         {
+            parentTransform = null;
+            error = null;
             if (parent == null || parent.IsEmpty)
-                return null;
-            return ResolveGameObject(parent, "parent").transform;
+                return ExitCode.Success;
+
+            var code = TryResolveGameObject(parent, "parent", out var go, out error);
+            if (code == ExitCode.Success)
+                parentTransform = go.transform;
+            return code;
         }
 
         /// <summary>
         /// Validate a per-item vectors array (positions/rotations/scales) up front, before any object is
         /// created. When supplied it must have exactly one entry per object, and every entry must be a
         /// non-null [x,y,z] triple (a JSON array can carry a null element even when its length matches
-        /// count). A bad array is an agent error surfaced as an <see cref="ArgumentException"/> naming
-        /// the offending index, so a batch applies fully or creates nothing rather than throwing an
-        /// NRE part-way through.
+        /// count). Returns an error naming the offending index, or null when valid, so a batch applies
+        /// fully or creates nothing.
         /// </summary>
-        private static void ValidateVectorArray(float[][] vectors, int count, string argName)
+        private static string ValidateVectorArray(float[][] vectors, int count, string argName)
         {
             if (vectors == null)
-                return;
+                return null;
 
             if (vectors.Length != count)
-                throw new ArgumentException(
-                    $"'{argName}' has {vectors.Length} entries but count is {count}; they must match.");
+                return $"'{argName}' has {vectors.Length} entries but count is {count}; they must match.";
 
             for (int i = 0; i < vectors.Length; i++)
             {
-                if (vectors[i] == null)
-                    throw new ArgumentException($"'{argName}[{i}]' must be an [x,y,z] array but was null.");
-                if (vectors[i].Length != 3)
-                    throw new ArgumentException(
-                        $"'{argName}[{i}]' must have exactly 3 components [x,y,z], got {vectors[i].Length}.");
+                var error = ValidateVector(vectors[i], $"{argName}[{i}]", required: true);
+                if (error != null)
+                    return error;
             }
+
+            return null;
         }
 
-        private static bool TryParsePrimitive(string value, out PrimitiveType primitiveType)
+        /// <summary>Returns why <paramref name="values"/> isn't an [x,y,z] triple, or null when it is (or is omitted and not required).</summary>
+        private static string ValidateVector(float[] values, string argName, bool required = false)
         {
+            if (values == null)
+                return required ? $"'{argName}' must be an [x,y,z] array but was null." : null;
+            if (values.Length != 3)
+                return $"'{argName}' must have exactly 3 components [x,y,z], got {values.Length}.";
+            return null;
+        }
+
+        /// <summary>Parses an optional primitive name; null (and success) when none is given.</summary>
+        private static bool TryParsePrimitive(string value, out PrimitiveType? primitiveType, out string error)
+        {
+            error = null;
+            primitiveType = null;
+            if (string.IsNullOrEmpty(value))
+                return true;
+
             switch (value.Trim().ToLowerInvariant())
             {
                 case "cube": primitiveType = PrimitiveType.Cube; return true;
@@ -452,32 +534,31 @@ namespace Unity.Pipeline.Editor.Commands.GameObjects
                 case "cylinder": primitiveType = PrimitiveType.Cylinder; return true;
                 case "plane": primitiveType = PrimitiveType.Plane; return true;
                 case "quad": primitiveType = PrimitiveType.Quad; return true;
-                default: primitiveType = default; return false;
+                default:
+                    error = $"Unknown primitive '{value}'. Expected one of: cube, sphere, capsule, cylinder, plane, quad.";
+                    return false;
             }
         }
 
-        private static Vector3 ToVector3(float[] values, string argName)
-        {
-            if (values == null)
-                throw new ArgumentException($"'{argName}' must be an [x,y,z] array but was null.");
-            if (values.Length != 3)
-                throw new ArgumentException($"'{argName}' must have exactly 3 components [x,y,z], got {values.Length}.");
-            return new Vector3(values[0], values[1], values[2]);
-        }
+        /// <summary>Converts a vector already checked by <see cref="ValidateVector"/>.</summary>
+        private static Vector3 ToVector3(float[] values) => new Vector3(values[0], values[1], values[2]);
 
-        private static int ResolveLayer(string layer)
+        private static ExitCode TryResolveLayer(string layer, out int index, out string error)
         {
-            if (int.TryParse(layer, out var index))
+            error = null;
+            if (int.TryParse(layer, out index))
             {
-                if (index < 0 || index > 31)
-                    throw new ArgumentException($"Layer index {index} is out of range (0-31).");
-                return index;
+                if (index >= 0 && index <= 31)
+                    return ExitCode.Success;
+                error = $"Layer index {index} is out of range (0-31).";
+                return ExitCode.InvalidUsage;
             }
 
-            var named = LayerMask.NameToLayer(layer);
-            if (named < 0)
-                throw new ArgumentException($"Layer '{layer}' does not exist in the project.");
-            return named;
+            index = LayerMask.NameToLayer(layer);
+            if (index >= 0)
+                return ExitCode.Success;
+            error = $"Layer '{layer}' does not exist in the project.";
+            return ExitCode.NotFound;
         }
 
         private static bool InternalEditorTagExists(string tag)

@@ -9,6 +9,7 @@ using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
 using Object = UnityEngine.Object;
+using static Unity.Pipeline.Editor.Commands.CommandFailure;
 
 namespace Unity.Pipeline.Editor.Commands.Materials
 {
@@ -35,11 +36,14 @@ namespace Unity.Pipeline.Editor.Commands.Materials
 
         [CliGroupCommand(Group,
             "Read a material's shader, render queue, enabled keywords, and all shader properties with their current values (Color as [r,g,b,a], Vector as [x,y,z,w], Texture as an object reference).",
-            Tags = new[] { "materials" })]
-        public static MaterialPropertiesResult GetProperties(
+            Tags = new[] { "materials" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetProperties(CommandContext cmd,
             [CliArg("material", "Reference to the .mat asset (or a loaded material) to read (path / guid / globalId / instanceId).", Required = true)] ObjectRef material)
         {
-            var mat = ResolveMaterial(material, out var assetPath);
+            var code = TryResolveMaterial(material, out var mat, out var assetPath, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
 
             var result = new MaterialPropertiesResult
             {
@@ -88,13 +92,15 @@ namespace Unity.Pipeline.Editor.Commands.Materials
                 }
             }
 
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Set shader properties on a material (Float/Range/Int=number; Color=[r,g,b,a] or \"#RRGGBBAA\" hex; Vector=[x,y,z,w]; Texture=an object reference or null to clear), optionally reassign the shader, set the render queue, and toggle keywords. Unknown names / type mismatches are reported in unknown[].",
-            Tags = new[] { "materials" })]
-        public static SetMaterialPropertiesResult SetProperties(
+            Tags = new[] { "materials" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode SetProperties(CommandContext cmd,
             [CliArg("material", "Reference to the .mat asset (or a loaded material) to edit (path / guid / globalId / instanceId).", Required = true)] ObjectRef material,
             [CliArg("shader", "Reassign the material's shader by name (e.g. \"Standard\", \"Universal Render Pipeline/Lit\", or a Shader Graph shader name). Applied before properties so new property names resolve against the new shader.")] string shader = null,
             [CliArg("properties", "JSON object of shader property name -> value. Names must include the leading underscore (e.g. _BaseColor). Float/Range/Int=number; Color=[r,g,b,a] or hex string; Vector=[x,y,z,w]; Texture=an object reference {guid/path} or null.")] JObject properties = null,
@@ -104,18 +110,18 @@ namespace Unity.Pipeline.Editor.Commands.Materials
             [CliArg("confirm", "Reserved for parity; editing an existing material is non-destructive and undoable, so it is not required.")] bool confirm = false,
             [CliArg("dry-run", "If true, validate the shader, resolve property names and texture refs, and report applied[]/unknown[] without writing anything.")] bool dryRun = false)
         {
-            var mat = ResolveMaterial(material, out var assetPath);
+            var code = TryResolveMaterial(material, out var mat, out var assetPath, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
 
             // Resolve the (optional) replacement shader UP FRONT so dry-run validates it too, and a
-            // shader_not_found writes nothing (acceptance #9). Shader.Find only finds compiled/included
-            // shaders — surface that in the hint.
+            // missing shader writes nothing (acceptance #9).
             Shader newShader = null;
             if (shader != null)
             {
                 newShader = Shader.Find(shader);
                 if (newShader == null)
-                    throw new ShaderNotFoundException(
-                        $"Shader '{shader}' not found. Shader.Find only resolves shaders that are compiled/included in the build (or referenced by a material/scene). Use {CommandNames.MaterialListShaders} to discover valid names.");
+                    return Fail(cmd, ExitCode.NotFound, ShaderNotFoundMessage(shader));
             }
 
             var result = new SetMaterialPropertiesResult();
@@ -129,11 +135,12 @@ namespace Unity.Pipeline.Editor.Commands.Materials
                     result.Applied.Add("render-queue");
                 AddKeywordTokens(result.Applied, enableKeywords, disableKeywords);
 
-                GuardAtLeastOneApplied(result, shaderReassigned: newShader != null);
+                if (NothingApplied(result, shaderReassigned: newShader != null))
+                    return Fail(cmd, ExitCode.InvalidUsage, NothingAppliedMessage(result));
 
                 CopyIdentity(mat, assetPath, result);
                 result.Shader = effectiveShader != null ? effectiveShader.name : null;
-                return result;
+                return WriteResult(cmd, result);
             }
 
             // ---- apply --------------------------------------------------------------------------
@@ -188,7 +195,9 @@ namespace Unity.Pipeline.Editor.Commands.Materials
 
                 ApplyKeywords(mat, enableKeywords, disableKeywords, result.Applied);
 
-                GuardAtLeastOneApplied(result, shaderReassigned: newShader != null);
+                // Nothing was applied, so there is nothing to persist.
+                if (NothingApplied(result, shaderReassigned: newShader != null))
+                    return Fail(cmd, ExitCode.InvalidUsage, NothingAppliedMessage(result));
 
                 EditorUtility.SetDirty(mat);
                 if (!string.IsNullOrEmpty(assetPath))
@@ -197,37 +206,73 @@ namespace Unity.Pipeline.Editor.Commands.Materials
 
             CopyIdentity(mat, assetPath, result);
             result.Shader = mat.shader != null ? mat.shader.name : null;
-            return result;
+            return WriteResult(cmd, result);
+        }
+
+        /// <summary>Writes <paramref name="result"/>, and a warning for each input it could not apply.</summary>
+        static ExitCode WriteResult(CommandContext cmd, SetMaterialPropertiesResult result)
+        {
+            foreach (var unknown in result.Unknown)
+                cmd.Log.Warning($"Not applied: {unknown}");
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         /// <summary>
         /// Resolve an <see cref="ObjectRef"/> to a <see cref="Material"/>, confining any on-disk asset to
-        /// the authoring root. Returns the project-relative asset path (null for a non-asset/in-memory
-        /// material). Throws a clear <see cref="ArgumentException"/> on miss / wrong type / out-of-root.
+        /// the authoring root. <paramref name="assetPath"/> is the project-relative asset path (null for
+        /// a non-asset/in-memory material). Returns <see cref="ExitCode.NotFound"/> when the reference
+        /// matches nothing and <see cref="ExitCode.InvalidUsage"/> when it is empty, isn't a material, or
+        /// is outside the authoring root, with <paramref name="error"/> saying why.
         /// </summary>
-        internal static Material ResolveMaterial(ObjectRef material, out string assetPath)
+        internal static ExitCode TryResolveMaterial(ObjectRef material, out Material mat, out string assetPath, out string error)
         {
+            mat = null;
+            assetPath = null;
+            error = null;
             if (material == null || material.IsEmpty)
-                throw new ArgumentException("'material' is required.");
+            {
+                error = "'material' is required.";
+                return ExitCode.InvalidUsage;
+            }
 
-            if (!ObjectResolver.TryResolve(material, out var obj, out var error))
-                throw new ArgumentException($"Could not resolve material: {error}");
+            if (!ObjectResolver.TryResolve(material, out var obj, out var resolveError))
+            {
+                error = $"Could not resolve material: {resolveError}";
+                return ExitCode.NotFound;
+            }
 
-            if (!(obj is Material mat))
-                throw new ArgumentException($"Reference '{material}' resolved to a {obj.GetType().Name}, not a Material.");
+            mat = obj as Material;
+            if (mat == null)
+            {
+                error = $"Reference '{material}' resolved to a {obj.GetType().Name}, not a Material.";
+                return ExitCode.InvalidUsage;
+            }
 
             assetPath = AssetDatabase.GetAssetPath(mat);
             if (!string.IsNullOrEmpty(assetPath))
             {
                 var confined = ProjectPaths.Resolve(assetPath, out var confineError);
                 if (confined == null)
-                    throw new ArgumentException(
-                        $"Material '{assetPath}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {confineError}");
+                {
+                    error = $"Material '{assetPath}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {confineError}";
+                    mat = null;
+                    return ExitCode.InvalidUsage;
+                }
+
                 assetPath = confined;
             }
 
-            return mat;
+            return ExitCode.Success;
         }
+
+        /// <summary>
+        /// Why <see cref="Shader.Find"/> found no shader named <paramref name="shader"/>, and how to
+        /// find a valid name.
+        /// </summary>
+        internal static string ShaderNotFoundMessage(string shader) =>
+            $"Shader '{shader}' not found. Shader.Find only resolves shaders that are compiled/included in the build (or referenced by a material/scene). Use {CommandNames.MaterialListShaders} to discover valid names.";
+
 
         /// <summary>
         /// Read the material's enabled keyword set. Uses <see cref="Material.enabledKeywords"/>
@@ -343,14 +388,15 @@ namespace Unity.Pipeline.Editor.Commands.Materials
             return null;
         }
 
-        private static void GuardAtLeastOneApplied(SetMaterialPropertiesResult result, bool shaderReassigned)
+        private static bool NothingApplied(SetMaterialPropertiesResult result, bool shaderReassigned)
         {
             // A shader reassignment is itself a successful change, so it satisfies the "at least one
             // thing applied" guard even when every supplied property is unknown for the new shader.
-            if (!shaderReassigned && result.Applied.Count == 0 && result.Unknown.Count > 0)
-                throw new ArgumentException(
-                    $"None of the supplied inputs could be applied (unknown property name or type mismatch): {string.Join("; ", result.Unknown)}.");
+            return !shaderReassigned && result.Applied.Count == 0 && result.Unknown.Count > 0;
         }
+
+        private static string NothingAppliedMessage(SetMaterialPropertiesResult result) =>
+            $"None of the supplied inputs could be applied (unknown property name or type mismatch): {string.Join("; ", result.Unknown)}.";
 
         private static void CopyIdentity(Material mat, string assetPath, SetMaterialPropertiesResult result)
         {
@@ -369,7 +415,7 @@ namespace Unity.Pipeline.Editor.Commands.Materials
                 result.Type = nameof(Material);
             }
 
-            // Prefer the confined asset path computed by ResolveMaterial.
+            // Prefer the confined asset path computed by TryResolveMaterial.
             if (!string.IsNullOrEmpty(assetPath))
                 result.AssetPath = assetPath;
         }
@@ -388,19 +434,5 @@ namespace Unity.Pipeline.Editor.Commands.Materials
                 default: return type.ToString();
             }
         }
-    }
-
-    /// <summary>
-    /// Thrown when a requested shader name does not resolve via <see cref="Shader.Find"/>. Carries the
-    /// stable <c>shader_not_found</c> code (also prefixed onto the message, since the server propagates
-    /// only the exception message over the wire) so a client can distinguish it from other failures.
-    /// </summary>
-    sealed class ShaderNotFoundException : Exception
-    {
-        public const string CodeValue = "shader_not_found";
-
-        public string Code => CodeValue;
-
-        public ShaderNotFoundException(string message) : base($"[{CodeValue}] {message}") { }
     }
 }

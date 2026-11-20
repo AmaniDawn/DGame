@@ -63,7 +63,7 @@ namespace Unity.Pipeline.Commands
         }
 
         /// <summary>
-        /// The listing as records, for <see cref="CommandResult.WriteRecord"/>: each command (a
+        /// The listing as records, for <see cref="ResultWriter.WriteRecord"/>: each command (a
         /// group_by tree's flattened), group or tag, as the catalog holds it, with a command's
         /// schema parsed.
         /// </summary>

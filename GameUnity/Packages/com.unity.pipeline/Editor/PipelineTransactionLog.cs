@@ -11,6 +11,7 @@ using Unity.Scripting.LifecycleManagement;
 #endif
 
 [assembly: InternalsVisibleTo("Unity.Pipeline.Tests.Editor")]
+[assembly: InternalsVisibleTo("Unity.Pipeline.Samples.Tests.Editor")]
 
 namespace Unity.Pipeline.Editor
 {

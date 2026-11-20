@@ -49,7 +49,7 @@ namespace Unity.Pipeline.Editor
         private const string SessionStartTicksKey = "Unity.Pipeline.Analytics.SessionStartTicks";
 
         /// <summary>
-        /// The tag every code-evaluation command carries (eval, eval_file, run_script). Matching the
+        /// The tag every code-evaluation command carries (script eval, script run). Matching the
         /// tag rather than a name list covers a new eval command the moment it is tagged, and the
         /// suite already enforces that shipped commands carry well-formed tags.
         /// </summary>
@@ -290,9 +290,9 @@ namespace Unity.Pipeline.Editor
         /// command", not "no command could ever cover this".
         ///
         /// Answerable only where the body is reachable from the parameters: <c>eval</c> passes it
-        /// inline and <c>eval_file</c> names a file to read. <c>run_script</c> runs a project file
-        /// with a named entry point rather than a snippet, and the fingerprinter parses script-kind
-        /// bodies, so it is not fingerprinted and reports false.
+        /// inline or names a file to read. <c>run_script</c> runs a project file with a named entry
+        /// point rather than a snippet, and the fingerprinter parses script-kind bodies, so it is not
+        /// fingerprinted and reports false.
         /// </summary>
         internal static bool EvalCoversAnExistingCommand(CommandInfo command, IReadOnlyDictionary<string, object> parameters)
         {
@@ -328,9 +328,6 @@ namespace Unity.Pipeline.Editor
                 case CommandNames.ScriptEval:
                     var code = parameters.TryGetValue("code", out var value) ? value?.ToString() : null;
                     return string.IsNullOrEmpty(code) ? ReadEvalFile(parameters) : code;
-
-                case CommandNames.ScriptEvalFile:
-                    return ReadEvalFile(parameters);
 
                 default:
                     return null;
@@ -478,7 +475,6 @@ namespace Unity.Pipeline.Editor
 #else
 namespace Unity.Pipeline.Editor
 {
-    // Unity 2022 has no IAnalytic/SendAnalytic. Optional remote analytics are unavailable.
     internal static class PipelineAnalytics
     {
         internal static void RecordCommandExecuted(in CommandExecutionInfo info) { }

@@ -26,8 +26,8 @@ namespace Unity.Pipeline.Editor.Commands.Baking
     ///
     /// The newer AI Navigation package (<c>com.unity.ai.navigation</c>, <c>NavMeshSurface</c>
     /// components) is OUT for v1 — we do NOT add an asmdef reference to it. <c>bake_navmesh_surfaces</c>
-    /// is a guarded stub that probes for the package by reflection and returns
-    /// <c>{ code: "package_not_found" }</c> when it is absent (full support is a follow-up).
+    /// is a guarded stub that probes for the package by reflection and fails, saying whether the package
+    /// is absent (full support is a follow-up).
     ///
     /// Async pattern mirrors <see cref="BuildCommand"/> / <see cref="LightingBakeCommands"/>: trigger
     /// returns immediately, completion is detected by <see cref="NavMeshBuilder.isRunning"/> flipping
@@ -66,21 +66,30 @@ namespace Unity.Pipeline.Editor.Commands.Baking
 
         #region bake_navmesh
 
-        [CliGroupCommand(Group, "Trigger an async legacy NavMesh bake of the open scene(s) via UnityEditor.AI.NavMeshBuilder. Returns immediately; poll " + CommandNames.NavmeshBakeStatus + " until completed.", Tags = new[] { "baking/navmesh" })]
-        public static object Bake(
+        [CliGroupCommand(Group, "Trigger an async legacy NavMesh bake of the open scene(s) via UnityEditor.AI.NavMeshBuilder. Returns immediately; poll " + CommandNames.NavmeshBakeStatus + " until completed.", Tags = new[] { "baking/navmesh" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Bake(CommandContext cmd,
             [CliArg("confirm", "Accepted for parity (a bake overwrites the existing NavMesh); not required.")] bool confirm = false,
             [CliArg("dry-run", "If true, validate there is an open scene and return current NavMesh settings without baking.")] bool dryRun = false)
         {
             if (!BakeSceneGuard.HasBakeableScene())
-                return BakeSceneGuard.NoSceneResult();
+            {
+                cmd.Log.Error(BakeSceneGuard.NoSceneMessage);
+                return ExitCode.NotFound;
+            }
 
             OnUpdate(); // reconcile a possibly-stale tracking flag first.
 
             if (NavMeshBuilder.isRunning)
-                return new { code = "bake_in_progress", message = "A NavMesh bake is already running. Poll " + CommandNames.NavmeshBakeStatus + "." };
+            {
+                cmd.Log.Error("A NavMesh bake is already running. Poll " + CommandNames.NavmeshBakeStatus + ", or stop it with " + CommandNames.NavmeshCancelBake + ".");
+                return ExitCode.Failed;
+            }
 
             if (dryRun)
-                return new { status = "dry_run", wouldBake = true, settings = ReadNavMeshSettings() };
+            {
+                cmd.Result.Write(new { status = "dry_run", wouldBake = true, settings = ReadNavMeshSettings() });
+                return ExitCode.Success;
+            }
 
             var bakeId = Guid.NewGuid().ToString("N");
             lock (s_Lock)
@@ -98,17 +107,19 @@ namespace Unity.Pipeline.Editor.Commands.Baking
             });
 
             NavMeshBuilder.BuildNavMeshAsync();
-            return new { status = "baking", bakeId };
+            cmd.Result.Write(new { status = "baking", bakeId });
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Get the status of the last NavMesh bake: idle | baking | completed.", MainThreadRequired = false, Tags = new[] { "baking/navmesh" })]
-        public static JToken BakeStatus()
+        [CliGroupCommand(Group, "Get the status of the last NavMesh bake: idle | baking | completed.", MainThreadRequired = false, Tags = new[] { "baking/navmesh" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode BakeStatus(CommandContext cmd)
         {
-            return StatusFileReader.ReadOrIdle(StatusFile);
+            cmd.Result.Write(StatusFileReader.ReadOrIdle(StatusFile));
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Cancel an in-progress NavMesh bake (NavMeshBuilder.Cancel()).", Tags = new[] { "baking/navmesh" })]
-        public static object CancelBake()
+        [CliGroupCommand(Group, "Cancel an in-progress NavMesh bake (NavMeshBuilder.Cancel()).", Tags = new[] { "baking/navmesh" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode CancelBake(CommandContext cmd)
         {
             var wasRunning = NavMeshBuilder.isRunning;
             if (wasRunning)
@@ -130,47 +141,62 @@ namespace Unity.Pipeline.Editor.Commands.Baking
                 }
             }
 
-            return new { cancelled = wasRunning };
+            cmd.Result.Write(new { cancelled = wasRunning });
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Clear the baked NavMesh for the open scene(s). Destructive: requires confirm=true.", Tags = new[] { "baking/navmesh" })]
-        public static object ClearBake(
+        [CliGroupCommand(Group, "Clear the baked NavMesh for the open scene(s). Destructive: requires confirm=true.", Tags = new[] { "baking/navmesh" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode ClearBake(CommandContext cmd,
             [CliArg("confirm", "Must be true to actually clear (destructive, not undoable via Unity's Undo).")] bool confirm = false,
             [CliArg("dry-run", "If true, report what would be cleared without clearing.")] bool dryRun = false)
         {
             if (!confirm)
-                throw new ArgumentException("Refusing to clear the NavMesh. Pass confirm=true (destructive, not undoable via Unity's Undo).");
+            {
+                cmd.Log.Error("Refusing to clear the NavMesh. Pass confirm=true (destructive, not undoable via Unity's Undo).");
+                return ExitCode.InvalidUsage;
+            }
 
             if (dryRun)
-                return new { status = "dry_run", wouldClear = true };
+            {
+                cmd.Result.Write(new { status = "dry_run", wouldClear = true });
+                return ExitCode.Success;
+            }
 
             NavMeshBuilder.ClearAllNavMeshes();
-            return new { cleared = true };
+            cmd.Result.Write(new { cleared = true });
+            return ExitCode.Success;
         }
 
         #endregion
 
         #region settings
 
-        [CliGroupCommand(Group, "Read the default agent's legacy NavMesh bake settings (agentRadius/Height/Slope/Climb, minRegionArea, voxelSize).", Tags = new[] { "baking/navmesh" })]
-        public static NavMeshSettingsResult GetSettings()
+        [CliGroupCommand(Group, "Read the default agent's legacy NavMesh bake settings (agentRadius/Height/Slope/Climb, minRegionArea, voxelSize).", Tags = new[] { "baking/navmesh" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetSettings(CommandContext cmd)
         {
-            return ReadNavMeshSettings();
+            cmd.Result.Write(ReadNavMeshSettings());
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Apply a subset of legacy NavMesh bake settings to the default agent. Returns { applied[], unknown[] }.", Tags = new[] { "baking/navmesh" })]
-        public static object SetSettings(
+        [CliGroupCommand(Group, "Apply a subset of legacy NavMesh bake settings to the default agent. Returns { applied[], unknown[] }.", Tags = new[] { "baking/navmesh" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetSettings(CommandContext cmd,
             [CliArg("settings", "JSON object with a subset of NavMesh fields to set (same names as " + CommandNames.NavmeshGetSettings + ").", Required = true)] JObject settings,
             [CliArg("dry-run", "If true, validate the keys and report applied/unknown without changing anything.")] bool dryRun = false)
         {
             if (settings == null)
-                throw new ArgumentException("settings is required (a JSON object of NavMesh fields to set).");
+            {
+                cmd.Log.Error("settings is required (a JSON object of NavMesh fields to set).");
+                return ExitCode.InvalidUsage;
+            }
 
             // NavMeshBuilder.navMeshSettingsObject is a UnityEngine.Object (the Navigation window's
             // settings holder); wrap it in a SerializedObject to read/write the m_BuildSettings fields.
             var settingsObject = NavMeshBuilder.navMeshSettingsObject;
             if (settingsObject == null)
-                return new { code = "settings_unavailable", message = "Could not access the legacy NavMesh settings object." };
+            {
+                cmd.Log.Error("Could not access the legacy NavMesh settings object.");
+                return ExitCode.Failed;
+            }
 
             var so = new SerializedObject(settingsObject);
             so.Update();
@@ -189,33 +215,30 @@ namespace Unity.Pipeline.Editor.Commands.Baking
             if (!dryRun && applied.Count > 0)
                 so.ApplyModifiedPropertiesWithoutUndo();
 
-            return new { applied = applied.ToArray(), unknown = unknown.ToArray(), dryRun };
+            if (unknown.Count > 0)
+                cmd.Log.Warning($"Ignored unknown NavMesh setting(s): {string.Join(", ", unknown)}.");
+
+            cmd.Result.Write(new { applied = applied.ToArray(), unknown = unknown.ToArray(), dryRun });
+            return ExitCode.Success;
         }
 
         /// <summary>
         /// Guarded stub for the AI Navigation package (<c>com.unity.ai.navigation</c>) NavMeshSurface
-        /// bake path. We never reference that assembly, so probe for the type by reflection; absent → the
-        /// documented <c>package_not_found</c> result. Full multi-surface baking is a follow-up.
+        /// bake path. We never reference that assembly, so probe for the type by reflection; it fails
+        /// either way, saying whether the package is absent or the bake is not implemented yet.
         /// </summary>
-        [CliGroupCommand(Group, "Bake NavMeshSurface components (AI Navigation package). v1 stub: returns package_not_found when the package is absent.", Tags = new[] { "baking/navmesh" })]
-        public static object BakeSurfaces()
+        [CliGroupCommand(Group, "Bake NavMeshSurface components (AI Navigation package). v1 stub: fails, saying whether the package is absent or the bake is not implemented yet.", Tags = new[] { "baking/navmesh" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode BakeSurfaces(CommandContext cmd)
         {
             var surfaceType = Type.GetType("Unity.AI.Navigation.NavMeshSurface, Unity.AI.Navigation")
                 ?? Type.GetType("UnityEngine.AI.NavMeshSurface, Unity.AI.Navigation");
 
             if (surfaceType == null)
-                return new
-                {
-                    code = "package_not_found",
-                    message = "The AI Navigation package (com.unity.ai.navigation) is not installed. " +
-                              "NavMeshSurface-based baking is out of scope for v1; use " + CommandNames.NavmeshBake + " for the built-in baker."
-                };
-
-            return new
-            {
-                code = "not_implemented",
-                message = "AI Navigation package detected, but NavMeshSurface baking is not implemented in v1 (follow-up). Use " + CommandNames.NavmeshBake + "."
-            };
+                cmd.Log.Error("The AI Navigation package (com.unity.ai.navigation) is not installed. " +
+                              "NavMeshSurface-based baking is out of scope for v1; use " + CommandNames.NavmeshBake + " for the built-in baker.");
+            else
+                cmd.Log.Error("AI Navigation package detected, but NavMeshSurface baking is not implemented in v1 (follow-up). Use " + CommandNames.NavmeshBake + ".");
+            return ExitCode.Failed;
         }
 
         #endregion

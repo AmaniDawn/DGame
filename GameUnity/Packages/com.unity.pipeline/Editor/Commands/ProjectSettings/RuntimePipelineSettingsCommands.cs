@@ -29,27 +29,27 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
         const int MinPort = 0, MaxPort = 65535;
         const int MinMaxWorkItemsPerFrame = 1, MaxMaxWorkItemsPerFrame = 50;
 
-        [CliGroupCommand(Group, "Read Pipeline Runtime settings (enable-in-development-builds, enable-in-release-builds, port, enable-audit-logging, auto-start, max-work-items-per-frame). Reports the settings in effect, falling back to built-in defaults when none have been authored; never creates the settings file. The two toggles are reported for the active build target.", MainThreadRequired = true, Tags = new[] { "settings/runtime_pipeline" })]
-        public static ProjectSettingsResponse Get() => ProjectSettingsCommand.Get(Domain, Read);
+        [CliGroupCommand(Group, "Read Pipeline Runtime settings (enable-in-development-builds, enable-in-release-builds, port, enable-audit-logging, auto-start, max-work-items-per-frame). Reports the settings in effect, falling back to built-in defaults when none have been authored; never creates the settings file. The two toggles are reported for the active build target.", MainThreadRequired = true, Tags = new[] { "settings/runtime_pipeline" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Get(CommandContext cmd) => ProjectSettingsCommand.Get(cmd, Domain, Read);
 
-        [CliGroupCommand(Group, "Change Pipeline Runtime settings. Requires confirm=true; use dry-run to preview. Not undoable via Ctrl+Z. Refused while in Play Mode: the running driver already loaded its own settings, so a change would silently not apply until the next Play session or build. port and max-work-items-per-frame are rejected outright if outside the same bounds the Project Settings page enforces.", MainThreadRequired = true, Tags = new[] { "settings/runtime_pipeline" })]
-        public static ProjectSettingsResponse Set(
+        [CliGroupCommand(Group, "Change Pipeline Runtime settings. Requires confirm=true; use dry-run to preview. Not undoable via Ctrl+Z. Refused while in Play Mode: the running driver already loaded its own settings, so a change would silently not apply until the next Play session or build. port and max-work-items-per-frame are rejected outright if outside the same bounds the Project Settings page enforces.", MainThreadRequired = true, Tags = new[] { "settings/runtime_pipeline" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Set(CommandContext cmd,
             [CliArg("settings", "Fields to change; omitted fields are left unchanged.")] RuntimePipelineSettingsInput settings = null,
             [CliArg("confirm", "Apply the change. Without it the call is refused.")] bool confirm = false,
             [CliArg("dry-run", "Preview the change without applying it.")] bool dryRun = false)
         {
             if (settings == null)
-                return ProjectSettingsResponse.Fail(Domain, "No 'settings' object provided.");
+                return ProjectSettingsCommand.Fail(cmd, ExitCode.InvalidUsage, "No 'settings' object provided.");
 
             if (settings.HasLegacyEnableInBuilds)
             {
-                return ProjectSettingsResponse.Fail(Domain,
+                return ProjectSettingsCommand.Fail(cmd, ExitCode.InvalidUsage,
                     "'enableInBuilds' was removed. Use 'enable-in-development-builds' and 'enable-in-release-builds' instead.");
             }
 
             if (EditorApplication.isPlaying)
             {
-                return ProjectSettingsResponse.Fail(Domain,
+                return ProjectSettingsCommand.Fail(cmd, ExitCode.Failed,
                     "Refused: Pipeline Runtime settings are read-only while in Play Mode — the running " +
                     "driver already loaded its own settings, so a change here would silently not apply " +
                     "until the next Play session or build.");
@@ -61,7 +61,7 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
             if (settings.MaxWorkItemsPerFrame.HasValue && (settings.MaxWorkItemsPerFrame.Value < MinMaxWorkItemsPerFrame || settings.MaxWorkItemsPerFrame.Value > MaxMaxWorkItemsPerFrame))
                 violations.Add($"max-work-items-per-frame {settings.MaxWorkItemsPerFrame.Value} out of range ({MinMaxWorkItemsPerFrame}..{MaxMaxWorkItemsPerFrame}).");
             if (violations.Count > 0)
-                return ProjectSettingsResponse.Fail(Domain, string.Join("; ", violations));
+                return ProjectSettingsCommand.Fail(cmd, ExitCode.InvalidUsage, string.Join("; ", violations));
 
             var config = RuntimePipelineSettingsProvider.LoadOrCreateConfig();
             try
@@ -92,7 +92,7 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
                 var configChanged = changes.Count > changesBeforeConfigFields;
 
                 if (changes.Count == 0)
-                    return NoChanges();
+                    return ProjectSettingsCommand.NoChanges(cmd, Domain, Read);
 
                 var planText = "Set Pipeline Runtime settings: " + string.Join("; ", changes);
 
@@ -120,7 +120,7 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
                 // domain reload before issuing the next command.
                 var requiresDomainReload = developmentTargets.Length > 0 || releaseTargets.Length > 0;
 
-                return ProjectSettingsCommand.Apply(Domain, confirm, dryRun, settings, () => planText, Apply, Read,
+                return ProjectSettingsCommand.Apply(cmd, Domain, confirm, dryRun, settings, () => planText, Apply, Read,
                     requiresDomainReload: requiresDomainReload);
             }
             finally
@@ -140,13 +140,6 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
             return requested.HasValue
                 ? PipelineDefineSymbols.TargetsWhereDiffers(symbol, requested.Value)
                 : System.Array.Empty<string>();
-        }
-
-        static ProjectSettingsResponse NoChanges()
-        {
-            var response = ProjectSettingsCommand.Get(Domain, Read);
-            response.Message = "No changes specified; nothing to apply.";
-            return response;
         }
 
         static Dictionary<string, object> Read()

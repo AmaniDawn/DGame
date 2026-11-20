@@ -20,8 +20,8 @@ namespace Unity.Pipeline.Runtime.Commands
     ///
     /// <para><b>Input stack:</b> device injection requires the Input System package to be present
     /// (<c>PIPELINE_HAS_INPUT_SYSTEM_PACKAGE</c>) and active (<c>ENABLE_INPUT_SYSTEM</c>). Legacy <c>UnityEngine.Input</c> is poll-only and exposes no injection
-    /// API, so it is intentionally not supported; when the Input System is absent these commands report an
-    /// "unavailable" result rather than silently no-op'ing.</para>
+    /// API, so it is intentionally not supported; when the Input System is absent these commands fail with an
+    /// "unavailable" error rather than silently no-op'ing.</para>
     ///
     /// <para><b>Safety:</b> these are write/destructive commands. The package has no safety-policy gate yet
     /// (CAT-2509 is not implemented), so they follow the existing unguarded write-command model (cf.
@@ -34,18 +34,25 @@ namespace Unity.Pipeline.Runtime.Commands
 
         [CliGroupCommand(Group, "Simulate a keyboard key event (Input System). Drives the running app.",
             MainThreadRequired = true,
-            Tags = new[] { "runtime/input" })]
-        public static InputSimulationResponse SimulateKey(
+            Tags = new[] { "runtime/input" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode SimulateKey(CommandContext cmd,
             [CliArg("key", "Input System Key name, e.g. Space, W, Enter, LeftArrow", Required = true)] string key,
             [CliArg("action", "down | up | press (down+up). Default: press")] string action = "press")
         {
 #if ENABLE_INPUT_SYSTEM && PIPELINE_HAS_INPUT_SYSTEM_PACKAGE
             var keyboard = Keyboard.current;
             if (keyboard == null)
-                return InputSimulationResponse.Fail(CommandNames.RuntimeSimulateKey, "No keyboard device is present.");
+            {
+                cmd.Log.Error("No keyboard device is present.");
+                return ExitCode.Failed;
+            }
 
             if (!Enum.TryParse<Key>(key, ignoreCase: true, out var parsedKey) || parsedKey == Key.None)
-                return InputSimulationResponse.Fail(CommandNames.RuntimeSimulateKey, $"Unknown key '{key}'. Use an Input System Key name (e.g. Space, W, Enter).");
+            {
+                cmd.Log.Error($"Unknown key '{key}'. Use an Input System Key name (e.g. Space, W, Enter).");
+                return ExitCode.InvalidUsage;
+            }
 
             var control = keyboard[parsedKey];
             var act = Normalize(action);
@@ -62,21 +69,24 @@ namespace Unity.Pipeline.Runtime.Commands
                     QueueButton(control, false);
                     break;
                 default:
-                    return InputSimulationResponse.Fail(CommandNames.RuntimeSimulateKey, $"Unknown action '{action}'. Use down | up | press.");
+                    cmd.Log.Error($"Unknown action '{action}'. Use down | up | press.");
+                    return ExitCode.InvalidUsage;
             }
 
             // Flush queued events so the effect is observable synchronously to the caller.
             InputSystem.Update();
-            return InputSimulationResponse.Ok(CommandNames.RuntimeSimulateKey, $"key={parsedKey} action={act}");
+            cmd.Result.Write(new InputSimulationResponse { Command = CommandNames.RuntimeSimulateKey, Detail = $"key={parsedKey} action={act}" });
+            return ExitCode.Success;
 #else
-            return InputSimulationResponse.Unavailable(CommandNames.RuntimeSimulateKey);
+            return Unavailable(cmd);
 #endif
         }
 
         [CliGroupCommand(Group, "Simulate a mouse/pointer event at screen coordinates (Input System).",
             MainThreadRequired = true,
-            Tags = new[] { "runtime/input" })]
-        public static InputSimulationResponse SimulatePointer(
+            Tags = new[] { "runtime/input" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode SimulatePointer(CommandContext cmd,
             [CliArg("x", "Screen X in pixels (origin bottom-left)", Required = true)] float x,
             [CliArg("y", "Screen Y in pixels (origin bottom-left)", Required = true)] float y,
             [CliArg("action", "move | down | up | click (down+up). Default: click")] string action = "click",
@@ -85,7 +95,10 @@ namespace Unity.Pipeline.Runtime.Commands
 #if ENABLE_INPUT_SYSTEM && PIPELINE_HAS_INPUT_SYSTEM_PACKAGE
             var mouse = Mouse.current;
             if (mouse == null)
-                return InputSimulationResponse.Fail(CommandNames.RuntimeSimulatePointer, "No mouse/pointer device is present.");
+            {
+                cmd.Log.Error("No mouse/pointer device is present.");
+                return ExitCode.Failed;
+            }
 
             var position = new Vector2(x, y);
             var act = Normalize(action);
@@ -97,7 +110,8 @@ namespace Unity.Pipeline.Runtime.Commands
                 case "right": btn = mouse.rightButton; break;
                 case "middle": btn = mouse.middleButton; break;
                 default:
-                    return InputSimulationResponse.Fail(CommandNames.RuntimeSimulatePointer, $"Unknown button '{button}'. Use left | right | middle.");
+                    cmd.Log.Error($"Unknown button '{button}'. Use left | right | middle.");
+                    return ExitCode.InvalidUsage;
             }
 
             switch (act)
@@ -116,14 +130,23 @@ namespace Unity.Pipeline.Runtime.Commands
                     QueuePointer(mouse, position, btn, false);
                     break;
                 default:
-                    return InputSimulationResponse.Fail(CommandNames.RuntimeSimulatePointer, $"Unknown action '{action}'. Use move | down | up | click.");
+                    cmd.Log.Error($"Unknown action '{action}'. Use move | down | up | click.");
+                    return ExitCode.InvalidUsage;
             }
 
             InputSystem.Update();
-            return InputSimulationResponse.Ok(CommandNames.RuntimeSimulatePointer, $"pos=({x},{y}) action={act} button={Normalize(button)}");
+            cmd.Result.Write(new InputSimulationResponse { Command = CommandNames.RuntimeSimulatePointer, Detail = $"pos=({x},{y}) action={act} button={Normalize(button)}" });
+            return ExitCode.Success;
 #else
-            return InputSimulationResponse.Unavailable(CommandNames.RuntimeSimulatePointer);
+            return Unavailable(cmd);
 #endif
+        }
+
+        /// <summary>Fails a simulation the Input System can't take, saying how to enable it.</summary>
+        internal static ExitCode Unavailable(CommandContext cmd)
+        {
+            cmd.Log.Error(InputSimulationResponse.UnavailableReason);
+            return ExitCode.Failed;
         }
 
 #if ENABLE_INPUT_SYSTEM && PIPELINE_HAS_INPUT_SYSTEM_PACKAGE
@@ -155,30 +178,14 @@ namespace Unity.Pipeline.Runtime.Commands
     }
 
     /// <summary>
-    /// Structured result for an input-simulation command: whether the event was injected, and a short
-    /// human-readable detail (or an error / unavailable reason).
+    /// What an input-simulation command writes once it injected the event: the command and a short
+    /// detail of what it injected. A command that couldn't inject it fails instead.
     /// </summary>
     [Serializable]
     class InputSimulationResponse
     {
-        public bool Success { get; set; }
         public string Command { get; set; }
         public string Detail { get; set; }
-        public string Error { get; set; }
-
-        public static InputSimulationResponse Ok(string command, string detail) =>
-            new InputSimulationResponse { Success = true, Command = command, Detail = detail };
-
-        public static InputSimulationResponse Fail(string command, string error) =>
-            new InputSimulationResponse { Success = false, Command = command, Error = error };
-
-        public static InputSimulationResponse Unavailable(string command) =>
-            new InputSimulationResponse
-            {
-                Success = false,
-                Command = command,
-                Error = UnavailableReason
-            };
 
         // Two causes, two different remedies, so they get two different messages.
         // PIPELINE_HAS_INPUT_SYSTEM_PACKAGE comes from the versionDefines entry on

@@ -62,8 +62,9 @@ namespace Unity.Pipeline.Editor.Commands
         [CliGroupCommand(Group,
             "Wait server-side until a member condition holds, then optionally act in the same frame. Sync waits hold the exec queue (every other command waits behind them, including one the condition may depend on) — keep them short and self-contained; set async=true and poll " + CommandNames.JobWaitStatus + " for anything else.",
             MainThreadRequired = false,
-            Tags = new[] { "wait" })]
-        public static object Wait(
+            Tags = new[] { "wait" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode Wait(CommandContext cmd,
             [CliArg("condition", "Condition to wait for: { member, target?, find-type?, op, value }. member is a dotted path (static, or instance under target/find-type); op is equals|notEquals|greaterThan|lessThan|contains|changed.", Required = true)]
             WaitConditionInput condition = null,
             [CliArg("timeout", "Maximum seconds to wait (default 30, clamped to 0-600). A sync wait reports timedOut slightly before it, so the reply lands first.")]
@@ -78,6 +79,18 @@ namespace Unity.Pipeline.Editor.Commands
             bool tolerateMissing = false,
             [CliArg("async", "Return a wait-id immediately and evaluate in the background; poll " + CommandNames.JobWaitStatus + " and cancel with " + CommandNames.JobWaitCancel + ". Use this for long waits and whenever the condition depends on a command you still need to issue — a sync wait blocks it.")]
             bool async = false)
+        {
+            return Report(cmd, RunWait(condition, timeoutInSeconds, pollIntervalMs, onMet, returnHistory, tolerateMissing, async));
+        }
+
+        /// <summary>
+        /// Runs a <c>job wait</c>: registers it and, unless <paramref name="async"/>, polls it until it
+        /// resolves. Throws <see cref="ArgumentException"/> for an invalid condition or interval, and
+        /// <see cref="InvalidOperationException"/> when the concurrency cap is reached.
+        /// </summary>
+        internal static WaitResult RunWait(WaitConditionInput condition, double timeoutInSeconds = 30,
+            double pollIntervalMs = 100, WaitOnMetInput onMet = null, bool returnHistory = false,
+            bool tolerateMissing = false, bool async = false)
         {
             var validationError = ValidateCondition(condition);
             if (validationError != null)
@@ -219,45 +232,93 @@ namespace Unity.Pipeline.Editor.Commands
         [CliGroupCommand(Group,
             "Get the status/result of an async wait started with " + CommandNames.JobWait + " (async=true).",
             MainThreadRequired = false,
-            Tags = new[] { "wait" })]
-        public static object WaitStatus(
+            Tags = new[] { "wait" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode WaitStatus(CommandContext cmd,
             [CliArg("wait-id", "The wait id returned by " + CommandNames.JobWait + " when async=true.", Required = true)]
             string waitId = null)
         {
             if (string.IsNullOrEmpty(waitId))
-                throw new ArgumentException("wait-id is required.");
+            {
+                cmd.Log.Error("wait-id is required.");
+                return ExitCode.InvalidUsage;
+            }
 
-            if (!WaitRegistry.TryGet(waitId, out var job))
-                return new WaitResult
-                {
-                    WaitId = waitId,
-                    State = "not_found",
-                    Error = "No wait with that id (async waits do not survive domain reloads; completed waits are retained up to a bounded count and pruned oldest-first when a new wait is submitted)."
-                };
+            var result = FindWait(waitId);
+            if (result == null)
+            {
+                cmd.Log.Error($"No wait with id '{waitId}' (async waits do not survive domain reloads; completed waits are retained up to a bounded count and pruned oldest-first when a new wait is submitted).");
+                return ExitCode.NotFound;
+            }
 
-            return job.ToResult(includeWaitId: true);
+            return Report(cmd, result);
         }
+
+        /// <summary>A snapshot of the wait with <paramref name="waitId"/>, or null when there is none.</summary>
+        internal static WaitResult FindWait(string waitId) =>
+            WaitRegistry.TryGet(waitId, out var job) ? job.ToResult(includeWaitId: true) : null;
 
         [CliGroupCommand(Group,
             "Cancel an async wait started with " + CommandNames.JobWait + " (async=true).",
             MainThreadRequired = false,
-            Tags = new[] { "wait" })]
-        public static object WaitCancel(
+            Tags = new[] { "wait" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode WaitCancel(CommandContext cmd,
             [CliArg("wait-id", "The wait id to cancel.", Required = true)]
             string waitId = null)
         {
             if (string.IsNullOrEmpty(waitId))
-                throw new ArgumentException("wait-id is required.");
+            {
+                cmd.Log.Error("wait-id is required.");
+                return ExitCode.InvalidUsage;
+            }
 
-            if (!WaitRegistry.Cancel(waitId, out var job))
-                return new WaitResult
-                {
-                    WaitId = waitId,
-                    State = "not_found",
-                    Error = "No wait with that id."
-                };
+            var result = CancelWait(waitId);
+            if (result == null)
+            {
+                cmd.Log.Error($"No wait with id '{waitId}'.");
+                return ExitCode.NotFound;
+            }
 
-            return job.ToResult(includeWaitId: true);
+            cmd.Result.Write(result);
+            return ExitCode.Success;
+        }
+
+        /// <summary>
+        /// Cancels the wait with <paramref name="waitId"/> and returns its state after the cancel (a
+        /// wait that had already resolved keeps its state), or null when there is no such wait.
+        /// </summary>
+        internal static WaitResult CancelWait(string waitId) =>
+            WaitRegistry.Cancel(waitId, out var job) ? job.ToResult(includeWaitId: true) : null;
+
+        /// <summary>
+        /// Writes a wait's state and returns the exit code it maps to: <c>met</c> and <c>pending</c>
+        /// succeed, <c>canceled</c> is <see cref="ExitCode.Cancelled"/>, and <c>timedOut</c>,
+        /// <c>interrupted</c> and <c>failed</c> fail with the reason logged.
+        /// </summary>
+        static ExitCode Report(CommandContext cmd, WaitResult result)
+        {
+            cmd.Result.Write(result);
+            if (!string.IsNullOrEmpty(result.Note))
+                cmd.Log.Warning(result.Note);
+            if (!string.IsNullOrEmpty(result.OnMetError))
+                cmd.Log.Warning(result.OnMetError);
+
+            switch (result.State)
+            {
+                case "timedOut":
+                    cmd.Log.Error($"Condition on '{result.Member}' was not met within the timeout ({result.ElapsedMs} ms, {result.FramesObserved} frame(s) observed).");
+                    return ExitCode.Failed;
+                case "interrupted":
+                case "failed":
+                    cmd.Log.Error(result.Error ?? $"Wait {result.State}.");
+                    return ExitCode.Failed;
+                case "canceled":
+                    cmd.Log.Info(result.Error ?? "Wait canceled.");
+                    return ExitCode.Cancelled;
+                default:
+                    return ExitCode.Success;
+            }
         }
 
         /// <summary>Validate the condition's shape up front so bad parameters fail fast as a 400 (not a wait result).</summary>
@@ -301,7 +362,7 @@ namespace Unity.Pipeline.Editor.Commands
         /// </summary>
         private static void RunOnMainThread(Action action, TimeSpan timeout)
         {
-            var context = CommandContext.Current;
+            var context = CommandExecutionContext.Current;
             if (context == null)
             {
                 // Direct in-process invocation (unit tests) on the test's main thread.
@@ -369,8 +430,8 @@ namespace Unity.Pipeline.Editor.Commands
                     $"Unknown source '{capture.Source}' for on-met.capture. Use 'camera' or 'screen'.");
 
             CaptureResult result = view == "scene"
-                ? CaptureCommands.SceneView(width, height, capture.SavePath, capture.IncludeImage, 0)
-                : CaptureCommands.GameView(width, height, null, capture.SavePath, capture.IncludeImage, 0, source);
+                ? CaptureCommands.CaptureSceneView(width, height, capture.SavePath, capture.IncludeImage, 0)
+                : CaptureCommands.CaptureGameView(width, height, null, capture.SavePath, capture.IncludeImage, 0, source);
 
             return ToWaitCaptureResult(result);
         }
@@ -454,7 +515,7 @@ namespace Unity.Pipeline.Editor.Commands
         [JsonProperty("waitId", NullValueHandling = NullValueHandling.Ignore)]
         public string WaitId { get; set; }
 
-        /// <summary>pending | met | timedOut | interrupted | canceled | failed | not_found.</summary>
+        /// <summary>pending | met | timedOut | interrupted | canceled | failed.</summary>
         [JsonProperty("state")]
         public string State { get; set; }
 

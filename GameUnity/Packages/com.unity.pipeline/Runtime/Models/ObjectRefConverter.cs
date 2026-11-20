@@ -144,6 +144,12 @@ namespace Unity.Pipeline.Models
         /// <c>ObjectResolver.TryResolve</c> / <c>ObjectRef.ToString()</c>; a bare name falls back to
         /// the hierarchy path (the most common agent input).
         /// </summary>
+        private static bool HasExtensionBeforeColon(string s)
+        {
+            var colon = s.IndexOf(':');
+            return colon > 0 && Path.HasExtension(s.Substring(0, colon));
+        }
+
         internal static ObjectRef FromString(string s)
         {
             if (string.IsNullOrWhiteSpace(s))
@@ -189,7 +195,9 @@ namespace Unity.Pipeline.Models
             // normalize it under the authoring root. A leading "/" always means a scene hierarchy path,
             // and an extension-less string ("Player", "Root/Child") stays one. Dotted GameObject names
             // ("Cube.001") land here too, but the resolver falls back to a hierarchy lookup for those.
-            if (!s.StartsWith("/", StringComparison.Ordinal) && Path.HasExtension(s))
+            // "UI/Screen.prefab:Canvas/Header" (a child inside a prefab) carries its extension before the
+            // ':', not at the end, so check that part too.
+            if (!s.StartsWith("/", StringComparison.Ordinal) && (Path.HasExtension(s) || HasExtensionBeforeColon(s)))
                 return new ObjectRef { Path = s };
 
             // Leading-"/" canonical paths and bare names resolve as a scene hierarchy path.

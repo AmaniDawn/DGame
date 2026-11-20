@@ -89,7 +89,7 @@ namespace Unity.Pipeline.Models
     /// Compilation diagnostic information from Roslyn.
     /// </summary>
     [Serializable]
-    public class DiagnosticInfo
+    internal class DiagnosticInfo
     {
         /// <summary>
         /// Severity level: "error", "warning", "info".

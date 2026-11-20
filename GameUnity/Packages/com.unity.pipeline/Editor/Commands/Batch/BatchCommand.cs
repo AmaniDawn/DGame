@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using System.Threading;
 using System.Threading.Tasks;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -30,7 +31,7 @@ namespace Unity.Pipeline.Editor.Commands.Batch
     /// <c>run_script</c> (code as files on disk), not here.</para>
     ///
     /// <para>Dispatch reuse: each sub-operation runs through
-    /// <see cref="CommandContext.DispatchOnMainThread"/>, the exact parameter
+    /// <see cref="CommandExecutionContext.DispatchOnMainThread"/>, the exact parameter
     /// extraction / required-validation / reflection-invoke path <c>/api/exec</c> uses, so every per-op
     /// result is shaped identically to running that command standalone.</para>
     ///
@@ -85,16 +86,15 @@ namespace Unity.Pipeline.Editor.Commands.Batch
         /// <summary>
         /// Commands excluded from batch (structured <c>not_batchable</c> error). These either escape
         /// the "object CRUD with references" scope (build/platform/package/play-mode/recompile), carry
-        /// arbitrary code that belongs in <c>run_script</c> (<c>eval</c>/<c>eval_file</c>/<c>run_script</c>),
+        /// arbitrary code that belongs in <c>run_script</c> (<c>eval</c>/<c>run_script</c>),
         /// can pop modal dialogs that wedge an unattended batch (<c>menu</c>), or would nest a batch
-        /// inside a batch. (The ticket names <c>eval</c>; <c>eval_file</c> is its file-based twin and
-        /// is excluded on the same grounds.)
+        /// inside a batch.
         /// </summary>
         private static readonly HashSet<string> m_ExcludedCommands = new HashSet<string>(StringComparer.Ordinal)
         {
             CommandNames.BuildRun, CommandNames.BuildTargetSwitch,
             CommandNames.EditorPlaymodeStart, CommandNames.EditorPlaymodeStop, CommandNames.EditorPlaymodePause,
-            CommandNames.ScriptRecompile, CommandNames.ScriptEval, CommandNames.ScriptEvalFile, CommandNames.ScriptRun, CommandNames.EditorInvokeMenu, CommandNames.EditorQuit, CommandNames.JobBatch,
+            CommandNames.ScriptRecompile, CommandNames.ScriptEval, CommandNames.ScriptRun, CommandNames.EditorInvokeMenu, CommandNames.EditorQuit, CommandNames.JobBatch,
             // A synchronous wait inside a batch cannot make progress: the batch holds the main
             // thread for its whole turn, so the editor state the condition watches cannot change —
             // the wait just burns its full timeout inside the batch. Use an async wait_for before
@@ -186,13 +186,14 @@ namespace Unity.Pipeline.Editor.Commands.Batch
             "remaining ops are skipped and a transactional batch rolls back (submit long batches with " +
             "\"job\": true). Excludes " + CommandNames.BuildRun + ", " + CommandNames.BuildTargetSwitch + ", the package commands, " +
             CommandNames.EditorPlaymodeStart + "/stop/pause, " + CommandNames.ScriptRecompile + ", " +
-            CommandNames.ScriptEval + ", " + CommandNames.ScriptEvalFile + ", " + CommandNames.ScriptRun + ", " +
+            CommandNames.ScriptEval + ", " + CommandNames.ScriptRun + ", " +
             CommandNames.EditorInvokeMenu + ", " + CommandNames.SceneOpen + "/" + CommandNames.SceneCreate +
             ", async commands (" + CommandNames.TestRun + "/" + CommandNames.TestList + "), " +
             "runtime-only commands, and nested " + CommandNames.JobBatch + ".",
             MainThreadRequired = true,
-            Tags = new[] { "batch" })]
-        public static BatchResult Batch(
+            Tags = new[] { "batch" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode Batch(CommandContext cmd,
             [CliArg("operations", "Ordered operations to run; each is { id?, command, params }, with command written as \"<group> <name>\" (e.g. \"gameobject create\"). Max 200.", Required = true)] List<BatchOperationInput> operations = null,
             [CliArg("transactional", "Group all ops into one Undo step and revert every applied op if any op fails. Default true. Forced false when on-error=continue. Rejects commands whose mutations Undo cannot revert (asset/file/settings writes).")] bool transactional = true,
             [CliArg("on-error", "abort (default): stop at the first failing op. continue: run every op, collecting per-op errors (forces transactional=false).")] string onError = "abort",
@@ -201,14 +202,22 @@ namespace Unity.Pipeline.Editor.Commands.Batch
             [CliArg("timeout", "Timeout for the whole batch in seconds (default 60). Checked before each op after the first; when it is about to run out the remaining ops are skipped and a transactional batch rolls back. Use \"job\": true for long batches.")] double timeoutInSeconds = 60)
         {
             if (operations == null || operations.Count == 0)
-                throw new ArgumentException(CommandNames.JobBatch + " 'operations' must contain at least one operation.");
+            {
+                cmd.Log.Error(CommandNames.JobBatch + " 'operations' must contain at least one operation.");
+                return ExitCode.InvalidUsage;
+            }
             if (operations.Count > MaxOperations)
-                throw new ArgumentException(
-                    $"{CommandNames.JobBatch} supports at most {MaxOperations} operations, but {operations.Count} were provided.");
+            {
+                cmd.Log.Error($"{CommandNames.JobBatch} supports at most {MaxOperations} operations, but {operations.Count} were provided.");
+                return ExitCode.InvalidUsage;
+            }
 
             onError = string.IsNullOrWhiteSpace(onError) ? "abort" : onError.Trim().ToLowerInvariant();
             if (onError != "abort" && onError != "continue")
-                throw new ArgumentException($"{CommandNames.JobBatch} 'on-error' must be 'abort' or 'continue', got '{onError}'.");
+            {
+                cmd.Log.Error($"{CommandNames.JobBatch} 'on-error' must be 'abort' or 'continue', got '{onError}'.");
+                return ExitCode.InvalidUsage;
+            }
 
             // "continue" collects per-op errors and applies the independent ops, so it cannot also
             // promise an all-or-nothing rollback — it forces transactional off (per the ticket).
@@ -217,10 +226,62 @@ namespace Unity.Pipeline.Editor.Commands.Batch
             var idToIndex = BuildAndValidateIdIndex(operations);
 
             if (dryRun)
-                return DryRun(operations, idToIndex, effectiveTransactional, onError);
+            {
+                var dry = DryRun(operations, idToIndex, effectiveTransactional, onError);
+                cmd.Result.Write(dry);
+                var invalid = dry.Results.Count(r => !r.Success);
+                if (invalid == 0)
+                    return ExitCode.Success;
+                cmd.Log.Error($"{invalid} of {operations.Count} operation(s) failed validation; see each operation's error.");
+                return ExitCode.InvalidUsage;
+            }
 
-            return Execute(operations, idToIndex, effectiveTransactional, onError, resultFields,
-                PipelineTimeout.FromSeconds(timeoutInSeconds));
+            var result = Execute(operations, idToIndex, effectiveTransactional, onError, resultFields,
+                PipelineTimeout.FromSeconds(timeoutInSeconds), cmd.CancellationToken, out var abort);
+            cmd.Result.Write(result);
+            return Report(cmd, result, abort);
+        }
+
+        /// <summary>Why a batch stopped before its operations ran out, other than an operation failing.</summary>
+        private enum BatchAbort { None, Canceled, Timeout }
+
+        /// <summary>
+        /// Logs how an executed batch ended and returns its exit code: a cancelled batch is
+        /// <see cref="ExitCode.Cancelled"/>, a timed-out one <see cref="ExitCode.TimedOut"/>, and any
+        /// operation that failed fails it.
+        /// </summary>
+        private static ExitCode Report(CommandContext cmd, BatchResult result, (BatchAbort kind, string reason) abort)
+        {
+            var reverted = result.Reverted ? " Applied operations were reverted." : "";
+            switch (abort.kind)
+            {
+                case BatchAbort.Canceled:
+                    // At Error, so the reason reaches the reply's error details.
+                    cmd.Log.Error(abort.reason);
+                    return ExitCode.Cancelled;
+                case BatchAbort.Timeout:
+                    cmd.Log.Error(abort.reason);
+                    return ExitCode.TimedOut;
+            }
+
+            var failed = result.Results.Where(r => !r.Success && r.Skipped != true).ToList();
+            if (failed.Count == 0)
+            {
+                cmd.Log.Info($"Applied {result.Applied} operation(s).");
+                return ExitCode.Success;
+            }
+
+            if (result.OnError == "abort")
+            {
+                var op = failed[0];
+                var index = result.Results.IndexOf(op);
+                cmd.Log.Error($"Operation {op.Id ?? index.ToString()} ({op.Command}) failed: {op.Error}{reverted}");
+            }
+            else
+            {
+                cmd.Log.Error($"{failed.Count} of {result.Results.Count} operation(s) failed; see each operation's error.");
+            }
+            return ExitCode.Failed;
         }
 
         /// <summary>
@@ -257,9 +318,11 @@ namespace Unity.Pipeline.Editor.Commands.Batch
         /// cancellation and the timeout are checked, and per-op progress is reported.
         /// </summary>
         private static BatchResult Execute(List<BatchOperationInput> operations, Dictionary<string, int> idToIndex,
-            bool transactional, string onError, JObject resultFields, TimeSpan timeout)
+            bool transactional, string onError, JObject resultFields, TimeSpan timeout, CancellationToken cancellation,
+            out (BatchAbort kind, string reason) abort)
         {
-            var context = CommandContext.Current;
+            abort = (BatchAbort.None, null);
+            var context = CommandExecutionContext.Current;
             if (context == null)
                 throw new InvalidOperationException(
                     CommandNames.JobBatch + " must run inside a pipeline server request (no active server on this thread).");
@@ -281,11 +344,11 @@ namespace Unity.Pipeline.Editor.Commands.Batch
                 {
                     // Cooperative cancellation (detached jobs: POST /api/job/cancel) — abort between
                     // ops and let the transactional rollback below restore the pre-batch state.
-                    if (PipelineCancellation.IsCancellationRequested)
+                    if (PipelineCancellation.IsCancellationRequested || cancellation.IsCancellationRequested)
                     {
-                        result.Error = "batch canceled: cooperative cancellation was requested; " +
+                        abort = (BatchAbort.Canceled, "batch canceled: cooperative cancellation was requested; " +
                             (transactional ? "applied operations were reverted and " : "") +
-                            "remaining operations were skipped.";
+                            "remaining operations were skipped.");
                         skippedFrom = i;
                         break;
                     }
@@ -295,11 +358,11 @@ namespace Unity.Pipeline.Editor.Commands.Batch
                     // run; every later op requires time left before the stop point.
                     if (i > 0 && !PipelineTimeout.IsInfinite(timeout) && stopwatch.Elapsed >= PipelineTimeout.StopBefore(timeout))
                     {
-                        result.Error = $"batch timeout about to run out: {stopwatch.ElapsedMilliseconds}ms elapsed " +
+                        abort = (BatchAbort.Timeout, $"batch timeout about to run out: {stopwatch.ElapsedMilliseconds}ms elapsed " +
                             $"after {i} of {operations.Count} operations ({PipelineTimeout.Describe(timeout)} timeout). " +
                             (transactional ? "Applied operations were reverted and remaining operations were skipped. "
                                            : "Remaining operations were skipped. ") +
-                            "For long batches submit the request with \"job\": true or a larger --timeout.";
+                            "For long batches submit the request with \"job\": true or a larger --timeout.");
                         skippedFrom = i;
                         break;
                     }
@@ -323,8 +386,9 @@ namespace Unity.Pipeline.Editor.Commands.Batch
                         // gate is a one-way latch that never re-arms mid-session, and the batch
                         // holds the main thread for its entire turn — the Editor cannot transition
                         // into a busy state between two ops of the same batch.
-                        var raw = context.DispatchOnMainThread(command, resolvedParams,
+                        var run = context.DispatchOnMainThread(command, resolvedParams,
                             PipelineTimeout.IsInfinite(timeout) ? timeout : timeout - stopwatch.Elapsed);
+                        var raw = run.Value;
 
                         // Capture the result as a token for later references. A serialization failure
                         // here must NOT fail an op that already ran — leave the slot null (a later
@@ -340,12 +404,40 @@ namespace Unity.Pipeline.Editor.Commands.Batch
 
                         opResult.Success = true;
                         opResult.Result = ProjectResult(raw, resultsByIndex[i], op, i, resultFields, opResult, ref remainingResultBytes);
+                        // Its result counts first, so what it wrote beside it can't push the result out.
+                        opResult.Output = Bounded(run.Output, ref remainingResultBytes, opResult);
+                        opResult.Log = Bounded(run.Log, ref remainingResultBytes, opResult);
                         result.Applied++;
                     }
                     catch (Exception ex)
                     {
                         opResult.Success = false;
-                        opResult.Error = ex.Message;
+                        if (ex is NestedCommandFailedException failed)
+                        {
+                            // An exit-code command that failed: its log is the error, which can be
+                            // as long as it logged, so it counts against the result budget like its
+                            // output. However little room is left, the error still says which
+                            // command failed and how: a cut too short to keep that is the summary.
+                            var error = Bounded(failed.Message, ref remainingResultBytes, opResult);
+                            var ended = failed.Summary.Substring(0, failed.Summary.Length - 1);
+                            if (error == null || !error.StartsWith(ended, StringComparison.Ordinal))
+                            {
+                                // The summary goes out even with no room left, so it counts too.
+                                if (error != null)
+                                    remainingResultBytes += System.Text.Encoding.UTF8.GetByteCount(error);
+                                error = failed.Summary;
+                                remainingResultBytes -= System.Text.Encoding.UTF8.GetByteCount(error);
+                            }
+                            opResult.Error = error;
+                            opResult.Output = Bounded(failed.Run.Output, ref remainingResultBytes, opResult);
+                            if (failed.Run.Value != null)
+                                opResult.Result = ProjectResult(failed.Run.Value, TryToken(failed.Run.Value), op, i,
+                                    resultFields, opResult, ref remainingResultBytes);
+                        }
+                        else
+                        {
+                            opResult.Error = ex.Message;
+                        }
 
                         if (onError == "abort")
                         {
@@ -389,6 +481,19 @@ namespace Unity.Pipeline.Editor.Commands.Batch
             }
 
             return result;
+        }
+
+        /// <summary>The result as a token, or null when it can't be serialized.</summary>
+        private static JToken TryToken(object value)
+        {
+            try
+            {
+                return JToken.FromObject(value);
+            }
+            catch
+            {
+                return null;
+            }
         }
 
         /// <summary>
@@ -499,8 +604,7 @@ namespace Unity.Pipeline.Editor.Commands.Batch
 
             if (resolution.Miss != null)
             {
-                var message = ObsoleteCommandNameMessage.ForMiss(resolution.Miss.TypedName, ObsoleteCommandNamesFile.Load())
-                    ?? resolution.Miss.Message;
+                var message = resolution.Miss.Message;
                 // Keep the `unknown command` marker next to the name that missed.
                 var head = $"No command named '{resolution.Miss.TypedName}' is available";
                 throw new ArgumentException(message.StartsWith(head, StringComparison.Ordinal)
@@ -670,6 +774,57 @@ namespace Unity.Pipeline.Editor.Commands.Batch
             remainingResultBytes -= bytes;
 
             return projected;
+        }
+
+        /// <summary>Ends a text <see cref="Bounded"/> cut.</summary>
+        const string TruncatedMarker = "… (truncated)";
+        /// <summary>The marker's size in UTF-8: the ellipsis takes 3 bytes.</summary>
+        static readonly int TruncatedMarkerBytes = System.Text.Encoding.UTF8.GetByteCount(TruncatedMarker);
+
+        /// <summary>
+        /// An op's kept Out or log text, cut to <see cref="MaxPerOpResultBytes"/> and to what is left of
+        /// the batch's result budget, which it counts against; null for none. A cut text ends with a
+        /// marker saying so, or is empty when not even the marker fits.
+        /// </summary>
+        internal static string Bounded(string text, ref int remainingResultBytes) =>
+            Bounded(text, ref remainingResultBytes, null);
+
+        /// <summary><see cref="Bounded(string, ref int)"/>, marking <paramref name="opResult"/> truncated when it cuts.</summary>
+        static string Bounded(string text, ref int remainingResultBytes, BatchOperationResult opResult)
+        {
+            if (string.IsNullOrEmpty(text))
+                return null;
+
+            var limit = Math.Min(MaxPerOpResultBytes, Math.Max(remainingResultBytes, 0));
+            var bytes = System.Text.Encoding.UTF8.GetByteCount(text);
+            if (bytes > limit)
+            {
+                // No room for the marker: nothing of the text fits.
+                if (limit < TruncatedMarkerBytes)
+                {
+                    if (opResult != null)
+                        opResult.ResultTruncated = true;
+                    return string.Empty;
+                }
+
+                // Cut by characters until it fits: a UTF-8 character is 1 to 4 bytes, so dropping
+                // one character per byte over the limit gets there without overshooting much.
+                var room = limit - TruncatedMarkerBytes;
+                var length = Math.Min(text.Length, room);
+                int over;
+                while (length > 0 && (over = System.Text.Encoding.UTF8.GetByteCount(text, 0, length) - room) > 0)
+                    length -= Math.Max((over + 3) / 4, 1);
+                length = Math.Max(length, 0);
+                if (length > 0 && char.IsHighSurrogate(text[length - 1]))
+                    length--;
+                text = text.Substring(0, length) + TruncatedMarker;
+                if (opResult != null)
+                    opResult.ResultTruncated = true;
+                bytes = System.Text.Encoding.UTF8.GetByteCount(text);
+            }
+
+            remainingResultBytes -= bytes;
+            return text;
         }
 
         /// <summary>

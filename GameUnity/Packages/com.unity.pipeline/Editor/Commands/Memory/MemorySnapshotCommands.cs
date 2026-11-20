@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Unity.Pipeline.Commands;
 using Unity.Pipeline.Editor.Commands.Profiling;
 using Unity.Profiling.Memory;
@@ -70,8 +69,8 @@ namespace Unity.Pipeline.Editor.Commands.Memory
         /// still be running.</summary>
         internal static bool IsActive => s_State != State.Idle;
 
-        [CliGroupCommand(Group, "Capture a memory snapshot (.snap) of whatever the Editor's Profiler is connected to (see " + CommandNames.DiagnosticsProfilerConnect + "). Returns immediately; poll " + CommandNames.DiagnosticsMemorySnapshotStatus + " until status is 'completed', then read the path.", Tags = new[] { "observability/memory" })]
-        public static object MemorySnapshot(
+        [CliGroupCommand(Group, "Capture a memory snapshot (.snap) of whatever the Editor's Profiler is connected to (see " + CommandNames.DiagnosticsProfilerConnect + "). Returns immediately; poll " + CommandNames.DiagnosticsMemorySnapshotStatus + " until status is 'completed', then read the path.", Tags = new[] { "observability/memory" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode MemorySnapshot(CommandContext cmd,
             [CliArg("flags", "Comma-separated capture flags (ManagedObjects,NativeObjects,NativeAllocations,NativeAllocationSites,NativeStackTraces). Default: the Memory Profiler package's configured flags, else ManagedObjects,NativeObjects. NativeStackTraces captures nothing unless the target Editor/Player was launched with -enable-memoryprofiler-callstacks.")] string flags = "",
             [CliArg("output-path", "Output .snap path (absolute or relative to the project root). Defaults to <snapshot folder>/<product-name>_<timestamp>_<snapshotId>.snap. Always written on the Editor machine, even for a Player.")] string output = "",
             [CliArg("collect-garbage", "Run GC.Collect before capturing, so that entirely empty managed heap pages get unmapped. Editor only: ignored for a Player, where it would collect the Editor's heap instead.")] bool collectGarbage = true,
@@ -80,14 +79,23 @@ namespace Unity.Pipeline.Editor.Commands.Memory
             var requested = ParseFlagNames(flags);
             var validationError = ValidateFlags(requested, Enum.GetNames(typeof(CaptureFlags)));
             if (validationError != null)
-                return new { status = "error", message = validationError };
+            {
+                cmd.Log.Error(validationError);
+                return ExitCode.InvalidUsage;
+            }
 
             if (timeoutSeconds <= 0)
-                return new { status = "error", message = "timeout-seconds must be greater than zero." };
+            {
+                cmd.Log.Error("timeout-seconds must be greater than zero.");
+                return ExitCode.InvalidUsage;
+            }
 
             var busy = ProfilerTargetCommands.BusyMessage();
             if (busy != null)
-                return new { status = "busy", message = busy };
+            {
+                cmd.Log.Error(busy);
+                return ExitCode.Failed;
+            }
 
             s_SnapshotId = Guid.NewGuid().ToString("N").Substring(0, 8);
             s_Path = CaptureOutput.ResolvePath(output, ResolveSnapshotFolder(), FallbackFolder, s_SnapshotId, SnapshotExtension);
@@ -101,20 +109,22 @@ namespace Unity.Pipeline.Editor.Commands.Memory
             WriteStatus(BaseStatus("queued"));
             SubscribeUpdate();
 
-            return new
+            cmd.Log.Info("Capture queued. Poll " + CommandNames.DiagnosticsMemorySnapshotStatus + " until status is 'completed'.");
+            cmd.Result.Write(new
             {
                 status = "queued",
                 snapshotId = s_SnapshotId,
                 path = s_Path,
-                target = s_Target.Name,
-                message = "Capture queued. Poll " + CommandNames.DiagnosticsMemorySnapshotStatus + " until status is 'completed'."
-            };
+                target = s_Target.Name
+            });
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Get the status of the last memory snapshot: idle | queued | capturing | completed | failed | interrupted.", MainThreadRequired = false, Tags = new[] { "observability/memory" })]
-        public static JToken MemorySnapshotStatus()
+        [CliGroupCommand(Group, "Get the status of the last memory snapshot: idle | queued | capturing | completed | failed | interrupted.", MainThreadRequired = false, Tags = new[] { "observability/memory" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode MemorySnapshotStatus(CommandContext cmd)
         {
-            return StatusFileReader.ReadOrIdle(StatusFile);
+            cmd.Result.Write(StatusFileReader.ReadOrIdle(StatusFile));
+            return ExitCode.Success;
         }
 
         static void SubscribeUpdate()

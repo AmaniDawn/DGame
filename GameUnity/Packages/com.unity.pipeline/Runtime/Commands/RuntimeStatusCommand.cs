@@ -16,8 +16,15 @@ namespace Unity.Pipeline.Runtime.Commands
     {
         const string Group = "runtime";
 
-        [CliGroupCommand(Group, "Get comprehensive runtime application status", MainThreadRequired = true, Tags = new[] { "runtime" })]
-        public static RuntimeStatusResponse Status()
+        [CliGroupCommand(Group, "Get comprehensive runtime application status", MainThreadRequired = true, Tags = new[] { "runtime" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Status(CommandContext cmd)
+        {
+            cmd.Result.Write(BuildStatus());
+            return ExitCode.Success;
+        }
+
+        /// <summary>The application's runtime state, as <c>runtime status</c> reports it.</summary>
+        internal static RuntimeStatusResponse BuildStatus()
         {
             try
             {

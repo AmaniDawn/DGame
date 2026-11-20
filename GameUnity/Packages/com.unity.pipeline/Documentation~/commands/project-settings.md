@@ -2,6 +2,31 @@
 
 Read and change a representative slice of Unity's project-wide settings (Audio, Graphics, Input, Physics, Player, Quality, Runtime Pipeline, Tags & Layers, Time). Each area is a `settings.<area>` group (`settings.audio`, `settings.graphics`, …) with a `get` and a `set` command. `get` reads the current values into a `ProjectSettingsResponse`, under the same kebab-case keys `set` accepts in its `settings` object, so a value read by `get` can be edited and sent back; `set` mutates them through the shared `confirm`/`dry-run` convention, so `confirm=true` is required to apply and `dry-run=true` previews the change without applying it. Every command in these groups is `MainThreadRequired = true`. On a `set`, omitted fields are left unchanged, and the group is re-read after the write so the response reflects the resulting state. Settings writes are not undoable via Ctrl+Z.
 
+A `ProjectSettingsResponse` is one object:
+
+```json
+{
+  "group": "time",
+  "applied": true,
+  "dryRun": false,
+  "requiresDomainReload": false,
+  "requiresReimport": false,
+  "values": { "fixed-delta-time": 0.02, "maximum-delta-time": 0.3333333, "time-scale": 2.0 }
+}
+```
+
+`applied` is true only when a `set` changed the project; `dryRun` marks a preview. `requiresDomainReload` and `requiresReimport` describe the change, so a dry run reports them too. What happened (the change applied, the dry-run preview, "No changes specified") is logged at the `info` level on stderr, not part of the result.
+
+A `set` that can't go ahead writes no result and exits non-zero with the reason on stderr:
+
+| Exit | When |
+|------|------|
+| `InvalidUsage` | No `settings` object; `confirm` missing (and not a dry run); a value out of range or of the wrong kind; a removed field. |
+| `NotFound` | The named input axis, or the render pipeline asset reference, doesn't exist. |
+| `Failed` | The change threw while being applied; the group couldn't be read; the change is refused in Play Mode (`settings.multiplayer_roles`, `settings.runtime_pipeline`). |
+
+A `get` exits `Failed` when the group can't be read.
+
 ### `settings.audio get`
 Read project Audio settings (volume, rolloff scale, doppler factor).
 
@@ -234,7 +259,7 @@ Change Pipeline Runtime settings. Requires confirm=true; use dry-run to preview.
 | `max-work-items-per-frame` | no | `–` | Maximum work items the dispatcher processes per frame. |
 
 **Returns:** `ProjectSettingsResponse`
-**Notes:** `MainThreadRequired = true`. `confirm=true` required to apply; supports `dry-run`. Changing `enable-in-development-builds` or `enable-in-release-builds` triggers a domain reload (`requiresDomainReload`). Refused while in Play Mode — the running driver already loaded its own settings, so a change would silently not apply until the next Play session or build. `port` (0-65535) and `max-work-items-per-frame` (1-50) are rejected outright with a `Fail` response if outside these bounds — the same ones the Project Settings page enforces — rather than being clamped or silently applied.
+**Notes:** `MainThreadRequired = true`. `confirm=true` required to apply; supports `dry-run`. Changing `enable-in-development-builds` or `enable-in-release-builds` triggers a domain reload (`requiresDomainReload`). Refused while in Play Mode — the running driver already loaded its own settings, so a change would silently not apply until the next Play session or build. `port` (0-65535) and `max-work-items-per-frame` (1-50) are rejected outright (exit `InvalidUsage`) if outside these bounds — the same ones the Project Settings page enforces — rather than being clamped or silently applied.
 
 ### `settings.tags_layers get`
 Read the project's tags and (named) layers.

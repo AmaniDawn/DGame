@@ -16,25 +16,23 @@ namespace Unity.Pipeline.Editor.Commands.Build
             "preservation of the engine/package types the game's assemblies reference and of the game's own " +
             "types, plus the interpreter's host surface and [MethodReload] targets. Applied to IL2CPP development " +
             "builds only, while the Pipeline is enabled in development builds. Pass delete=true to remove the file instead.",
-            MainThreadRequired = true, Tags = new[] { "build", "scripts/methodreload" })]
-        public static object GenerateLinkXml(
+            MainThreadRequired = true, Tags = new[] { "build", "scripts/methodreload" },
+            Effect = CommandEffect.Idempotent)]
+        internal static ExitCode GenerateLinkXml(CommandContext cmd,
             [CliArg("delete", "Remove the generated file instead of (re)generating it.")] bool delete = false)
         {
             if (delete)
             {
                 var existed = MethodReloadLinkXml.Exists;
                 MethodReloadLinkXml.Delete();
-                return new { success = true, deleted = existed, path = MethodReloadLinkXml.FileRelativePath };
+                cmd.Result.Write(new { deleted = existed, path = MethodReloadLinkXml.FileRelativePath });
+                return ExitCode.Success;
             }
 
             var stats = MethodReloadLinkXml.Generate();
-            return new
-            {
-                success = true,
-                path = MethodReloadLinkXml.FileRelativePath,
-                message = stats.ToString(),
-                stats,
-            };
+            cmd.Log.Info(stats.ToString());
+            cmd.Result.Write(new { path = MethodReloadLinkXml.FileRelativePath, stats });
+            return ExitCode.Success;
         }
     }
 }

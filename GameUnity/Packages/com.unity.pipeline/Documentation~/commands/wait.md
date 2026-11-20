@@ -46,7 +46,7 @@ Wait until a member condition holds, then optionally act in the same frame.
 
 ```
 {
-  "state": "met",            // pending | met | timedOut | interrupted | canceled | failed | not_found
+  "state": "met",            // pending | met | timedOut | interrupted | canceled | failed
   "met": true,
   "timedOut": false,
   "member": "MatchManager.Instance.State",
@@ -65,6 +65,17 @@ Wait until a member condition holds, then optionally act in the same frame.
 - If the main thread stalls past the per-poll marshal budget (~60 s: a huge import, a modal bake), the poll is counted as **missed** and the wait keeps going until its own budget expires — a stall does not turn the wait into a generic error.
 - The sync result is well under 2 KB without `history`.
 
+**Exit codes.** The wait's state sets the exit code, and the `WaitResult` is written either way:
+
+| `state` | Exit code | stderr |
+|---------|-----------|--------|
+| `met`, `pending` (async submission) | `Success` (0) | `note` and `onMetError`, when set, as warnings |
+| `timedOut` | `Failed` (6) | the timeout, as an error |
+| `failed`, `interrupted` | `Failed` (6) | the wait's `error`, as an error |
+| `canceled` | `Cancelled` (130) | the reason, at the `info` level |
+
+An invalid `condition`, `timeout` or `poll-interval-ms` exits `InvalidUsage` (2); a submission over the concurrency cap exits `Failed` (6). Either writes no result.
+
 ### `job wait_status`
 Get the status/result of an async wait (`job wait` with `async=true`).
 
@@ -72,7 +83,7 @@ Get the status/result of an async wait (`job wait` with `async=true`).
 |-----------|----------|---------|-------------|
 | `wait-id` | yes | `–` | The id returned by `job wait` when `async=true`. |
 
-**Returns:** `WaitResult` (`state:"not_found"` if the id is unknown — async waits do not survive a domain reload; completed waits are retained up to a bounded count and pruned oldest-first the next time a `job wait` is submitted, so a session that never submits another wait keeps its last results queryable).
+**Returns:** `WaitResult`, with the exit code its `state` maps to (the same table as `job wait`), so a poll for a wait that timed out or failed fails too. An unknown id exits `NotFound` (13) with an error and writes no result — async waits do not survive a domain reload; completed waits are retained up to a bounded count and pruned oldest-first the next time a `job wait` is submitted, so a session that never submits another wait keeps its last results queryable.
 
 ### `job wait_cancel`
 Cancel an async wait.
@@ -81,7 +92,7 @@ Cancel an async wait.
 |-----------|----------|---------|-------------|
 | `wait-id` | yes | `–` | The id to cancel. |
 
-**Returns:** `WaitResult`. If the wait was still active, it resolves to `state:"canceled"`. If it had already reached a terminal state (`met`/`timedOut`/`failed`/`interrupted`) before the cancel request arrived, that actual state is returned unchanged — the cancel had no effect, and reporting a fake `canceled` here would misreport whether an `on-met` follow-up (capture/pause) actually ran.
+**Returns:** `WaitResult`. If the wait was still active, it resolves to `state:"canceled"`. If it had already reached a terminal state (`met`/`timedOut`/`failed`/`interrupted`) before the cancel request arrived, that actual state is returned unchanged — the cancel had no effect, and reporting a fake `canceled` here would misreport whether an `on-met` follow-up (capture/pause) actually ran. A found wait exits `Success` whatever its state; an unknown id exits `NotFound` (13) with an error and writes no result.
 
 ## Migration: replace a client polling loop with one call
 
@@ -130,7 +141,7 @@ Resolution failures are then treated as condition-not-met and retried every poll
 
 ## Interruption and lifecycle
 
-- Concurrent waits are capped (8); a further submission is rejected with a structured error telling you to `job wait_cancel` one or let one finish.
+- Concurrent waits are capped (8); a further submission fails with an error telling you to `job wait_cancel` one or let one finish.
 - A **domain reload** (`beforeAssemblyReload`) or **exiting play mode** resolves every active wait to `state:"interrupted"` rather than hanging or leaking. **Entering play mode does not interrupt**: with domain reload disabled ("Enter Play Mode Options"), a wait armed in edit mode survives into play mode — the natural way to arm a capture before pressing play. (With domain reload enabled, the reload interrupts it anyway.)
 - `on-met.pause` pauses play mode on the frame the condition holds (no-op outside play mode).
 - If the server is stopping while a synchronous wait is pending, the wait resolves as `interrupted` ("server stopping") instead of evaluating against a shutting-down editor.

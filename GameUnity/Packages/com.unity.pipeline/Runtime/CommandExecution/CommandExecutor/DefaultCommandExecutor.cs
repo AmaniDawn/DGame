@@ -60,7 +60,6 @@ namespace Unity.Pipeline.Commands
                     throw BasePipelineServer.CommandNotFound(new BasePipelineServer.RawCommandMiss(request.Command, index.Commands, index.CommandsNamed(request.Command)));
                 parameters = ParseParameters(request.ParametersJson);
                 DropCliToken(named, parameters);
-                RenameLegacyCliKeys(named, parameters);
                 var unknown = CommandLineBinder.FindUnknownParameters(named, parameters);
                 if (unknown.Count > 0)
                     throw new CommandArgumentsException(named, unknown, BasePipelineServer.DescribeArgProblems(named, unknown, structured: true));
@@ -79,8 +78,10 @@ namespace Unity.Pipeline.Commands
             }
 
             var command = resolution.Command;
+            // tokens[0] is request.Command, so the arguments that named the command are the rest of
+            // the tokens before its first argument.
+            request.NamingArguments = resolution.ArgumentsStart - 1;
             var rest = tokens.GetRange(resolution.ArgumentsStart, tokens.Count - resolution.ArgumentsStart);
-            RenameLegacyCliFlags(command, rest);
             if (!CommandLineBinder.TryBind(command, rest, out parameters, out var problems))
                 throw new CommandArgumentsException(command, problems, BasePipelineServer.DescribeArgProblems(command, problems));
 
@@ -115,79 +116,17 @@ namespace Unity.Pipeline.Commands
         }
 
         /// <summary>
-        /// Deprecated: parameter names released <c>unity</c> CLIs still send, from before parameters
-        /// became kebab-case (AUTHAPI-115): a live build sends <c>outputPath</c> to <c>build run</c>,
-        /// <c>unity console</c> and <c>unity ci</c>'s recompile send <c>since_session</c> to
-        /// <c>console get</c>, and <c>unity command --group_by</c> sends <c>group_by</c> to
-        /// <c>pipeline list_commands</c>. The CLI sends them as a structured request's keys or, over the
-        /// protocol transport, as <c>--name</c> flags. Refusing them would break those CLIs, so they are
-        /// renamed to the current name instead. This is not an alias for anyone else: it applies to
-        /// these commands only, and is removed in <see cref="LegacyCliKeysRemovedIn"/>, when the CLIs
-        /// that send the kebab-case names are the supported ones.
-        /// </summary>
-        internal static readonly (string Command, string OldKey, string NewKey)[] LegacyCliKeys =
-        {
-            (CommandNames.BuildRun, "outputPath", "output-path"),
-            (CommandNames.ConsoleGet, "since_session", "since-session"),
-            (CommandNames.PipelineListCommands, "group_by", "group-by"),
-        };
-
-        /// <summary>The package version that removes <see cref="LegacyCliKeys"/>; a test fails once the package reaches it.</summary>
-        internal const string LegacyCliKeysRemovedIn = "1.0.0";
-
-        /// <summary>
-        /// Renames each of <see cref="LegacyCliKeys"/> for <paramref name="command"/> to its current name.
-        /// A request that also sends the current name keeps the old key, which is then refused as unknown.
-        /// </summary>
-        static void RenameLegacyCliKeys(CommandInfo command, JObject parameters)
-        {
-            if (parameters == null)
-                return;
-            foreach (var (name, oldKey, newKey) in LegacyCliKeys)
-            {
-                if (!string.Equals(command.FullName, name, StringComparison.Ordinal)
-                    || !parameters.TryGetValue(oldKey, StringComparison.Ordinal, out var value)
-                    || parameters.ContainsKey(newKey))
-                    continue;
-                parameters.Remove(oldKey);
-                parameters[newKey] = value;
-            }
-        }
-
-        /// <summary>
-        /// Renames each of <see cref="LegacyCliKeys"/> for <paramref name="command"/> among a command
-        /// line's flags, written <c>--name value</c> or <c>--name=value</c>. A command line that also
-        /// gives the current name keeps the old flag, which is then refused as unknown.
-        /// </summary>
-        static void RenameLegacyCliFlags(CommandInfo command, List<string> arguments)
-        {
-            foreach (var (name, oldKey, newKey) in LegacyCliKeys)
-            {
-                if (!string.Equals(command.FullName, name, StringComparison.Ordinal)
-                    || arguments.Exists(a => IsFlag(a, newKey)))
-                    continue;
-                for (var i = 0; i < arguments.Count; i++)
-                    if (IsFlag(arguments[i], oldKey))
-                        arguments[i] = "--" + newKey + arguments[i].Substring(2 + oldKey.Length);
-            }
-        }
-
-        static bool IsFlag(string argument, string key) =>
-            argument.StartsWith("--" + key, StringComparison.Ordinal)
-            && (argument.Length == key.Length + 2 || argument[key.Length + 2] == '=');
-
-        /// <summary>
         /// Answers a request naming <paramref name="group"/> with the group's subgroups and
         /// commands, written to its Out as what a command returns is: at once, without queueing,
         /// refusing or reporting, since nothing runs.
         /// </summary>
         CommandExecution List(string group, CommandRequest request)
         {
-            var output = new CommandResult(request);
+            var output = new ResultWriter(request);
             // Outside JSON, the group's commands as `list_commands --group` lays them out.
             if (output.Format != OutputFormat.Json)
             {
-                var catalog = BasePipelineServer.BuildCommandCatalog(name => name == "group" ? group : null, null, null);
+                var catalog = BasePipelineServer.BuildCommandCatalog(name => name == "group" ? group : null, null);
                 if (output.Format == OutputFormat.Tsv)
                 {
                     foreach (var record in CommandListing.Entries(catalog, CommandListing.Kind.Commands))

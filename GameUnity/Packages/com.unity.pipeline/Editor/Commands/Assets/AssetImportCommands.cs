@@ -56,21 +56,19 @@ namespace Unity.Pipeline.Editor.Commands.Assets
             "Default", "Standalone", "iOS", "Android", "WebGL", "tvOS"
         };
 
-        [CliGroupCommand(Group, "Set import settings on an asset's AssetImporter (default platform top-level properties, or a texture/audio per-platform override) and re-import it.", Tags = new[] { "assets/import" })]
-        public static SetImportSettingsResult SetImportSettings(
+        [CliGroupCommand(Group, "Set import settings on an asset's AssetImporter (default platform top-level properties, or a texture/audio per-platform override) and re-import it.", Tags = new[] { "assets/import" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetImportSettings(CommandContext cmd,
             [CliArg("asset", "Reference to the asset whose importer to edit (path / guid / globalId).", Required = true)] ObjectRef asset,
             [CliArg("settings", "JSON object of importer property/field names to values, e.g. {\"isReadable\": true, \"textureType\": \"NormalMap\"}. For platform != Default on a texture/audio importer, keys map onto the platform-settings struct (e.g. maxTextureSize, format, compressionFormat, quality, and overridden).", Required = true)] JObject settings,
             [CliArg("platform", "Target platform: Default | Standalone | iOS | Android | WebGL | tvOS. Defaults to Default (top-level importer properties). A real platform writes a per-platform override (textures/audio only).")] string platform = "Default",
             [CliArg("dry-run", "If true, validate which settings would apply (and which are unknown) without writing or re-importing.")] bool dryRun = false)
         {
-            var importer = ResolveImporter(asset, out var assetPath);
+            var code = ResolveImporter(cmd, asset, out var importer, out var assetPath);
+            if (code != ExitCode.Success)
+                return code;
 
-            if (settings == null || settings.Count == 0)
-                throw new ArgumentException("settings must be a non-empty JSON object.");
-
-            if (!s_SupportedPlatforms.Contains(platform))
-                throw new ArgumentException(
-                    Serialize(new ErrorResult { Code = "unknown_platform", Message = $"Unknown platform '{platform}'. Supported: {string.Join(", ", s_SupportedPlatforms)}." }));
+            if (!IsSupportedPlatform(cmd, platform))
+                return ExitCode.InvalidUsage;
 
             var canonicalPlatform = Canonical(platform);
             var isDefault = string.Equals(canonicalPlatform, "Default", StringComparison.OrdinalIgnoreCase);
@@ -84,14 +82,20 @@ namespace Unity.Pipeline.Editor.Commands.Assets
 
             // Strip the server-injected token before iterating: it is never an importer setting.
             var keys = new List<string>();
-            foreach (var pair in settings)
+            if (settings != null)
             {
-                if (pair.Key == "token")
-                    continue;
-                keys.Add(pair.Key);
+                foreach (var pair in settings)
+                {
+                    if (pair.Key == "token")
+                        continue;
+                    keys.Add(pair.Key);
+                }
             }
             if (keys.Count == 0)
-                throw new ArgumentException("settings must be a non-empty JSON object.");
+            {
+                cmd.Log.Error("settings must be a non-empty JSON object.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (isDefault)
             {
@@ -107,35 +111,39 @@ namespace Unity.Pipeline.Editor.Commands.Assets
                     case AudioImporter audio:
                         ApplyAudioPlatform(audio, settings, keys, canonicalPlatform, result, write: !dryRun);
                         break;
-                    case ModelImporter _:
-                        throw new ArgumentException(
-                            Serialize(new ErrorResult { Code = "no_platform_overrides", Message = "ModelImporter has no per-platform overrides; use platform=Default." }));
                     default:
-                        throw new ArgumentException(
-                            Serialize(new ErrorResult { Code = "no_platform_overrides", Message = $"Importer '{result.ImporterType}' has no per-platform overrides; use platform=Default." }));
+                        cmd.Log.Error($"Importer '{result.ImporterType}' has no per-platform overrides; use platform=Default.");
+                        return ExitCode.InvalidUsage;
                 }
             }
 
             if (result.Unknown.Count > 0 && result.Applied.Count == 0)
-                throw new ArgumentException($"None of the supplied settings could be applied to '{result.ImporterType}' (unknown key or invalid value): {string.Join(", ", result.Unknown)}.");
+            {
+                cmd.Log.Error($"None of the supplied settings could be applied to '{result.ImporterType}' (unknown key or invalid value): {string.Join(", ", result.Unknown)}.");
+                return ExitCode.InvalidUsage;
+            }
 
-            if (dryRun)
-                return result;
+            if (result.Unknown.Count > 0)
+                cmd.Log.Warning($"Skipped {result.Unknown.Count} setting(s) that '{result.ImporterType}' doesn't have or can't take: {string.Join(", ", result.Unknown)}.");
 
-            importer.SaveAndReimport();
-            return result;
+            if (!dryRun)
+                importer.SaveAndReimport();
+
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Read an asset's import settings, structured by importer type (texture/model/audio), including the default-platform fields and (for textures/audio) one platform override block.", Tags = new[] { "assets/import" })]
-        public static GetImportSettingsResult GetImportSettings(
+        [CliGroupCommand(Group, "Read an asset's import settings, structured by importer type (texture/model/audio), including the default-platform fields and (for textures/audio) one platform override block.", Tags = new[] { "assets/import" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetImportSettings(CommandContext cmd,
             [CliArg("asset", "Reference to the asset whose importer to read (path / guid / globalId).", Required = true)] ObjectRef asset,
             [CliArg("platform", "Platform whose override to read: Default | Standalone | iOS | Android | WebGL | tvOS. Defaults to Default.")] string platform = "Default")
         {
-            var importer = ResolveImporter(asset, out var assetPath);
+            var code = ResolveImporter(cmd, asset, out var importer, out var assetPath);
+            if (code != ExitCode.Success)
+                return code;
 
-            if (!s_SupportedPlatforms.Contains(platform))
-                throw new ArgumentException(
-                    Serialize(new ErrorResult { Code = "unknown_platform", Message = $"Unknown platform '{platform}'. Supported: {string.Join(", ", s_SupportedPlatforms)}." }));
+            if (!IsSupportedPlatform(cmd, platform))
+                return ExitCode.InvalidUsage;
 
             var canonicalPlatform = Canonical(platform);
             var isDefault = string.Equals(canonicalPlatform, "Default", StringComparison.OrdinalIgnoreCase);
@@ -163,7 +171,7 @@ namespace Unity.Pipeline.Editor.Commands.Assets
                     break;
                 default:
                     // Non-import asset (e.g. a ScriptableObject via NativeFormatImporter): return a
-                    // minimal settings block rather than throwing.
+                    // minimal settings block rather than failing.
                     result.Settings = new Dictionary<string, object>
                     {
                         ["userData"] = importer.userData,
@@ -173,36 +181,60 @@ namespace Unity.Pipeline.Editor.Commands.Assets
                     break;
             }
 
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         // ------------------------------------------------------------------ resolution / helpers
 
         /// <summary>
         /// Resolve an <see cref="ObjectRef"/> to its <see cref="AssetImporter"/>, confined to the
-        /// authoring root. Throws an actionable <see cref="ArgumentException"/> on any failure.
+        /// authoring root. Logs why and returns the exit code to end with when it can't.
         /// </summary>
-        private static AssetImporter ResolveImporter(ObjectRef asset, out string assetPath)
+        private static ExitCode ResolveImporter(CommandContext cmd, ObjectRef asset, out AssetImporter importer, out string assetPath)
         {
+            importer = null;
+            assetPath = null;
             if (!ObjectResolver.TryResolve(asset, out var obj, out var error))
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.NotFound;
+            }
 
-            assetPath = AssetDatabase.GetAssetPath(obj);
-            if (string.IsNullOrEmpty(assetPath))
-                throw new ArgumentException($"Reference '{asset}' does not point at an on-disk asset.");
+            var objectPath = AssetDatabase.GetAssetPath(obj);
+            if (string.IsNullOrEmpty(objectPath))
+            {
+                cmd.Log.Error($"Reference '{asset}' does not point at an on-disk asset.");
+                return ExitCode.InvalidUsage;
+            }
 
             // Confine to the authoring root so a GUID/globalId handle cannot reach an asset outside the
             // sandbox.
-            assetPath = ProjectPaths.Resolve(assetPath, out var confineError);
+            assetPath = ProjectPaths.Resolve(objectPath, out var confineError);
             if (assetPath == null)
-                throw new ArgumentException(
-                    $"Asset '{asset}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {confineError}");
+            {
+                cmd.Log.Error($"Asset '{asset}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {confineError}");
+                return ExitCode.InvalidUsage;
+            }
 
-            var importer = AssetImporter.GetAtPath(assetPath);
+            importer = AssetImporter.GetAtPath(assetPath);
             if (importer == null)
-                throw new ArgumentException($"No AssetImporter found for '{assetPath}'.");
+            {
+                cmd.Log.Error($"No AssetImporter found for '{assetPath}'.");
+                return ExitCode.NotFound;
+            }
 
-            return importer;
+            return ExitCode.Success;
+        }
+
+        /// <summary>Whether <paramref name="platform"/> is one the commands accept; logs the supported ones when it isn't.</summary>
+        private static bool IsSupportedPlatform(CommandContext cmd, string platform)
+        {
+            if (platform != null && s_SupportedPlatforms.Contains(platform))
+                return true;
+
+            cmd.Log.Error($"Unknown platform '{platform}'. Supported: {string.Join(", ", s_SupportedPlatforms)}.");
+            return false;
         }
 
         /// <summary>Normalize a caller platform name to its canonical capitalization (e.g. "ios" -> "iOS").</summary>
@@ -596,11 +628,6 @@ namespace Unity.Pipeline.Editor.Commands.Assets
                 ["importVisibility"] = model.importVisibility
             };
         }
-
-        private static string Serialize(object value)
-        {
-            return Newtonsoft.Json.JsonConvert.SerializeObject(value);
-        }
     }
 
     /// <summary>
@@ -647,16 +674,5 @@ namespace Unity.Pipeline.Editor.Commands.Assets
 
         [Newtonsoft.Json.JsonProperty("platformOverride")]
         public Dictionary<string, object> PlatformOverride { get; set; }
-    }
-
-    /// <summary>Structured error payload serialized into the thrown ArgumentException message.</summary>
-    [Serializable]
-    class ErrorResult
-    {
-        [Newtonsoft.Json.JsonProperty("code")]
-        public string Code { get; set; }
-
-        [Newtonsoft.Json.JsonProperty("message")]
-        public string Message { get; set; }
     }
 }
