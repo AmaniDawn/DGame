@@ -1,8 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
-using HybridCLR.Editor;
-using HybridCLR.Editor.Settings;
+using HybridCLR;
+using HybridCLR.Settings;
 using UnityEditor;
 using UnityEngine;
 using YooAsset.Editor;
@@ -744,11 +744,10 @@ namespace DGame
             if (isAOTChanged)
             {
                 AotMetaAssembliesList = new List<string>(updateSettings.AOTMetaAssemblies);
-                SettingsUtil.HybridCLRSettings.patchAOTAssemblies = updateSettings.AOTMetaAssemblies.ToArray();
-                DLogger.Info("======== HybridCLR => AOT程序集发生变化 ========");
+                DLogger.Info("======== DGame => AOT程序集发生变化 ========");
             }
 
-            if (isAOTChanged || isHotChanged)
+            if (isHotChanged)
             {
                 EditorUtility.SetDirty(SettingsUtil.HybridCLRSettings);
                 HybridCLRSettings.Save();
@@ -773,7 +772,7 @@ namespace DGame
                 return;
             }
 
-            HybridCLRSettings.Instance.hotUpdateAssemblies = updateSettings.HotUpdateAssemblies.ToArray();
+            HybridCLRSettings.instance.hotUpdateAssemblies = updateSettings.HotUpdateAssemblies.ToArray();
 
             for (int i = 0; i < updateSettings.HotUpdateAssemblies.Count; i++)
             {
@@ -783,12 +782,12 @@ namespace DGame
                     continue;
                 }
                 string assemblyNameWithoutExtension = assemblyName.Substring(0, assemblyName.LastIndexOf('.'));
-                HybridCLRSettings.Instance.hotUpdateAssemblies[i] = assemblyNameWithoutExtension;
+                HybridCLRSettings.instance.hotUpdateAssemblies[i] = assemblyNameWithoutExtension;
             }
 
-            HybridCLRSettings.Instance.patchAOTAssemblies = updateSettings.AOTMetaAssemblies.ToArray();
-            DLogger.Info("======== HybridCLR => AOT和热更程序集发生变化 ========");
-            EditorUtility.SetDirty(HybridCLRSettings.Instance);
+            // HybridCLR 9 不再维护 AOT 补充清单，保留 DGame UpdateSettings 中的配置。
+            DLogger.Info("======== HybridCLR => 热更程序集发生变化 ========");
+            EditorUtility.SetDirty(HybridCLRSettings.instance);
             EditorUtility.SetDirty(updateSettings);
             HybridCLRSettings.Save();
             AssetDatabase.SaveAssets();
@@ -811,17 +810,16 @@ namespace DGame
                 return;
             }
 
-            updateSettings.HotUpdateAssemblies = HybridCLRSettings.Instance.hotUpdateAssemblies.ToList();
+            updateSettings.HotUpdateAssemblies = HybridCLRSettings.instance.hotUpdateAssemblies.ToList();
 
-            for (int i = 0; i < HybridCLRSettings.Instance.hotUpdateAssemblies.Length; i++)
+            for (int i = 0; i < HybridCLRSettings.instance.hotUpdateAssemblies.Length; i++)
             {
-                var assemblyName = HybridCLRSettings.Instance.hotUpdateAssemblies[i];
+                var assemblyName = HybridCLRSettings.instance.hotUpdateAssemblies[i];
                 string assemblyNameWithoutExtension = assemblyName + ".dll";
                 updateSettings.HotUpdateAssemblies[i] = assemblyNameWithoutExtension;
             }
 
-            updateSettings.AOTMetaAssemblies = HybridCLRSettings.Instance.patchAOTAssemblies.ToList();
-            DLogger.Info("======== 同步HybridCLR的设置 ========");
+            DLogger.Info("======== 同步HybridCLR的热更程序集设置 ========");
             EditorUtility.SetDirty(updateSettings);
             AssetDatabase.SaveAssets();
         }

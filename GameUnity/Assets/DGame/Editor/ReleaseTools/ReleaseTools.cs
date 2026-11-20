@@ -8,7 +8,7 @@ using YooAsset;
 using YooAsset.Editor;
 
 #if ENABLE_HYBRIDCLR
-using HybridCLR.Editor.Commands;
+using HybridCLR.Commands;
 #endif
 
 namespace DGame

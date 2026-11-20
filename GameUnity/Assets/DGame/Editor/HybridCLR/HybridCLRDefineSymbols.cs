@@ -1,7 +1,5 @@
-using HybridCLR.Editor;
-using HybridCLR.Editor.Commands;
-using HybridCLR.Editor.Installer;
-using HybridCLR.Editor.Settings;
+using HybridCLR;
+using HybridCLR.Installer;
 using UnityEditor;
 
 namespace DGame
@@ -16,14 +14,14 @@ namespace DGame
         {
             var controller = new InstallerController();
 
-            if (!controller.HasInstalledHybridCLR())
+            if (!controller.HasInstalledHybridCLR() || controller.InstalledLibil2cppVersion != controller.PackageVersion)
             {
                 controller.InstallDefaultHybridCLR();
             }
 
-            if (!HybridCLR.Editor.SettingsUtil.Enable)
+            if (!HybridCLR.SettingsUtil.Enable)
             {
-                HybridCLR.Editor.SettingsUtil.Enable = true;
+                HybridCLR.SettingsUtil.Enable = true;
                 UpdateSettingsInspector.ForceUpdateAssemblies();
             }
 
@@ -35,7 +33,7 @@ namespace DGame
         {
 #if ENABLE_HYBRIDCLR
 
-            HybridCLR.Editor.SettingsUtil.Enable = false;
+            HybridCLR.SettingsUtil.Enable = false;
             EditorUtility.SetDirty(SettingsUtil.HybridCLRSettings);
             AssetDatabase.SaveAssets();
 
