@@ -24,17 +24,8 @@ MonoBehaviour:
   - GameLogic
   - Assembly-CSharp
   preserveHotUpdateAssemblies: []
-  hotUpdateDllCompileOutputRootDir: HybridCLRData/HotUpdateDlls
   externalHotUpdateAssembliyDirs: []
-  strippedAOTDllOutputRootDir: HybridCLRData/AssembliesPostIl2CppStrip
-  patchAOTAssemblies:
-  - mscorlib.dll
-  - System.dll
-  - System.Core.dll
-  - DGame.Runtime.dll
-  - UniTask.dll
-  - YooAsset.dll
-  - UnityEngine.CoreModule.dll
+  linkPreserveLevel: 0
   outputLinkFile: HybridCLRGenerate/link.xml
   outputAOTGenericReferenceFile: HybridCLRGenerate/AOTGenericReferences.cs
   maxGenericReferenceIteration: 10

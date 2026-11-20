@@ -1,25 +1,25 @@
 {
   "dependencies": {
     "com.code-philosophy.hybridclr": {
-      "version": "https://gitee.com/focus-creative-games/hybridclr_unity.git",
+      "version": "https://gitee.com/focus-creative-games/hybridclr_unity.git#v9.1.0",
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "03083ad8f96253f84ed4cf2018c5f32690e29b7b"
+      "hash": "7e74e59637055b535d50f41b69c94605da2a7a40"
     },
     "com.code-philosophy.obfuz": {
-      "version": "https://github.com/focus-creative-games/obfuz.git",
+      "version": "https://gitee.com/focus-creative-games/obfuz.git#27f0ef550dac555af103482f410c2a7ac73cbcd3",
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "7b06f0fed8675c31cbae9760a93e7deec0c0a05c"
+      "hash": "27f0ef550dac555af103482f410c2a7ac73cbcd3"
     },
     "com.code-philosophy.obfuz4hybridclr": {
-      "version": "https://github.com/focus-creative-games/obfuz4hybridclr.git",
+      "version": "https://gitee.com/focus-creative-games/obfuz4hybridclr.git#2fd1dd59392ce48c0064d0d8036a41e018771fcb",
       "depth": 0,
       "source": "git",
       "dependencies": {},
-      "hash": "c9214b2cf9869cf93e060442ec12b9fa828d98d5"
+      "hash": "2fd1dd59392ce48c0064d0d8036a41e018771fcb"
     },
     "com.coffee.ui-particle": {
       "version": "https://github.com/mob-sakai/ParticleEffectForUGUI.git#4.12.2",

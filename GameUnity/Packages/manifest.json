@@ -1,8 +1,8 @@
 {
   "dependencies": {
-    "com.code-philosophy.hybridclr": "https://gitee.com/focus-creative-games/hybridclr_unity.git",
-    "com.code-philosophy.obfuz": "https://github.com/focus-creative-games/obfuz.git",
-    "com.code-philosophy.obfuz4hybridclr": "https://github.com/focus-creative-games/obfuz4hybridclr.git",
+    "com.code-philosophy.hybridclr": "https://gitee.com/focus-creative-games/hybridclr_unity.git#v9.1.0",
+    "com.code-philosophy.obfuz": "https://gitee.com/focus-creative-games/obfuz.git#27f0ef550dac555af103482f410c2a7ac73cbcd3",
+    "com.code-philosophy.obfuz4hybridclr": "https://gitee.com/focus-creative-games/obfuz4hybridclr.git#2fd1dd59392ce48c0064d0d8036a41e018771fcb",
     "com.coffee.ui-particle": "https://github.com/mob-sakai/ParticleEffectForUGUI.git#4.12.2",
     "com.tuyoogame.yooasset": "2.3.18",
     "com.unity.2d.sprite": "1.0.0",
