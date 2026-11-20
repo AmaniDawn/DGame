@@ -30,25 +30,49 @@ namespace Unity.Pipeline.Telemetry
         /// </summary>
         public string ExceptionType { get; set; }
 
+        /// <summary>
+        /// Why the eval failed, as its error code (such as <c>COMPILATION_ERROR</c>); null when it
+        /// succeeded. The eval returns only an exit code, so it records the finer category here.
+        /// </summary>
+        public string FailureKind { get; set; }
+
         /// <summary>Reported in place of an exception type that is neither a system nor a Unity type.</summary>
         internal const string UserDefinedExceptionType = "UserDefinedException";
 
-        /// <summary>Records the Unity members and the error ids of the eval's final compile.</summary>
+        /// <summary>
+        /// Records the Unity members and the error ids of the eval's final compile. Never throws:
+        /// what fails to record is left empty, and the eval goes on.
+        /// </summary>
         internal void RecordCompilation(CompilationResult compilation)
         {
-            UnityApisUsed = compilation.ListUnityApis?.Invoke() ?? Array.Empty<string>();
-            CompileErrorCodes = compilation.Diagnostics
-                .Where(d => d.Severity == "error")
-                .Select(d => d.Id)
-                .Distinct()
-                .OrderBy(id => id, StringComparer.Ordinal)
-                .ToArray();
+            try
+            {
+                CompileErrorCodes = compilation.Diagnostics
+                    .Where(d => d.Severity == "error")
+                    .Select(d => d.Id)
+                    .Distinct()
+                    .OrderBy(id => id, StringComparer.Ordinal)
+                    .ToArray();
+                UnityApisUsed = compilation.ListUnityApis?.Invoke() ?? Array.Empty<string>();
+            }
+            catch (Exception ex)
+            {
+                // Reporting must never break the eval.
+                UnityEngine.Debug.LogWarning($"Pipeline analytics failed to record an eval's compile: {ex.Message}");
+            }
         }
 
-        /// <summary>Records the type of the exception the eval threw.</summary>
+        /// <summary>Records the type of the exception the eval threw. Never throws.</summary>
         internal void RecordException(Exception exception, Assembly evalAssembly)
         {
-            ExceptionType = ExceptionTypeName(exception.GetType(), evalAssembly);
+            try
+            {
+                ExceptionType = ExceptionTypeName(exception.GetType(), evalAssembly);
+            }
+            catch (Exception ex)
+            {
+                UnityEngine.Debug.LogWarning($"Pipeline analytics failed to record an eval's exception: {ex.Message}");
+            }
         }
 
         /// <summary>
@@ -92,8 +116,8 @@ namespace Unity.Pipeline.Telemetry
         }
 
 #if UNITY_EDITOR
-        // A domain reload, which any package change causes, resets it.
-        static HashSet<string> s_UnityAssemblies;
+        // A domain reload, which any package change causes, resets it. Internal so tests can reset it too.
+        internal static HashSet<string> s_UnityAssemblies;
 
         static HashSet<string> FindUnityAssemblies()
         {
@@ -105,7 +129,10 @@ namespace Unity.Pipeline.Telemetry
                 if (assembly.IsDynamic)
                     continue;
                 var name = assembly.GetName().Name;
-                if (HasUnityName(name) && (IsUnder(PipelineUtils.GetLoadedAssemblyPath(assembly), editorFolder) || IsFromUnityPackage(assembly)))
+                // An assembly loaded from bytes, such as an internals eval's, which takes a Unity test
+                // assembly's name, has no file, so it is neither shipped with the Editor nor in a package.
+                var path = PipelineUtils.GetLoadedAssemblyPath(assembly);
+                if (HasUnityName(name) && !string.IsNullOrEmpty(path) && (IsUnder(path, editorFolder) || IsFromUnityPackage(assembly)))
                     names.Add(name);
             }
 
@@ -114,8 +141,7 @@ namespace Unity.Pipeline.Telemetry
 
         static bool IsUnder(string path, string folder)
         {
-            return !string.IsNullOrEmpty(path)
-                && System.IO.Path.GetFullPath(path).StartsWith(folder, StringComparison.OrdinalIgnoreCase);
+            return System.IO.Path.GetFullPath(path).StartsWith(folder, StringComparison.OrdinalIgnoreCase);
         }
 
         static bool IsFromUnityPackage(Assembly assembly)

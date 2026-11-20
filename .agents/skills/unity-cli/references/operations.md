@@ -28,7 +28,7 @@ $taskExpectedVersion = (Get-Content -LiteralPath '.agents/scripts/tool-versions.
 
 需要 Workflow 保存命令参数与 Schema 时使用 `python .agents/scripts/workflow.py unity describe "scene get_hierarchy"`；目录保留完整的 group/name 身份，禁止仅凭同名 list/get/status 推断命令。JSON 响应可能是原始结果、响应外壳或 NDJSON；不能剥掉测试的 summary/results，业务 error 和 busy 必须分别报告失败与阻塞。
 
-Workflow 构建预览要求显式给出 `target`、`output-path` 和非空 `scenes`；原生 dry-run 结果必须同时满足 `status=dry_run`、`valid=true`、`validationErrors=[]`，才可生成计划。审批后执行前再次预检，不能让 Editor 默认设置改变授权范围。
+Workflow 构建预览要求显式给出 `target`、`output-path` 和非空 `scenes`。无效输入返回非零退出码；成功回执须为 `status=dry_run`、`valid=true`，且目标与有序场景列表和请求一致，不得带验证错误。审批后执行前再次预检。
 
 ## 编译与测试
 
@@ -50,7 +50,7 @@ MCP 使用对应工具；CLI 复用上面的绝对路径，按阶段执行以下
 
 异步测试使用调用方的总体期限；CLI 请求超时不能当作后台测试已结束。总体期限到期后报告 blocked/结果未知，记录最后状态与耗时，保留现场；不自动取消测试、删除状态文件或换入口重放。无需为此新增执行脚本。
 
-`GameLogic` 是筛选示例，必须先从 `test list` 找到真实用例。按任务选择 editor/playmode 及程序集、分类或名称，需要两个模式时分别串行执行。`test run` 可能直接返回本次 `status=completed` 和完整结果，也可能确认 `result=running` 后轮询；未确认启动时不能使用保留的完成结果。核对终态、用例身份和 total/passed/failed/skipped，不能接受零用例、全跳过、失败、取消或旧结果。命令不保证通用操作 ID，结合模式、筛选器、起始响应与结果判断本次执行。
+`GameLogic` 是筛选示例，先从 `test list` 的记录数组找到真实用例。异步 `test run` 成功时可以没有输出：核对退出码，轮询 `test status`，确认本次状态文件已更新、用例身份和计数与发现结果一致。空输出、旧结果、零用例或全跳过不能证明通过。需要两个模式时分别串行执行。
 
 ## 写入与结果
 
@@ -85,7 +85,7 @@ Player 使用明确工作目录，macOS 使用 `.app` 路径：
 用户要求安装或修复 CLI 时执行；任务需要 CLI 且项目副本缺失时，先由 Workflow 执行这套流程：
 
 1. 读取 [版本配置](../../../scripts/tool-versions.json) 的 `unityCli`，检查 `GameUnity/Tools/unity.exe`。已有项目 CLI 的 `--version` 精确匹配配置且满足所需能力时直接复用。
-2. 从 Unity 官方发行渠道获取指定版本的 CLI，先下载到临时目录检查 `--version` 与顶层 `--help`，确认有 `status`、`command`、`pipeline`；任务涉及 MCP 时还须有 `mcp`。包内 README 的 beta 安装命令读取动态 `latest-beta.json`，不能用它保证配置指定的版本。
+2. 从 Unity 官方发行渠道下载指定版本到临时目录，检查 `--version` 与顶层 `--help`，确认有 `status`、`command`、`pipeline` 和 `mcp`。不以动态 `latest` 替代固定版本。
 3. 核对指定版本的官方下载来源。候选包版本不符、缺少所需命令或无法核实来源时报告 blocked，不改装其他版本。仅凭下载完成、安装脚本退出成功或能输出版本号，不算安装验收通过。
 4. DGame 项目安装必须把验收通过的 CLI 放到 `GameUnity/Tools/unity.exe`，缺少目录时创建目录；已有项目副本满足版本和能力要求时直接复用。不以仅安装到全局 PATH 作为项目安装完成。替换已有文件按授权边界确认；用户要求终端直接运行 `unity` 时，再按授权范围配置 PATH 并验收该入口。
 5. 安装后从 `GameUnity/Tools/unity.exe` 检查版本与顶层帮助，并核对项目副本路径；`doctor` 可用于记录完整环境报告，不是日常调用前置。其他使用入口也分别检查。Editor 已打开时，使用直接 CLI 的 `status`、`pipeline list_commands --detail full` 和 `scene list_open` 查询；涉及 MCP 接入时继续完成工具调用验证。Editor 未打开时区分“CLI 安装已验收”和“Editor 连接尚未验证”。

@@ -31,7 +31,6 @@ namespace Unity.Pipeline
         readonly object m_Lock = new object();
         readonly ICommandExecutor m_Executor;
         readonly Func<string> m_GetToken;
-        readonly IReadOnlyDictionary<string, string> m_ObsoleteCommandNames;
         readonly bool m_AdvertisesEndpoint;
 
         Socket m_Listener;
@@ -44,16 +43,10 @@ namespace Unity.Pipeline
         /// <param name="executor">Runs the commands its clients request.</param>
         /// <param name="getToken">The token clients must send; called once per connection, on its thread.</param>
         /// <param name="advertisesEndpoint">False for a test transport, so it doesn't show up beside the live one.</param>
-        /// <param name="obsoleteCommandNames">
-        /// Old command name to the full name that replaced it, named when a request uses one, as
-        /// the HTTP server's are; null for none.
-        /// </param>
-        public PipelineProtocolTransport(ICommandExecutor executor, Func<string> getToken, bool advertisesEndpoint = true,
-            IReadOnlyDictionary<string, string> obsoleteCommandNames = null)
+        public PipelineProtocolTransport(ICommandExecutor executor, Func<string> getToken, bool advertisesEndpoint = true)
         {
             m_Executor = executor ?? throw new ArgumentNullException(nameof(executor));
             m_GetToken = getToken ?? throw new ArgumentNullException(nameof(getToken));
-            m_ObsoleteCommandNames = obsoleteCommandNames;
             m_AdvertisesEndpoint = advertisesEndpoint;
         }
 
@@ -249,7 +242,7 @@ namespace Unity.Pipeline
                     continue;
                 }
 
-                _ = PipelineProtocolSession.ServeAsync(connection, m_Executor, m_GetToken, m_ObsoleteCommandNames, stopping);
+                _ = PipelineProtocolSession.ServeAsync(connection, m_Executor, m_GetToken, stopping);
             }
         }
 

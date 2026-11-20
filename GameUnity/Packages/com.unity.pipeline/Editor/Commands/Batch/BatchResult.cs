@@ -33,14 +33,6 @@ namespace Unity.Pipeline.Editor.Commands.Batch
         [JsonProperty("onError")]
         public string OnError { get; set; }
 
-        /// <summary>
-        /// Batch-level abort reason for stops not attributable to a single op's failure:
-        /// "batch timeout about to run out" (the cooperative <c>timeout</c> was about to run out between ops)
-        /// or "batch canceled" (cooperative job cancellation). Null otherwise.
-        /// </summary>
-        [JsonProperty("error", NullValueHandling = NullValueHandling.Ignore)]
-        public string Error { get; set; }
-
         /// <summary>The Editor Undo group index the whole batch collapsed into (execution only).</summary>
         [JsonProperty("undoGroup", NullValueHandling = NullValueHandling.Ignore)]
         public int? UndoGroup { get; set; }
@@ -82,11 +74,25 @@ namespace Unity.Pipeline.Editor.Commands.Batch
         [JsonProperty("error", NullValueHandling = NullValueHandling.Ignore)]
         public string Error { get; set; }
 
+        /// <summary>
+        /// What a command that takes a <see cref="Unity.Pipeline.Commands.CommandContext"/> wrote to
+        /// its Out, which a batch keeps rather than sends; unset when it wrote nothing.
+        /// </summary>
+        [JsonProperty("output", NullValueHandling = NullValueHandling.Ignore)]
+        public string Output { get; set; }
+
+        /// <summary>
+        /// What such a command that succeeded logged to Error, such as a warning. A command that
+        /// failed has it in <see cref="Error"/> instead. Unset when it logged nothing.
+        /// </summary>
+        [JsonProperty("log", NullValueHandling = NullValueHandling.Ignore)]
+        public string Log { get; set; }
+
         /// <summary>True for operations not attempted because an earlier op aborted the batch.</summary>
         [JsonProperty("skipped", NullValueHandling = NullValueHandling.Ignore)]
         public bool? Skipped { get; set; }
 
-        /// <summary>True when the result was replaced by a truncation marker (payload economy).</summary>
+        /// <summary>True when the result was replaced by a truncation marker, or its output, log or error was cut (payload economy).</summary>
         [JsonProperty("resultTruncated", NullValueHandling = NullValueHandling.Ignore)]
         public bool? ResultTruncated { get; set; }
 

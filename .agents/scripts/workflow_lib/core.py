@@ -104,7 +104,7 @@ def project_unity_cli_version(project):
 def _validate_project_unity_cli(path, expected_version):
     try:
         version = subprocess.run(
-            [str(path), "--version"], capture_output=True, text=True, timeout=15, check=False
+            [str(path), "--version"], capture_output=True, text=True, encoding="utf-8", timeout=15, check=False
         )
         actual = version.stdout.strip()
         if version.returncode != 0 or actual != expected_version:
@@ -112,7 +112,7 @@ def _validate_project_unity_cli(path, expected_version):
                 f"Downloaded Unity CLI version mismatch: expected {expected_version}, actual {actual!r}"
             )
         help_result = subprocess.run(
-            [str(path), "--help"], capture_output=True, text=True, timeout=15, check=False
+            [str(path), "--help"], capture_output=True, text=True, encoding="utf-8", timeout=15, check=False
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise WorkflowError(f"Cannot validate Unity CLI {path}: {exc}") from exc

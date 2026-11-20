@@ -19,17 +19,17 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
         const string Domain = "player";
         const string Group = "settings." + Domain;
 
-        [CliGroupCommand(Group, "Read PlayerSettings (company/product/version, scripting backend, API level).", MainThreadRequired = true, Tags = new[] { "settings/player" })]
-        public static ProjectSettingsResponse Get() => ProjectSettingsCommand.Get(Domain, Read);
+        [CliGroupCommand(Group, "Read PlayerSettings (company/product/version, scripting backend, API level).", MainThreadRequired = true, Tags = new[] { "settings/player" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Get(CommandContext cmd) => ProjectSettingsCommand.Get(cmd, Domain, Read);
 
-        [CliGroupCommand(Group, "Change PlayerSettings. Requires confirm=true; use dry-run to preview. Not undoable via Ctrl+Z. Scripting backend / API level changes trigger a domain reload.", MainThreadRequired = true, Tags = new[] { "settings/player" })]
-        public static ProjectSettingsResponse Set(
+        [CliGroupCommand(Group, "Change PlayerSettings. Requires confirm=true; use dry-run to preview. Not undoable via Ctrl+Z. Scripting backend / API level changes trigger a domain reload.", MainThreadRequired = true, Tags = new[] { "settings/player" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Set(CommandContext cmd,
             [CliArg("settings", "Fields to change; omitted fields are left unchanged.")] PlayerSettingsInput settings = null,
             [CliArg("confirm", "Apply the change. Without it the call is refused.")] bool confirm = false,
             [CliArg("dry-run", "Preview the change without applying it.")] bool dryRun = false)
         {
             if (settings == null)
-                return ProjectSettingsResponse.Fail(Domain, "No 'settings' object provided.");
+                return ProjectSettingsCommand.Fail(cmd, ExitCode.InvalidUsage, "No 'settings' object provided.");
 
             var target = NamedBuildTarget.FromBuildTargetGroup(EditorUserBuildSettings.selectedBuildTargetGroup);
             var changes = new List<string>();
@@ -63,7 +63,7 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
             }
 
             if (changes.Count == 0)
-                return NoChanges();
+                return ProjectSettingsCommand.NoChanges(cmd, Domain, Read);
 
             var planText = "Set player settings: " + string.Join("; ", changes);
 
@@ -77,14 +77,7 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
                 AssetDatabase.SaveAssets();
             }
 
-            return ProjectSettingsCommand.Apply(Domain, confirm, dryRun, settings, () => planText, Apply, Read, requiresDomainReload: reload);
-        }
-
-        static ProjectSettingsResponse NoChanges()
-        {
-            var response = ProjectSettingsCommand.Get(Domain, Read);
-            response.Message = "No changes specified; nothing to apply.";
-            return response;
+            return ProjectSettingsCommand.Apply(cmd, Domain, confirm, dryRun, settings, () => planText, Apply, Read, requiresDomainReload: reload);
         }
 
         static Dictionary<string, object> Read()

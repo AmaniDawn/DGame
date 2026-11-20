@@ -6,6 +6,7 @@
   * [Connectivity](connectivity.md)
   * [Runtime connection & setup](runtime-setup.md)
   * [Reloading code](method-reload.md)
+  * [Scene Preview](scene-preview.md)
   * [Tests architecture](testing.md)
   * [Asset previews](asset-previews.md)
   * [Samples](samples.md)

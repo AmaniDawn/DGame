@@ -23,7 +23,7 @@ namespace Unity.Pipeline.Editor.Console
     /// never appended ahead of a restore.
     /// </summary>
     [InitializeOnLoad]
-    public static class EditorConsoleCaptureBootstrap
+    internal static class EditorConsoleCaptureBootstrap
     {
         // Lives under Temp/ like the recompile status file: cleared by Unity on project-level cleanup,
         // survives domain reloads, and never committed.

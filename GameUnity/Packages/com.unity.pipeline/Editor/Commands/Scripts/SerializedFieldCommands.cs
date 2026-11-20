@@ -10,6 +10,7 @@ using Unity.Pipeline.Models;
 using UnityEditor;
 using UnityEngine;
 using Object = UnityEngine.Object;
+using static Unity.Pipeline.Editor.Commands.CommandFailure;
 
 namespace Unity.Pipeline.Editor.Commands.Scripts
 {
@@ -33,83 +34,89 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
         [CliGroupCommand(Group,
             "Set a serialized field on a component/asset. Supports primitives, enums, Vector/Color/Rect/Bounds, " +
             "object references (value = an ObjectRef: asset by guid/fileId/path or scene object by instanceId/hierarchyPath), " +
+            "[Serializable] structs/classes (value = an object of their fields), whole arrays/lists, " +
             "and array elements via 'name.Array.data[i]' (or 'name.Array.size' to resize).",
-            Tags = new[] { "scripts", "gameobjects/components" })]
-        public static AuthoringResult SetField(
+            Tags = new[] { "scripts", "gameobjects/components" },
+            Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetField(CommandContext cmd,
             [CliArg("target", "Reference to the component or asset to modify (globalId/path/guid/instanceId/hierarchyPath). May be a GameObject when 'component' is given.", Required = true)] ObjectRef target,
             [CliArg("field", "SerializedProperty path, e.g. 'speed', 'settings.speed', or 'waypoints.Array.data[0]'.", Required = true)] string field,
-            [CliArg("value", "JSON value to assign. For object references pass an ObjectRef object (or null to clear). For enums pass the value name.", Required = true)] JToken value,
+            [CliArg("value", "JSON value to assign. Vectors, colors and rects as {\"x\":1,\"y\":2}, [1,2] or \"1,2\". A struct/class as an object of the fields to change. Enums by name ([Flags]: \"A|B\") or underlying value. For object references pass an ObjectRef object (or null to clear).", Required = true)] JToken value,
             [CliArg("component", "Component type name on the target GameObject (e.g. 'Rigidbody'). Use when 'target' is a GameObject; omit when 'target' is already a component handle.")] string component = null)
         {
             if (target == null || target.IsEmpty)
-                throw new ArgumentException(CommandNames.ComponentSetField + " 'target' is required.");
+                return Fail(cmd, ExitCode.InvalidUsage, CommandNames.ComponentSetField + " 'target' is required.");
             if (string.IsNullOrWhiteSpace(field))
-                throw new ArgumentException(CommandNames.ComponentSetField + " 'field' is required.");
+                return Fail(cmd, ExitCode.InvalidUsage, CommandNames.ComponentSetField + " 'field' is required.");
 
-            var obj = ResolveSerializable(target, component);
+            var code = TryResolveSerializable(target, component, out var obj, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
+
+            // Find the field before the Undo scope so a wrong path changes nothing.
+            var so = new SerializedObject(obj);
+            var prop = so.FindProperty(field);
+            if (prop == null)
+                return Fail(cmd, ExitCode.NotFound,
+                    $"Field '{field}' was not found on '{obj.GetType().Name}'. " +
+                    "Use a SerializedProperty path (e.g. 'speed', 'settings.speed', 'items.Array.data[0]').");
 
             using (new AuthoringUndoScope($"Set {field}"))
             {
                 // RegisterCompleteObjectUndo captures the pre-change state for revert; the
-                // SerializedObject below then records the change for prefab/asset dirtying.
+                // SerializedObject then records the change for prefab/asset dirtying.
                 Undo.RegisterCompleteObjectUndo(obj, $"Set {field}");
-
-                var so = new SerializedObject(obj);
-                var prop = so.FindProperty(field);
-                if (prop == null)
-                    throw new ArgumentException(
-                        $"Field '{field}' was not found on '{obj.GetType().Name}'. " +
-                        "Use a SerializedProperty path (e.g. 'speed', 'settings.speed', 'items.Array.data[0]').");
 
                 SerializedPropertyConverter.SetValue(prop, value);
                 so.ApplyModifiedProperties();
                 EditorUtility.SetDirty(obj);
             }
 
-            var result = ObjectResolver.Describe(obj) ?? new AuthoringResult { Type = obj.GetType().Name };
-            return result;
+            cmd.Result.Write(ObjectResolver.Describe(obj) ?? new AuthoringResult { Type = obj.GetType().Name });
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Read serialized fields of a component/asset. Returns each top-level field's name, type and value " +
             "(object references are returned as re-usable handles). Pass 'field' to read a single SerializedProperty path. " +
             "Pass detail='value' to return just the value(s) — a token-efficient read for scalars.",
-            Tags = new[] { "scripts", "gameobjects/components" })]
-        public static object GetFields(
+            Tags = new[] { "scripts", "gameobjects/components" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetFields(CommandContext cmd,
             [CliArg("target", "Reference to the component or asset to read (globalId/path/guid/instanceId/hierarchyPath). May be a GameObject when 'component' is given.", Required = true)] ObjectRef target,
             [CliArg("field", "Optional single SerializedProperty path to read (e.g. 'speed' or 'items.Array.data[0]'). Omit to read all top-level fields.")] string field = null,
             [CliArg("component", "Component type name on the target GameObject (e.g. 'Rigidbody'). Use when 'target' is a GameObject; omit when 'target' is already a component handle.")] string component = null,
             [CliArg("detail", "full (default) for a descriptor per field {name,path,propertyType,isArray,arrayLength,value}; value for just the value(s): the raw value for a single 'field', or a {name: value} map for all fields.")] string detail = null)
         {
             if (target == null || target.IsEmpty)
-                throw new ArgumentException(CommandNames.ComponentGetFields + " 'target' is required.");
+                return Fail(cmd, ExitCode.InvalidUsage, CommandNames.ComponentGetFields + " 'target' is required.");
 
             // Value projection (AUTHAPI-21): drop the per-field descriptor and return only the value(s)
-            // so a scalar read costs bytes, not an envelope. Anything other than 'value' is the default
+            // so a scalar read costs bytes, not a descriptor. Anything other than 'value' is the default
             // descriptor form, so existing callers are unaffected.
             var valueOnly = string.Equals(detail, "value", StringComparison.OrdinalIgnoreCase);
 
-            var obj = ResolveSerializable(target, component);
+            var code = TryResolveSerializable(target, component, out var obj, out var error);
+            if (code != ExitCode.Success)
+                return Fail(cmd, code, error);
+
             var so = new SerializedObject(obj);
+            cmd.Log.Debug($"Reading fields of a {obj.GetType().Name}.");
 
             if (!string.IsNullOrWhiteSpace(field))
             {
                 var prop = so.FindProperty(field);
                 if (prop == null)
-                    throw new ArgumentException($"Field '{field}' was not found on '{obj.GetType().Name}'.");
+                    return Fail(cmd, ExitCode.NotFound, $"Field '{field}' was not found on '{obj.GetType().Name}'.");
 
                 if (valueOnly)
-                    return SerializedPropertyConverter.GetValue(prop);
-
-                return new
-                {
-                    type = obj.GetType().Name,
-                    fields = new[] { DescribeProperty(prop) }
-                };
+                    cmd.Result.Write(SerializedPropertyConverter.GetValue(prop));
+                else
+                    cmd.Result.Write(DescribeProperty(prop));
+                return ExitCode.Success;
             }
 
-            // Each mode gets only its own container (the other stays null).
-            var fields = valueOnly ? null : new List<object>();
+            // The value form is one {name: value} map; the descriptor form is one record per field.
             var values = valueOnly ? new Dictionary<string, object>() : null;
             var iterator = so.GetIterator();
             // enterChildren=true on the first MoveNext to step into the top level; then false to stay
@@ -126,17 +133,23 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
                 if (valueOnly)
                 {
                     // Degrade per-field rather than failing the whole map read (mirrors
-                    // get_component_properties' per-property guard in ComponentCommands).
+                    // component get_properties' per-property guard in ComponentCommands).
                     try { values[iterator.name] = SerializedPropertyConverter.GetValue(iterator); }
-                    catch (Exception ex) { values[iterator.name] = $"<error:{ex.Message}>"; }
+                    catch (Exception ex)
+                    {
+                        values[iterator.name] = $"<error:{ex.Message}>";
+                        cmd.Log.Warning($"Could not read field '{iterator.name}': {ex.Message}");
+                    }
                 }
                 else
                 {
-                    fields.Add(DescribeProperty(iterator));
+                    cmd.Result.WriteRecord(DescribeProperty(iterator));
                 }
             }
 
-            return valueOnly ? (object)values : new { type = obj.GetType().Name, fields };
+            if (valueOnly)
+                cmd.Result.Write(values);
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -153,14 +166,21 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
         /// A GameObject with no <paramref name="component"/> is rejected (a GameObject's "fields" are
         /// its components), with a hint to pass --component or a specific component handle.
         ///
-        /// This mirrors <see cref="ComponentCommands.ResolveComponent"/>'s GO-path+type pattern, but
+        /// This mirrors <see cref="ComponentCommands.TryResolveComponent"/>'s GO-path+type pattern, but
         /// deliberately errors on MULTIPLE matches (that helper returns the first) so a set/get never
-        /// silently targets the wrong instance.
+        /// silently targets the wrong instance. Returns <see cref="ExitCode.NotFound"/> when the handle,
+        /// type or component doesn't exist and <see cref="ExitCode.InvalidUsage"/> when the arguments
+        /// don't fit together, with <paramref name="error"/> saying why.
         /// </summary>
-        private static Object ResolveSerializable(ObjectRef target, string component = null)
+        private static ExitCode TryResolveSerializable(ObjectRef target, string component, out Object result, out string error)
         {
-            if (!ObjectResolver.TryResolve(target, out var obj, out var error))
-                throw new ArgumentException($"Could not resolve target: {error}");
+            result = null;
+            error = null;
+            if (!ObjectResolver.TryResolve(target, out var obj, out var resolveError))
+            {
+                error = $"Could not resolve target: {resolveError}";
+                return ExitCode.NotFound;
+            }
 
             // The handle already points at a specific Component: honour it directly. A 'component' here
             // is only a constraint to validate against, never a reason to re-fetch (which could pick a
@@ -171,31 +191,45 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
                 {
                     var requestedType = TypeResolver.ResolveComponentType(component);
                     if (requestedType == null)
-                        throw new ArgumentException($"Could not resolve component type '{component}'.");
+                    {
+                        error = $"Could not resolve component type '{component}'.";
+                        return ExitCode.NotFound;
+                    }
+
                     if (!requestedType.IsInstanceOfType(directComponent))
-                        throw new ArgumentException(
-                            $"Target resolves to a {directComponent.GetType().Name}, which is not a '{requestedType.Name}'.");
+                    {
+                        error = $"Target resolves to a {directComponent.GetType().Name}, which is not a '{requestedType.Name}'.";
+                        return ExitCode.InvalidUsage;
+                    }
                 }
 
-                return directComponent;
+                result = directComponent;
+                return ExitCode.Success;
             }
 
             if (obj is GameObject go)
             {
                 if (string.IsNullOrWhiteSpace(component))
-                    throw new ArgumentException(
-                        $"Target '{target}' is a GameObject. Pass --component <TypeName> to pick a component on it, " +
+                {
+                    error = $"Target '{target}' is a GameObject. Pass --component <TypeName> to pick a component on it, " +
                         "or target a specific component directly (use its instanceId/globalId), " +
-                        "to read or set serialized fields.");
+                        "to read or set serialized fields.";
+                    return ExitCode.InvalidUsage;
+                }
 
                 var componentType = TypeResolver.ResolveComponentType(component);
                 if (componentType == null)
-                    throw new ArgumentException($"Could not resolve component type '{component}'.");
+                {
+                    error = $"Could not resolve component type '{component}'.";
+                    return ExitCode.NotFound;
+                }
 
                 var matches = go.GetComponents(componentType).Where(c => c != null).ToArray();
                 if (matches.Length == 0)
-                    throw new ArgumentException(
-                        $"GameObject '{go.name}' has no component of type '{componentType.Name}'.");
+                {
+                    error = $"GameObject '{go.name}' has no component of type '{componentType.Name}'.";
+                    return ExitCode.NotFound;
+                }
 
                 if (matches.Length > 1)
                 {
@@ -208,22 +242,28 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
                         sb.Append($"instanceId {PipelineUtils.GetObjectId(matches[i])}");
                     }
                     sb.Append('.');
-                    throw new ArgumentException(sb.ToString());
+                    error = sb.ToString();
+                    return ExitCode.InvalidUsage;
                 }
 
-                return matches[0];
+                result = matches[0];
+                return ExitCode.Success;
             }
 
             // Not a Component, not a GameObject — an asset (e.g. ScriptableObject) handled directly.
             // A 'component' filter is meaningless for an asset; reject it rather than silently ignore it
             // (a supplied component here signals a misrouted or misspelled request).
             if (!string.IsNullOrWhiteSpace(component))
-                throw new ArgumentException(
-                    $"Target '{target}' resolved to a {obj.GetType().Name} (an asset), which has no components. " +
-                    "Omit --component when targeting an asset directly.");
+            {
+                error = $"Target '{target}' resolved to a {obj.GetType().Name} (an asset), which has no components. " +
+                    "Omit --component when targeting an asset directly.";
+                return ExitCode.InvalidUsage;
+            }
 
-            return obj;
+            result = obj;
+            return ExitCode.Success;
         }
+
 
         private static object DescribeProperty(SerializedProperty prop)
         {

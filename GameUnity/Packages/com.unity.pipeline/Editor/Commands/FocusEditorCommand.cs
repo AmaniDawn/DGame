@@ -33,11 +33,27 @@ namespace Unity.Pipeline.Editor.Commands
         static MethodInfo s_GuiViewFocus;
         static bool s_Resolved;
 
-        [CliGroupCommand(Group, "Bring the Unity Editor window to the foreground", MainThreadRequired = true, Tags = new[] { "editor" })]
-        public static string Focus()
+        [CliGroupCommand(Group, "Bring the Unity Editor window to the foreground", MainThreadRequired = true, Tags = new[] { "editor" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode Focus(CommandContext cmd)
         {
-            if (!ResolveReflection(out var error))
-                return error;
+            if (!TryFocus(out var focusedView, out var error))
+            {
+                cmd.Log.Error(error);
+                return ExitCode.Failed;
+            }
+            cmd.Log.Info($"Editor focused via {focusedView}.");
+            return ExitCode.Success;
+        }
+
+        /// <summary>
+        /// Focuses the main window's HostView; <paramref name="focusedView"/> names the view's type.
+        /// Also used by <c>script recompile --focus</c>.
+        /// </summary>
+        internal static bool TryFocus(out string focusedView, out string error)
+        {
+            focusedView = null;
+            if (!ResolveReflection(out error))
+                return false;
 
             try
             {
@@ -47,22 +63,33 @@ namespace Unity.Pipeline.Editor.Commands
                     if ((bool)s_IsMainWindow.Invoke(w, null)) { mainWindow = w; break; }
                 }
                 if (mainWindow == null)
-                    return "Error: main editor window not found";
+                {
+                    error = "Main editor window not found.";
+                    return false;
+                }
 
                 var rootView = GetRootView(mainWindow);
                 if (rootView == null)
-                    return "Error: main window has no root view";
+                {
+                    error = "Main editor window has no root view.";
+                    return false;
+                }
 
                 var host = FindHostView(rootView);
                 if (host == null)
-                    return "Error: no HostView found in main window";
+                {
+                    error = "No HostView found in the main editor window.";
+                    return false;
+                }
 
                 s_GuiViewFocus.Invoke(host, null);
-                return $"Editor focused via {host.GetType().Name}";
+                focusedView = host.GetType().Name;
+                return true;
             }
             catch (Exception ex)
             {
-                return $"Error: failed to focus editor: {ex.Message}";
+                error = $"Failed to focus the Editor: {ex.Message}";
+                return false;
             }
         }
 
@@ -78,7 +105,7 @@ namespace Unity.Pipeline.Editor.Commands
 
             if (s_ContainerWindowType == null || s_HostViewType == null || guiViewType == null)
             {
-                error = "Error: internal editor window types not found (Unity version mismatch?)";
+                error = "Internal editor window types not found (Unity version mismatch?).";
                 return false;
             }
 
@@ -87,7 +114,7 @@ namespace Unity.Pipeline.Editor.Commands
 
             if (s_IsMainWindow == null || s_GuiViewFocus == null)
             {
-                error = "Error: ContainerWindow.IsMainWindow or GUIView.Focus not found (internal API changed?)";
+                error = "ContainerWindow.IsMainWindow or GUIView.Focus not found (internal API changed?).";
                 return false;
             }
 

@@ -14,17 +14,17 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
         const string Domain = "physics";
         const string Group = "settings." + Domain;
 
-        [CliGroupCommand(Group, "Read Physics settings (gravity, solver iterations, bounce threshold).", MainThreadRequired = true, Tags = new[] { "settings/physics" })]
-        public static ProjectSettingsResponse Get() => ProjectSettingsCommand.Get(Domain, Read);
+        [CliGroupCommand(Group, "Read Physics settings (gravity, solver iterations, bounce threshold).", MainThreadRequired = true, Tags = new[] { "settings/physics" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Get(CommandContext cmd) => ProjectSettingsCommand.Get(cmd, Domain, Read);
 
-        [CliGroupCommand(Group, "Change Physics settings. Requires confirm=true; use dry-run to preview. Not undoable via Ctrl+Z.", MainThreadRequired = true, Tags = new[] { "settings/physics" })]
-        public static ProjectSettingsResponse Set(
+        [CliGroupCommand(Group, "Change Physics settings. Requires confirm=true; use dry-run to preview. Not undoable via Ctrl+Z.", MainThreadRequired = true, Tags = new[] { "settings/physics" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Set(CommandContext cmd,
             [CliArg("settings", "Fields to change; omitted fields are left unchanged.")] PhysicsSettingsInput settings = null,
             [CliArg("confirm", "Apply the change. Without it the call is refused.")] bool confirm = false,
             [CliArg("dry-run", "Preview the change without applying it.")] bool dryRun = false)
         {
             if (settings == null)
-                return ProjectSettingsResponse.Fail(Domain, "No 'settings' object provided.");
+                return ProjectSettingsCommand.Fail(cmd, ExitCode.InvalidUsage, "No 'settings' object provided.");
 
             var changes = new List<string>();
 
@@ -42,7 +42,7 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
                 changes.Add($"bounce-threshold {Physics.bounceThreshold} -> {settings.BounceThreshold.Value}");
 
             if (changes.Count == 0)
-                return NoChanges();
+                return ProjectSettingsCommand.NoChanges(cmd, Domain, Read);
 
             var planText = "Set physics settings: " + string.Join("; ", changes);
 
@@ -54,14 +54,7 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
                 AssetDatabase.SaveAssets();
             }
 
-            return ProjectSettingsCommand.Apply(Domain, confirm, dryRun, settings, () => planText, Apply, Read);
-        }
-
-        static ProjectSettingsResponse NoChanges()
-        {
-            var response = ProjectSettingsCommand.Get(Domain, Read);
-            response.Message = "No changes specified; nothing to apply.";
-            return response;
+            return ProjectSettingsCommand.Apply(cmd, Domain, confirm, dryRun, settings, () => planText, Apply, Read);
         }
 
         static Dictionary<string, object> Read()

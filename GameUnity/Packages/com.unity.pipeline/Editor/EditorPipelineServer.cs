@@ -36,15 +36,6 @@ namespace Unity.Pipeline.Editor
             }
         }
 
-        // Read at construction, on the main thread, because locating the file needs the Package Manager.
-        private readonly IReadOnlyDictionary<string, string> m_ObsoleteCommandNames = ObsoleteCommandNamesFile.Load();
-
-        /// <inheritdoc/>
-        protected override IReadOnlyDictionary<string, string> ObsoleteCommandNames => m_ObsoleteCommandNames;
-
-        /// <summary>The obsolete command names, for the Pipeline protocol transport beside this server.</summary>
-        internal IReadOnlyDictionary<string, string> ObsoleteCommandNamesForTransport => m_ObsoleteCommandNames;
-
         /// <summary>
         /// Whether this instance incremented <see cref="s_PlayerLoopSamplerRefs"/> in
         /// <see cref="ServerStarted"/>, so <see cref="ServerStopped"/> decrements at most once per
@@ -236,13 +227,13 @@ namespace Unity.Pipeline.Editor
         /// </summary>
         internal override Task<StatusResponse> GetEditorStatus()
         {
-            return Dispatcher.InvokeWithoutBlockingAsync(EditorStatusCommand.Status, PipelineTimeout.DefaultTimeout);
+            return Dispatcher.InvokeWithoutBlockingAsync(EditorStatusCommand.GetStatus, PipelineTimeout.DefaultTimeout);
         }
 
         /// <summary>The asynchronous test run's status file, read on the HTTP thread.</summary>
         internal override object GetTestStatus()
         {
-            return TestCommands.Status();
+            return TestCommands.RawStatus();
         }
 
         /// <summary>
@@ -252,7 +243,7 @@ namespace Unity.Pipeline.Editor
         /// </summary>
         internal void SnapshotStatusForDialogGate()
         {
-            m_LastStatusBeforeDialog = EditorStatusCommand.Status();
+            m_LastStatusBeforeDialog = EditorStatusCommand.GetStatus();
         }
 
         /// <summary>

@@ -34,7 +34,7 @@ namespace Unity.Pipeline.Console
 #if UNITY_6000_5_OR_NEWER
     [NoAutoStaticsCleanup]
 #endif
-    public static class ConsoleLogCapture
+    internal static class ConsoleLogCapture
     {
         static readonly ConsoleLogBuffer s_Buffer = new ConsoleLogBuffer();
         static readonly object s_SubscriptionLock = new object();

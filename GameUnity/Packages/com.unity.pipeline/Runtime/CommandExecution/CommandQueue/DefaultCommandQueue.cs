@@ -13,11 +13,11 @@ namespace Unity.Pipeline.Commands
     /// <summary>
     /// <see cref="ICommandQueue"/> for one server: runs every execution behind one gate, each on its server's dispatcher when it needs the main thread. Holds the
     /// executions and the progress of the one running now. The command's own code sees its
-    /// execution through <see cref="CommandContext"/>.
+    /// execution through <see cref="CommandExecutionContext"/>.
     /// </summary>
     /// <remarks>
     /// A command still returns its result: the queue writes it to the request's Out through
-    /// <see cref="CommandResult"/>, in the format the request picked, and writes why a command
+    /// <see cref="ResultWriter"/>, in the format the request picked, and writes why a command
     /// failed to its Error.
     /// </remarks>
     class DefaultCommandQueue : ICommandQueue
@@ -95,7 +95,7 @@ namespace Unity.Pipeline.Commands
         /// result. This is the exact parameter extraction and required-parameter validation the
         /// executor applies, and the reflection invoke and Task unwrap <see cref="Invoke"/> uses, for composite commands
         /// (e.g. <c>batch</c>) that re-dispatch other registered commands from inside their own
-        /// main-thread execution (see <see cref="CommandContext.DispatchOnMainThread"/>) — so each
+        /// main-thread execution (see <see cref="CommandExecutionContext.DispatchOnMainThread"/>) — so each
         /// sub-operation behaves, and its result is shaped, identically to a standalone call.
         ///
         /// MUST be called on the main thread. A composite command is itself
@@ -103,10 +103,14 @@ namespace Unity.Pipeline.Commands
         /// A command that throws surfaces exactly as it would through <c>/api/exec</c>
         /// (<see cref="ArgumentException"/> and <see cref="TimeoutException"/> preserved, other exceptions
         /// wrapped in <see cref="InvalidOperationException"/>) so the caller can record a per-operation failure.
+        /// One that returns its <see cref="ExitCode"/> throws <see cref="NestedCommandFailedException"/>
+        /// instead when it returns one other than Success or throws, its message what it logged to
+        /// Error, and its run what it wrote; one stopping because the execution was cancelled still
+        /// throws the <see cref="OperationCanceledException"/>.
         /// </summary>
         /// <param name="timeout">What is left of the composite command's own timeout; written
         /// into the sub-command's <c>timeout</c> parameter, if it has one.</param>
-        object DispatchOnMainThread(CommandContext context, CommandInfo command, JObject parametersJson, TimeSpan timeout)
+        NestedRun DispatchOnMainThread(CommandExecutionContext context, CommandInfo command, JObject parametersJson, TimeSpan timeout)
         {
             if (command == null)
                 throw new ArgumentNullException(nameof(command));
@@ -126,8 +130,38 @@ namespace Unity.Pipeline.Commands
                 throw new ArgumentException(validationError);
 
             PipelineTimeout.Apply(command, parameters, timeout);
-            // Nested: the sub-command returns its result to the composite rather than writing it.
-            var raw = InvokeDirect(context.Nested(), command, parameters);
+            if (command.ReturnsExitCode)
+            {
+                // Nested: what the sub-command writes is kept for the composite, never sent to the client.
+                var result = new ResultCollector();
+                var std = StdStreams.Kept(context.Std?.LogLevel ?? CommandLogLevel.Warning, StdStreams.MaxKeptChars);
+                var nested = context.Nested(result, std);
+                // It wrote its result through its CommandContext and says how it ended; a failure
+                // throws, so the composite treats it like a command that threw. A Task<ExitCode> is
+                // unwrapped like a legacy Task result below, with the same caveat: composites reject
+                // async commands before they get here.
+                ProtocolExitCode code;
+                try
+                {
+                    code = ToExitCode(UnwrapResult(InvokeDirect(nested, command, parameters)).GetAwaiter().GetResult());
+                }
+                catch (Exception ex) when (!(ex is OperationCanceledException && context.CancellationToken.IsCancellationRequested))
+                {
+                    // One that throws fails as if it had logged the error itself, as it does when the
+                    // queue runs it, and keeps what it wrote before, as one that returns a failure does.
+                    std.Log(CommandLogLevel.Error, ex.Message);
+                    throw new NestedCommandFailedException(command.FullName, Classify(ex, cancelled: false),
+                        new NestedRun(result.Value, std.KeptOut, std.KeptError), ex);
+                }
+                var run = new NestedRun(result.Value, std.KeptOut, std.KeptError);
+                if (code != ProtocolExitCode.Success)
+                    throw new NestedCommandFailedException(command.FullName, code, run);
+                return run;
+            }
+
+            // A legacy command returns its result to the composite rather than writing it, so it
+            // gets neither a result nor streams.
+            var raw = InvokeDirect(context.Nested(null, null), command, parameters);
             // Unwrap a Task result inline. WARNING: this GetResult() blocks the main thread, so it is
             // only safe for results that are already complete (synchronous commands, or async methods
             // that happened to complete synchronously). An async command driven to completion by
@@ -135,25 +169,28 @@ namespace Unity.Pipeline.Commands
             // update cannot pump while this call blocks — and the Editor would freeze permanently.
             // That is why composite callers (batch) must reject commands with Task return types
             // before dispatching them through this path.
-            return UnwrapResult(raw).GetAwaiter().GetResult();
+            return new NestedRun(UnwrapResult(raw).GetAwaiter().GetResult());
         }
 
         /// <summary>
-        /// Whether a command reported success. A command fails in two ways: by throwing, which the
+        /// How a command that returned ended. A command fails in two ways: by throwing, which the
         /// caller has already accounted for, or by RETURNING a response that carries its own
         /// failure — eval, method reload, run_script and test runs all do the latter, so nothing
-        /// throws and the outer envelope says success while the inner result says otherwise.
+        /// throws and the outer envelope says success while the inner result says otherwise. A
+        /// returned failure coded as invalid arguments is <see cref="ProtocolExitCode.InvalidUsage"/>.
         /// </summary>
-        static bool IsSuccessfulResult(object result)
+        static ProtocolExitCode ClassifyReturned(object result)
         {
             switch (result)
             {
-                case CommandExecutionResponse commandResponse:
-                    return commandResponse.Success;
+                case CommandExecutionResponse { Success: false } commandResponse:
+                    return commandResponse.ErrorCode == EvalResponse.InvalidArgsCode ? ProtocolExitCode.InvalidUsage : ProtocolExitCode.Failed;
+                case CommandExecutionResponse _:
+                    return ProtocolExitCode.Success;
                 case BaseResponse baseResponse:
-                    return string.IsNullOrEmpty(baseResponse.Error);
+                    return string.IsNullOrEmpty(baseResponse.Error) ? ProtocolExitCode.Success : ProtocolExitCode.Failed;
                 default:
-                    return true;
+                    return ProtocolExitCode.Success;
             }
         }
 
@@ -251,7 +288,7 @@ namespace Unity.Pipeline.Commands
             CommandRequest request, long arrivalTimestamp, TimeSpan queueTimeout)
         {
             // Stays Cancelled for an execution cancelled before it started, which runs nothing.
-            var result = ExitCode.Cancelled;
+            var result = ProtocolExitCode.Cancelled;
             var ran = false;
             var timer = new System.Diagnostics.Stopwatch();
             try
@@ -260,28 +297,45 @@ namespace Unity.Pipeline.Commands
                 {
                     async Task Run()
                     {
+                        execution.ReturnsExitCode = command.ReturnsExitCode;
                         execution.MarkRunning();
                         ran = true;
                         timer.Start();
                         // Made inside the try, so options it can't read end the run as InvalidUsage.
-                        CommandResult output = null;
+                        ResultWriter output = null;
+                        StdStreams std = null;
                         try
                         {
-                            output = new CommandResult(request);
-                            var returned = await Invoke(command, arguments, request.Timeout, arrivalTimestamp, execution, output, new StdStreams(request));
+                            output = new ResultWriter(request);
+                            std = new StdStreams(request);
+                            var returned = await Invoke(command, arguments, request.Timeout, arrivalTimestamp, execution, output, std);
                             if (execution.CancellationRequested)
                             {
                                 // The code honored (or raced) a cancellation request; report
                                 // cancelled rather than a half-relevant result.
-                                result = ExitCode.Cancelled;
+                                result = ProtocolExitCode.Cancelled;
                             }
                             else
                             {
-                                result = IsSuccessfulResult(returned) ? ExitCode.Success : ExitCode.Failed;
+                                if (command.ReturnsExitCode)
+                                {
+                                    // It wrote its own result through its CommandContext.
+                                    result = ToExitCode(returned);
+                                    // A failure the command didn't explain still tells the user it failed.
+                                    if (result != ProtocolExitCode.Success && result != ProtocolExitCode.Cancelled && !std.WroteError)
+                                        WriteError(execution, request, $"Command '{command.FullName}' returned {result}.");
+                                    return;
+                                }
+
+                                result = ClassifyReturned(returned);
                                 // Outside JSON, a failure response is reported on Error.
-                                if (result == ExitCode.Failed && request.FormatOutput && output.Format != OutputFormat.Json
+                                if (result != ProtocolExitCode.Success && request.FormatOutput && output.Format != OutputFormat.Json
                                     && returned is BaseResponse failed)
                                     WriteError(execution, request, DescribeFailure(failed));
+                                // A failure that keeps its result writes that result, so --fields
+                                // selects from it; the envelope carries the error.
+                                else if (returned is CommandExecutionResponse { Success: false, KeepsResultOnFailure: true } kept)
+                                    output.WriteReturned(kept.Result);
                                 else
                                     output.WriteReturned(returned);
                                 if (returned is CommandExecutionResponse { Success: false, FailureStatusCode: not null } failure)
@@ -294,13 +348,28 @@ namespace Unity.Pipeline.Commands
                             // OperationCanceledException from PipelineCancellation surfaces as a
                             // wrapped execution failure) — after a cancellation request, any failure
                             // is the cancellation taking effect.
-                            result = execution.CancellationRequested ? ExitCode.Cancelled : Classify(ex);
-                            if (result != ExitCode.Cancelled)
-                                WriteError(execution, request, ex.Message);
+                            result = execution.CancellationRequested ? ProtocolExitCode.Cancelled
+                                : Classify(ex, execution.CancellationToken.IsCancellationRequested);
+                            // The queue stops waiting for a command past its timeout, but the
+                            // command may still run: its CommandContext's token tells it to stop.
+                            if (result == ProtocolExitCode.TimedOut)
+                                execution.TimeOut();
+                            if (result != ProtocolExitCode.Cancelled)
+                            {
+                                // An exit-code command that throws fails as if it had logged the error
+                                // itself: labelled, in the --log-format the user picked.
+                                if (command.ReturnsExitCode && std != null)
+                                    LogError(execution, std, ex.Message);
+                                else
+                                    WriteError(execution, request, ex.Message);
+                            }
                         }
                         finally
                         {
+                            // A command the queue stopped waiting for may still run: what it
+                            // writes from now on is dropped, never sent after its exit.
                             output?.Complete();
+                            std?.Close();
                             timer.Stop();
                         }
                     }
@@ -321,7 +390,7 @@ namespace Unity.Pipeline.Commands
 
                     if (!acquired)
                     {
-                        result = ExitCode.TimedOut;
+                        result = ProtocolExitCode.TimedOut;
                         WriteError(execution, request, new PipelineTimeoutException(command.FullName, queueTimeout, started: false).Message);
                     }
                 }
@@ -330,7 +399,7 @@ namespace Unity.Pipeline.Commands
                     // A failure of the queue itself must be recorded, never thrown: the run is detached,
                     // and its awaiters wait for its result.
                     Debug.LogError($"Running {command.FullName} ({execution.Id}) failed: {ex.Message}");
-                    result = ExitCode.Failed;
+                    result = ProtocolExitCode.Failed;
                     WriteError(execution, request, ex.Message);
                 }
                 finally
@@ -346,8 +415,8 @@ namespace Unity.Pipeline.Commands
                 // Only once the command's real result is known; an execution that never started
                 // reports nothing.
                 if (ran)
-                    m_OnEnded(CommandExecutionInfo.ForExecution(request, command, execution.Parameters, result == ExitCode.Success,
-                        timer.ElapsedMilliseconds, CommandExecutionInfo.FailureKindOf(result, execution.ReturnedFailure?.ErrorCode),
+                    m_OnEnded(CommandExecutionInfo.ForExecution(request, command, execution.Parameters, result == ProtocolExitCode.Success,
+                        timer.ElapsedMilliseconds, CommandExecutionInfo.FailureKindOf(result, execution.ReturnedFailure?.ErrorCode ?? execution.EvalDetails?.FailureKind),
                         execution.EvalDetails));
             }
             finally
@@ -375,6 +444,19 @@ namespace Unity.Pipeline.Commands
             }
         }
 
+        /// <summary>Logs <paramref name="message"/> as an error to the command's Error, as <see cref="CommandLog.Error"/> does.</summary>
+        static void LogError(CommandExecution execution, StdStreams std, string message)
+        {
+            try
+            {
+                std.Log(CommandLogLevel.Error, message);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"Couldn't write why {execution.Command} ({execution.Id}) failed: {ex.Message}");
+            }
+        }
+
         /// <summary>The error a failure response carries.</summary>
         static string DescribeFailure(BaseResponse failed)
         {
@@ -383,20 +465,25 @@ namespace Unity.Pipeline.Commands
         }
 
         /// <summary>How a command that threw ended.</summary>
-        static ExitCode Classify(Exception ex)
+        /// <param name="cancelled">
+        /// Whether the execution's token was cancelled. Only then is an
+        /// <see cref="OperationCanceledException"/> the command stopping as told; any other, such as an
+        /// HTTP or timer timeout an async command awaited, is a failure like any other.
+        /// </param>
+        static ProtocolExitCode Classify(Exception ex, bool cancelled)
         {
             switch (ex)
             {
                 case PipelineTimeoutException _:
-                    return ExitCode.TimedOut;
-                case OperationCanceledException _:
-                    return ExitCode.Cancelled;
+                    return ProtocolExitCode.TimedOut;
+                case OperationCanceledException _ when cancelled:
+                    return ProtocolExitCode.Cancelled;
                 // A command that finds its own arguments wrong, which the executor's conversion
                 // couldn't tell.
                 case ArgumentException _:
-                    return ExitCode.InvalidUsage;
+                    return ProtocolExitCode.InvalidUsage;
                 default:
-                    return ExitCode.Failed;
+                    return ProtocolExitCode.Failed;
             }
         }
 
@@ -413,9 +500,9 @@ namespace Unity.Pipeline.Commands
         /// <param name="output">Where the command writes its result.</param>
         /// <param name="std">The command's standard streams.</param>
         async Task<object> Invoke(CommandInfo command, IReadOnlyList<object> arguments, TimeSpan? timeout,
-            long? arrivalTimestamp, CommandExecution execution, CommandResult output, StdStreams std)
+            long? arrivalTimestamp, CommandExecution execution, ResultWriter output, StdStreams std)
         {
-            var context = new CommandContext(Progress, m_Dispatcher, execution, DispatchOnMainThread, output, std);
+            var context = new CommandExecutionContext(Progress, m_Dispatcher, execution, DispatchOnMainThread, output, std);
 
             // A copy, since the command's timeout parameter is written into it.
             var parameters = arguments?.ToArray() ?? Array.Empty<object>();
@@ -518,19 +605,45 @@ namespace Unity.Pipeline.Commands
             return result;
         }
 
+        /// <summary>An exit-code command's exit code, from what it returned once awaited.</summary>
+        /// <exception cref="InvalidOperationException">It returned a value that isn't one of <see cref="ExitCode"/>'s, such as <c>(ExitCode)42</c>.</exception>
+        static ProtocolExitCode ToExitCode(object returned)
+        {
+            if (returned is ExitCode code && Enum.IsDefined(typeof(ExitCode), code))
+                return (ProtocolExitCode)code;
+            throw new InvalidOperationException($"The command returned {returned ?? "null"}, which isn't an exit code a command returns; return one of {nameof(ExitCode)}'s.");
+        }
+
+        /// <summary>
+        /// The method's arguments: <paramref name="parameters"/>, one per <see cref="CommandInfo.Parameters"/>,
+        /// with the <see cref="CommandContext"/> put in its place when the method takes one.
+        /// </summary>
+        static object[] WithContext(CommandExecutionContext context, CommandInfo command, object[] parameters)
+        {
+            var index = command.ContextParameterIndex;
+            if (index < 0)
+                return parameters;
+
+            var arguments = new object[parameters.Length + 1];
+            Array.Copy(parameters, 0, arguments, 0, index);
+            arguments[index] = context.ToCommandContext();
+            Array.Copy(parameters, index, arguments, index + 1, parameters.Length - index);
+            return arguments;
+        }
+
         /// <summary>
         /// Direct command execution using reflection. Makes <paramref name="context"/> current for
         /// the duration so CliProgress/PipelineCancellation calls inside the command body resolve
         /// to its execution, regardless of which thread this ends up running on.
         /// </summary>
-        static object InvokeDirect(CommandContext context, CommandInfo command, object[] parameters)
+        static object InvokeDirect(CommandExecutionContext context, CommandInfo command, object[] parameters)
         {
-            using var scope = CommandContext.Enter(context);
+            using var scope = CommandExecutionContext.Enter(context);
             try
             {
                 // Target is null for every attribute-declared command (they are static) and carries
                 // the receiver for a dynamically registered instance-method handler.
-                return command.Method.Invoke(command.Target, parameters);
+                return command.Method.Invoke(command.Target, WithContext(context, command, parameters));
             }
             catch (System.Reflection.TargetInvocationException tie) when (tie.InnerException != null)
             {
@@ -538,6 +651,14 @@ namespace Unity.Pipeline.Commands
                 // the inner message so callers (and agents) get an actionable error instead of the
                 // generic "Exception has been thrown by the target of an invocation."
                 var inner = tie.InnerException;
+                // A command that stops because its execution was cancelled isn't failing: let it end
+                // Cancelled, unlogged. The token is also cancelled once the execution timed out
+                // (CommandExecution.TimeOut), unlike CommandExecution.CancellationRequested, which
+                // only a client's request sets; either way the command was told to stop. Any other OperationCanceledException (an HTTP or timer timeout
+                // nobody asked for) is a failure like any other, with its message.
+                if (inner is OperationCanceledException && context.CancellationToken.IsCancellationRequested)
+                    System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(inner).Throw();
+
                 Debug.LogError($"Command '{command.FullName}' failed: {inner.Message}");
 
                 // Preserve validation-oriented exceptions so the exec handler's dedicated

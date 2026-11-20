@@ -6,6 +6,7 @@ using Unity.Pipeline.Models;
 using UnityEditor;
 using UnityEngine;
 using UnityEngine.Rendering;
+using static Unity.Pipeline.Editor.Commands.CommandFailure;
 
 namespace Unity.Pipeline.Editor.Commands.Materials
 {
@@ -26,8 +27,9 @@ namespace Unity.Pipeline.Editor.Commands.Materials
 
         [CliGroupCommand(Group,
             "Discover available shaders so an agent can pick a valid name for " + CommandNames.MaterialSetProperties + " / " + CommandNames.AssetCreate + ". Returns [{ name, assetPath|null, isBuiltin, isSupported }].",
-            Tags = new[] { "materials/shaders" })]
-        public static List<ShaderInfo> ListShaders(
+            Tags = new[] { "materials/shaders" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode ListShaders(CommandContext cmd,
             [CliArg("filter", "Case-insensitive substring matched against the shader name (e.g. \"URP\", \"Lit\").")] string filter = null,
             [CliArg("include-builtin", "Include built-in/engine shaders (those with no project asset path). Default true.")] bool includeBuiltin = true,
             [CliArg("limit", "Maximum number of shaders to return (default 200).")] int limit = 200)
@@ -35,7 +37,7 @@ namespace Unity.Pipeline.Editor.Commands.Materials
             if (limit <= 0)
                 limit = 200;
 
-            var results = new List<ShaderInfo>();
+            var written = 0;
             var seen = new HashSet<string>(StringComparer.Ordinal);
 
             // AssetDatabase.FindAssets("t:Shader") enumerates project + package shaders (each with an
@@ -43,6 +45,8 @@ namespace Unity.Pipeline.Editor.Commands.Materials
             // that have no asset path (e.g. "Standard", "Sprites/Default"). Merge both, dedup by name.
             foreach (var guid in AssetDatabase.FindAssets("t:Shader"))
             {
+                cmd.CancellationToken.ThrowIfCancellationRequested();
+
                 var path = AssetDatabase.GUIDToAssetPath(guid);
                 if (string.IsNullOrEmpty(path))
                     continue;
@@ -56,7 +60,7 @@ namespace Unity.Pipeline.Editor.Commands.Materials
                 if (!PassesFilter(shader.name, filter))
                     continue;
 
-                results.Add(new ShaderInfo
+                cmd.Result.WriteRecord(new ShaderInfo
                 {
                     Name = shader.name,
                     AssetPath = path,
@@ -64,8 +68,8 @@ namespace Unity.Pipeline.Editor.Commands.Materials
                     IsSupported = shader.isSupported,
                 });
 
-                if (results.Count >= limit)
-                    return results;
+                if (++written >= limit)
+                    return ExitCode.Success;
             }
 
             if (includeBuiltin)
@@ -82,7 +86,7 @@ namespace Unity.Pipeline.Editor.Commands.Materials
                     if (!PassesFilter(info.name, filter))
                         continue;
 
-                    results.Add(new ShaderInfo
+                    cmd.Result.WriteRecord(new ShaderInfo
                     {
                         Name = info.name,
                         AssetPath = null,
@@ -90,18 +94,19 @@ namespace Unity.Pipeline.Editor.Commands.Materials
                         IsSupported = info.supported,
                     });
 
-                    if (results.Count >= limit)
+                    if (++written >= limit)
                         break;
                 }
             }
 
-            return results;
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Introspect a shader's declared property list (name, description, type Color|Vector|Float|Range|TexEnv|Int, range, textureDimension, flags). Provide 'shader' (by name) OR 'material' (read the shader off that material).",
-            Tags = new[] { "materials/shaders" })]
-        public static ShaderPropertiesResult GetShaderProperties(
+            Tags = new[] { "materials/shaders" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetShaderProperties(CommandContext cmd,
             [CliArg("shader", "Shader name (e.g. \"Universal Render Pipeline/Lit\"). Provide this OR 'material'.")] string shader = null,
             [CliArg("material", "Reference to a material to read the shader from instead of naming it. Provide this OR 'shader'.")] ObjectRef material = null)
         {
@@ -111,22 +116,23 @@ namespace Unity.Pipeline.Editor.Commands.Materials
             {
                 resolved = Shader.Find(shader);
                 if (resolved == null)
-                    throw new ShaderNotFoundException(
-                        $"Shader '{shader}' not found. Shader.Find only resolves shaders that are compiled/included in the build (or referenced by a material/scene). Use {CommandNames.MaterialListShaders} to discover valid names.");
+                    return Fail(cmd, ExitCode.NotFound, MaterialCommands.ShaderNotFoundMessage(shader));
             }
             else if (material != null && !material.IsEmpty)
             {
-                var mat = MaterialCommands.ResolveMaterial(material, out _);
+                var code = MaterialCommands.TryResolveMaterial(material, out var mat, out _, out var error);
+                if (code != ExitCode.Success)
+                    return Fail(cmd, code, error);
+
                 resolved = mat.shader;
                 if (resolved == null)
-                    throw new ArgumentException($"Material '{material}' has no shader assigned.");
+                    return Fail(cmd, ExitCode.NotFound, $"Material '{material}' has no shader assigned.");
+                cmd.Log.Info($"Material '{material}' uses shader '{resolved.name}'.");
             }
             else
             {
-                throw new ArgumentException("Provide either 'shader' (a shader name) or 'material' (a material reference).");
+                return Fail(cmd, ExitCode.InvalidUsage, "Provide either 'shader' (a shader name) or 'material' (a material reference).");
             }
-
-            var result = new ShaderPropertiesResult { Shader = resolved.name };
 
             int count = resolved.GetPropertyCount();
             for (int i = 0; i < count; i++)
@@ -153,11 +159,12 @@ namespace Unity.Pipeline.Editor.Commands.Materials
                 if (propType == ShaderPropertyType.Texture)
                     entry.TextureDimension = resolved.GetPropertyTextureDimension(i).ToString();
 
-                result.Properties.Add(entry);
+                cmd.Result.WriteRecord(entry);
             }
 
-            return result;
+            return ExitCode.Success;
         }
+
 
         private static bool PassesFilter(string name, string filter)
         {

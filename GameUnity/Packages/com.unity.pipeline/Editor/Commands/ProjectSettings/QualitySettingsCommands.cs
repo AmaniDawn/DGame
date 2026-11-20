@@ -15,17 +15,17 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
         const string Domain = "quality";
         const string Group = "settings." + Domain;
 
-        [CliGroupCommand(Group, "Read QualitySettings (current level, level names, vSync, anti-aliasing).", MainThreadRequired = true, Tags = new[] { "settings/quality" })]
-        public static ProjectSettingsResponse Get() => ProjectSettingsCommand.Get(Domain, Read);
+        [CliGroupCommand(Group, "Read QualitySettings (current level, level names, vSync, anti-aliasing).", MainThreadRequired = true, Tags = new[] { "settings/quality" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Get(CommandContext cmd) => ProjectSettingsCommand.Get(cmd, Domain, Read);
 
-        [CliGroupCommand(Group, "Change QualitySettings. Requires confirm=true; use dry-run to preview. Not undoable via Ctrl+Z.", MainThreadRequired = true, Tags = new[] { "settings/quality" })]
-        public static ProjectSettingsResponse Set(
+        [CliGroupCommand(Group, "Change QualitySettings. Requires confirm=true; use dry-run to preview. Not undoable via Ctrl+Z.", MainThreadRequired = true, Tags = new[] { "settings/quality" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Set(CommandContext cmd,
             [CliArg("settings", "Fields to change; omitted fields are left unchanged.")] QualitySettingsInput settings = null,
             [CliArg("confirm", "Apply the change. Without it the call is refused.")] bool confirm = false,
             [CliArg("dry-run", "Preview the change without applying it.")] bool dryRun = false)
         {
             if (settings == null)
-                return ProjectSettingsResponse.Fail(Domain, "No 'settings' object provided.");
+                return ProjectSettingsCommand.Fail(cmd, ExitCode.InvalidUsage, "No 'settings' object provided.");
 
             var names = QualitySettings.names;
             var changes = new List<string>();
@@ -33,7 +33,7 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
             if (settings.Level.HasValue)
             {
                 if (settings.Level.Value < 0 || settings.Level.Value >= names.Length)
-                    return ProjectSettingsResponse.Fail(Domain, $"level {settings.Level.Value} out of range (0..{names.Length - 1}).");
+                    return ProjectSettingsCommand.Fail(cmd, ExitCode.InvalidUsage, $"level {settings.Level.Value} out of range (0..{names.Length - 1}).");
                 if (settings.Level.Value != QualitySettings.GetQualityLevel())
                     changes.Add($"level {QualitySettings.GetQualityLevel()} -> {settings.Level.Value}");
             }
@@ -44,7 +44,7 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
                 changes.Add($"anti-aliasing {QualitySettings.antiAliasing} -> {settings.AntiAliasing.Value}");
 
             if (changes.Count == 0)
-                return NoChanges();
+                return ProjectSettingsCommand.NoChanges(cmd, Domain, Read);
 
             var planText = "Set quality settings: " + string.Join("; ", changes);
 
@@ -56,14 +56,7 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
                 AssetDatabase.SaveAssets();
             }
 
-            return ProjectSettingsCommand.Apply(Domain, confirm, dryRun, settings, () => planText, Apply, Read);
-        }
-
-        static ProjectSettingsResponse NoChanges()
-        {
-            var response = ProjectSettingsCommand.Get(Domain, Read);
-            response.Message = "No changes specified; nothing to apply.";
-            return response;
+            return ProjectSettingsCommand.Apply(cmd, Domain, confirm, dryRun, settings, () => planText, Apply, Read);
         }
 
         static Dictionary<string, object> Read()

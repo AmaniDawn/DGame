@@ -232,11 +232,11 @@ namespace Unity.Pipeline.Editor
             {
                 return (inDevelopmentBuilds
                         ? "The Pipeline will be built into development, profiled AND release builds. A release " +
-                          "build that carries it exposes code execution and method reload over a local " +
-                          "HTTP server to anyone who can reach the machine."
+                          "build that carries it exposes code execution and method reload over a loopback " +
+                          "HTTP server to any local process that can read its descriptor file."
                         : "The Pipeline will be built into release builds. A release build that " +
-                          "carries it exposes code execution and method reload over a local HTTP server " +
-                          "to anyone who can reach the machine.",
+                          "carries it exposes code execution and method reload over a loopback HTTP server " +
+                          "to any local process that can read its descriptor file.",
                     MessageType.Warning);
             }
 

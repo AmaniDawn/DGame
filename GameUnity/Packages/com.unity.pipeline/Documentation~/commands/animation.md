@@ -2,6 +2,8 @@
 
 Author animation assets: AnimationClips (and their float curves), AnimatorControllers (parameters, layers, states, transitions), and Timeline assets. Create commands write under the authoring root and follow the shared `confirm`/`dry-run` convention.
 
+Each command writes one JSON object to stdout and its errors to stderr. A reference (`clip`, `controller`, `timeline`, `motion`, `asset`) that doesn't resolve exits `NotFound`; a reference to the wrong kind of asset, a path outside the authoring root, an invalid argument, or overwriting an existing asset without `confirm=true` exits `InvalidUsage`. A dry-run writes the same object the real call would, without the `guid`/`globalId` a real write fills in.
+
 ## AnimationClips
 
 ### `animation.clip create`
@@ -15,7 +17,7 @@ Create an empty .anim AnimationClip asset under the authoring root, with an opti
 | `confirm` | no | `false` | Required (true) only when overwriting an existing asset at the path. |
 | `dry-run` | no | `false` | If true, validate inputs and report what would be created without writing anything. |
 
-**Returns:** `AuthoringResult`
+**Returns:** `AuthoringResult` of the created clip.
 
 ### `animation.clip set_curve`
 Add or replace a single float curve binding on an AnimationClip (via AnimationUtility.SetEditorCurve). Replacing an existing binding overwrites it rather than duplicating.
@@ -29,7 +31,8 @@ Add or replace a single float curve binding on an AnimationClip (via AnimationUt
 | `keys` | yes | `–` | Keyframes: `[{ time, value, inTangent?, outTangent?, weightedMode?: "None"\|"In"\|"Out"\|"Both" }]`. Omitted tangents default to 0 (flat); this is NOT Unity's Auto tangent mode. |
 | `dry-run` | no | `false` | If true, validate type/property/keys without writing the curve. |
 
-**Returns:** `SetAnimationCurveResult`
+**Returns:** `SetAnimationCurveResult`: the clip's `AuthoringResult` plus `binding` (`path`, `type`, `property`) and `keyCount`.
+**Fails:** `InvalidUsage` for an unknown component `type`, a missing `property`, or malformed `keys`.
 
 ### `animation.clip get`
 Read an AnimationClip's metadata and all float curve bindings (optionally with keyframes).
@@ -39,7 +42,7 @@ Read an AnimationClip's metadata and all float curve bindings (optionally with k
 | `clip` | yes | `–` | Reference to the AnimationClip to read (path / guid / globalId). |
 | `include-keys` | no | `false` | If true, include each binding's keyframes. |
 
-**Returns:** `AnimationClipInfo`
+**Returns:** `AnimationClipInfo`: `assetPath`, `frameRate`, `length`, `loop`, and `bindings` (`path`, `type`, `property`, `keyCount`, and `keys` with `include-keys`).
 
 ### `animation.clip remove_curve`
 Remove a float curve binding from an AnimationClip (SetEditorCurve(clip, binding, null)). Destructive: requires confirm=true.
@@ -53,7 +56,8 @@ Remove a float curve binding from an AnimationClip (SetEditorCurve(clip, binding
 | `confirm` | no | `false` | Must be true to actually remove the binding (destructive guard). |
 | `dry-run` | no | `false` | If true, report the binding that would be removed without removing it. |
 
-**Returns:** `SetAnimationCurveResult`
+**Returns:** `SetAnimationCurveResult` of the removed binding.
+**Fails:** `NotFound` when the clip has no such binding; `InvalidUsage` without `confirm=true` (checked after `dry-run`).
 
 ## AnimatorControllers
 
@@ -66,10 +70,10 @@ Create an .controller AnimatorController asset (with a default Base Layer) under
 | `confirm` | no | `false` | Required (true) only when overwriting an existing asset at the path. |
 | `dry-run` | no | `false` | If true, validate inputs and report what would be created without writing anything. |
 
-**Returns:** `AuthoringResult`
+**Returns:** `AuthoringResult` of the created controller.
 
 ### `animation.animator add_parameter`
-Add a parameter (Float | Int | Bool | Trigger) to an AnimatorController. A duplicate name returns code 'duplicate_parameter'.
+Add a parameter (Float | Int | Bool | Trigger) to an AnimatorController. A duplicate name fails.
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
@@ -79,7 +83,8 @@ Add a parameter (Float | Int | Bool | Trigger) to an AnimatorController. A dupli
 | `default-value` | no | `–` | Default value for Float/Int/Bool (ignored for Trigger). |
 | `dry-run` | no | `false` | If true, validate inputs without writing the parameter. |
 
-**Returns:** `object`
+**Returns:** `AddParameterResult`: the controller's `AuthoringResult` plus `parameter` (`name`, `type`, `defaultValue`).
+**Fails:** `Failed` when a parameter of that name already exists; `InvalidUsage` for an unknown `type`.
 
 ### `animation.animator add_layer`
 Add a layer to an AnimatorController.
@@ -92,10 +97,11 @@ Add a layer to an AnimatorController.
 | `blending-mode` | no | `Override` | Blending mode: Override \| Additive. |
 | `dry-run` | no | `false` | If true, validate inputs without writing the layer. |
 
-**Returns:** `object`
+**Returns:** `AddLayerResult`: the controller's `AuthoringResult` plus `layer` (`name`, `index`, `weight`).
+**Fails:** `InvalidUsage` for an unknown `blending-mode`.
 
 ### `animation.animator add_state`
-Add a state to a layer, optionally with a motion (AnimationClip or BlendTree) and as the layer default. A layer name with no match returns code 'layer_not_found'.
+Add a state to a layer, optionally with a motion (AnimationClip or BlendTree) and as the layer default. A layer that doesn't exist fails with not-found.
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
@@ -107,7 +113,8 @@ Add a state to a layer, optionally with a motion (AnimationClip or BlendTree) an
 | `position` | no | `–` | Optional [x, y] node position in the graph (cosmetic). |
 | `dry-run` | no | `false` | If true, validate inputs without writing the state. |
 
-**Returns:** `object`
+**Returns:** `AddStateResult`: the controller's `AuthoringResult` plus `state` (`name`, `layer`, `hasMotion`, `isDefault`).
+**Fails:** `NotFound` when `layer` names no layer or its index is out of range (or not an integer); `InvalidUsage` when `motion` isn't an AnimationClip or BlendTree.
 
 ### `animation.animator add_transition`
 Add a transition between two states (or from AnyState/Entry, to Exit) on a layer, with optional conditions. Validates that the states exist and each condition's parameter exists and its mode matches the parameter type.
@@ -125,7 +132,8 @@ Add a transition between two states (or from AnyState/Entry, to Exit) on a layer
 | `has-fixed-duration` | no | `true` | If true, duration is in seconds; otherwise normalized. |
 | `dry-run` | no | `false` | If true, validate everything (states, parameters, mode/type) without writing the transition. |
 
-**Returns:** `object`
+**Returns:** `AddTransitionResult`: the controller's `AuthoringResult` plus `transition` (`from`, `to`, `conditionCount`).
+**Fails:** `NotFound` for an unknown layer or state; `InvalidUsage` for Entry→Exit or AnyState→Exit, an out-of-range `exit-time` or `duration`, or a condition whose parameter doesn't exist or whose mode doesn't match the parameter type. Nothing is written on failure.
 
 ### `animation.animator get_controller`
 Read an AnimatorController's full structure: parameters, layers, states (with motion / default), and transitions (with conditions).
@@ -134,11 +142,11 @@ Read an AnimatorController's full structure: parameters, layers, states (with mo
 |-----------|----------|---------|-------------|
 | `controller` | yes | `–` | Reference to the AnimatorController to read (path / guid / globalId). |
 
-**Returns:** `AnimatorControllerInfo`
+**Returns:** `AnimatorControllerInfo`: `assetPath`, `parameters`, and `layers` (each with `name`, `index`, `defaultState`, `states`, `transitions`).
 
 ## Timeline
 
-The Timeline commands require the `com.unity.timeline` package.
+The Timeline commands require the `com.unity.timeline` package; without it they exit `Failed` with `com.unity.timeline is not installed` on stderr.
 
 ### `animation.timeline create`
 Create a .playable TimelineAsset under the authoring root (optional frame rate).
@@ -150,7 +158,7 @@ Create a .playable TimelineAsset under the authoring root (optional frame rate).
 | `confirm` | no | `false` | Required (true) only when overwriting an existing asset at the path. |
 | `dry-run` | no | `false` | If true, validate inputs and report what would be created without writing anything. |
 
-**Returns:** `object`
+**Returns:** `AuthoringResult` of the created timeline.
 
 ### `animation.timeline add_track`
 Add a track (Animation | Audio | Activation | Control | Playable | Signal | Marker) to a TimelineAsset, optionally nested under a parent group/track.
@@ -163,7 +171,8 @@ Add a track (Animation | Audio | Activation | Control | Playable | Signal | Mark
 | `parent-track` | no | `–` | Optional name of an existing group/track to nest the new track under. |
 | `dry-run` | no | `false` | If true, validate inputs without writing the track. |
 
-**Returns:** `object`
+**Returns:** `AddTimelineTrackResult`: the timeline's `AuthoringResult` plus `track` (`name`, `type`).
+**Fails:** `NotFound` when `parent-track` names no track; `InvalidUsage` for an unknown `track-type`.
 
 ### `animation.timeline add_clip`
 Add a clip to a named track on a TimelineAsset. For Animation tracks pass an AnimationClip asset; for Audio tracks an AudioClip.
@@ -177,7 +186,8 @@ Add a clip to a named track on a TimelineAsset. For Animation tracks pass an Ani
 | `asset` | no | `–` | Source asset: for Animation tracks an AnimationClip; for Audio tracks an AudioClip. Required for those track types. |
 | `dry-run` | no | `false` | If true, validate inputs without writing the clip. |
 
-**Returns:** `object`
+**Returns:** `AddTimelineClipResult`: the timeline's `AuthoringResult` plus `clip` (`track`, `start`, `duration`).
+**Fails:** `NotFound` when `track` names no track; `InvalidUsage` for a non-positive `duration`, a negative `start`, or an Animation/Audio track without a matching `asset`.
 
 ### `animation.timeline get`
 Read a TimelineAsset's structure: frame rate, duration, and its tracks with their clips.
@@ -186,6 +196,6 @@ Read a TimelineAsset's structure: frame rate, duration, and its tracks with thei
 |-----------|----------|---------|-------------|
 | `timeline` | yes | `–` | Reference to the TimelineAsset to read (path / guid / globalId). |
 
-**Returns:** `object`
+**Returns:** `TimelineInfo`: `assetPath`, `frameRate`, `duration`, and `tracks` (each with `name`, `type`, and `clips` with `start`, `duration`, `asset`).
 
 See [Creating commands](../creating-commands.md) and [Connectivity](../connectivity.md).

@@ -18,7 +18,7 @@ namespace Unity.Pipeline.Editor.Commands.Baking
     ///
     /// Why async (trigger-then-poll, mirroring <see cref="BuildCommand"/>): a full lightmap bake runs
     /// for seconds-to-minutes. <see cref="Lightmapping.BakeAsync"/> kicks the bake off and returns
-    /// immediately; <c>bake_lighting</c> therefore returns <c>{ status: "baking", bakeId }</c> right
+    /// immediately; <c>lighting bake</c> therefore writes <c>{ status: "baking", bakeId }</c> right
     /// away and the caller polls <c>lighting_bake_status</c> until it reports <c>completed</c>.
     ///
     /// In-flight state is held in static fields and is domain-reload aware: a bake can survive (or
@@ -54,23 +54,32 @@ namespace Unity.Pipeline.Editor.Commands.Baking
 
         #region bake_lighting
 
-        [CliGroupCommand(Group, "Trigger an async lightmap bake of the open scene(s) via Lightmapping.BakeAsync(). Returns immediately; poll " + CommandNames.LightingBakeStatus + " until completed.", Tags = new[] { "baking/lighting" })]
-        public static object Bake(
+        [CliGroupCommand(Group, "Trigger an async lightmap bake of the open scene(s) via Lightmapping.BakeAsync(). Returns immediately; poll " + CommandNames.LightingBakeStatus + " until completed.", Tags = new[] { "baking/lighting" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Bake(CommandContext cmd,
             [CliArg("confirm", "Recommended (true): a bake overwrites existing lightmap data. Accepted for parity; not required.")] bool confirm = false,
             [CliArg("dry-run", "If true, validate there is an open bakeable scene and return the current lighting settings without baking.")] bool dryRun = false)
         {
             if (!BakeSceneGuard.HasBakeableScene())
-                return BakeSceneGuard.NoSceneResult();
+            {
+                cmd.Log.Error(BakeSceneGuard.NoSceneMessage);
+                return ExitCode.NotFound;
+            }
 
             // Reconcile before the in-progress check so a stale flag from a finished/cancelled bake
-            // doesn't wrongly report bake_in_progress.
+            // doesn't wrongly report a bake in progress.
             OnUpdate();
 
             if (Lightmapping.isRunning)
-                return new { code = "bake_in_progress", message = "A lighting bake is already running. Poll " + CommandNames.LightingBakeStatus + "." };
+            {
+                cmd.Log.Error("A lighting bake is already running. Poll " + CommandNames.LightingBakeStatus + ", or stop it with " + CommandNames.LightingCancelBake + ".");
+                return ExitCode.Failed;
+            }
 
             if (dryRun)
-                return new { status = "dry_run", wouldBake = true, settings = ReadLightingSettings() };
+            {
+                cmd.Result.Write(new { status = "dry_run", wouldBake = true, settings = ReadLightingSettings() });
+                return ExitCode.Success;
+            }
 
             var bakeId = Guid.NewGuid().ToString("N");
             lock (s_Lock)
@@ -93,20 +102,23 @@ namespace Unity.Pipeline.Editor.Commands.Baking
             {
                 lock (s_Lock) { s_Tracking = false; }
                 WriteStatus(new LightingBakeStatus { Status = "idle" });
-                return new { code = "bake_in_progress", message = "Lightmapping.BakeAsync() refused to start (a bake may already be running)." };
+                cmd.Log.Error("Lightmapping.BakeAsync() refused to start (a bake may already be running). Poll " + CommandNames.LightingBakeStatus + ".");
+                return ExitCode.Failed;
             }
 
-            return new { status = "baking", bakeId };
+            cmd.Result.Write(new { status = "baking", bakeId });
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Get the status of the last lighting bake: idle | baking | completed.", MainThreadRequired = false, Tags = new[] { "baking/lighting" })]
-        public static JToken BakeStatus()
+        [CliGroupCommand(Group, "Get the status of the last lighting bake: idle | baking | completed.", MainThreadRequired = false, Tags = new[] { "baking/lighting" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode BakeStatus(CommandContext cmd)
         {
-            return StatusFileReader.ReadOrIdle(StatusFile);
+            cmd.Result.Write(StatusFileReader.ReadOrIdle(StatusFile));
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Cancel an in-progress lighting bake (Lightmapping.Cancel()).", Tags = new[] { "baking/lighting" })]
-        public static object CancelBake()
+        [CliGroupCommand(Group, "Cancel an in-progress lighting bake (Lightmapping.Cancel()).", Tags = new[] { "baking/lighting" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode CancelBake(CommandContext cmd)
         {
             var wasRunning = Lightmapping.isRunning;
             if (wasRunning)
@@ -128,45 +140,57 @@ namespace Unity.Pipeline.Editor.Commands.Baking
                 }
             }
 
-            return new { cancelled = wasRunning };
+            cmd.Result.Write(new { cancelled = wasRunning });
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Clear baked lightmap data for the open scene(s). Destructive: requires confirm=true.", Tags = new[] { "baking/lighting" })]
-        public static object ClearBake(
+        [CliGroupCommand(Group, "Clear baked lightmap data for the open scene(s). Destructive: requires confirm=true.", Tags = new[] { "baking/lighting" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode ClearBake(CommandContext cmd,
             [CliArg("confirm", "Must be true to actually clear (destructive, not undoable via Unity's Undo).")] bool confirm = false,
             [CliArg("include-disk-cache", "If true, also clear the GI disk cache (Lightmapping.ClearDiskCache()).")] bool includeDiskCache = false,
             [CliArg("dry-run", "If true, report what would be cleared without clearing.")] bool dryRun = false)
         {
             if (!confirm)
-                throw new ArgumentException("Refusing to clear baked lighting. Pass confirm=true (destructive, not undoable via Unity's Undo).");
+            {
+                cmd.Log.Error("Refusing to clear baked lighting. Pass confirm=true (destructive, not undoable via Unity's Undo).");
+                return ExitCode.InvalidUsage;
+            }
 
             if (dryRun)
-                return new { status = "dry_run", wouldClear = true, includeDiskCache };
+            {
+                cmd.Result.Write(new { status = "dry_run", wouldClear = true, includeDiskCache });
+                return ExitCode.Success;
+            }
 
             Lightmapping.Clear();
             if (includeDiskCache)
                 Lightmapping.ClearDiskCache();
 
-            return new { cleared = true, includeDiskCache };
+            cmd.Result.Write(new { cleared = true, includeDiskCache });
+            return ExitCode.Success;
         }
 
         #endregion
 
         #region settings
 
-        [CliGroupCommand(Group, "Read the active LightingSettings (lightmapper, bounces, resolution, directional mode, AO, etc.).", Tags = new[] { "baking/lighting" })]
-        public static LightingSettingsResult GetSettings()
+        [CliGroupCommand(Group, "Read the active LightingSettings (lightmapper, bounces, resolution, directional mode, AO, etc.).", Tags = new[] { "baking/lighting" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetSettings(CommandContext cmd)
         {
-            return ReadLightingSettings();
+            cmd.Result.Write(ReadLightingSettings());
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Apply a subset of lighting settings to the active LightingSettings. Returns { applied[], unknown[] }.", Tags = new[] { "baking/lighting" })]
-        public static object SetSettings(
+        [CliGroupCommand(Group, "Apply a subset of lighting settings to the active LightingSettings. Returns { applied[], unknown[] }.", Tags = new[] { "baking/lighting" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetSettings(CommandContext cmd,
             [CliArg("settings", "JSON object with a subset of lighting fields to set (same names/enums as " + CommandNames.LightingGetSettings + ").", Required = true)] JObject settings,
             [CliArg("dry-run", "If true, validate the keys and report applied/unknown without changing anything.")] bool dryRun = false)
         {
             if (settings == null)
-                throw new ArgumentException("settings is required (a JSON object of lighting fields to set).");
+            {
+                cmd.Log.Error("settings is required (a JSON object of lighting fields to set).");
+                return ExitCode.InvalidUsage;
+            }
 
             // In dry-run we must not create or assign a LightingSettings asset (no writes). When no
             // settings exist yet, validate the requested keys against a transient throwaway instance
@@ -198,13 +222,17 @@ namespace Unity.Pipeline.Editor.Commands.Baking
             if (transient != null)
                 UnityEngine.Object.DestroyImmediate(transient);
 
-            return new
+            if (unknown.Count > 0)
+                cmd.Log.Warning($"Ignored unknown lighting setting(s): {string.Join(", ", unknown)}.");
+
+            cmd.Result.Write(new
             {
                 applied = applied.ToArray(),
                 unknown = unknown.ToArray(),
                 settingsSource = source,
                 dryRun
-            };
+            });
+            return ExitCode.Success;
         }
 
         #endregion

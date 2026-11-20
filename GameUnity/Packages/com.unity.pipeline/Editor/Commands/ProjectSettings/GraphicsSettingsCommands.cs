@@ -16,36 +16,36 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
         const string Domain = "graphics";
         const string Group = "settings." + Domain;
 
-        [CliGroupCommand(Group, "Read GraphicsSettings (default render pipeline).", MainThreadRequired = true, Tags = new[] { "settings/graphics" })]
-        public static ProjectSettingsResponse Get() => ProjectSettingsCommand.Get(Domain, Read);
+        [CliGroupCommand(Group, "Read GraphicsSettings (default render pipeline).", MainThreadRequired = true, Tags = new[] { "settings/graphics" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Get(CommandContext cmd) => ProjectSettingsCommand.Get(cmd, Domain, Read);
 
-        [CliGroupCommand(Group, "Set the default render pipeline asset. Requires confirm=true; use dry-run to preview. Not undoable via Ctrl+Z.", MainThreadRequired = true, Tags = new[] { "settings/graphics" })]
-        public static ProjectSettingsResponse Set(
+        [CliGroupCommand(Group, "Set the default render pipeline asset. Requires confirm=true; use dry-run to preview. Not undoable via Ctrl+Z.", MainThreadRequired = true, Tags = new[] { "settings/graphics" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Set(CommandContext cmd,
             [CliArg("settings", "Fields to change; omitted fields are left unchanged.")] GraphicsSettingsInput settings = null,
             [CliArg("confirm", "Apply the change. Without it the call is refused.")] bool confirm = false,
             [CliArg("dry-run", "Preview the change without applying it.")] bool dryRun = false)
         {
             if (settings == null)
-                return ProjectSettingsResponse.Fail(Domain, "No 'settings' object provided.");
+                return ProjectSettingsCommand.Fail(cmd, ExitCode.InvalidUsage, "No 'settings' object provided.");
 
             // omitted (null) = leave unchanged; an empty reference = built-in pipeline; otherwise a
             // handle to a RenderPipelineAsset resolved through the shared ObjectResolver.
             if (settings.RenderPipelineAsset == null)
-                return NoChanges();
+                return ProjectSettingsCommand.NoChanges(cmd, Domain, Read);
 
             RenderPipelineAsset asset = null;
             if (!settings.RenderPipelineAsset.IsEmpty)
             {
                 if (!ObjectResolver.TryResolve(settings.RenderPipelineAsset, out var obj, out var resolveError))
-                    return ProjectSettingsResponse.Fail(Domain, resolveError);
+                    return ProjectSettingsCommand.Fail(cmd, ExitCode.NotFound, resolveError);
                 asset = obj as RenderPipelineAsset;
                 if (asset == null)
-                    return ProjectSettingsResponse.Fail(Domain, $"'{settings.RenderPipelineAsset}' is not a RenderPipelineAsset.");
+                    return ProjectSettingsCommand.Fail(cmd, ExitCode.InvalidUsage, $"'{settings.RenderPipelineAsset}' is not a RenderPipelineAsset.");
             }
 
             var current = GraphicsSettings.defaultRenderPipeline;
             if (current == asset)
-                return NoChanges();
+                return ProjectSettingsCommand.NoChanges(cmd, Domain, Read);
 
             var currentName = current != null ? current.name : "<built-in>";
             var newName = asset != null ? asset.name : "<built-in>";
@@ -57,14 +57,7 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
                 AssetDatabase.SaveAssets();
             }
 
-            return ProjectSettingsCommand.Apply(Domain, confirm, dryRun, settings, () => planText, Apply, Read);
-        }
-
-        static ProjectSettingsResponse NoChanges()
-        {
-            var response = ProjectSettingsCommand.Get(Domain, Read);
-            response.Message = "No changes specified; nothing to apply.";
-            return response;
+            return ProjectSettingsCommand.Apply(cmd, Domain, confirm, dryRun, settings, () => planText, Apply, Read);
         }
 
         static Dictionary<string, object> Read()

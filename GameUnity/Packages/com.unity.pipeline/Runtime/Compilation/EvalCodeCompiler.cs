@@ -118,9 +118,9 @@ namespace Unity.Pipeline.Compilation
                     compilation.Diagnostics);
             }
 
-            // Captured before the script's first await, after which CommandContext.Current is gone;
+            // Captured before the script's first await, after which CommandExecutionContext.Current is gone;
             // waits in the script observe it through the ambient token.
-            PipelineCancellation.AmbientToken = Commands.CommandContext.Current?.CancellationToken ?? CancellationToken.None;
+            PipelineCancellation.AmbientToken = Commands.CommandExecutionContext.Current?.CancellationToken ?? CancellationToken.None;
 
             object value;
             try

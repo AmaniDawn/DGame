@@ -3,7 +3,6 @@ using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Unity.Pipeline.Commands;
 using UnityEditor;
 using UnityEditor.PackageManager;
@@ -81,8 +80,9 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
             "List packages by scope: installed (default) | available (registry) | all (both). Returns the full " +
             "result synchronously — available/all block until the registry query completes.",
             MainThreadRequired = false,
-            Tags = new[] { "packages" })]
-        public static object List(
+            Tags = new[] { "packages" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode List(CommandContext cmd,
             [CliArg("scope", "Which packages to list: installed (default) | available | all.")] string scope = "installed",
             [CliArg("include-indirect", "Include indirect (transitive) installed dependencies (applies to scope=installed/all).")]
             bool includeIndirect = true,
@@ -91,29 +91,41 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
         {
             var start = System.Diagnostics.Stopwatch.GetTimestamp();
             var timeout = PipelineTimeout.FromSeconds(timeoutInSeconds);
+            List<PackageSummary> packages;
+            string error;
             switch ((scope ?? "installed").Trim().ToLowerInvariant())
             {
                 case "installed":
-                    return RunOnMain(() => ListInstalled(includeIndirect), timeout, start);
+                    packages = RunOnMain(() => ListInstalled(includeIndirect), timeout, start);
+                    error = null;
+                    break;
                 case "available":
-                    return ListFromRegistry("available", includeIndirect, offline, timeout, start);
+                    packages = ListFromRegistry("available", includeIndirect, offline, timeout, start, cmd.CancellationToken, out error);
+                    break;
                 case "all":
-                    return ListFromRegistry("all", includeIndirect, offline, timeout, start);
+                    packages = ListFromRegistry("all", includeIndirect, offline, timeout, start, cmd.CancellationToken, out error);
+                    break;
                 default:
-                    return new PackageListResponse
-                    {
-                        Success = false,
-                        Scope = scope,
-                        Message = $"Unknown scope '{scope}'. Use installed | available | all."
-                    };
+                    cmd.Log.Error($"Unknown scope '{scope}'. Use installed | available | all.");
+                    return ExitCode.InvalidUsage;
             }
+
+            if (packages == null)
+            {
+                cmd.Log.Error(error);
+                return ExitCode.Failed;
+            }
+
+            foreach (var package in packages)
+                cmd.Result.WriteRecord(package);
+            return ExitCode.Success;
         }
 
         /// <summary>
         /// Installed scope: <see cref="PackageInfo.GetAllRegisteredPackages"/> reflects the resolved
         /// set without a registry round-trip. Runs on the main thread (via <see cref="RunOnMain"/>).
         /// </summary>
-        static PackageListResponse ListInstalled(bool includeIndirect)
+        static List<PackageSummary> ListInstalled(bool includeIndirect)
         {
             var summaries = new List<PackageSummary>();
             foreach (var p in PackageInfo.GetAllRegisteredPackages())
@@ -121,51 +133,35 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
                 if (includeIndirect || p.isDirectDependency)
                     summaries.Add(Map(p, isInstalled: true));
             }
-
-            return new PackageListResponse
-            {
-                Success = true,
-                Scope = "installed",
-                Count = summaries.Count,
-                Packages = summaries,
-                Manifest = SafeReadManifest(),
-                Message = $"{summaries.Count} installed package(s)."
-            };
+            return summaries;
         }
 
         /// <summary>
         /// available / all scope: these need the registry, so a <c>Client.SearchAll</c> request is
         /// started on the main thread and awaited here (on the command's background thread). For
         /// <c>all</c>, the installed set is merged in (and marked) so callers see one unified list.
+        /// Returns null with <paramref name="error"/> set when the query times out or fails.
         /// </summary>
-        static object ListFromRegistry(string scope, bool includeIndirect, bool offline, TimeSpan timeout, long start)
+        static List<PackageSummary> ListFromRegistry(string scope, bool includeIndirect, bool offline, TimeSpan timeout, long start,
+            CancellationToken cancellation, out string error)
         {
             var request = RunOnMain(() => Client.SearchAll(offline), timeout, start);
 
-            if (!WaitForCompletion(request, timeout, start, out var waitError))
-                return new PackageListResponse { Success = false, Scope = scope, Message = waitError };
+            if (!WaitForCompletion(request, timeout, start, cancellation, out error))
+                return null;
 
-            return RunOnMain<object>(() =>
+            string queryError = null;
+            var packages = RunOnMain(() =>
             {
                 if (request.Status != StatusCode.Success)
-                    return new PackageListResponse
-                    {
-                        Success = false,
-                        Scope = scope,
-                        Message = $"Registry query failed: {request.Error?.message ?? "unknown error"}"
-                    };
-
-                var packages = BuildScopedList(scope, request.Result, includeIndirect);
-                return new PackageListResponse
                 {
-                    Success = true,
-                    Scope = scope,
-                    Count = packages.Count,
-                    Packages = packages,
-                    Manifest = SafeReadManifest(),
-                    Message = $"{packages.Count} package(s)."
-                };
+                    queryError = $"Registry query failed: {request.Error?.message ?? "unknown error"}";
+                    return null;
+                }
+                return BuildScopedList(scope, request.Result, includeIndirect);
             }, timeout, start);
+            error = queryError;
+            return packages;
         }
 
         /// <summary>
@@ -210,8 +206,9 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
             "Search packages available in the registry. Provide a name (e.g. com.unity.foo) or omit to list all. " +
             "Returns the full result synchronously (blocks until the registry query completes).",
             MainThreadRequired = false,
-            Tags = new[] { "packages" })]
-        public static object Search(
+            Tags = new[] { "packages" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Search(CommandContext cmd,
             [CliArg("query", "Package name to search for. Omit/empty to list all available packages.")] string query = "",
             [CliArg("offline", "Search the local cache only.")] bool offline = false,
             [CliArg("timeout", "Seconds to wait for the registry.")] double timeoutInSeconds = 60)
@@ -224,40 +221,70 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
                 ? Client.SearchAll(offline)
                 : Client.Search(trimmed, offline), timeout, start);
 
-            if (!WaitForCompletion(request, timeout, start, out var waitError))
-                return new PackageSearchResponse { Success = false, Query = trimmed, Message = waitError };
+            if (!WaitForCompletion(request, timeout, start, cmd.CancellationToken, out var waitError))
+            {
+                cmd.Log.Error(waitError);
+                return ExitCode.Failed;
+            }
 
-            return RunOnMain<object>(() =>
+            string searchError = null;
+            var packages = RunOnMain(() =>
             {
                 if (request.Status != StatusCode.Success)
-                    return new PackageSearchResponse
-                    {
-                        Success = false,
-                        Query = trimmed,
-                        Message = $"Search failed: {request.Error?.message ?? "unknown error"}"
-                    };
-
-                var packages = MapMarkingInstalled(request.Result);
-                return new PackageSearchResponse
                 {
-                    Success = true,
-                    Query = trimmed,
-                    Count = packages.Count,
-                    Packages = packages,
-                    Message = $"{packages.Count} package(s)."
-                };
+                    searchError = $"Search failed: {request.Error?.message ?? "unknown error"}";
+                    return null;
+                }
+                return MapMarkingInstalled(request.Result);
             }, timeout, start);
+
+            if (packages == null)
+            {
+                cmd.Log.Error(searchError);
+                return ExitCode.Failed;
+            }
+
+            foreach (var package in packages)
+                cmd.Result.WriteRecord(package);
+            return ExitCode.Success;
         }
 
         // ---- Mutating operations (dual-mode, CAT-2509 gated) -----------------------------------
+
+        // Git and local packages are fetched as they are and their editor code runs on import, so the
+        // plan says where that code comes from.
+        static string AddPlanText(ParsedPackageId parsed)
+        {
+            var plan = $"Add package {parsed.Description} [{parsed.Kind}]";
+            switch (parsed.Kind)
+            {
+                case PackageSourceKind.Git:
+                    return plan + ". The repository is fetched and its editor code runs on import.";
+                case PackageSourceKind.Local:
+                    return plan + $" from '{ResolveLocalPath(parsed.Identifier)}'. Its editor code runs on import.";
+                default:
+                    return plan;
+            }
+        }
+
+        // UPM resolves a relative file: path against the project's Packages folder. The Editor's working
+        // directory is the project root, and unlike Application.dataPath it is readable off the main thread.
+        static string ResolveLocalPath(string identifier)
+        {
+            var path = identifier.Substring("file:".Length);
+            return Path.IsPathRooted(path)
+                ? Path.GetFullPath(path)
+                : Path.GetFullPath(Path.Combine(Directory.GetCurrentDirectory(), "Packages", path));
+        }
 
         [CliGroupCommand(Group,
             "Add a UPM package by name@version, git URL, or 'file:' local path. Async by default (returns " +
             "in_progress; poll " + CommandNames.PackageStatus + "); pass wait=true to block until added. A recompile/domain reload " +
             "follows — poll " + CommandNames.ScriptRecompileStatus + ". Requires confirm=true; use dry-run to preview.",
             MainThreadRequired = false,
-            Tags = new[] { "packages" })]
-        public static object Add(
+            Tags = new[] { "packages" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode Add(CommandContext cmd,
             [CliArg("name", "Package to add: 'com.unity.foo@1.2.3', a git URL, or 'file:../Path'.", Required = true)] string identifier = "",
             [CliArg("confirm", "Apply the change. Without it the call is refused.")] bool confirm = false,
             [CliArg("dry-run", "Preview the change without applying it.")] bool dryRun = false,
@@ -265,16 +292,20 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
             [CliArg("timeout", "Seconds to wait when wait=true.")] double timeoutInSeconds = 300)
         {
             if (!PackageIdentifier.TryParse(identifier, out var parsed, out var parseError))
-                return PackageMutationResponse.Failed("add", identifier, parseError);
+            {
+                cmd.Log.Error(parseError);
+                return ExitCode.InvalidUsage;
+            }
 
             if (IsBusy())
-                return PackageMutationResponse.Busy("add");
+                return Busy(cmd);
 
             return ExecuteMutation(
+                cmd,
                 operation: "add",
                 commandName: CommandNames.PackageAdd,
                 argument: parsed.Identifier,
-                planText: $"Add package {parsed.Description} [{parsed.Kind}]",
+                planText: AddPlanText(parsed),
                 confirm: confirm,
                 dryRun: dryRun,
                 wait: wait,
@@ -293,8 +324,9 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
             "wait=true to block until removed. A recompile/domain reload follows — poll " + CommandNames.ScriptRecompileStatus + ". " +
             "Requires confirm=true; use dry-run to preview.",
             MainThreadRequired = false,
-            Tags = new[] { "packages" })]
-        public static object Remove(
+            Tags = new[] { "packages" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode Remove(CommandContext cmd,
             [CliArg("name", "Package name to remove (e.g. com.unity.foo).", Required = true)] string name = "",
             [CliArg("confirm", "Apply the change. Without it the call is refused.")] bool confirm = false,
             [CliArg("dry-run", "Preview the change without applying it.")] bool dryRun = false,
@@ -302,14 +334,18 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
             [CliArg("timeout", "Seconds to wait when wait=true.")] double timeoutInSeconds = 300)
         {
             if (string.IsNullOrWhiteSpace(name))
-                return PackageMutationResponse.Failed("remove", name, "A package name is required.");
+            {
+                cmd.Log.Error("A package name is required.");
+                return ExitCode.InvalidUsage;
+            }
 
             var packageName = name.Trim();
 
             if (IsBusy())
-                return PackageMutationResponse.Busy("remove");
+                return Busy(cmd);
 
             return ExecuteMutation(
+                cmd,
                 operation: "remove",
                 commandName: CommandNames.PackageRemove,
                 argument: packageName,
@@ -327,8 +363,9 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
             "Resolve/refresh packages from the manifest (re-fetch and re-link). May trigger a recompile/domain " +
             "reload — poll " + CommandNames.ScriptRecompileStatus + ". Its outcome is recorded for " + CommandNames.PackageStatus + ".",
             MainThreadRequired = true,
-            Tags = new[] { "packages" })]
-        public static object Resolve()
+            Tags = new[] { "packages" },
+            Effect = CommandEffect.Idempotent)]
+        internal static ExitCode Resolve(CommandContext cmd)
         {
             WriteStatus(new PackageStatus
             {
@@ -357,7 +394,8 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
                     Message = $"Resolve failed: {ex.Message}"
                 };
                 WriteStatus(failed);
-                return PackageMutationResponse.Failed("resolve", null, failed.Error);
+                cmd.Log.Error(failed.Message);
+                return ExitCode.Failed;
             }
 
             var done = new PackageStatus
@@ -371,7 +409,9 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
                 Message = "Resolve requested. If assemblies changed, a domain reload follows — poll " + CommandNames.ScriptRecompileStatus + "."
             };
             WriteStatus(done);
-            return ToMutationResponse(done, plan: null);
+            cmd.Log.Info(done.Message);
+            cmd.Result.Write(ToMutationResponse(done, plan: null));
+            return ExitCode.Success;
         }
 
         // ---- Status ----------------------------------------------------------------------------
@@ -380,10 +420,12 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
             "Status of the last async package operation (add/remove/resolve): idle | in_progress | completed | " +
             "failed, with the added package, manifest, and any error.",
             MainThreadRequired = false,
-            Tags = new[] { "packages" })]
-        public static JToken Status()
+            Tags = new[] { "packages" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Status(CommandContext cmd)
         {
-            return StatusFileReader.ReadOrIdle(StatusFile);
+            cmd.Result.Write(StatusFileReader.ReadOrIdle(StatusFile));
+            return ExitCode.Success;
         }
 
         // ---- Mutation execution ----------------------------------------------------------------
@@ -392,18 +434,26 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
         /// Gate (confirm / dry-run) and kick off the mutating op, then
         /// either return <c>in_progress</c> (async, default) or block until completion (<paramref name="wait"/>).
         /// Either way the operation is tracked and a status file is written, so the result is recoverable
-        /// via <c>package_status</c> even if the domain reload severs a synchronous reply.
+        /// via <c>package_status</c> even if the domain reload severs a synchronous reply. Writes the
+        /// operation's <see cref="PackageMutationResponse"/>, or logs why it was refused or failed.
         /// </summary>
-        static object ExecuteMutation(
+        static ExitCode ExecuteMutation(
+            CommandContext cmd,
             string operation, string commandName, string argument, string planText,
             bool confirm, bool dryRun, bool wait, TimeSpan timeout, long startTimestamp,
             Func<Request> start, Func<Request, PackageSummary> readPackage)
         {
             if (dryRun)
-                return PackageMutationResponse.DryRunPreview(operation, argument, planText, $"Dry run — {planText}");
+            {
+                cmd.Log.Info($"Dry run — {planText}");
+                cmd.Result.Write(PackageMutationResponse.DryRunPreview(operation, argument, planText));
+                return ExitCode.Success;
+            }
             if (!confirm)
-                return PackageMutationResponse.Rejected(operation, argument,
-                    "Refused: this changes project packages. Re-run with confirm=true to apply, or dry-run=true to preview.");
+            {
+                cmd.Log.Error("Refused: this changes project packages. Re-run with confirm=true to apply, or dry-run=true to preview.");
+                return ExitCode.InvalidUsage;
+            }
 
             // UPM operations are not part of Unity's Undo system, so there is no undo scope here.
             var request = RunOnMain(() =>
@@ -415,10 +465,17 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
             }, timeout, startTimestamp);
 
             if (request == null)
-                return PackageMutationResponse.Failed(operation, argument, "Operation was confirmed but failed to start.");
+            {
+                cmd.Log.Error($"{operation} was confirmed but failed to start.");
+                return ExitCode.Failed;
+            }
 
             if (!wait)
-                return PackageMutationResponse.InProgress(operation, argument, planText);
+            {
+                cmd.Log.Info($"{operation} started. Poll {CommandNames.PackageStatus} until status is 'completed' or 'failed'.");
+                cmd.Result.Write(PackageMutationResponse.InProgress(operation, argument, planText));
+                return ExitCode.Success;
+            }
 
             // Synchronous: poll until complete, capturing status + result atomically on the main thread
             // (a reload can only fire between ticks, so the snapshot can't be interleaved).
@@ -426,14 +483,25 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
             {
                 var status = RunOnMain(TryFinalize, timeout, startTimestamp);
                 if (status != null)
-                    return ToMutationResponse(status, planText);
+                {
+                    if (!status.Success)
+                    {
+                        cmd.Log.Error(status.Message);
+                        return ExitCode.Failed;
+                    }
+                    cmd.Log.Info(status.Message);
+                    cmd.Result.Write(ToMutationResponse(status, planText));
+                    return ExitCode.Success;
+                }
 
-                if (TimedOut(timeout, startTimestamp))
+                var cancelled = cmd.CancellationToken.IsCancellationRequested;
+                if (cancelled || TimedOut(timeout, startTimestamp))
                 {
                     // Hand off to the update-loop poller so package_status still settles after we bail.
                     RunOnMain<object>(() => { SubscribePoll(); return null; }, timeout, startTimestamp);
-                    return PackageMutationResponse.Failed(operation, argument,
-                        $"Timed out after {PipelineTimeout.Describe(timeout)}; the operation may still be in progress — poll {CommandNames.PackageStatus}.");
+                    cmd.CancellationToken.ThrowIfCancellationRequested();
+                    cmd.Log.Error($"Timed out after {PipelineTimeout.Describe(timeout)}; the operation may still be in progress — poll {CommandNames.PackageStatus}.");
+                    return ExitCode.Failed;
                 }
 
                 Thread.Sleep(PollIntervalMs);
@@ -539,7 +607,6 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
 
         static PackageMutationResponse ToMutationResponse(PackageStatus s, string plan) => new PackageMutationResponse
         {
-            Success = s.Success,
             Operation = s.Operation,
             Argument = s.Argument,
             Status = s.Status,
@@ -547,9 +614,14 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
             Plan = plan,
             Package = s.Package,
             Manifest = s.Manifest,
-            RequiresRecompile = s.RequiresRecompile,
-            Message = s.Message
+            RequiresRecompile = s.RequiresRecompile
         };
+
+        static ExitCode Busy(CommandContext cmd)
+        {
+            cmd.Log.Error("Another package operation is in progress. Poll " + CommandNames.PackageStatus + ", then retry.");
+            return ExitCode.Failed;
+        }
 
         /// <summary>
         /// On load, settle a status file left at "in_progress" by a domain reload (the expected outcome of
@@ -588,13 +660,14 @@ namespace Unity.Pipeline.Editor.Commands.PackageManager
         /// <summary>
         /// Block until <paramref name="request"/> completes, polling its (main-thread-only) state via
         /// <see cref="RunOnMain"/> while this thread sleeps between checks. Returns false with
-        /// <paramref name="error"/> set on timeout. Used by the read-only registry queries.
+        /// <paramref name="error"/> set on timeout; throws once <paramref name="cancellation"/> is cancelled. Used by the read-only registry queries.
         /// </summary>
-        static bool WaitForCompletion(Request request, TimeSpan timeout, long startTimestamp, out string error)
+        static bool WaitForCompletion(Request request, TimeSpan timeout, long startTimestamp, CancellationToken cancellation, out string error)
         {
             error = null;
             while (!RunOnMain(() => request.IsCompleted, timeout, startTimestamp))
             {
+                cancellation.ThrowIfCancellationRequested();
                 if (TimedOut(timeout, startTimestamp))
                 {
                     error = $"Timed out after {PipelineTimeout.Describe(timeout)} waiting for the package manager.";

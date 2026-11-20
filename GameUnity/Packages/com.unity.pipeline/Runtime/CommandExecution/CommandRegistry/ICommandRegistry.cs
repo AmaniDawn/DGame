@@ -18,7 +18,7 @@ namespace Unity.Pipeline.Commands
         /// <summary>Registers a command at runtime, without a <c>[CliGroupCommand]</c> attribute.</summary>
         /// <inheritdoc cref="CommandRegistry.RegisterCommand"/>
         public void Register(string group, string name, string description, Delegate handler,
-            bool mainThreadRequired, string[] tags);
+            bool mainThreadRequired, string[] tags, CommandEffect effect);
 
         /// <summary>Removes a command registered with <see cref="Register"/>.</summary>
         /// <inheritdoc cref="CommandRegistry.UnregisterCommand"/>

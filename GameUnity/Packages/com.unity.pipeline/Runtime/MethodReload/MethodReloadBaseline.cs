@@ -216,7 +216,7 @@ namespace Unity.Pipeline.MethodReload
             foreach (var node in root.DescendantNodes())
             {
                 if (node is not MethodDeclarationSyntax method ||
-                    !InPlaceReloadProcessor.HasMethodReloadAttribute(method))
+                    !SourceCodeTransformer.HasMethodReloadAttribute(method))
                     continue;
                 var name = method.Identifier.ValueText;
                 var declHash = HashTokens(method, null);

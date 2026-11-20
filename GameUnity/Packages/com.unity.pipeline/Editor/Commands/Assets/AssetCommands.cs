@@ -34,8 +34,8 @@ namespace Unity.Pipeline.Editor.Commands.Assets
     {
         const string Group = "asset";
 
-        [CliGroupCommand(Group, "Create a new ScriptableObject (or other UnityEngine.Object) asset of the given type at a path under the authoring root.", Tags = new[] { "assets" })]
-        public static AuthoringResult Create(
+        [CliGroupCommand(Group, "Create a new ScriptableObject (or other UnityEngine.Object) asset of the given type at a path under the authoring root.", Tags = new[] { "assets" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Create(CommandContext cmd,
             [CliArg("path", "Asset path relative to the authoring root, including extension (e.g. Data/Config.asset or Materials/Wall.mat). The Assets/ prefix is optional.", Required = true)] string path,
             [CliArg("type", "Fully-qualified or short type name to instantiate (e.g. UnityEngine.Material, MyGame.GameConfig). Must derive from UnityEngine.Object and be creatable.", Required = true)] string type,
             [CliArg("shader", "Material-only (ignored otherwise): shader name to assign (e.g. Standard, \"Universal Render Pipeline/Lit\"). When omitted, defaults to \"Universal Render Pipeline/Lit\" if a Scriptable Render Pipeline is active, otherwise the built-in \"Standard\" shader (falling back to \"Standard\" if URP/Lit is unavailable).")] string shader = null,
@@ -44,16 +44,28 @@ namespace Unity.Pipeline.Editor.Commands.Assets
         {
             var normalized = ProjectPaths.Resolve(path, out var error);
             if (normalized == null)
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.InvalidUsage;
+            }
 
             if (string.IsNullOrEmpty(Path.GetExtension(normalized)))
-                throw new ArgumentException($"Asset path '{normalized}' must include a file extension (e.g. .asset, .mat).");
+            {
+                cmd.Log.Error($"Asset path '{normalized}' must include a file extension (e.g. .asset, .mat).");
+                return ExitCode.InvalidUsage;
+            }
 
             var resolvedType = ResolveType(type);
             if (resolvedType == null)
-                throw new ArgumentException($"Could not resolve type '{type}'. Use a fully-qualified name (e.g. UnityEngine.Material).");
+            {
+                cmd.Log.Error($"Could not resolve type '{type}'. Use a fully-qualified name (e.g. UnityEngine.Material).");
+                return ExitCode.InvalidUsage;
+            }
             if (!typeof(Object).IsAssignableFrom(resolvedType))
-                throw new ArgumentException($"Type '{resolvedType.FullName}' does not derive from UnityEngine.Object.");
+            {
+                cmd.Log.Error($"Type '{resolvedType.FullName}' does not derive from UnityEngine.Object.");
+                return ExitCode.InvalidUsage;
+            }
 
             // CLI-222: Unity 6 renamed PhysicMaterial -> PhysicsMaterial, but the on-disk asset
             // extension is still ".physicMaterial". AssetDatabase.CreateAsset rejects a
@@ -67,7 +79,10 @@ namespace Unity.Pipeline.Editor.Commands.Assets
 
             var exists = AssetDatabase.LoadMainAssetAtPath(normalized) != null;
             if (exists && !confirm)
-                throw new ArgumentException($"An asset already exists at '{normalized}'. Pass confirm=true to overwrite it.");
+            {
+                cmd.Log.Error($"An asset already exists at '{normalized}'. Pass confirm=true to overwrite it.");
+                return ExitCode.InvalidUsage;
+            }
 
             // CLI-221: for a Material, resolve (and thereby validate) the shader up front so dry-run
             // also fails fast on an unknown shader — dry-run is documented as "validate inputs".
@@ -76,7 +91,10 @@ namespace Unity.Pipeline.Editor.Commands.Assets
                 materialShader = ResolveShader(shader);
 
             if (dryRun)
-                return new AuthoringResult { AssetPath = normalized, Type = resolvedType.Name };
+            {
+                cmd.Result.Write(new AuthoringResult { AssetPath = normalized, Type = resolvedType.Name });
+                return ExitCode.Success;
+            }
 
             EnsureParentFolder(normalized);
 
@@ -108,20 +126,23 @@ namespace Unity.Pipeline.Editor.Commands.Assets
             {
                 // Other UnityEngine.Object subclasses with a public parameterless ctor.
                 // Activator.CreateInstance throws for abstract types or types without an accessible
-                // parameterless ctor — surface that as an actionable ArgumentException.
+                // parameterless ctor — surface that as an actionable usage error.
                 try
                 {
                     asset = Activator.CreateInstance(resolvedType) as Object;
                 }
                 catch (Exception ex)
                 {
-                    throw new ArgumentException(
-                        $"Type '{resolvedType.FullName}' could not be instantiated (it may be abstract or lack a public parameterless constructor): {ex.Message}");
+                    cmd.Log.Error($"Type '{resolvedType.FullName}' could not be instantiated (it may be abstract or lack a public parameterless constructor): {ex.Message}");
+                    return ExitCode.InvalidUsage;
                 }
             }
 
             if (asset == null)
-                throw new ArgumentException($"Type '{resolvedType.FullName}' could not be instantiated as a creatable asset.");
+            {
+                cmd.Log.Error($"Type '{resolvedType.FullName}' could not be instantiated as a creatable asset.");
+                return ExitCode.InvalidUsage;
+            }
 
             // AssetDatabase.CreateAsset does not reliably overwrite an existing asset at the path, so
             // explicitly delete it first. The confirm guard above gates that an asset already exists.
@@ -135,31 +156,47 @@ namespace Unity.Pipeline.Editor.Commands.Assets
             var loaded = AssetDatabase.LoadMainAssetAtPath(normalized);
             var result = ObjectResolver.Describe(loaded) ?? new AuthoringResult { Type = resolvedType.Name };
             result.AssetPath = normalized;
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Import an external file (e.g. a texture, model, audio clip) into the project by copying it to a path under the authoring root, then importing it.", Tags = new[] { "assets/import" })]
-        public static AuthoringResult Import(
+        [CliGroupCommand(Group, "Import an external file (e.g. a texture, model, audio clip) into the project by copying it to a path under the authoring root, then importing it.", Tags = new[] { "assets/import" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Import(CommandContext cmd,
             [CliArg("source", "Absolute filesystem path to the external file to import.", Required = true)] string source,
             [CliArg("path", "Destination asset path relative to the authoring root, including extension. The Assets/ prefix is optional.", Required = true)] string path,
             [CliArg("confirm", "Required (true) only when overwriting an existing asset at the destination path.")] bool confirm = false,
             [CliArg("dry-run", "If true, validate inputs and report what would be imported without writing anything.")] bool dryRun = false)
         {
             if (string.IsNullOrWhiteSpace(source))
-                throw new ArgumentException("source is required.");
+            {
+                cmd.Log.Error("source is required.");
+                return ExitCode.InvalidUsage;
+            }
             if (!File.Exists(source))
-                throw new ArgumentException($"Source file '{source}' does not exist.");
+            {
+                cmd.Log.Error($"Source file '{source}' does not exist.");
+                return ExitCode.NotFound;
+            }
 
             var normalized = ProjectPaths.Resolve(path, out var error);
             if (normalized == null)
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.InvalidUsage;
+            }
 
             var exists = AssetDatabase.LoadMainAssetAtPath(normalized) != null || File.Exists(ToAbsolute(normalized));
             if (exists && !confirm)
-                throw new ArgumentException($"An asset already exists at '{normalized}'. Pass confirm=true to overwrite it.");
+            {
+                cmd.Log.Error($"An asset already exists at '{normalized}'. Pass confirm=true to overwrite it.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (dryRun)
-                return new AuthoringResult { AssetPath = normalized, Type = "ImportedAsset" };
+            {
+                cmd.Result.Write(new AuthoringResult { AssetPath = normalized, Type = "ImportedAsset" });
+                return ExitCode.Success;
+            }
 
             EnsureParentFolder(normalized);
             File.Copy(source, ToAbsolute(normalized), overwrite: true);
@@ -168,20 +205,26 @@ namespace Unity.Pipeline.Editor.Commands.Assets
             var loaded = AssetDatabase.LoadMainAssetAtPath(normalized);
             var result = ObjectResolver.Describe(loaded) ?? new AuthoringResult();
             result.AssetPath = normalized;
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Move (or rename via a new path) an asset to a new location under the authoring root. Preserves the asset's GUID.", Tags = new[] { "assets" })]
-        public static AuthoringResult Move(
+        [CliGroupCommand(Group, "Move (or rename via a new path) an asset to a new location under the authoring root. Preserves the asset's GUID.", Tags = new[] { "assets" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode Move(CommandContext cmd,
             [CliArg("asset", "Reference to the asset to move (path / guid / globalId).", Required = true)] ObjectRef asset,
             [CliArg("destination", "Destination asset path relative to the authoring root, including extension. The Assets/ prefix is optional.", Required = true)] string destination,
             [CliArg("dry-run", "If true, validate the move (via AssetDatabase.ValidateMoveAsset) without performing it.")] bool dryRun = false)
         {
-            var sourcePath = ResolveAssetPath(asset);
+            var code = ResolveAssetPath(cmd, asset, out var sourcePath);
+            if (code != ExitCode.Success)
+                return code;
 
             var dest = ProjectPaths.Resolve(destination, out var error);
             if (dest == null)
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.InvalidUsage;
+            }
 
             // For a real move, create the destination's parent folder *before* validating: Unity's
             // ValidateMoveAsset reports failure ("move as a subdirectory") when the target folder
@@ -192,40 +235,61 @@ namespace Unity.Pipeline.Editor.Commands.Assets
 
             var validation = AssetDatabase.ValidateMoveAsset(sourcePath, dest);
             if (!string.IsNullOrEmpty(validation))
-                throw new ArgumentException($"Cannot move '{sourcePath}' to '{dest}': {validation}");
+            {
+                cmd.Log.Error($"Cannot move '{sourcePath}' to '{dest}': {validation}");
+                return ExitCode.InvalidUsage;
+            }
 
             if (dryRun)
-                return new AuthoringResult { AssetPath = dest, Type = AssetDatabase.GetMainAssetTypeAtPath(sourcePath)?.Name };
+            {
+                cmd.Result.Write(new AuthoringResult { AssetPath = dest, Type = AssetDatabase.GetMainAssetTypeAtPath(sourcePath)?.Name });
+                return ExitCode.Success;
+            }
 
             var moveError = AssetDatabase.MoveAsset(sourcePath, dest);
             if (!string.IsNullOrEmpty(moveError))
-                throw new ArgumentException($"Failed to move '{sourcePath}' to '{dest}': {moveError}");
+            {
+                cmd.Log.Error($"Failed to move '{sourcePath}' to '{dest}': {moveError}");
+                return ExitCode.Failed;
+            }
 
             var loaded = AssetDatabase.LoadMainAssetAtPath(dest);
             var result = ObjectResolver.Describe(loaded) ?? new AuthoringResult();
             result.AssetPath = dest;
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Copy an asset to a new path under the authoring root. The copy gets a fresh GUID.", Tags = new[] { "assets" })]
-        public static AuthoringResult Copy(
+        [CliGroupCommand(Group, "Copy an asset to a new path under the authoring root. The copy gets a fresh GUID.", Tags = new[] { "assets" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Copy(CommandContext cmd,
             [CliArg("asset", "Reference to the asset to copy (path / guid / globalId).", Required = true)] ObjectRef asset,
             [CliArg("destination", "Destination asset path relative to the authoring root, including extension. The Assets/ prefix is optional.", Required = true)] string destination,
             [CliArg("confirm", "Required (true) only when overwriting an existing asset at the destination path.")] bool confirm = false,
             [CliArg("dry-run", "If true, validate inputs and report what would be copied without writing anything.")] bool dryRun = false)
         {
-            var sourcePath = ResolveAssetPath(asset);
+            var code = ResolveAssetPath(cmd, asset, out var sourcePath);
+            if (code != ExitCode.Success)
+                return code;
 
             var dest = ProjectPaths.Resolve(destination, out var error);
             if (dest == null)
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.InvalidUsage;
+            }
 
             var exists = AssetDatabase.LoadMainAssetAtPath(dest) != null;
             if (exists && !confirm)
-                throw new ArgumentException($"An asset already exists at '{dest}'. Pass confirm=true to overwrite it.");
+            {
+                cmd.Log.Error($"An asset already exists at '{dest}'. Pass confirm=true to overwrite it.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (dryRun)
-                return new AuthoringResult { AssetPath = dest, Type = AssetDatabase.GetMainAssetTypeAtPath(sourcePath)?.Name };
+            {
+                cmd.Result.Write(new AuthoringResult { AssetPath = dest, Type = AssetDatabase.GetMainAssetTypeAtPath(sourcePath)?.Name });
+                return ExitCode.Success;
+            }
 
             EnsureParentFolder(dest);
 
@@ -235,26 +299,38 @@ namespace Unity.Pipeline.Editor.Commands.Assets
                 AssetDatabase.DeleteAsset(dest);
 
             if (!AssetDatabase.CopyAsset(sourcePath, dest))
-                throw new ArgumentException($"Failed to copy '{sourcePath}' to '{dest}'.");
+            {
+                cmd.Log.Error($"Failed to copy '{sourcePath}' to '{dest}'.");
+                return ExitCode.Failed;
+            }
 
             var loaded = AssetDatabase.LoadMainAssetAtPath(dest);
             var result = ObjectResolver.Describe(loaded) ?? new AuthoringResult();
             result.AssetPath = dest;
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Rename an asset in place (keeps it in the same folder, keeps its GUID).", Tags = new[] { "assets" })]
-        public static AuthoringResult Rename(
+        [CliGroupCommand(Group, "Rename an asset in place (keeps it in the same folder, keeps its GUID).", Tags = new[] { "assets" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode Rename(CommandContext cmd,
             [CliArg("asset", "Reference to the asset to rename (path / guid / globalId).", Required = true)] ObjectRef asset,
             [CliArg("new-name", "New file name WITHOUT a folder path. The extension is preserved if omitted.", Required = true)] string newName,
             [CliArg("dry-run", "If true, validate the rename without performing it.")] bool dryRun = false)
         {
             if (string.IsNullOrWhiteSpace(newName))
-                throw new ArgumentException("new-name is required.");
+            {
+                cmd.Log.Error("new-name is required.");
+                return ExitCode.InvalidUsage;
+            }
             if (newName.Contains("/") || newName.Contains("\\"))
-                throw new ArgumentException("new-name must be a file name only, not a path. Use " + CommandNames.AssetMove + " to relocate an asset.");
+            {
+                cmd.Log.Error("new-name must be a file name only, not a path. Use " + CommandNames.AssetMove + " to relocate an asset.");
+                return ExitCode.InvalidUsage;
+            }
 
-            var sourcePath = ResolveAssetPath(asset);
+            var code = ResolveAssetPath(cmd, asset, out var sourcePath);
+            if (code != ExitCode.Success)
+                return code;
 
             // Preserve the original extension when the agent omits one (AssetDatabase.RenameAsset expects no extension).
             var bareName = Path.GetFileNameWithoutExtension(newName);
@@ -263,28 +339,40 @@ namespace Unity.Pipeline.Editor.Commands.Assets
             var destPath = $"{folder}/{bareName}{extension}";
 
             if (AssetDatabase.LoadMainAssetAtPath(destPath) != null)
-                throw new ArgumentException($"An asset already exists at '{destPath}'.");
+            {
+                cmd.Log.Error($"An asset already exists at '{destPath}'.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (dryRun)
-                return new AuthoringResult { AssetPath = destPath, Type = AssetDatabase.GetMainAssetTypeAtPath(sourcePath)?.Name };
+            {
+                cmd.Result.Write(new AuthoringResult { AssetPath = destPath, Type = AssetDatabase.GetMainAssetTypeAtPath(sourcePath)?.Name });
+                return ExitCode.Success;
+            }
 
             var renameError = AssetDatabase.RenameAsset(sourcePath, bareName);
             if (!string.IsNullOrEmpty(renameError))
-                throw new ArgumentException($"Failed to rename '{sourcePath}': {renameError}");
+            {
+                cmd.Log.Error($"Failed to rename '{sourcePath}': {renameError}");
+                return ExitCode.Failed;
+            }
 
             var loaded = AssetDatabase.LoadMainAssetAtPath(destPath);
             var result = ObjectResolver.Describe(loaded) ?? new AuthoringResult();
             result.AssetPath = destPath;
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Delete an asset from the project. Destructive: requires confirm=true.", Tags = new[] { "assets" })]
-        public static AuthoringResult Delete(
+        [CliGroupCommand(Group, "Delete an asset from the project. Destructive: requires confirm=true.", Tags = new[] { "assets" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Delete(CommandContext cmd,
             [CliArg("asset", "Reference to the asset to delete (path / guid / globalId).", Required = true)] ObjectRef asset,
             [CliArg("confirm", "Must be true to actually delete. Without it the command refuses (destructive guard).")] bool confirm = false,
             [CliArg("dry-run", "If true, report the asset that would be deleted without deleting it.")] bool dryRun = false)
         {
-            var sourcePath = ResolveAssetPath(asset);
+            var code = ResolveAssetPath(cmd, asset, out var sourcePath);
+            if (code != ExitCode.Success)
+                return code;
 
             // Capture the identity before deletion so the agent gets a record of what was removed.
             var loaded = AssetDatabase.LoadMainAssetAtPath(sourcePath);
@@ -292,19 +380,29 @@ namespace Unity.Pipeline.Editor.Commands.Assets
             result.AssetPath = sourcePath;
 
             if (dryRun)
-                return result;
+            {
+                cmd.Result.Write(result);
+                return ExitCode.Success;
+            }
 
             if (!confirm)
-                throw new ArgumentException($"Refusing to delete '{sourcePath}'. Pass confirm=true to delete it (destructive, not undoable via Unity's Undo).");
+            {
+                cmd.Log.Error($"Refusing to delete '{sourcePath}'. Pass confirm=true to delete it (destructive, not undoable via Unity's Undo).");
+                return ExitCode.InvalidUsage;
+            }
 
             if (!AssetDatabase.DeleteAsset(sourcePath))
-                throw new ArgumentException($"Failed to delete '{sourcePath}'.");
+            {
+                cmd.Log.Error($"Failed to delete '{sourcePath}'.");
+                return ExitCode.Failed;
+            }
 
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Find assets by type and/or name and/or label, returning their path, GUID and type. At least one filter is required.", Tags = new[] { "assets" })]
-        public static FindAssetsResult Find(
+        [CliGroupCommand(Group, "Find assets by type and/or name and/or label, returning their path, GUID and type. At least one filter is required.", Tags = new[] { "assets" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Find(CommandContext cmd,
             [CliArg("type", "Type name to filter by (e.g. Material, GameObject, ScriptableObject, MyGame.GameConfig). Resolved to a System.Type and matched against each asset's actual main type.")] string type = null,
             [CliArg("name", "Name substring to filter by (AssetDatabase name filter).")] string name = null,
             [CliArg("label", "Asset label to filter by (AssetDatabase 'l:' filter).")] string label = null,
@@ -312,7 +410,10 @@ namespace Unity.Pipeline.Editor.Commands.Assets
             [CliArg("limit", "Maximum number of results to return (default 200).")] int limit = 200)
         {
             if (string.IsNullOrWhiteSpace(type) && string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(label))
-                throw new ArgumentException("At least one of type, name, or label is required.");
+            {
+                cmd.Log.Error("At least one of type, name, or label is required.");
+                return ExitCode.InvalidUsage;
+            }
 
             // The type filter is applied by post-filtering on each asset's actual loaded type rather
             // than via AssetDatabase's "t:" token: "t:" does NOT reliably match freshly-created/custom
@@ -332,7 +433,10 @@ namespace Unity.Pipeline.Editor.Commands.Assets
                 ? ProjectPaths.Resolve(searchIn, out scopeError)
                 : ProjectPaths.AuthoringRoot;
             if (scope == null)
-                throw new ArgumentException(scopeError);
+            {
+                cmd.Log.Error(scopeError);
+                return ExitCode.InvalidUsage;
+            }
             var searchFolders = new[] { scope };
 
             // Resolve the type filter up front so an unresolvable name fails fast with a clear message.
@@ -341,16 +445,21 @@ namespace Unity.Pipeline.Editor.Commands.Assets
             {
                 typeFilter = ResolveTypeName(type.Trim());
                 if (typeFilter == null)
-                    throw new ArgumentException(
-                        $"Could not resolve type '{type}'. Use a short name (e.g. Material) or a fully-qualified name (e.g. MyGame.GameConfig).");
+                {
+                    cmd.Log.Error($"Could not resolve type '{type}'. Use a short name (e.g. Material) or a fully-qualified name (e.g. MyGame.GameConfig).");
+                    return ExitCode.InvalidUsage;
+                }
             }
 
             // An empty name/label filter enumerates every asset under the search folders.
+            cmd.Log.Debug($"Searching {scope} with filter '{filter}'{(typeFilter != null ? $" and type {typeFilter.FullName}" : "")}.");
             var guids = AssetDatabase.FindAssets(filter ?? string.Empty, searchFolders);
 
-            var result = new FindAssetsResult { Filter = filter };
+            var written = 0;
             foreach (var guid in guids)
             {
+                cmd.CancellationToken.ThrowIfCancellationRequested();
+
                 var assetPath = AssetDatabase.GUIDToAssetPath(guid);
                 if (string.IsNullOrEmpty(assetPath))
                     continue;
@@ -359,22 +468,22 @@ namespace Unity.Pipeline.Editor.Commands.Assets
                 if (typeFilter != null && (mainType == null || !typeFilter.IsAssignableFrom(mainType)))
                     continue;
 
-                if (result.Assets.Count >= limit)
+                if (written >= limit)
                 {
-                    result.Truncated = true;
+                    cmd.Log.Warning($"Stopped at limit={limit}; more assets match. Raise limit or narrow the filter to see the rest.");
                     break;
                 }
 
-                result.Assets.Add(new AuthoringResult
+                cmd.Result.WriteRecord(new AuthoringResult
                 {
                     AssetPath = assetPath,
                     Guid = guid,
                     Type = mainType?.Name
                 });
+                written++;
             }
 
-            result.Count = result.Assets.Count;
-            return result;
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -474,10 +583,12 @@ namespace Unity.Pipeline.Editor.Commands.Assets
         /// Resolve an <see cref="ObjectRef"/> to a project-relative asset path, rejecting handles that
         /// do not resolve to an on-disk asset (scene objects have no asset path). The resolved path is
         /// confined to the authoring root so a GUID/globalId handle cannot make a destructive command
-        /// (delete/move/copy/rename) operate on an asset outside the sandbox.
+        /// (delete/move/copy/rename) operate on an asset outside the sandbox. Logs why and returns the
+        /// exit code to end with when it can't.
         /// </summary>
-        private static string ResolveAssetPath(ObjectRef asset)
+        private static ExitCode ResolveAssetPath(CommandContext cmd, ObjectRef asset, out string confined)
         {
+            confined = null;
             var assetPath = ObjectResolver.TryResolve(asset, out var obj, out var error)
                 ? AssetDatabase.GetAssetPath(obj)
                 : null;
@@ -494,16 +605,21 @@ namespace Unity.Pipeline.Editor.Commands.Assets
             }
 
             if (string.IsNullOrEmpty(assetPath))
-                throw new ArgumentException(error ?? $"Reference '{asset}' does not point at an on-disk asset.");
+            {
+                cmd.Log.Error(error ?? $"Reference '{asset}' does not point at an on-disk asset.");
+                return ExitCode.NotFound;
+            }
 
             // Confine to the authoring root. ProjectPaths.Resolve treats explicit "Assets/..." paths as
             // project-relative and rejects anything outside the configured root.
-            var confined = ProjectPaths.Resolve(assetPath, out var confineError);
+            confined = ProjectPaths.Resolve(assetPath, out var confineError);
             if (confined == null)
-                throw new ArgumentException(
-                    $"Asset '{assetPath}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {confineError}");
+            {
+                cmd.Log.Error($"Asset '{assetPath}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {confineError}");
+                return ExitCode.InvalidUsage;
+            }
 
-            return confined;
+            return ExitCode.Success;
         }
 
         /// <summary>Create the asset's parent folder chain if it does not yet exist.</summary>

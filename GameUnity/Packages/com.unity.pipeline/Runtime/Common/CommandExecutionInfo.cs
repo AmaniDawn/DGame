@@ -143,15 +143,15 @@ namespace Unity.Pipeline
         /// The <see cref="FailureKind"/> of an execution that ended with <paramref name="result"/>,
         /// having answered with <paramref name="errorCode"/> if it returned its own failure.
         /// </summary>
-        internal static string FailureKindOf(ExitCode result, string errorCode)
+        internal static string FailureKindOf(ProtocolExitCode result, string errorCode)
         {
             switch (result)
             {
-                case ExitCode.Success:
+                case ProtocolExitCode.Success:
                     return null;
-                case ExitCode.TimedOut:
+                case ProtocolExitCode.TimedOut:
                     return "TIMEOUT";
-                case ExitCode.Cancelled:
+                case ProtocolExitCode.Cancelled:
                     return "CANCELLED";
                 default:
                     return string.IsNullOrEmpty(errorCode) ? "OTHER" : errorCode;

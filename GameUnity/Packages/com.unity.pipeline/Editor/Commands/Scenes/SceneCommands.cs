@@ -22,9 +22,8 @@ namespace Unity.Pipeline.Editor.Commands.Scenes
     /// WHY the play-mode guard: <see cref="EditorSceneManager"/> mutations (new/open/save/setActive)
     /// are undefined and destructive while the editor is entering or in play mode — they can discard
     /// in-flight play-mode state or leave the scene manager inconsistent. Rather than risk corrupting
-    /// state, every mutating command refuses up front with a clear, *recoverable* error (an
-    /// <see cref="InvalidOperationException"/>, surfaced by the server as a 400 "Command Execution
-    /// Failed" without touching scene state). The caller can exit play mode and retry.
+    /// state, every mutating command refuses up front with a clear, *recoverable* error (exit code
+    /// <see cref="ExitCode.Failed"/>) without touching scene state. The caller can exit play mode and retry.
     /// </summary>
     static class SceneCommands
     {
@@ -40,17 +39,22 @@ namespace Unity.Pipeline.Editor.Commands.Scenes
 
         #region Create / Open / Save
 
-        [CliGroupCommand(Group, "Create a new scene and save it to the given path under the authoring root.", Tags = new[] { "scenes" })]
-        public static AuthoringResult Create(
+        [CliGroupCommand(Group, "Create a new scene and save it to the given path under the authoring root.", Tags = new[] { "scenes" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Create(CommandContext cmd,
             [CliArg("path", "Scene path relative to the authoring root (default Assets/); the Assets/ prefix and the .unity extension are optional. e.g. Scenes/Level1", Required = true)] string path,
             [CliArg("additive", "Open the new scene additively alongside currently open scenes instead of replacing them.", DefaultValue = false)] bool additive = false,
             [CliArg("template", "Initial contents: 'empty' (default) for a blank scene, or 'default' to seed a Main Camera + Directional Light matching Unity's built-in 3D template.", DefaultValue = TemplateEmpty)] string template = TemplateEmpty)
         {
-            GuardNotPlaying(CommandNames.SceneCreate);
+            if (RefuseInPlayMode(cmd, CommandNames.SceneCreate))
+                return ExitCode.Failed;
 
             // Validate the template up front (before touching scene state) so an unknown value fails
             // recoverably with a clear, enumerated error rather than silently doing the wrong thing.
-            var sceneSetup = ResolveSceneSetup(template);
+            if (!TryResolveSceneSetup(template, out var sceneSetup))
+            {
+                cmd.Log.Error($"Unknown template '{template}'. Valid values: '{TemplateEmpty}', '{TemplateDefault}'.");
+                return ExitCode.InvalidUsage;
+            }
 
             var normalized = ResolveScenePath(path);
             EnsureParentFolder(normalized);
@@ -63,66 +67,89 @@ namespace Unity.Pipeline.Editor.Commands.Scenes
             var scene = EditorSceneManager.NewScene(sceneSetup, setup);
 
             if (!EditorSceneManager.SaveScene(scene, normalized))
-                throw new InvalidOperationException($"Failed to save new scene to '{normalized}'.");
+            {
+                cmd.Log.Error($"Failed to save new scene to '{normalized}'.");
+                return ExitCode.Failed;
+            }
 
             AssetDatabase.Refresh();
-            return DescribeSceneAsset(normalized);
+            cmd.Result.Write(DescribeSceneAsset(normalized));
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Open an existing scene from the given path.", Tags = new[] { "scenes" })]
-        public static AuthoringResult Open(
+        [CliGroupCommand(Group, "Open an existing scene from the given path.", Tags = new[] { "scenes" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Open(CommandContext cmd,
             [CliArg("path", "Scene path relative to the authoring root (default Assets/); the Assets/ prefix and the .unity extension are optional.", Required = true)] string path,
             [CliArg("additive", "Open additively alongside currently open scenes instead of replacing them.", DefaultValue = false)] bool additive = false)
         {
-            GuardNotPlaying(CommandNames.SceneOpen);
+            if (RefuseInPlayMode(cmd, CommandNames.SceneOpen))
+                return ExitCode.Failed;
 
             var normalized = ResolveScenePath(path);
             if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(normalized)))
-                throw new InvalidOperationException($"No scene asset at '{normalized}'.");
+            {
+                cmd.Log.Error($"No scene asset at '{normalized}'.");
+                return ExitCode.NotFound;
+            }
 
             var mode = additive ? OpenSceneMode.Additive : OpenSceneMode.Single;
             var scene = EditorSceneManager.OpenScene(normalized, mode);
             if (!scene.IsValid())
-                throw new InvalidOperationException($"Failed to open scene '{normalized}'.");
+            {
+                cmd.Log.Error($"Failed to open scene '{normalized}'.");
+                return ExitCode.Failed;
+            }
 
-            return DescribeSceneAsset(normalized);
+            cmd.Result.Write(DescribeSceneAsset(normalized));
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Save an open scene. Saves the active scene when no path is given.", Tags = new[] { "scenes" })]
-        public static AuthoringResult Save(
+        [CliGroupCommand(Group, "Save an open scene. Saves the active scene when no path is given.", Tags = new[] { "scenes" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode Save(CommandContext cmd,
             [CliArg("path", "Path of the open scene to save (authoring-root relative; Assets/ prefix and .unity optional). Omit to save the active scene.")] string path = null)
         {
-            GuardNotPlaying(CommandNames.SceneSave);
+            if (RefuseInPlayMode(cmd, CommandNames.SceneSave))
+                return ExitCode.Failed;
 
             var scene = string.IsNullOrEmpty(path)
                 ? EditorSceneManager.GetActiveScene()
                 : FindOpenScene(ResolveScenePath(path));
 
             if (!scene.IsValid() || !scene.isLoaded)
-                throw new InvalidOperationException(
-                    string.IsNullOrEmpty(path)
-                        ? "No valid active scene to save."
-                        : $"Scene '{path}' is not open.");
+            {
+                cmd.Log.Error(string.IsNullOrEmpty(path)
+                    ? "No valid active scene to save."
+                    : $"Scene '{path}' is not open.");
+                return ExitCode.NotFound;
+            }
 
             // An untitled/never-saved scene has an empty path. SaveScene(scene) with no explicit path
             // would either trigger a modal "Save Scene" dialog (hangs a headless editor) or fail
             // non-deterministically. Refuse up front with a recoverable error so the caller picks a path.
             if (string.IsNullOrEmpty(scene.path))
-                throw new InvalidOperationException(
+            {
+                cmd.Log.Error(
                     $"Scene '{scene.name}' has never been saved (no path). " +
                     $"Create or save it with an explicit path first ({CommandNames.SceneCreate} <path>) — no scene state was changed.");
+                return ExitCode.Failed;
+            }
 
             if (!EditorSceneManager.SaveScene(scene))
-                throw new InvalidOperationException($"Failed to save scene '{scene.name}'.");
+            {
+                cmd.Log.Error($"Failed to save scene '{scene.name}'.");
+                return ExitCode.Failed;
+            }
 
             AssetDatabase.Refresh();
-            return DescribeSceneAsset(scene.path);
+            cmd.Result.Write(DescribeSceneAsset(scene.path));
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(EditorGroup, "Save all open scenes that have unsaved changes.", Tags = new[] { "scenes" })]
-        public static object SaveAll()
+        [CliGroupCommand(EditorGroup, "Save all open scenes that have unsaved changes.", Tags = new[] { "scenes" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SaveAll(CommandContext cmd)
         {
-            GuardNotPlaying(CommandNames.EditorSaveAll);
+            if (RefuseInPlayMode(cmd, CommandNames.EditorSaveAll))
+                return ExitCode.Failed;
 
             // SaveOpenScenes saves every loaded, dirty scene. A dirty untitled scene (empty path) would
             // make it pop a modal "Save Scene" dialog, which hangs a headless editor. Fail fast with a
@@ -130,32 +157,41 @@ namespace Unity.Pipeline.Editor.Commands.Scenes
             var dirty = OpenScenes().Where(s => s.isDirty).ToList();
             var untitled = dirty.Where(s => string.IsNullOrEmpty(s.path)).Select(s => s.name).ToList();
             if (untitled.Count > 0)
-                throw new InvalidOperationException(
+            {
+                cmd.Log.Error(
                     $"Cannot save all: {untitled.Count} dirty scene(s) have never been saved ({string.Join(", ", untitled)}). " +
                     $"Save each with an explicit path first ({CommandNames.SceneCreate} <path>) — no scenes were saved.");
+                return ExitCode.Failed;
+            }
 
             // Report which scenes it touched.
             var dirtyBefore = dirty.Select(s => s.path).ToList();
 
-            var saved = EditorSceneManager.SaveOpenScenes();
-            if (!saved && dirtyBefore.Count > 0)
-                throw new InvalidOperationException("Failed to save one or more open scenes.");
+            if (!EditorSceneManager.SaveOpenScenes() && dirtyBefore.Count > 0)
+            {
+                cmd.Log.Error("Failed to save one or more open scenes.");
+                return ExitCode.Failed;
+            }
 
             AssetDatabase.Refresh();
-            return new { saved, scenes = dirtyBefore };
+            foreach (var scenePath in dirtyBefore)
+                cmd.Result.WriteRecord(new { path = scenePath });
+            cmd.Log.Info($"Saved {dirtyBefore.Count} scene(s).");
+            return ExitCode.Success;
         }
 
         #endregion
 
         #region Inspect / Active
 
-        [CliGroupCommand(Group, "List all currently open scenes with their load/active/dirty state.", Tags = new[] { "scenes" })]
-        public static object ListOpen()
+        [CliGroupCommand(Group, "List all currently open scenes with their load/active/dirty state.", Tags = new[] { "scenes" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode ListOpen(CommandContext cmd)
         {
             // Read-only; safe in play mode, so no guard here.
             var active = SceneManager.GetActiveScene();
-            var scenes = OpenScenes()
-                .Select(s => new
+            foreach (var s in OpenScenes())
+            {
+                cmd.Result.WriteRecord(new
                 {
                     name = s.name,
                     path = s.path,
@@ -163,31 +199,39 @@ namespace Unity.Pipeline.Editor.Commands.Scenes
                     isDirty = s.isDirty,
                     isActive = s.handle == active.handle,
                     rootCount = s.isLoaded ? s.rootCount : 0
-                })
-                .ToList();
+                });
+            }
 
-            return new { count = scenes.Count, scenes };
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Set which open scene is the active scene (new objects are created in the active scene).", Tags = new[] { "scenes" })]
-        public static AuthoringResult SetActive(
+        [CliGroupCommand(Group, "Set which open scene is the active scene (new objects are created in the active scene).", Tags = new[] { "scenes" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetActive(CommandContext cmd,
             [CliArg("path", "Path of an already-open scene to make active (authoring-root relative; Assets/ prefix and .unity optional).", Required = true)] string path)
         {
-            GuardNotPlaying(CommandNames.SceneSetActive);
+            if (RefuseInPlayMode(cmd, CommandNames.SceneSetActive))
+                return ExitCode.Failed;
 
             var normalized = ResolveScenePath(path);
             var scene = FindOpenScene(normalized);
             if (!scene.IsValid() || !scene.isLoaded)
-                throw new InvalidOperationException($"Scene '{path}' is not open; open it before making it active.");
+            {
+                cmd.Log.Error($"Scene '{path}' is not open; open it with {CommandNames.SceneOpen} before making it active.");
+                return ExitCode.NotFound;
+            }
 
             if (!SceneManager.SetActiveScene(scene))
-                throw new InvalidOperationException($"Failed to set '{normalized}' as the active scene.");
+            {
+                cmd.Log.Error($"Failed to set '{normalized}' as the active scene.");
+                return ExitCode.Failed;
+            }
 
-            return DescribeSceneAsset(scene.path);
+            cmd.Result.Write(DescribeSceneAsset(scene.path));
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Return the GameObject tree of an open scene (or the active scene). Each node carries instanceId + hierarchyPath usable by GameObject commands.", Tags = new[] { "scenes" })]
-        public static SceneHierarchy GetHierarchy(
+        [CliGroupCommand(Group, "Return the GameObject tree of an open scene (or the active scene). Each node carries instanceId + hierarchyPath usable by GameObject commands.", Tags = new[] { "scenes" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetHierarchy(CommandContext cmd,
             [CliArg("path", "Path of the open scene to snapshot (authoring-root relative; Assets/ prefix and .unity optional). Omit for the active scene.")] string path = null)
         {
             // Read-only; safe in play mode.
@@ -196,10 +240,12 @@ namespace Unity.Pipeline.Editor.Commands.Scenes
                 : FindOpenScene(ResolveScenePath(path));
 
             if (!scene.IsValid() || !scene.isLoaded)
-                throw new InvalidOperationException(
-                    string.IsNullOrEmpty(path)
-                        ? "No valid active scene to read."
-                        : $"Scene '{path}' is not open.");
+            {
+                cmd.Log.Error(string.IsNullOrEmpty(path)
+                    ? "No valid active scene to read."
+                    : $"Scene '{path}' is not open.");
+                return ExitCode.NotFound;
+            }
 
             var active = SceneManager.GetActiveScene();
             var hierarchy = new SceneHierarchy
@@ -213,23 +259,28 @@ namespace Unity.Pipeline.Editor.Commands.Scenes
             foreach (var root in scene.GetRootGameObjects())
                 hierarchy.Roots.Add(BuildNode(root, "/" + root.name));
 
-            return hierarchy;
+            cmd.Result.Write(hierarchy);
+            return ExitCode.Success;
         }
 
         #endregion
 
         #region Build settings
 
-        [CliGroupCommand(Group, "Add a scene to the Build Settings scene list (idempotent). Optionally enable it.", Tags = new[] { "scenes", "build/settings" })]
-        public static object AddToBuild(
+        [CliGroupCommand(Group, "Add a scene to the Build Settings scene list (idempotent). Optionally enable it.", Tags = new[] { "scenes", "build/settings" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode AddToBuild(CommandContext cmd,
             [CliArg("path", "Scene path to add (authoring-root relative; Assets/ prefix and .unity optional).", Required = true)] string path,
             [CliArg("enabled", "Whether the scene is enabled in the build list.", DefaultValue = true)] bool enabled = true)
         {
-            GuardNotPlaying(CommandNames.SceneAddToBuild);
+            if (RefuseInPlayMode(cmd, CommandNames.SceneAddToBuild))
+                return ExitCode.Failed;
 
             var normalized = ResolveScenePath(path);
             if (string.IsNullOrEmpty(AssetDatabase.AssetPathToGUID(normalized)))
-                throw new InvalidOperationException($"No scene asset at '{normalized}'.");
+            {
+                cmd.Log.Error($"No scene asset at '{normalized}'.");
+                return ExitCode.NotFound;
+            }
 
             var scenes = EditorBuildSettings.scenes.ToList();
             var existing = scenes.FindIndex(s => PathsEqual(s.path, normalized));
@@ -245,20 +296,23 @@ namespace Unity.Pipeline.Editor.Commands.Scenes
             }
 
             EditorBuildSettings.scenes = scenes.ToArray();
-            return new { path = normalized, enabled, buildIndex = SceneUtility.GetBuildIndexByScenePath(normalized), count = scenes.Count };
+            cmd.Result.Write(new { path = normalized, enabled, buildIndex = SceneUtility.GetBuildIndexByScenePath(normalized), count = scenes.Count });
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Remove a scene from the Build Settings scene list (idempotent).", Tags = new[] { "scenes", "build/settings" })]
-        public static object RemoveFromBuild(
+        [CliGroupCommand(Group, "Remove a scene from the Build Settings scene list (idempotent).", Tags = new[] { "scenes", "build/settings" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode RemoveFromBuild(CommandContext cmd,
             [CliArg("path", "Scene path to remove (authoring-root relative; Assets/ prefix and .unity optional).", Required = true)] string path)
         {
-            GuardNotPlaying(CommandNames.SceneRemoveFromBuild);
+            if (RefuseInPlayMode(cmd, CommandNames.SceneRemoveFromBuild))
+                return ExitCode.Failed;
 
             var normalized = ResolveScenePath(path);
             var scenes = EditorBuildSettings.scenes.ToList();
             var removed = scenes.RemoveAll(s => PathsEqual(s.path, normalized));
             EditorBuildSettings.scenes = scenes.ToArray();
-            return new { path = normalized, removed = removed > 0, count = scenes.Count };
+            cmd.Result.Write(new { path = normalized, removed = removed > 0, count = scenes.Count });
+            return ExitCode.Success;
         }
 
         #endregion
@@ -266,36 +320,42 @@ namespace Unity.Pipeline.Editor.Commands.Scenes
         #region Helpers
 
         /// <summary>
-        /// Refuse a mutating scene op while entering or in play mode. We deliberately throw a
-        /// recoverable <see cref="InvalidOperationException"/> *before* touching any state, so the
-        /// command surfaces as a clean failure rather than leaving the scene manager inconsistent.
+        /// Refuse a mutating scene op while entering or in play mode, logging why, *before* touching
+        /// any state, so the command ends as a clean failure rather than leaving the scene manager
+        /// inconsistent. Returns true when the command must stop.
         /// </summary>
-        private static void GuardNotPlaying(string command)
+        private static bool RefuseInPlayMode(CommandContext cmd, string command)
         {
-            if (EditorApplication.isPlayingOrWillChangePlaymode)
-                throw new InvalidOperationException(
-                    $"'{command}' cannot run while the editor is in (or entering) play mode. " +
-                    $"Exit play mode ({CommandNames.EditorPlaymodeStop}) and retry — no scene state was changed.");
+            if (!EditorApplication.isPlayingOrWillChangePlaymode)
+                return false;
+
+            cmd.Log.Error(
+                $"'{command}' cannot run while the editor is in (or entering) play mode. " +
+                $"Exit play mode ({CommandNames.EditorPlaymodeStop}) and retry — no scene state was changed.");
+            return true;
         }
 
         /// <summary>
         /// Map the create_scene <c>template</c> argument to a <see cref="NewSceneSetup"/>. "empty"
         /// (or a null/blank value) keeps the historical blank-scene behavior; "default" seeds Unity's
-        /// built-in "3D" template (Main Camera tagged MainCamera + Directional Light). An unknown value
-        /// throws a recoverable <see cref="ArgumentException"/> listing the valid options.
+        /// built-in "3D" template (Main Camera tagged MainCamera + Directional Light). Returns false
+        /// for an unknown value.
         /// </summary>
-        private static NewSceneSetup ResolveSceneSetup(string template)
+        private static bool TryResolveSceneSetup(string template, out NewSceneSetup setup)
         {
             // Treat a null/blank template as the default ("empty") for parity with an omitted argument.
             var value = string.IsNullOrWhiteSpace(template) ? TemplateEmpty : template.Trim();
 
+            setup = NewSceneSetup.EmptyScene;
             if (string.Equals(value, TemplateEmpty, StringComparison.OrdinalIgnoreCase))
-                return NewSceneSetup.EmptyScene;
+                return true;
             if (string.Equals(value, TemplateDefault, StringComparison.OrdinalIgnoreCase))
-                return NewSceneSetup.DefaultGameObjects;
+            {
+                setup = NewSceneSetup.DefaultGameObjects;
+                return true;
+            }
 
-            throw new ArgumentException(
-                $"Unknown template '{template}'. Valid values: '{TemplateEmpty}', '{TemplateDefault}'.");
+            return false;
         }
 
         /// <summary>Resolve an agent path through the sandbox and normalize it to a "*.unity" asset path.</summary>

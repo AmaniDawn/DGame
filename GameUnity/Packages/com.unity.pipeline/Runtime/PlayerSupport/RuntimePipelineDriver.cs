@@ -60,7 +60,7 @@ namespace Unity.Pipeline
         private bool m_RunInBackgroundOverridden;
 
         /// <summary>Get the runtime server instance if it's running.</summary>
-        public RuntimePipelineServer Server => m_Server;
+        internal RuntimePipelineServer Server => m_Server;
 
         /// <summary>Whether the server is currently running.</summary>
         public bool IsServerRunning => m_Server != null && m_Server.IsRunning;
@@ -69,10 +69,10 @@ namespace Unity.Pipeline
         public int ActualPort => m_Server?.Port ?? 0;
 
         /// <summary>The configuration this driver was initialized with.</summary>
-        public RuntimePipelineConfig Config => m_Config;
+        internal RuntimePipelineConfig Config => m_Config;
 
         /// <summary>Absolute roots this build may method reload source files from. Baked at build time.</summary>
-        public IReadOnlyList<string> AllowedReloadRoots => m_AllowedReloadRoots;
+        internal IReadOnlyList<string> AllowedReloadRoots => m_AllowedReloadRoots;
 
         /// <summary>
         /// Supply configuration and baked method-reload roots. Must be called once, immediately after
@@ -81,7 +81,7 @@ namespace Unity.Pipeline
         /// <param name="config">The configuration to run with.</param>
         /// <param name="allowedReloadRoots">Absolute roots this build may method reload source files from.</param>
         /// <param name="pushPublicKey">Public half of the push-signing key pushes must be signed with; empty rejects all pushes.</param>
-        public void Initialize(RuntimePipelineConfig config, IReadOnlyList<string> allowedReloadRoots,
+        internal void Initialize(RuntimePipelineConfig config, IReadOnlyList<string> allowedReloadRoots,
             string pushPublicKey = "")
         {
             m_Config = config;
@@ -90,7 +90,7 @@ namespace Unity.Pipeline
         }
 
         /// <summary>Public half of the project push-signing key. Baked at build time.</summary>
-        public string PushPublicKey => m_PushPublicKey;
+        internal string PushPublicKey => m_PushPublicKey;
 
         void Awake()
         {
@@ -330,7 +330,7 @@ namespace Unity.Pipeline
         /// (rather than reading m_Config.maxWorkItemsPerFrame directly) so status reporting and
         /// Update() can never disagree about which value is actually in effect.
         /// </summary>
-        public int CurrentMaxWorkItemsPerFrame
+        internal int CurrentMaxWorkItemsPerFrame
         {
             get
             {
@@ -759,7 +759,7 @@ namespace Unity.Pipeline
 
         /// <summary>Validate the current configuration.</summary>
         /// <returns>The validation result.</returns>
-        public ValidationResult ValidateConfiguration()
+        internal ValidationResult ValidateConfiguration()
         {
             return m_Config != null ? m_Config.Validate() : ValidationResult.Error("No RuntimePipelineConfig assigned");
         }

@@ -10,7 +10,7 @@ namespace Unity.Pipeline.Models
     /// console.
     /// </summary>
     [Serializable]
-    public class ConsoleGroundTruth
+    internal class ConsoleGroundTruth
     {
         /// <summary>When the sample was taken (UTC).</summary>
         [JsonProperty("sampledUtc")]

@@ -16,9 +16,19 @@ namespace Unity.Pipeline.Editor.Commands
     {
         const string Group = "editor";
 
-        [CliGroupCommand(Group, "Get detailed Unity Editor status and state information", Tags = new[] { "editor" })]
+        [CliGroupCommand(Group, "Get detailed Unity Editor status and state information", Tags = new[] { "editor" }, Effect = CommandEffect.ReadOnly)]
         [ImmediateCommand]
-        public static StatusResponse Status()
+        internal static ExitCode Status(CommandContext cmd)
+        {
+            cmd.Result.Write(GetStatus());
+            return ExitCode.Success;
+        }
+
+        /// <summary>
+        /// The Editor's state, read on the main thread. Also serves the <c>/api/editor_status</c>
+        /// endpoint and the snapshot taken before a dialog blocks the main thread.
+        /// </summary>
+        internal static StatusResponse GetStatus()
         {
             // On the main thread here, so take a fresh sample rather than one up to an update old.
             EditorPipelineServer.SamplePlayerLoop();

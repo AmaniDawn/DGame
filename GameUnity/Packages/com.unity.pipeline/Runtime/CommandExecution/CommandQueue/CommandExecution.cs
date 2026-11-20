@@ -38,16 +38,20 @@ namespace Unity.Pipeline.Commands
         volatile int m_State;
 
         /// <summary>
-        /// Cancelled by <see cref="Cancel"/>. Never disposed: it has no timer and no wait handle, so
-        /// a Cancel after it ended has nothing to fail on.
+        /// Cancelled by <see cref="Cancel"/> or once it runs out of time (<see cref="TimeOut"/>).
+        /// Never disposed: it has no timer and no wait handle, so a cancel after it ended has
+        /// nothing to fail on.
         /// </summary>
         readonly CancellationTokenSource m_Cancellation = new CancellationTokenSource();
+
+        /// <summary>Whether a client asked it to stop, as opposed to it running out of time.</summary>
+        volatile bool m_CancellationRequested;
 
         /// <summary>
         /// Completes once it ended and its report was made. Continuations run asynchronously, so
         /// an awaiter never runs inside the queue's own code.
         /// </summary>
-        readonly TaskCompletionSource<ExitCode> m_Completion = new (TaskCreationOptions.RunContinuationsAsynchronously);
+        readonly TaskCompletionSource<ProtocolExitCode> m_Completion = new (TaskCreationOptions.RunContinuationsAsynchronously);
 
         /// <param name="id">Its id.</param>
         /// <param name="command">The full name of the command it runs.</param>
@@ -72,8 +76,8 @@ namespace Unity.Pipeline.Commands
         {
             var execution = new CommandExecution(CommandExecutionId.New(), group, null, null) { ListedGroup = group };
             execution.MarkRunning();
-            execution.MarkEnded(ExitCode.Success);
-            execution.Complete(ExitCode.Success);
+            execution.MarkEnded(ProtocolExitCode.Success);
+            execution.Complete(ProtocolExitCode.Success);
             return execution;
         }
 
@@ -102,14 +106,14 @@ namespace Unity.Pipeline.Commands
         public CommandExecutionState State => (CommandExecutionState)m_State;
 
         /// <summary>How it ended; null until it has.</summary>
-        public ExitCode? Result { get; private set; }
+        public ProtocolExitCode? Result { get; private set; }
 
         /// <summary>Whether a client asked it to stop.</summary>
-        public bool CancellationRequested => m_Cancellation.IsCancellationRequested;
+        public bool CancellationRequested => m_CancellationRequested;
 
         /// <summary>
         /// Cancelled once a client asks it to stop, for the queue to stop waiting for its turn at
-        /// once rather than when it comes.
+        /// once rather than when it comes, or once it runs out of time, for the command to stop.
         /// </summary>
         internal CancellationToken CancellationToken => m_Cancellation.Token;
 
@@ -121,6 +125,12 @@ namespace Unity.Pipeline.Commands
         /// (<see cref="CommandExecutionResponse.FailureStatusCode"/>); null otherwise. Set before it ends.
         /// </summary>
         internal CommandExecutionResponse ReturnedFailure { get; set; }
+
+        /// <summary>
+        /// Whether its command returns its exit code, so <see cref="Result"/> alone says whether it
+        /// succeeded, whatever it wrote. Set before it runs.
+        /// </summary>
+        internal bool ReturnsExitCode { get; set; }
 
         /// <summary>What it recorded about itself for analytics, when it is an eval; null otherwise.</summary>
         internal Telemetry.EvalAnalyticsDetails EvalDetails { get; set; }
@@ -138,10 +148,10 @@ namespace Unity.Pipeline.Commands
         /// Completes with its result once it ended and its report was made, however it is awaited:
         /// while it waits, while it runs, or after it ended.
         /// </summary>
-        public TaskAwaiter<ExitCode> GetAwaiter() => m_Completion.Task.GetAwaiter();
+        public TaskAwaiter<ProtocolExitCode> GetAwaiter() => m_Completion.Task.GetAwaiter();
 
         /// <summary>Lets its awaiters go on, once it ended and its report was made.</summary>
-        internal void Complete(ExitCode result)
+        internal void Complete(ProtocolExitCode result)
         {
             m_Completion.TrySetResult(result);
         }
@@ -157,8 +167,19 @@ namespace Unity.Pipeline.Commands
             if (State == CommandExecutionState.Ended)
                 return false;
 
+            m_CancellationRequested = true;
             m_Cancellation.Cancel();
             return true;
+        }
+
+        /// <summary>
+        /// Signals <see cref="CancellationToken"/> once the queue gave up on it for running out of
+        /// time, so a command still waiting on that token stops. Not a cancellation request:
+        /// <see cref="CancellationRequested"/> stays false and it still ends as timed out.
+        /// </summary>
+        internal void TimeOut()
+        {
+            m_Cancellation.Cancel();
         }
 
         internal void MarkRunning()
@@ -167,7 +188,7 @@ namespace Unity.Pipeline.Commands
             m_State = (int)CommandExecutionState.Running;
         }
 
-        internal void MarkEnded(ExitCode result)
+        internal void MarkEnded(ProtocolExitCode result)
         {
             Result = result;
             EndedAt = DateTime.UtcNow;

@@ -6,6 +6,7 @@ using Unity.Pipeline.Commands;
 using Unity.Pipeline.Editor.Authoring;
 using Unity.Pipeline.Models;
 using UnityEditor;
+using static Unity.Pipeline.Editor.Commands.CommandFailure;
 
 namespace Unity.Pipeline.Editor.Commands.Scripts
 {
@@ -47,8 +48,9 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
         [CliGroupCommand(Group,
             "Create a new C# script (default base class MonoBehaviour) from a template under the authoring root. " +
             "NOTE: the type does not exist until a recompile completes — to attach it, call " + CommandNames.ScriptRecompile + ", poll " + CommandNames.ScriptRecompileStatus + ", then " + CommandNames.ScriptAttach + ".",
-            Tags = new[] { "scripts" })]
-        public static AuthoringResult Create(
+            Tags = new[] { "scripts" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode Create(CommandContext cmd,
             [CliArg("name", "Class/file name without extension, e.g. PlayerController. Must be a valid C# identifier.", Required = true)] string name,
             [CliArg("path", "Folder (relative to the authoring root; the Assets/ prefix is optional) to write the .cs into. Defaults to the authoring root.")] string path = null,
             [CliArg("namespace", "Optional namespace to wrap the class in. Omit for the global namespace.")] string @namespace = null,
@@ -56,14 +58,14 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
             [CliArg("overwrite", "Overwrite the file if it already exists. Defaults to false (an existing file is an error).")] bool overwrite = false)
         {
             if (string.IsNullOrWhiteSpace(name))
-                throw new ArgumentException("Script 'name' is required.");
+                return Fail(cmd, ExitCode.InvalidUsage, "Script 'name' is required.");
 
             var className = name.Trim();
             if (className.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
                 className = className.Substring(0, className.Length - 3);
 
             if (!IsValidIdentifier(className))
-                throw new ArgumentException($"Script name '{className}' is not a valid C# class identifier.");
+                return Fail(cmd, ExitCode.InvalidUsage, $"Script name '{className}' is not a valid C# class identifier.");
 
             if (string.IsNullOrWhiteSpace(baseClass))
                 baseClass = "MonoBehaviour";
@@ -80,16 +82,16 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
             {
                 folder = ProjectPaths.Resolve(path, out var error);
                 if (folder == null)
-                    throw new ArgumentException(error);
+                    return Fail(cmd, ExitCode.InvalidUsage, error);
             }
 
             if (!AssetDatabase.IsValidFolder(folder))
-                throw new ArgumentException(
+                return Fail(cmd, ExitCode.NotFound,
                     $"Destination folder '{folder}' does not exist. Create it first with {CommandNames.AssetCreateFolder}.");
 
             var assetPath = $"{folder}/{className}.cs";
             if (File.Exists(ToAbsolute(assetPath)) && !overwrite)
-                throw new ArgumentException(
+                return Fail(cmd, ExitCode.Failed,
                     $"A script already exists at '{assetPath}'. Pass overwrite=true to replace it.");
 
             var source = BuildSource(className, @namespace, baseClass);
@@ -104,8 +106,10 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
             var script = AssetDatabase.LoadAssetAtPath<MonoScript>(assetPath);
             var result = ObjectResolver.Describe(script) ?? new AuthoringResult { Type = "MonoScript" };
             result.AssetPath = assetPath;
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
+
 
         /// <summary>
         /// Build the script source from the template, substituting the class name, optional namespace

@@ -4,6 +4,95 @@ All notable changes to this package will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.0.1] - 2026-11-19
+
+### Fixed
+
+- [UUM-161354] When using the set_auto_tick command, we ensure to trigger delayCall at the same rate a unity in the foreground would do.
+
+## [1.0.0] - 2026-11-11
+
+### Changed
+
+- First stable release. The package is no longer in pre-release.
+
+## [1.0.0-pre.1] - 2026-11-05
+
+### Added
+
+- [AUTHAPI-111] Every command declares an effect, and the command catalog reports whether it is read-only, destructive or idempotent.
+- Commands to open capture sessions on saved Profiler captures and summarize them, break down a frame and aggregate markers over a frame range, with marker descriptions.
+- Commands to rank frames by CPU and GC time and trace a frame's hot path, with exclusions and drillable samples in marker rankings.
+- Opening a capture session asks for confirmation before it replaces the Profiler history, and is refused while a memory snapshot runs.
+- [EAD-2323] A Scene Preview importer, `Unity.Pipeline.Editor.Previews.PreviewSceneArtifactImporter`, that builds a content archive of an asset for Project Service.
+- [EAD-2323] A `Unity.Pipeline.ScenePreview` runtime assembly with `ContentArchiveLoader`, for loading those archives in a player. It compiles only into players built with the `ENABLE_PIPELINE_SCENE_PREVIEW` scripting define, which the preview build profile sets.
+- [EAD-2323] A Scene Preview section in Project Settings > Pipeline > Editor to pick the preview build profile, create one with the `ENABLE_PIPELINE_SCENE_PREVIEW` define, and generate the assemblies a preview may contain, kept in `Assets/Settings/ScenePreview/ScenePreviewSettings.asset`. Building the preview build profile without that define fails with a message naming the fix.
+- [UUM-157054] An object reference path can name a GameObject inside a prefab, such as `Assets/UI/Screen.prefab:Canvas/Header`.
+- Commands can take a context that writes results in the picked format, logs by level, reads piped input, and returns an exit code, at once or asynchronously.
+- A `--log-level` option sets how much a command logs to stderr.
+- Profiler capture analysis now covers counters, GPU time, GC allocation callstacks and overlapping samples.
+- [AUTHAPI-39] `test status` takes `--detail` to return only the failed tests' results or only the counts.
+- The Editor advertises the `tests.camelCase` capability.
+- A `--log-format json` option that writes command logs as one JSON object per line.
+- Commands can read and write binary data on their standard input and output.
+
+### Changed
+
+- [AUTHAPI-123] `ProjectPaths.ResetAuthoringRoot` is now internal.
+- [UUM-157054] `component set_field` reads an enum number as the enum's value, not its declaration index, and accepts [Flags] combinations by name.
+- An async command that ends on a cancellation nobody asked for now fails instead of ending cancelled.
+- [UUM-154463] Building with a Build Profile that is missing, cannot be activated, or is on another build target is now refused instead of building with the current settings.
+- [UUM-154463] A valid build dry run now reports the build target and scenes it would use.
+- `test run` and `test status` name every field of their replies in camelCase, so both use `summary.total` and `results[].fullName`.
+- Command logs label errors, warnings and debug messages, and color the labels when stderr is a terminal.
+- [AUTHAPI-114] `editor.playmode start` and `start_scenario` turn Run In Background on until Play mode exits, so an unfocused Editor keeps running the game; `--run-in-background false` keeps the project's value.
+- Every built-in command now reports failure through its exit code, with the reason in the error details, instead of a thrown exception.
+- `test run` now defaults to editor mode.
+- `test run` with mode `all` now needs `async-tests`, and runs as one run whose status reports both modes' results.
+- A batch that runs out of time now exits with the timeout code (14) instead of failed (6).
+- `script eval` now reports each compile error on its own error line, with its line and column.
+- A canceled job's reply now includes what the command logged as an error.
+- `test status` now exits cancelled (130) for a cancelled run.
+- `test status` for an errored or cancelled run now reports "Command Execution Failed" instead of "Test Run Failed" or "Test Run Cancelled".
+
+### Removed
+
+- [AUTHAPI-123] The deprecated `capture screenshot` and `script eval_file` commands.
+- [AUTHAPI-123] Old ungrouped command names no longer point to their replacements, and the commands catalog no longer lists them.
+- [AUTHAPI-123] `MethodReloadAttribute.Id` and `MethodReloadOverrideMethodAttribute.Description`.
+- [AUTHAPI-123] `CommandExecutionResponse.DialogsDuringExecution` and the public `ScriptCompileException`.
+- [AUTHAPI-87] The server classes, the main-thread dispatcher and the runtime settings types are no longer public.
+- [AUTHAPI-87] The status, console log, compile diagnostic and argument problem reply models are no longer public; replies are unchanged.
+- [AUTHAPI-87] The compilation, console capture and object id types are no longer public.
+- [AUTHAPI-87] Method reload's registry and statistics are no longer public, apart from the calls woven into reloadable methods.
+- [AUTHAPI-87] The runtime driver no longer exposes its setup members, its server or its settings.
+- The `FindAssetsResult`, `FindGameObjectsResult` and `CreateGameObjectsResult` wrapper types.
+- [AUTHAPI-115] The pre-kebab-case parameter names `outputPath`, `since_session` and `group_by` are no longer accepted; older `unity` CLIs that send them get INVALID_COMMAND_ARGS.
+
+### Fixed
+
+- [AUTHAPI-123] The commands catalog reports the package version.
+- [AUTHAPI-123] The Multiplayer Play Mode and connectivity docs use current command names.
+- [AUTHAPI-100] Security fixes for STAR Process.
+- [UUM-157047] test run and test status now fail with a non-zero exit when filter_type is invalid, no tests match, or any test fails.
+- [AUTHAPI-121] `test cancel`, a synchronous `test run` timing out, and starting a new `test run` now stop the run in progress.
+- [AUTHAPI-121] `test status` now reports a synchronous `test run` that a domain reload interrupted, instead of no run.
+- [AUTHAPI-122] Eval no longer fails with an internal error after an eval with `internals` while analytics are on.
+- [UUM-160005] `capture game_view` now says when Play Mode had no new frame to draw, instead of silently returning the last frame.
+- [UUM-157054] `component set_field` accepts vectors, colors and rects as an array or an "x,y" string, not only as an object.
+- [UUM-157054] `component set_field` and `component get_fields` read and write [Serializable] structs and lists of them as JSON objects.
+- A command that stops because it was cancelled no longer logs an error.
+- [UUM-154463] Building with a Build Profile now builds that profile's scene list even when the profile is not active yet.
+- [AUTHAPI-39] A failed `test status` poll now includes the run's counts, failure messages and stack traces.
+- Method reload of a partial class whose reloaded method is not in the first declaration of the class in the file.
+- [AUTHAPI-114] `editor.playmode start` fails while scripts have compile errors instead of reporting that play mode was entered.
+- [AUTHAPI-114] A Multiplayer Play Mode clone no longer clears the main Editor's Run In Background override, so the project's value comes back after a scenario stops.
+
+### Security
+
+- [AUTHAPI-100] In the Editor, `script.methodreload reload` and `script run --mode hotpatch` now reject source files outside `Assets/` and the loaded packages.
+- [AUTHAPI-100] The Editor no longer writes its port descriptor when it can't restrict it to the current user; clients can't connect until that is fixed, and an error is logged.
+
 ## [0.10.0-exp.1] - 2026-11-02
 
 ### Added
@@ -32,7 +121,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - [AUTHAPI-74] Improve Async Eval.
 - [UUM-159061] Moved the Window > Pipeline menu into the main tools section of the Window menu.
 - [AUTHAPI-76] The Pipeline protocol transport returns the unity CLI's exit codes.
-- [UUM-157059] A relative capture `save_path` resolves from the project root instead of `Assets/`, an absolute path is accepted, and `savedPath` is absolute.
+- [UUM-157059] A relative capture `output-path` resolves from the project root instead of `Assets/`, an absolute path is accepted, and `savedPath` is absolute.
 - [AUTHAPI-112] `pipeline list_commands` and a bare group name list commands as the `unity` CLI lays them out, when the client asks for formatted output.
 - [AUTHAPI-112] `component get_fields` takes `detail=value` in place of `format=value`.
 - [AUTHAPI-112] `script run` lists a script's compile errors in its failure message.
@@ -40,10 +129,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - [DOCATT-11460] updating the samples page to make sure it matches the content model.
 - [AUTHAPI-119] The editor server's settings are now stored per user in UserSettings/, no longer in version-controlled ProjectSettings/; an existing settings file is moved there.
 - [AUTHAPI-119] An override from editor.playmode set_run_in_background now ends when the Editor quits, as documented.
+- [AUTHAPI-115] Command parameters are kebab-case, like the unity CLI's own options (--dry-run, --output-path); the old spellings are refused.
+- [AUTHAPI-115] On/off parameters are named enabled, files a command writes are output-path, and package add takes name.
+- [AUTHAPI-115] A structured request naming a parameter or key the command does not have is refused instead of ignored.
+- [AUTHAPI-115] Settings get results use the same keys as settings set, so a value read can be sent back.
 
 ### Deprecated
 
-- `capture screenshot`; use `capture game_view` or `capture scene_view` with `save_path`.
+- `capture screenshot`; use `capture game_view` or `capture scene_view` with `output-path`.
+- [AUTHAPI-115] build run still accepts outputPath, console get since_session and pipeline list_commands group_by, as keys or flags, which released unity CLIs send; all are removed in 1.0.0.
 
 ### Removed
 
@@ -66,6 +160,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/) 
 - [UUM-153627] `capture game_view` works in batchmode: it opens a Game view on demand, and falls back to a camera capture, saying so in the result's message, when that view has no frame yet.
 - [AUTHAPI-119] Overriding Run In Background no longer writes the override into ProjectSettings.asset when the project is saved or the Editor quits.
 - [AUTHAPI-116] A quoted command name such as "test run" now runs the command instead of failing as not found.
+- [AUTHAPI-115] wait's on-met capture now writes its file and returns its inline image.
 
 ## [0.9.1-exp.1] - 2026-10-22
 

@@ -26,7 +26,7 @@ namespace Unity.Pipeline
     /// Stderr and Progress frames, until the server sends Exit and closes. The client closes early to abandon the
     /// command.</item>
     /// </list>
-    /// <para>Specified in the repository's <c>docs/pipeline-protocol.md</c>, and mirrored by the engine's
+    /// <para>Specified in the repository's <c>architecture/docs/pipeline-protocol.md</c>, and mirrored by the engine's
     /// <c>Modules/PipelineEditor/Protocol/PipelineProtocol.h</c>; change all three together.</para>
     /// </remarks>
 #if UNITY_6000_5_OR_NEWER

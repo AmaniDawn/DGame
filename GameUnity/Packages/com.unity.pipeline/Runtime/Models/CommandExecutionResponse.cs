@@ -101,10 +101,11 @@ namespace Unity.Pipeline.Models
         /// than bailing, so a user fixing a command line sees all of its problems at once.
         /// Machine-readable rather than prose, because the <c>unity</c> CLI renders and localizes
         /// these itself; <see cref="BaseResponse.ErrorDetails"/> carries the English fallback for
-        /// clients that do not.
+        /// clients that do not. Internal, since only the server fills it: [JsonProperty] still
+        /// serializes it.
         /// </summary>
         [JsonProperty("argProblems", NullValueHandling = NullValueHandling.Ignore)]
-        public List<ArgProblem> ArgProblems { get; set; }
+        internal List<ArgProblem> ArgProblems { get; set; }
 
         /// <summary>
         /// The resolved command's catalog entry, shaped like a /api/commands <c>commands[]</c>
@@ -177,14 +178,6 @@ namespace Unity.Pipeline.Models
         /// </summary>
         [JsonProperty("busyReason", NullValueHandling = NullValueHandling.Ignore)]
         public string BusyReason { get; set; }
-
-        /// <summary>
-        /// No longer set: the server stopped reporting the dialogs that opened while a command ran.
-        /// Kept, always null and so omitted from the JSON, so the type's public members don't change.
-        /// </summary>
-        [Obsolete("No longer set; poll GET /api/dialog for the dialogs open now.")]
-        [JsonProperty("dialogsDuringExecution", NullValueHandling = NullValueHandling.Ignore)]
-        public List<object> DialogsDuringExecution { get; set; }
 
         /// <summary>
         /// Currently-open dialog(s) (see EditorDialogEvents), attached to a busy response when a

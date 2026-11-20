@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.ComponentModel;
 using System.Linq;
 using System.Reflection;
 using System.Runtime.ExceptionServices;
@@ -18,6 +19,10 @@ namespace Unity.Pipeline.MethodReload
     /// Thread-safe for runtime method reload operations.
     /// </summary>
     /// <remarks>
+    /// Public only for the prologue the ILPostProcessor weaves into [MethodReload] methods, which
+    /// runs in user assemblies: HasOverride, TryInvokeMethodReload, TryInvokeMethodReloadResult and
+    /// ThrowOverrideReturnedNull. Everything else is internal.
+    ///
     /// Nothing resets these statics on Play Mode entry; only a domain reload clears them. With
     /// domain reload disabled, a previous Play session's targets and overrides carry into the
     /// next one, as does RuntimePipelineDriver's "already scanned" latch, which must clear
@@ -33,7 +38,7 @@ namespace Unity.Pipeline.MethodReload
         /// Injected by RuntimePipelineDriver (= its server's dispatcher). Null = run on the
         /// current thread (no marshaling).
         /// </summary>
-        public static Dispatcher Dispatcher { get; set; }
+        internal static Dispatcher Dispatcher { get; set; }
 
         /// <summary>
         /// Absolute roots a running Player is allowed to method reload source files from (Assets folder
@@ -41,7 +46,7 @@ namespace Unity.Pipeline.MethodReload
         /// Player cannot resolve the project layout) and published here when the runtime server
         /// starts, so reload commands can validate incoming file paths. Null until published.
         /// </summary>
-        public static IReadOnlyList<string> AllowedReloadRoots { get; set; }
+        internal static IReadOnlyList<string> AllowedReloadRoots { get; set; }
 
         // Facts established at domain-reload / Play Mode entry that only matter once the user
         // actually reloads (target count, receiver state, connected players). Collected here and
@@ -56,7 +61,7 @@ namespace Unity.Pipeline.MethodReload
         /// has been printed, a late note (e.g. a player connecting mid-session) is logged directly.
         /// </summary>
         /// <param name="note">Short clause, no trailing period, e.g. "3 reloadable method(s) registered".</param>
-        public static void NoteForFirstReload(string note)
+        internal static void NoteForFirstReload(string note)
         {
             if (string.IsNullOrEmpty(note)) return;
             lock (s_FirstReloadNotes)
@@ -119,15 +124,15 @@ namespace Unity.Pipeline.MethodReload
         /// Register a method as reloadable. Called during discovery phase.
         /// </summary>
         /// <param name="method">The method marked with <see cref="MethodReloadAttribute"/>.</param>
-        /// <param name="attribute">The attribute instance (supplies the override id and main-thread requirement).</param>
+        /// <param name="attribute">The attribute instance (supplies the main-thread requirement).</param>
         /// <remarks>
         /// Idempotent per method: discovery can now run more than once in a session (eagerly on
         /// Play Mode entry, on demand from the reload path), and appending the same MethodInfo
         /// twice would leave a duplicate in the id's list for every scan after the first.
         /// </remarks>
-        public static void RegisterReloadableMethod(MethodInfo method, MethodReloadAttribute attribute)
+        internal static void RegisterReloadableMethod(MethodInfo method, MethodReloadAttribute attribute)
         {
-            var methodId = GetMethodId(method, attribute.Id);
+            var methodId = GetMethodId(method);
 
             if (!m_ReloadableMethods.ContainsKey(methodId))
             {
@@ -149,7 +154,7 @@ namespace Unity.Pipeline.MethodReload
         /// <param name="attribute">The attribute instance (identifies the target method).</param>
         /// <param name="sourceType">The type the override method was compiled into.</param>
         /// <returns>True if the override was registered.</returns>
-        public static bool RegisterMethodOverride(MethodInfo overrideMethod, MethodReloadOverrideMethodAttribute attribute, Type sourceType)
+        internal static bool RegisterMethodOverride(MethodInfo overrideMethod, MethodReloadOverrideMethodAttribute attribute, Type sourceType)
         {
             return RegisterMethodOverride(overrideMethod, attribute, sourceType, out _);
         }
@@ -165,7 +170,7 @@ namespace Unity.Pipeline.MethodReload
         /// <param name="sourceType">The type the override method was compiled into.</param>
         /// <param name="skipReason">A user-facing reason when registration is skipped, or null on success.</param>
         /// <returns>True if the override was registered.</returns>
-        public static bool RegisterMethodOverride(MethodInfo overrideMethod, MethodReloadOverrideMethodAttribute attribute, Type sourceType, out string skipReason)
+        internal static bool RegisterMethodOverride(MethodInfo overrideMethod, MethodReloadOverrideMethodAttribute attribute, Type sourceType, out string skipReason)
         {
             FlushFirstReloadNotes();
             skipReason = null;
@@ -201,11 +206,8 @@ namespace Unity.Pipeline.MethodReload
 
             var methodOverride = new MethodOverride
             {
-                TargetMethodId = targetMethodId,
                 OverrideMethod = overrideMethod,
-                SourceType = sourceType,
                 RequireMainThread = GetMainThreadRequirement(originalMethod),
-                Description = attribute.Description
             };
 
             m_MethodOverrides[targetMethodId] = methodOverride;
@@ -233,7 +235,6 @@ namespace Unity.Pipeline.MethodReload
 
             m_MethodOverrides[targetMethodId] = new MethodOverride
             {
-                TargetMethodId = targetMethodId,
                 InterpreterInvoke = interpreterInvoke,
                 RequireMainThread = GetMainThreadRequirement(originalMethods.First()),
             };
@@ -366,7 +367,7 @@ namespace Unity.Pipeline.MethodReload
         /// <param name="instance">The instance to invoke the override on.</param>
         /// <param name="parameters">The original call's arguments, boxed.</param>
         /// <returns>True if a method reload override was invoked.</returns>
-        public static bool TryInvokeMethodReload<T>(string methodId, T instance, object[] parameters = null)
+        internal static bool TryInvokeMethodReload<T>(string methodId, T instance, object[] parameters = null)
         {
             return TryInvokeMethodReload(methodId, (object)instance, parameters);
         }
@@ -378,6 +379,7 @@ namespace Unity.Pipeline.MethodReload
         /// </summary>
         /// <param name="methodId">Method identifier, "TypeName.MethodName".</param>
         /// <returns>True if an override is currently registered for <paramref name="methodId"/>.</returns>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static bool HasOverride(string methodId) => m_MethodOverrides.ContainsKey(methodId);
 
         /// <summary>
@@ -389,6 +391,7 @@ namespace Unity.Pipeline.MethodReload
         /// <param name="instance">The instance to invoke the override on.</param>
         /// <param name="parameters">The original call's arguments, boxed.</param>
         /// <returns>True if a method reload override was invoked.</returns>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static bool TryInvokeMethodReload(string methodId, object instance, object[] parameters = null)
             => TryInvokeMethodReloadResult(methodId, instance, parameters, out _);
 
@@ -398,6 +401,7 @@ namespace Unity.Pipeline.MethodReload
         /// the call site. Public only for woven code; not meant to be called by hand.
         /// </summary>
         /// <param name="methodId">Method identifier, "TypeName.MethodName", named in the thrown message.</param>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static void ThrowOverrideReturnedNull(string methodId)
         {
             throw new InvalidOperationException(
@@ -418,6 +422,7 @@ namespace Unity.Pipeline.MethodReload
         /// <param name="parameters">The original call's arguments, boxed.</param>
         /// <param name="result">The override's (boxed) return value, if one ran.</param>
         /// <returns>True if a method reload override was invoked.</returns>
+        [EditorBrowsable(EditorBrowsableState.Never)]
         public static bool TryInvokeMethodReloadResult(string methodId, object instance, object[] parameters, out object result)
         {
             result = null;
@@ -500,7 +505,7 @@ namespace Unity.Pipeline.MethodReload
         /// Uses reflection to discover and register them as reload targets.
         /// </summary>
         /// <param name="type">The type to scan for [MethodReload] methods.</param>
-        public static void RegisterReloadableType(System.Type type)
+        internal static void RegisterReloadableType(System.Type type)
         {
             if (type == null)
             {
@@ -549,7 +554,7 @@ namespace Unity.Pipeline.MethodReload
         /// </summary>
         /// <param name="type">The loaded method-reload assembly's type.</param>
         /// <param name="assemblyId">Identifier of the compiled method-reload assembly the type came from.</param>
-        public static void RegisterMethodReloadType(Type type, string assemblyId)
+        internal static void RegisterMethodReloadType(Type type, string assemblyId)
         {
             var typeKey = $"{assemblyId}:{type.FullName}";
             m_LoadedMethodReloadTypes[typeKey] = type;
@@ -558,7 +563,7 @@ namespace Unity.Pipeline.MethodReload
         /// <summary>
         /// Clear all method reload overrides. Used by the script.methodreload cleanup command.
         /// </summary>
-        public static void ClearAllOverrides()
+        internal static void ClearAllOverrides()
         {
             var overrideCount = m_MethodOverrides.Count;
             var typeCount = m_LoadedMethodReloadTypes.Count;
@@ -573,7 +578,7 @@ namespace Unity.Pipeline.MethodReload
         /// Clear all registry state including reloadable methods.
         /// FOR TESTING ONLY - this should not be called in production code.
         /// </summary>
-        public static void ClearAllForTesting()
+        internal static void ClearAllForTesting()
         {
             var overrideCount = m_MethodOverrides.Count;
             var typeCount = m_LoadedMethodReloadTypes.Count;
@@ -591,7 +596,7 @@ namespace Unity.Pipeline.MethodReload
         /// Get statistics about current method reload state.
         /// </summary>
         /// <returns>Current reloadable/override/loaded-type counts.</returns>
-        public static MethodReloadStats GetStats()
+        internal static MethodReloadStats GetStats()
         {
             return new MethodReloadStats
             {
@@ -604,16 +609,10 @@ namespace Unity.Pipeline.MethodReload
         }
 
         /// <summary>
-        /// Generate method ID from MethodInfo and optional custom ID.
-        /// Format: TypeName.MethodName or custom ID if provided.
+        /// The id a reloadable method is registered under: TypeName.MethodName.
         /// </summary>
-        private static string GetMethodId(MethodInfo method, string customId = null)
+        private static string GetMethodId(MethodInfo method)
         {
-            if (!string.IsNullOrEmpty(customId))
-            {
-                return customId;
-            }
-
             return $"{method.DeclaringType?.Name}.{method.Name}";
         }
 
@@ -678,7 +677,6 @@ namespace Unity.Pipeline.MethodReload
         /// </summary>
         private class MethodOverride
         {
-            public string TargetMethodId { get; set; }
             public MethodInfo OverrideMethod { get; set; }
 
             /// <summary>
@@ -689,16 +687,14 @@ namespace Unity.Pipeline.MethodReload
             /// </summary>
             public Func<object, object[], object> InterpreterInvoke { get; set; }
 
-            public Type SourceType { get; set; }
             public bool RequireMainThread { get; set; }
-            public string Description { get; set; }
         }
     }
 
     /// <summary>
     /// Statistics about current method reload registry state.
     /// </summary>
-    public class MethodReloadStats
+    internal class MethodReloadStats
     {
         /// <summary>Number of methods registered as reloadable.</summary>
         public int ReloadableMethodCount { get; set; }

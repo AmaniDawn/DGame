@@ -1,7 +1,6 @@
 using System;
 using System.IO;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Unity.Pipeline.Commands;
 using UnityEditor;
 using UnityEngine;
@@ -54,8 +53,8 @@ namespace Unity.Pipeline.Editor.Commands.Baking
 
         #region bake_occlusion_culling
 
-        [CliGroupCommand(Group, "Trigger an async occlusion-culling bake of the open scene(s) via StaticOcclusionCulling.GenerateInBackground(). Returns immediately; poll " + CommandNames.OcclusionBakeStatus + " until completed.", Tags = new[] { "baking/occlusion" })]
-        public static object Bake(
+        [CliGroupCommand(Group, "Trigger an async occlusion-culling bake of the open scene(s) via StaticOcclusionCulling.GenerateInBackground(). Returns immediately; poll " + CommandNames.OcclusionBakeStatus + " until completed.", Tags = new[] { "baking/occlusion" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Bake(CommandContext cmd,
             [CliArg("smallest-occluder", "Smallest object that will occlude others (meters). Defaults to Unity's current value.")] float smallestOccluder = Unset,
             [CliArg("smallest-hole", "Smallest gap geometry can have that the view can see through (meters). Defaults to Unity's current value.")] float smallestHole = Unset,
             [CliArg("backface-threshold", "Backface threshold (1-100); lower trims more backfaces. Defaults to Unity's current value.")] float backfaceThreshold = Unset,
@@ -63,23 +62,38 @@ namespace Unity.Pipeline.Editor.Commands.Baking
             [CliArg("dry-run", "If true, validate there is an open scene and report the parameters that would be used without baking.")] bool dryRun = false)
         {
             if (!BakeSceneGuard.HasBakeableScene())
-                return BakeSceneGuard.NoSceneResult();
+            {
+                cmd.Log.Error(BakeSceneGuard.NoSceneMessage);
+                return ExitCode.NotFound;
+            }
 
             OnUpdate(); // reconcile any stale tracking flag first.
 
             if (StaticOcclusionCulling.isRunning)
-                return new { code = "bake_in_progress", message = "An occlusion bake is already running. Poll " + CommandNames.OcclusionBakeStatus + "." };
+            {
+                cmd.Log.Error("An occlusion bake is already running. Poll " + CommandNames.OcclusionBakeStatus + ", or stop it with " + CommandNames.OcclusionCancelBake + ".");
+                return ExitCode.Failed;
+            }
 
             // Validate explicitly provided values before resolving. An omitted arg is the Unset
             // sentinel (float.MinValue); NaN is never <= Unset, so a NaN arg is treated as provided
             // and rejected here. smallest-occluder / smallest-hole must be positive; backface-threshold
             // is documented as 1-100.
             if (!IsOmitted(smallestOccluder) && !(smallestOccluder > 0f))
-                throw new ArgumentException($"smallest-occluder must be greater than 0 (got {smallestOccluder}).");
+            {
+                cmd.Log.Error($"smallest-occluder must be greater than 0 (got {smallestOccluder}).");
+                return ExitCode.InvalidUsage;
+            }
             if (!IsOmitted(smallestHole) && !(smallestHole > 0f))
-                throw new ArgumentException($"smallest-hole must be greater than 0 (got {smallestHole}).");
+            {
+                cmd.Log.Error($"smallest-hole must be greater than 0 (got {smallestHole}).");
+                return ExitCode.InvalidUsage;
+            }
             if (!IsOmitted(backfaceThreshold) && !(backfaceThreshold >= 1f && backfaceThreshold <= 100f))
-                throw new ArgumentException($"backface-threshold must be between 1 and 100 (got {backfaceThreshold}).");
+            {
+                cmd.Log.Error($"backface-threshold must be between 1 and 100 (got {backfaceThreshold}).");
+                return ExitCode.InvalidUsage;
+            }
 
             // Resolve effective parameters: an omitted arg (the Unset sentinel) keeps Unity's current value.
             var occluder = IsOmitted(smallestOccluder) ? StaticOcclusionCulling.smallestOccluder : smallestOccluder;
@@ -88,12 +102,13 @@ namespace Unity.Pipeline.Editor.Commands.Baking
 
             if (dryRun)
             {
-                return new
+                cmd.Result.Write(new
                 {
                     status = "dry_run",
                     wouldBake = true,
                     parameters = new { smallestOccluder = occluder, smallestHole = hole, backfaceThreshold = backface }
-                };
+                });
+                return ExitCode.Success;
             }
 
             // Apply the (possibly overridden) bake parameters before generating.
@@ -117,17 +132,19 @@ namespace Unity.Pipeline.Editor.Commands.Baking
             });
 
             StaticOcclusionCulling.GenerateInBackground();
-            return new { status = "baking", bakeId };
+            cmd.Result.Write(new { status = "baking", bakeId });
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Get the status of the last occlusion bake: idle | baking | completed.", MainThreadRequired = false, Tags = new[] { "baking/occlusion" })]
-        public static JToken BakeStatus()
+        [CliGroupCommand(Group, "Get the status of the last occlusion bake: idle | baking | completed.", MainThreadRequired = false, Tags = new[] { "baking/occlusion" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode BakeStatus(CommandContext cmd)
         {
-            return StatusFileReader.ReadOrIdle(StatusFile);
+            cmd.Result.Write(StatusFileReader.ReadOrIdle(StatusFile));
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Cancel an in-progress occlusion bake (StaticOcclusionCulling.Cancel()).", Tags = new[] { "baking/occlusion" })]
-        public static object CancelBake()
+        [CliGroupCommand(Group, "Cancel an in-progress occlusion bake (StaticOcclusionCulling.Cancel()).", Tags = new[] { "baking/occlusion" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode CancelBake(CommandContext cmd)
         {
             var wasRunning = StaticOcclusionCulling.isRunning;
             if (wasRunning)
@@ -149,22 +166,30 @@ namespace Unity.Pipeline.Editor.Commands.Baking
                 }
             }
 
-            return new { cancelled = wasRunning };
+            cmd.Result.Write(new { cancelled = wasRunning });
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Clear baked occlusion-culling data for the open scene(s). Destructive: requires confirm=true.", Tags = new[] { "baking/occlusion" })]
-        public static object ClearBake(
+        [CliGroupCommand(Group, "Clear baked occlusion-culling data for the open scene(s). Destructive: requires confirm=true.", Tags = new[] { "baking/occlusion" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode ClearBake(CommandContext cmd,
             [CliArg("confirm", "Must be true to actually clear (destructive, not undoable via Unity's Undo).")] bool confirm = false,
             [CliArg("dry-run", "If true, report what would be cleared without clearing.")] bool dryRun = false)
         {
             if (!confirm)
-                throw new ArgumentException("Refusing to clear occlusion culling data. Pass confirm=true (destructive, not undoable via Unity's Undo).");
+            {
+                cmd.Log.Error("Refusing to clear occlusion culling data. Pass confirm=true (destructive, not undoable via Unity's Undo).");
+                return ExitCode.InvalidUsage;
+            }
 
             if (dryRun)
-                return new { status = "dry_run", wouldClear = true };
+            {
+                cmd.Result.Write(new { status = "dry_run", wouldClear = true });
+                return ExitCode.Success;
+            }
 
             StaticOcclusionCulling.Clear();
-            return new { cleared = true };
+            cmd.Result.Write(new { cleared = true });
+            return ExitCode.Success;
         }
 
         // True when the caller omitted a float bake arg (left it at the Unset sentinel). NaN is never

@@ -1,8 +1,8 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Runtime.InteropServices;
 using UnityEngine;
-using Debug = UnityEngine.Debug;
 
 namespace Unity.Pipeline
 {
@@ -17,9 +17,9 @@ namespace Unity.Pipeline
     {
         /// <summary>
         /// Restrict the file at <paramref name="path"/> to the current user only.
-        /// Failures are logged but never thrown, so they cannot block server startup.
         /// </summary>
         /// <param name="path">The file to restrict.</param>
+        /// <exception cref="IOException">The permissions couldn't be applied.</exception>
         public static void RestrictToCurrentUser(string path)
         {
             try
@@ -35,9 +35,9 @@ namespace Unity.Pipeline
                         break;
                 }
             }
-            catch (Exception ex)
+            catch (Exception ex) when (!(ex is IOException))
             {
-                Debug.LogWarning($"Pipeline: Could not restrict permissions on '{path}': {ex.Message}");
+                throw new IOException($"Could not restrict permissions on '{path}': {ex.Message}", ex);
             }
         }
 
@@ -47,14 +47,12 @@ namespace Unity.Pipeline
             // "AzureAD\\user") have no name-to-SID mapping for icacls, but the SID always resolves.
             var sid = GetCurrentUserSid();
             if (string.IsNullOrEmpty(sid))
-            {
-                Debug.LogWarning($"Pipeline: Could not resolve current user SID; leaving default permissions on '{path}'.");
-                return;
-            }
+                throw new IOException($"Could not resolve the current user's SID to restrict '{path}'.");
 
             // /inheritance:r drops inherited ACEs; /grant:r replaces the DACL with a single
             // full-control grant to the current user.
-            Run("icacls", $"\"{path}\" /inheritance:r /grant:r \"*{sid}:(F)\"", out _);
+            if (!Run("icacls", $"\"{path}\" /inheritance:r /grant:r \"*{sid}:(F)\"", out var output))
+                throw new IOException($"icacls could not restrict '{path}': {output?.Trim()}");
         }
 
         private static string GetCurrentUserSid()
@@ -104,7 +102,8 @@ namespace Unity.Pipeline
         {
             // 0600 (octal) == owner read/write only.
             const uint ownerReadWrite = 0x180;
-            chmod(path, ownerReadWrite);
+            if (chmod(path, ownerReadWrite) != 0)
+                throw new IOException($"chmod could not restrict '{path}' (errno {Marshal.GetLastWin32Error()}).");
         }
     }
 }

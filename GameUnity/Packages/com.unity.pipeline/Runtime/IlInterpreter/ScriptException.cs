@@ -16,21 +16,6 @@ public class ScriptException : Exception
     public ScriptException(string message, Exception? inner) : base(message, inner) { }
 }
 
-/// <summary>Raised when script source fails to compile.</summary>
-public class ScriptCompileException : ScriptException
-{
-    /// <summary>The compiler diagnostics that failed the compilation.</summary>
-    public IReadOnlyList<string> Diagnostics { get; }
-
-    /// <summary>Create the exception from the diagnostics that failed the compilation.</summary>
-    /// <param name="diagnostics">The compiler diagnostics that failed the compilation.</param>
-    public ScriptCompileException(IReadOnlyList<string> diagnostics)
-        : base($"Script compilation failed with {diagnostics.Count} error(s).")
-    {
-        Diagnostics = diagnostics;
-    }
-}
-
 /// <summary>Raised when compiled IL fails validation.</summary>
 public class ScriptValidationException : ScriptException
 {

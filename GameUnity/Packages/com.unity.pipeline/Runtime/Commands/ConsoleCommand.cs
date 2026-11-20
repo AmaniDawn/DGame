@@ -34,12 +34,20 @@ namespace Unity.Pipeline.Runtime.Commands
         /// <summary>Default number of entries returned when <c>tail</c> is not supplied.</summary>
         public const int DefaultTail = 100;
 
-        [CliGroupCommand(Group, "Get captured Unity console output (Editor or Player; supports tail, level filtering, and follow via a cursor)", MainThreadRequired = false, Tags = new[] { "observability/console" })]
-        public static ConsoleLogResponse Get(
+        [CliGroupCommand(Group, "Get captured Unity console output (Editor or Player; supports tail, level filtering, and follow via a cursor)", MainThreadRequired = false, Tags = new[] { "observability/console" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Get(CommandContext cmd,
             [CliArg("tail", "Maximum number of most-recent entries to return")] int tail = DefaultTail,
             [CliArg("level", "Minimum severity to include: log | warn | error")] string level = ConsoleLogBuffer.LevelLog,
             [CliArg("since", "Cursor: only return entries newer than this seq. Use the 'cursor' from a previous response to follow.")] long since = -1,
             [CliArg("since-session", "Session the 'since' cursor came from: pass the 'session' from a previous response. A cursor from another session is refused and the tail returned with reset=true.")] string since_session = null)
+        {
+            // One result, not a record per entry: the cursor and session that follow it belong to the read.
+            cmd.Result.Write(Query(tail, level, since, since_session));
+            return ExitCode.Success;
+        }
+
+        /// <summary>What <c>console get</c> reads: the entries, and the cursor to follow them with.</summary>
+        internal static ConsoleLogResponse Query(int tail = DefaultTail, string level = ConsoleLogBuffer.LevelLog, long since = -1, string since_session = null)
         {
             // Guard against nonsensical tail values; <= 0 would otherwise mean "unlimited" in the
             // buffer, which is not what a caller passing e.g. --tail 0 expects.
@@ -52,8 +60,15 @@ namespace Unity.Pipeline.Runtime.Commands
             return response;
         }
 
-        [CliGroupCommand(Group, "Console ground truth and buffer counters without pulling entries: compile-failure flag, Editor console counts, and the buffer's retained counts and cursor.", MainThreadRequired = false, Tags = new[] { "observability/console" })]
-        public static ConsoleLogResponse Status()
+        [CliGroupCommand(Group, "Console ground truth and buffer counters without pulling entries: compile-failure flag, Editor console counts, and the buffer's retained counts and cursor.", MainThreadRequired = false, Tags = new[] { "observability/console" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Status(CommandContext cmd)
+        {
+            cmd.Result.Write(ReadStatus());
+            return ExitCode.Success;
+        }
+
+        /// <summary>What <c>console status</c> reads: the counters and ground truth, with no entries.</summary>
+        internal static ConsoleLogResponse ReadStatus()
         {
             // Same shape as `console` with no entries, so a client polling during a long compile
             // gets the counters and the compile-failure flag without paying for the payload.
@@ -62,8 +77,8 @@ namespace Unity.Pipeline.Runtime.Commands
             return response;
         }
 
-        [CliGroupCommand(Group, "Clear the captured log buffer and the Unity Editor console.", Tags = new[] { "observability/console" })]
-        public static object Clear()
+        [CliGroupCommand(Group, "Clear the captured log buffer and the Unity Editor console.", Tags = new[] { "observability/console" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Clear(CommandContext cmd)
         {
             // Clearing keeps the sequence counter, so a client following the console sees dropped=true
             // on its next poll rather than silently skipping the window that was cleared.
@@ -90,7 +105,8 @@ namespace Unity.Pipeline.Runtime.Commands
                 // Ignore — clearing the Editor console is auxiliary; the buffer is already cleared.
             }
 
-            return new { cleared = true };
+            cmd.Result.Write(new { cleared = true });
+            return ExitCode.Success;
         }
 
         /// <summary>

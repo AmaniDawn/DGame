@@ -2,7 +2,9 @@ using System;
 using System.IO;
 using System.Linq;
 using UnityEditor;
+using UnityEditor.PackageManager;
 using UnityEngine;
+using PackageInfo = UnityEditor.PackageManager.PackageInfo;
 
 namespace Unity.Pipeline.Editor.Authoring
 {
@@ -15,9 +17,11 @@ namespace Unity.Pipeline.Editor.Authoring
     ///   AssetDatabase, root folders are matched case-insensitively and the path keeps the casing it was
     ///   given, so "assets/Foo" names the same folder as "Assets/Foo" on a case-insensitive file system.
     /// - Every path resolved by <see cref="Resolve"/> is confined to <see cref="AuthoringRoot"/> (the
-    ///   sandbox for writes). With the default root ("Assets") that means full Assets access; set a
-    ///   sub-folder to confine an agent. <see cref="ResolveReference"/>, for paths that only name an
-    ///   existing asset, applies the same normalization without the confinement.
+    ///   sandbox for writes) or to an embedded or local package under "Packages/", whatever the root.
+    ///   With the default root ("Assets") that means full Assets access; set a sub-folder to confine an
+    ///   agent's Assets writes. Registry, git and built-in packages are read-only and refused.
+    ///   <see cref="ResolveReference"/>, for paths that only name an existing asset, applies the same
+    ///   normalization without the confinement.
     /// - "../" traversal and writes outside the project root are always rejected.
     ///
     /// NOTE: minimal seed for the shared safety policy (CAT-2509).
@@ -54,13 +58,14 @@ namespace Unity.Pipeline.Editor.Authoring
         }
 
         /// <summary>Reset the authoring root to the default ("Assets").</summary>
-        public static void ResetAuthoringRoot() => EditorPrefs.DeleteKey(PrefKey);
+        internal static void ResetAuthoringRoot() => EditorPrefs.DeleteKey(PrefKey);
 
         /// <summary>
         /// Resolve an agent-supplied path to a normalized, project-relative path confined to
-        /// <see cref="AuthoringRoot"/>. Bare paths are taken relative to the root; explicit
-        /// "Assets/..." paths and absolute paths under the project are honored. Returns null with an
-        /// <paramref name="error"/> when the path escapes the root or the project.
+        /// <see cref="AuthoringRoot"/> or to an embedded or local package. Bare paths are taken relative to
+        /// the root; explicit "Assets/..." and "Packages/&lt;name&gt;/..." paths and absolute paths under the
+        /// project are honored. Returns null with an <paramref name="error"/> when the path escapes the
+        /// project, or lies outside both the root and every embedded or local package.
         /// </summary>
         /// <param name="path">The agent-supplied path to resolve.</param>
         /// <param name="error">A human-readable reason on failure, or null on success.</param>
@@ -72,14 +77,13 @@ namespace Unity.Pipeline.Editor.Authoring
             if (resolved == null)
                 return null;
 
-            // Confine to the authoring root (default "Assets" => full Assets access).
-            if (!IsUnder(resolved, root))
-            {
-                error = $"Path '{path}' resolves to '{resolved}', which is outside the authoring root '{root}'.";
-                return null;
-            }
+            if (IsUnder(resolved, root) || IsInWritablePackage(resolved))
+                return resolved;
 
-            return resolved;
+            error = IsUnder(resolved, "Packages")
+                ? $"Path '{path}' resolves to '{resolved}', which is not inside an embedded or local package."
+                : $"Path '{path}' resolves to '{resolved}', which is outside the authoring root '{root}'.";
+            return null;
         }
 
         /// <summary>
@@ -106,11 +110,31 @@ namespace Unity.Pipeline.Editor.Authoring
 
         /// <summary>
         /// Whether a project-relative path (as returned by <see cref="Resolve"/> or the AssetDatabase) lies
-        /// under <see cref="AuthoringRoot"/>. For commands that reach an asset by lookup rather than by a
-        /// caller-supplied path, so their writes stay inside the sandbox too.
+        /// under <see cref="AuthoringRoot"/> or inside an embedded or local package. For commands that reach
+        /// an asset by lookup rather than by a caller-supplied path, so their writes stay inside the sandbox too.
         /// </summary>
-        internal static bool IsUnderAuthoringRoot(string projectRelativePath) =>
-            !string.IsNullOrEmpty(projectRelativePath) && IsUnder(projectRelativePath.Replace('\\', '/').TrimEnd('/'), AuthoringRoot);
+        internal static bool IsUnderAuthoringRoot(string projectRelativePath)
+        {
+            if (string.IsNullOrEmpty(projectRelativePath))
+                return false;
+            var normalized = projectRelativePath.Replace('\\', '/').TrimEnd('/');
+            return IsUnder(normalized, AuthoringRoot) || IsInWritablePackage(normalized);
+        }
+
+        /// <summary>
+        /// Whether a project-relative path lies inside an embedded or local package, the only packages whose
+        /// files live outside the read-only package cache.
+        /// </summary>
+        static bool IsInWritablePackage(string resolved)
+        {
+            const string packagesPrefix = "Packages/";
+            if (!IsUnder(resolved, "Packages") || resolved.Length <= packagesPrefix.Length)
+                return false;
+
+            // PackageInfo matches the "Packages/" prefix case-sensitively; the rest keeps its casing.
+            var package = PackageInfo.FindForAssetPath(packagesPrefix + resolved.Substring(packagesPrefix.Length));
+            return package != null && (package.source == PackageSource.Embedded || package.source == PackageSource.Local);
+        }
 
         // Case-insensitive, as the AssetDatabase's own root check is (BeginsWithCaseInsensitive in GetAssetFolderInfo).
         static bool IsUnder(string resolved, string root) =>

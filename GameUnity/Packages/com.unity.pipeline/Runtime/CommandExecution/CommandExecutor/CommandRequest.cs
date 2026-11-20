@@ -13,7 +13,7 @@ namespace Unity.Pipeline.Commands
     /// </summary>
     /// <remarks>
     /// Out takes what the command's run produced, Error why it failed. The writers are safe on any
-    /// thread. The command's result is written through <see cref="CommandResult"/>, in the format
+    /// thread. The command's result is written through <see cref="ResultWriter"/>, in the format
     /// the executor's own options in the arguments pick.
     /// </remarks>
     sealed class CommandRequest
@@ -50,8 +50,27 @@ namespace Unity.Pipeline.Commands
         /// </summary>
         public const string FieldsOption = "--fields";
 
+        /// <summary>
+        /// The executor's option that picks how much a command logs to Error: <c>error</c>, <c>warning</c>
+        /// (the default), <c>info</c> or <c>debug</c>. It never changes what goes to Out.
+        /// </summary>
+        public const string LogLevelOption = "--log-level";
+
+        /// <summary>The values <see cref="LogLevelOption"/> takes.</summary>
+        const string LogLevelChoices = "error, warning, info, debug";
+
+        /// <summary>
+        /// The executor's option that picks how a command's logs are written to Error: <c>human</c> (the
+        /// default) or <c>json</c>, one object per line; <c>ndjson</c> is <c>json</c>. Independent of <see cref="FormatOption"/>, which
+        /// picks only how the result is written to Out.
+        /// </summary>
+        public const string LogFormatOption = "--log-format";
+
+        /// <summary>The values <see cref="LogFormatOption"/> takes; <c>ndjson</c>, an alias of <c>json</c>, is left out on purpose.</summary>
+        const string LogFormatChoices = "human, json";
+
         /// <summary>The executor's options, which no command may name a parameter after.</summary>
-        internal static readonly IReadOnlyList<string> Options = new[] { VerboseOption, OmitNullsOption, FormatOption, JsonOption, FieldsOption };
+        internal static readonly IReadOnlyList<string> Options = new[] { VerboseOption, OmitNullsOption, FormatOption, JsonOption, FieldsOption, LogLevelOption, LogFormatOption };
 
         /// <summary>
         /// Reads the executor's own options in <paramref name="arguments"/>, before any <c>--</c>,
@@ -73,6 +92,26 @@ namespace Unity.Pipeline.Commands
         public static List<string> ReadOptions(IReadOnlyList<string> arguments, out bool verbose, out bool omitNulls,
             out OutputFormat format, out IReadOnlyList<string> fields)
         {
+            return ReadOptions(arguments, out verbose, out omitNulls, out format, out fields, out _);
+        }
+
+        /// <summary><see cref="ReadOptions(IReadOnlyList{string}, out bool, out bool, out OutputFormat, out IReadOnlyList{string})"/>, with the log level.</summary>
+        /// <param name="logLevel">The level <see cref="LogLevelOption"/> picks; <see cref="CommandLogLevel.Warning"/> for none.</param>
+        /// <exception cref="ArgumentException">Also <see cref="LogLevelOption"/> without a value it takes.</exception>
+        public static List<string> ReadOptions(IReadOnlyList<string> arguments, out bool verbose, out bool omitNulls,
+            out OutputFormat format, out IReadOnlyList<string> fields, out CommandLogLevel logLevel)
+        {
+            return ReadOptions(arguments, out verbose, out omitNulls, out format, out fields, out logLevel, out _);
+        }
+
+        /// <summary><see cref="ReadOptions(IReadOnlyList{string}, out bool, out bool, out OutputFormat, out IReadOnlyList{string}, out CommandLogLevel)"/>, with the log format.</summary>
+        /// <param name="logFormat">The format <see cref="LogFormatOption"/> picks; <see cref="CommandLogFormat.Human"/> for none.</param>
+        /// <exception cref="ArgumentException">Also <see cref="LogFormatOption"/> without a value it takes.</exception>
+        public static List<string> ReadOptions(IReadOnlyList<string> arguments, out bool verbose, out bool omitNulls,
+            out OutputFormat format, out IReadOnlyList<string> fields, out CommandLogLevel logLevel, out CommandLogFormat logFormat)
+        {
+            logLevel = CommandLogLevel.Warning;
+            logFormat = CommandLogFormat.Human;
             var rest = new List<string>(arguments.Count);
             verbose = false;
             omitNulls = false;
@@ -103,6 +142,16 @@ namespace Unity.Pipeline.Commands
                         throw new ArgumentException($"{FieldsOption} takes the fields to write, comma-separated, such as {FieldsOption} name,path.");
                     fields = names;
                 }
+                else if (TryReadValue(arguments, ref i, LogLevelOption, out var level))
+                {
+                    if (!TryParseLogLevel(level, out logLevel))
+                        throw new ArgumentException($"{LogLevelOption} takes one of: {LogLevelChoices}, such as {LogLevelOption} info.");
+                }
+                else if (TryReadValue(arguments, ref i, LogFormatOption, out var logFormatValue))
+                {
+                    if (!TryParseLogFormat(logFormatValue, out logFormat))
+                        throw new ArgumentException($"{LogFormatOption} takes one of: {LogFormatChoices}, such as {LogFormatOption} json.");
+                }
                 else
                 {
                     endOfOptions = argument == "--";
@@ -130,6 +179,47 @@ namespace Unity.Pipeline.Commands
             else if (i + 1 < arguments.Count && !arguments[i + 1].StartsWith("--", StringComparison.Ordinal))
                 value = arguments[++i];
             return true;
+        }
+
+        /// <summary>The level a <see cref="LogLevelOption"/> value names. Case-sensitive, as formats are.</summary>
+        static bool TryParseLogLevel(string value, out CommandLogLevel level)
+        {
+            switch (value)
+            {
+                case "error":
+                    level = CommandLogLevel.Error;
+                    return true;
+                case "warning":
+                    level = CommandLogLevel.Warning;
+                    return true;
+                case "info":
+                    level = CommandLogLevel.Info;
+                    return true;
+                case "debug":
+                    level = CommandLogLevel.Debug;
+                    return true;
+                default:
+                    level = CommandLogLevel.Warning;
+                    return false;
+            }
+        }
+
+        /// <summary>The format a <see cref="LogFormatOption"/> value names. Case-sensitive, as formats are.</summary>
+        static bool TryParseLogFormat(string value, out CommandLogFormat format)
+        {
+            switch (value)
+            {
+                case "human":
+                    format = CommandLogFormat.Human;
+                    return true;
+                case "json":
+                case "ndjson":
+                    format = CommandLogFormat.Json;
+                    return true;
+                default:
+                    format = CommandLogFormat.Human;
+                    return false;
+            }
         }
 
         /// <summary>
@@ -171,12 +261,14 @@ namespace Unity.Pipeline.Commands
         /// <param name="input">What the client sends the command; null for nothing.</param>
         /// <param name="output">Takes what the command's run produces; null to discard it.</param>
         /// <param name="error">Takes why the command failed; null to discard it.</param>
-        public CommandRequest(string command, IReadOnlyList<string> arguments, TextReader input, TextWriter output,
+        public CommandRequest(string command, IReadOnlyList<string> arguments, CommandInput input, TextWriter output,
             TextWriter error)
         {
             Command = command ?? throw new ArgumentNullException(nameof(command));
             Arguments = arguments ?? Array.Empty<string>();
-            In = input ?? TextReader.Null;
+            In = input ?? CommandInput.Empty;
+            OutBytes = output as IByteWriter;
+            ErrorBytes = error as IByteWriter;
             Out = TextWriter.Synchronized(output ?? TextWriter.Null);
             Error = TextWriter.Synchronized(error ?? TextWriter.Null);
         }
@@ -191,13 +283,22 @@ namespace Unity.Pipeline.Commands
         public IReadOnlyList<string> Arguments { get; }
 
         /// <summary>What the client sends the command.</summary>
-        public TextReader In { get; }
+        public CommandInput In { get; }
 
         /// <summary>Takes what the command's run produces.</summary>
         public TextWriter Out { get; }
 
         /// <summary>Takes why the command failed.</summary>
         public TextWriter Error { get; }
+
+        /// <summary>
+        /// Takes bytes for <see cref="Out"/> as they are, in order with its text, when the client's
+        /// stream carries bytes (the Pipeline protocol's); null when it carries only text.
+        /// </summary>
+        internal IByteWriter OutBytes { get; }
+
+        /// <summary>The same as <see cref="OutBytes"/>, for <see cref="Error"/>.</summary>
+        internal IByteWriter ErrorBytes { get; }
 
         /// <summary>How long the command may run, the wait for the commands before it included; null for its own default.</summary>
         public TimeSpan? Timeout { get; set; }
@@ -217,7 +318,25 @@ namespace Unity.Pipeline.Commands
         /// <summary>Whether the client's Out is a terminal.</summary>
         internal bool OutIsTerminal { get; set; }
 
+        /// <summary>Whether the client's Error is a terminal.</summary>
+        internal bool ErrorIsTerminal { get; set; }
+
+        /// <summary>
+        /// Whether log lines written to Error are formatted for the client, as <see cref="LogFormatOption"/>
+        /// picks: labeled, colored or JSON. False, the default, where Error is read back as data, such as
+        /// an HTTP response's <c>errorDetails</c>: each line is then the message alone.
+        /// </summary>
+        internal bool FormatsLogs { get; set; }
+
         /// <summary>The client's terminal width in columns; null when unknown.</summary>
         internal int? TerminalWidth { get; set; }
+
+        /// <summary>
+        /// How many of <see cref="Arguments"/>, once the executor's options are taken out, lead with
+        /// the rest of the command's name rather than being passed to it: 1 for <c>test run --x 1</c>
+        /// sent as <see cref="Command"/> <c>test</c>, 0 when <see cref="Command"/> names it whole.
+        /// Set by the executor when it binds the request.
+        /// </summary>
+        internal int NamingArguments { get; set; }
     }
 }
