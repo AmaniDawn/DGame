@@ -4,6 +4,7 @@ using System.IO;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
+using Unity.Pipeline.Commands;
 using FrameType = Unity.Pipeline.PipelineProtocol.FrameType;
 
 namespace Unity.Pipeline
@@ -16,33 +17,41 @@ namespace Unity.Pipeline
     /// </summary>
     /// <remarks>
     /// The buffer is bounded, so a client that stays connected without reading can't grow it
-    /// without limit: once it holds <c>maxBufferedChars</c>, further writes are dropped, and a line
+    /// without limit: once it holds <c>maxBufferedBytes</c>, further writes are dropped, and a line
     /// on Stderr marks where, until the sender takes what was buffered. A write is taken whole
     /// while the buffer is under the bound, so a command's result, written at once, always is.
-    /// Thread-safe.
+    /// Text is encoded as UTF-8 as it is written; bytes written through <see cref="IByteWriter"/> are
+    /// sent as they are, in order with the text. Thread-safe.
     /// </remarks>
     sealed class FrameOutput
     {
         sealed class Chunk
         {
             public FrameType Type;
-            public readonly StringBuilder Text = new StringBuilder();
+            public readonly MemoryStream Bytes = new MemoryStream();
         }
 
-        /// <summary>How many characters it buffers before dropping writes, by default: 16 MB of text.</summary>
-        public const int DefaultMaxBufferedChars = 8 * 1024 * 1024;
+        /// <summary>How many bytes it buffers before dropping writes, by default: 16 MB.</summary>
+        public const int DefaultMaxBufferedBytes = 16 * 1024 * 1024;
 
         /// <summary>Written on Stderr where writes start being dropped.</summary>
         internal const string DroppedMarker = "Pipeline: Output dropped here: the client isn't reading it.\n";
 
         readonly object m_Lock = new object();
-        readonly int m_MaxBufferedChars;
+        static readonly UTF8Encoding s_Utf8 = new UTF8Encoding(false);
+        static readonly byte[] s_DroppedMarker = s_Utf8.GetBytes(DroppedMarker);
+
+        readonly int m_MaxBufferedBytes;
+
+        // Stateful, so a surrogate pair split across two writes still encodes as one character.
+        readonly Encoder m_OutEncoder = s_Utf8.GetEncoder();
+        readonly Encoder m_ErrorEncoder = s_Utf8.GetEncoder();
         readonly Queue<Chunk> m_Pending = new Queue<Chunk>();
         readonly SemaphoreSlim m_Available = new SemaphoreSlim(0);
         Chunk m_Last;
 
-        /// <summary>The characters in <see cref="m_Pending"/>.</summary>
-        int m_BufferedChars;
+        /// <summary>The bytes in <see cref="m_Pending"/>.</summary>
+        int m_BufferedBytes;
 
         /// <summary>Whether writes are dropped until the sender takes what was buffered.</summary>
         bool m_Dropping;
@@ -52,20 +61,20 @@ namespace Unity.Pipeline
 
         bool m_Completed;
 
-        /// <param name="maxBufferedChars">How many characters it buffers before dropping writes.</param>
-        public FrameOutput(int maxBufferedChars = DefaultMaxBufferedChars)
+        /// <param name="maxBufferedBytes">How many bytes it buffers before dropping writes.</param>
+        public FrameOutput(int maxBufferedBytes = DefaultMaxBufferedBytes)
         {
-            if (maxBufferedChars <= 0)
-                throw new ArgumentOutOfRangeException(nameof(maxBufferedChars), maxBufferedChars, "Must be positive.");
-            m_MaxBufferedChars = maxBufferedChars;
+            if (maxBufferedBytes <= 0)
+                throw new ArgumentOutOfRangeException(nameof(maxBufferedBytes), maxBufferedBytes, "Must be positive.");
+            m_MaxBufferedBytes = maxBufferedBytes;
             Out = new FrameWriter(this, FrameType.Stdout);
             Error = new FrameWriter(this, FrameType.Stderr);
         }
 
-        /// <summary>Takes what the command produces, sent as Stdout frames.</summary>
+        /// <summary>Takes what the command produces, sent as Stdout frames; also an <see cref="IByteWriter"/>.</summary>
         public TextWriter Out { get; }
 
-        /// <summary>Takes why the command failed, sent as Stderr frames.</summary>
+        /// <summary>Takes why the command failed, sent as Stderr frames; also an <see cref="IByteWriter"/>.</summary>
         public TextWriter Error { get; }
 
         /// <summary>
@@ -100,6 +109,9 @@ namespace Unity.Pipeline
             {
                 if (m_Completed)
                     return;
+                // A high surrogate never followed by its low one is sent as U+FFFD.
+                Encode(FrameType.Stdout, ReadOnlySpan<char>.Empty, flush: true);
+                Encode(FrameType.Stderr, ReadOnlySpan<char>.Empty, flush: true);
                 m_Completed = true;
             }
             m_Available.Release();
@@ -112,11 +124,7 @@ namespace Unity.Pipeline
         /// <exception cref="IOException">The client went away.</exception>
         public async Task SendAsync(Stream stream, CancellationToken cancellation)
         {
-            // Stateful, so a surrogate pair split across two writes still encodes as one character.
-            var stdout = new UTF8Encoding(false).GetEncoder();
-            var stderr = new UTF8Encoding(false).GetEncoder();
             var chunks = new List<Chunk>();
-            var bytes = Array.Empty<byte>();
 
             while (true)
             {
@@ -129,7 +137,7 @@ namespace Unity.Pipeline
                     chunks.AddRange(m_Pending);
                     m_Pending.Clear();
                     m_Last = null;
-                    m_BufferedChars = 0;
+                    m_BufferedBytes = 0;
                     m_Dropping = false;
                     progress = m_Progress;
                     m_Progress = null;
@@ -138,13 +146,8 @@ namespace Unity.Pipeline
 
                 foreach (var chunk in chunks)
                 {
-                    var encoder = chunk.Type == FrameType.Stdout ? stdout : stderr;
-                    var chars = chunk.Text.ToString().ToCharArray();
-                    var size = encoder.GetByteCount(chars, 0, chars.Length, completed);
-                    if (bytes.Length < size)
-                        bytes = new byte[size];
-                    encoder.GetBytes(chars, 0, chars.Length, bytes, 0, completed);
-
+                    var bytes = chunk.Bytes.GetBuffer();
+                    var size = (int)chunk.Bytes.Length;
                     for (var offset = 0; offset < size; offset += PipelineProtocol.MaxBodySize)
                     {
                         var count = Math.Min(PipelineProtocol.MaxBodySize, size - offset);
@@ -162,7 +165,7 @@ namespace Unity.Pipeline
             }
         }
 
-        void Append(FrameType type, string text, char[] buffer, int index, int count)
+        void Append(FrameType type, ReadOnlySpan<char> text, ReadOnlySpan<byte> bytes)
         {
             lock (m_Lock)
             {
@@ -170,39 +173,65 @@ namespace Unity.Pipeline
                     return;
 
                 var wasEmpty = IsEmpty;
-                if (m_BufferedChars >= m_MaxBufferedChars)
+                if (m_BufferedBytes >= m_MaxBufferedBytes)
                 {
                     // Marked once, on Stderr, past the bound: it has to reach the client to mean anything.
                     m_Dropping = true;
-                    Buffer(FrameType.Stderr).Append(DroppedMarker);
+                    // What the encoders hold belongs to text now dropped, so it never reaches the client.
+                    m_OutEncoder.Reset();
+                    m_ErrorEncoder.Reset();
+                    Buffer(FrameType.Stderr).Write(s_DroppedMarker, 0, s_DroppedMarker.Length);
                     return;
                 }
 
-                var chunk = Buffer(type);
-                if (text != null)
-                    chunk.Append(text);
+                if (bytes.IsEmpty)
+                    Encode(type, text, flush: false);
                 else
-                    chunk.Append(buffer, index, count);
-                m_BufferedChars += text?.Length ?? count;
+                {
+                    // Bytes follow the text before them whole: a dangling high surrogate is sent as U+FFFD.
+                    Encode(type, ReadOnlySpan<char>.Empty, flush: true);
+                    Buffer(type).Write(bytes);
+                    m_BufferedBytes += bytes.Length;
+                }
 
-                if (!wasEmpty)
+                if (!wasEmpty || IsEmpty)
                     return;
             }
             m_Available.Release();
         }
 
-        /// <summary>The chunk to append <paramref name="type"/>'s text to. Called under the lock.</summary>
-        StringBuilder Buffer(FrameType type)
+        /// <summary>Encodes <paramref name="text"/> into <paramref name="type"/>'s chunk. Called under the lock.</summary>
+        void Encode(FrameType type, ReadOnlySpan<char> text, bool flush)
+        {
+            var encoder = type == FrameType.Stdout ? m_OutEncoder : m_ErrorEncoder;
+            // Called even when it yields no bytes: a lone high surrogate has to reach the encoder's state.
+            var bytes = System.Buffers.ArrayPool<byte>.Shared.Rent(encoder.GetByteCount(text, flush));
+            try
+            {
+                var count = encoder.GetBytes(text, bytes, flush);
+                if (count == 0)
+                    return;
+                Buffer(type).Write(bytes, 0, count);
+                m_BufferedBytes += count;
+            }
+            finally
+            {
+                System.Buffers.ArrayPool<byte>.Shared.Return(bytes);
+            }
+        }
+
+        /// <summary>The chunk to append <paramref name="type"/>'s bytes to. Called under the lock.</summary>
+        MemoryStream Buffer(FrameType type)
         {
             if (m_Last == null || m_Last.Type != type)
             {
                 m_Last = new Chunk { Type = type };
                 m_Pending.Enqueue(m_Last);
             }
-            return m_Last.Text;
+            return m_Last.Bytes;
         }
 
-        sealed class FrameWriter : TextWriter
+        sealed class FrameWriter : TextWriter, IByteWriter
         {
             readonly FrameOutput m_Output;
             readonly FrameType m_Type;
@@ -215,18 +244,24 @@ namespace Unity.Pipeline
 
             public override Encoding Encoding => Encoding.UTF8;
 
-            public override void Write(char value) => m_Output.Append(m_Type, null, new[] { value }, 0, 1);
+            public override void Write(char value) => m_Output.Append(m_Type, stackalloc char[] { value }, default);
 
             public override void Write(char[] buffer, int index, int count)
             {
                 if (count > 0)
-                    m_Output.Append(m_Type, null, buffer, index, count);
+                    m_Output.Append(m_Type, buffer.AsSpan(index, count), default);
             }
 
             public override void Write(string value)
             {
                 if (!string.IsNullOrEmpty(value))
-                    m_Output.Append(m_Type, value, null, 0, 0);
+                    m_Output.Append(m_Type, value.AsSpan(), default);
+            }
+
+            public void Write(ReadOnlySpan<byte> bytes)
+            {
+                if (!bytes.IsEmpty)
+                    m_Output.Append(m_Type, default, bytes);
             }
         }
     }

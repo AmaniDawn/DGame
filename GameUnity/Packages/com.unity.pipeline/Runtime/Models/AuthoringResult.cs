@@ -27,9 +27,12 @@ namespace Unity.Pipeline.Models
         [JsonProperty("fileId")]
         public long? FileId { get; set; }
 
-        /// <summary>Instance id, if the object is loaded/in a scene.</summary>
+        /// <summary>
+        /// Instance id, if the object is loaded/in a scene. Internal, since its type is:
+        /// [JsonProperty] still serializes it.
+        /// </summary>
         [JsonProperty("instanceId")]
-        public ObjectId? InstanceId { get; set; }
+        internal ObjectId? InstanceId { get; set; }
 
         /// <summary>Scene hierarchy path, for scene objects.</summary>
         [JsonProperty("hierarchyPath")]

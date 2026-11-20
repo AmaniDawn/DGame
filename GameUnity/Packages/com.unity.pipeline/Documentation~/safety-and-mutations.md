@@ -12,32 +12,38 @@ Destructive or overwriting commands expose two boolean `[CliArg]`s — `confirm`
 gate their own mutation on them. There is no central dispatcher; each command applies the same simple
 rules inline:
 
-- **`dry-run == true`** → validate and describe the intended change, mutate nothing, return a preview.
+- **`dry-run == true`** → validate and describe the intended change, mutate nothing, write a preview.
   This wins even if `confirm` is also true.
-- **`confirm == false`** (and not a dry run) → refuse without mutating. Return the failure the way the
-  command reports its other errors — `throw new ArgumentException(...)` for the throwing style (e.g.
-  `asset delete`, `lighting clear_bake`), or a structured error object for commands that return
-  structured results (e.g. `build run`, which returns `{ success = false, status = "error", message = "…" }`).
+- **`confirm == false`** (and not a dry run) → refuse without mutating: log why with `cmd.Log.Error`
+  and return `ExitCode.InvalidUsage`.
 - **otherwise** (`confirm == true`, not a dry run) → perform the mutation. Group *scene/object*
   mutations in an `AuthoringUndoScope` (see below). Asset/settings/package writes are **not** part of
   Unity's Undo, so they run directly — say so in the command description ("Not undoable via Ctrl+Z.").
 
 ```csharp
 [CliGroupCommand(Group, "Clear baked lightmap data for the open scene(s). Destructive: requires confirm=true (use dry-run to preview). Not undoable via Ctrl+Z.")]
-public static object ClearBake(
+internal static ExitCode ClearBake(
+    CommandContext cmd,
     [CliArg("confirm", "Apply the clear. Without it the call is refused.")] bool confirm = false,
     [CliArg("dry-run", "Preview what would be cleared without clearing it.")] bool dryRun = false)
 {
     // …resolve the open scene(s)…
     if (dryRun)
-        return new { status = "dry_run", wouldClear = true };
+    {
+        cmd.Result.Write(new { status = "dry_run", wouldClear = true });
+        return ExitCode.Success;
+    }
     if (!confirm)
-        throw new ArgumentException("Refusing to clear baked lighting. Pass confirm=true to apply, or dry-run=true to preview.");
+    {
+        cmd.Log.Error("Refusing to clear baked lighting. Pass confirm=true to apply, or dry-run=true to preview.");
+        return ExitCode.InvalidUsage;
+    }
 
     // Clearing baked GI is not part of Unity's Undo — no AuthoringUndoScope.
     Lightmapping.Clear();
 
-    return new { cleared = true };
+    cmd.Result.Write(new { cleared = true });
+    return ExitCode.Success;
 }
 ```
 
@@ -63,18 +69,36 @@ API table.
 
 Commands that accept a caller-supplied asset path resolve it through `ProjectPaths.Resolve`, which
 normalizes the path, rejects `..` traversal, and confines it to the configurable authoring root
-(default `Assets`) so agent-supplied paths cannot escape the project. It returns a project-relative
-path, or `null` with an `error` string when the path escapes the root.
+(default `Assets`) or to an embedded or local package under `Packages/`, so agent-supplied paths cannot
+escape the project. Registry, Git and built-in packages are read-only and refused. It returns a
+project-relative path, or `null` with an `error` string when the path escapes both.
 
 ```csharp
 var normalized = ProjectPaths.Resolve(path, out var error);
 if (normalized == null)
-    throw new ArgumentException(error);
-// normalized is project-relative and guaranteed to live under the authoring root.
+{
+    cmd.Log.Error(error);
+    return ExitCode.InvalidUsage;
+}
+// normalized is project-relative, under the authoring root or an embedded/local package.
 ```
 
 See [Creating authoring commands](authoring-commands.md) for the full path-handling rules and the
 `authoring set_root` / `authoring get_root` commands that adjust the root.
+
+Parameters that name an arbitrary file rather than a project asset are not confined, and accept any
+path the user can access:
+
+| Command | Parameter |
+|---|---|
+| `asset import` | `source` (the destination `path` is confined) |
+| `capture editor_element`, `capture runtime_element` | `output` |
+| `diagnostics run_audit` | `output` |
+| `build run` | `outputPath` |
+| `script eval`, `script run` | `file` |
+| `script.methodreload reload_player` | `filename` |
+
+`script.methodreload reload` only accepts files under `Assets/` or a loaded package.
 
 ### For command authors
 
@@ -86,5 +110,7 @@ To make a mutating command safe:
    operations inside it where the mutation is undoable.
 3. Resolve any caller-supplied asset path through `ProjectPaths.Resolve` before touching the filesystem
    — ideally during validation, so a bad path fails before anything is applied.
+4. Declare `Effect = CommandEffect.Destructive` on a command that takes `confirm`, so a client knows to
+   ask before it runs (see [Declaring the effect](creating-commands.md#declaring-the-effect)).
 
 See [Creating commands](creating-commands.md) and [Creating authoring commands](authoring-commands.md).

@@ -1,10 +1,10 @@
 using System;
 using System.IO;
 using Newtonsoft.Json;
-using Newtonsoft.Json.Linq;
 using Unity.Pipeline.Commands;
 using UnityEditor;
 using UnityEngine;
+using static Unity.Pipeline.Editor.Commands.CommandFailure;
 #if UNITY_6000_5_OR_NEWER
 using Unity.Scripting.LifecycleManagement;
 #endif
@@ -49,45 +49,47 @@ namespace Unity.Pipeline.Editor.Commands.Build
             "Switch the active build target (destructive, long-running: triggers a full reimport + domain " +
             "reload). Requires confirm=true. Returns immediately; poll " + CommandNames.BuildTargetSwitchStatus + ".",
             MainThreadRequired = false,
-            Tags = new[] { "build/targets" })]
-        public static object Switch(
+            Tags = new[] { "build/targets" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode Switch(CommandContext cmd,
             [CliArg("target", "BuildTarget name to switch to (must be installed; see " + CommandNames.BuildTargetList + ").", Required = true)] string target = "",
             [CliArg("confirm", "Apply the switch. Without it the call is refused.")] bool confirm = false,
             [CliArg("timeout", "Seconds to wait for the switch to be validated and queued (poll " + CommandNames.BuildTargetSwitchStatus + ").")] double timeoutInSeconds = 60)
         {
-            return RunOnMain<object>(() => ValidateAndQueue(target, confirm), PipelineTimeout.FromSeconds(timeoutInSeconds));
+            // Validation and queueing touch Unity APIs, so they run on the main thread.
+            return RunOnMain(() => ValidateAndQueue(cmd, target, confirm), PipelineTimeout.FromSeconds(timeoutInSeconds));
         }
 
-        static object ValidateAndQueue(string targetArg, bool confirm)
+        static ExitCode ValidateAndQueue(CommandContext cmd, string targetArg, bool confirm)
         {
             if (string.IsNullOrWhiteSpace(targetArg))
-                return new { status = "error", success = false, message = "A 'target' is required." };
+                return Fail(cmd, ExitCode.InvalidUsage, "A 'target' is required.");
 
             if (!TryParseTarget(targetArg, out var target))
-                return new { status = "error", success = false, message = $"Unknown BuildTarget '{targetArg}'. Use a name from {CommandNames.BuildTargetList}." };
+                return Fail(cmd, ExitCode.InvalidUsage, $"Unknown BuildTarget '{targetArg}'. Use a name from {CommandNames.BuildTargetList}.");
 
             var group = BuildPipeline.GetBuildTargetGroup(target);
             if (!BuildPipeline.IsBuildTargetSupported(group, target))
-                return new { status = "error", success = false, message = $"Build target '{target}' is not installed (isInstalled=false in {CommandNames.BuildTargetList})." };
+                return Fail(cmd, ExitCode.Failed, $"Build target '{target}' is not installed (isInstalled=false in {CommandNames.BuildTargetList}).");
 
             var from = EditorUserBuildSettings.activeBuildTarget;
             if (target == from)
-                return new { status = "completed", success = true, activeBuildTarget = from.ToString(), message = $"Already on build target '{from}'." };
+            {
+                cmd.Log.Info($"Already on build target '{from}'.");
+                cmd.Result.Write(new { status = "completed", activeBuildTarget = from.ToString() });
+                return ExitCode.Success;
+            }
 
             lock (s_Lock)
             {
                 if (s_Pending || s_Switching)
-                    return new { status = "busy", success = false, message = "A target switch is already queued or in progress. Poll " + CommandNames.BuildTargetSwitchStatus + "." };
+                    return Fail(cmd, ExitCode.Failed, "A target switch is already queued or in progress. Poll " + CommandNames.BuildTargetSwitchStatus + ".");
             }
 
             // Confirm gate. The queue below only sets pending state; the switch runs on the next tick.
             if (!confirm)
-                return new
-                {
-                    status = "error",
-                    success = false,
-                    message = "Refused: switching the build target triggers a full reimport + domain reload. Pass confirm=true to apply."
-                };
+                return Fail(cmd, ExitCode.InvalidUsage,
+                    "Refused: switching the build target triggers a full reimport + domain reload. Pass confirm=true to apply.");
 
             lock (s_Lock)
             {
@@ -103,16 +105,21 @@ namespace Unity.Pipeline.Editor.Commands.Build
                 startedAt = DateTime.UtcNow.ToString("o")
             });
 
-            return new { status = "switching", fromTarget = from.ToString(), toTarget = target.ToString() };
+            cmd.Log.Info($"Switching to '{target}'. Poll {CommandNames.BuildTargetSwitchStatus}.");
+            cmd.Result.Write(new { status = "switching", fromTarget = from.ToString(), toTarget = target.ToString() });
+            return ExitCode.Success;
         }
+
 
         [CliGroupCommand(Group,
             "Status of the last target switch: idle | switching | completed (with success + activeBuildTarget).",
             MainThreadRequired = false,
-            Tags = new[] { "build/targets" })]
-        public static JToken SwitchStatus()
+            Tags = new[] { "build/targets" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode SwitchStatus(CommandContext cmd)
         {
-            return StatusFileReader.ReadOrIdle(StatusFile);
+            cmd.Result.Write(StatusFileReader.ReadOrIdle(StatusFile));
+            return ExitCode.Success;
         }
 
         /// <summary>Main-thread pump: performs the queued switch. Blocks the main thread until it returns.</summary>

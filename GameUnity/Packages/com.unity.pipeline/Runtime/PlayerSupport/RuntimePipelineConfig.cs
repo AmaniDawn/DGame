@@ -20,7 +20,7 @@ namespace Unity.Pipeline.Config
 #if UNITY_6000_5_OR_NEWER
     [NoAutoStaticsCleanup]
 #endif
-    public class RuntimePipelineConfig : ScriptableObject
+    internal class RuntimePipelineConfig : ScriptableObject
     {
         /// <summary>Listen port. 0 auto-assigns from 7900-7999.</summary>
         [Header("Server")]
@@ -364,7 +364,7 @@ namespace Unity.Pipeline.Config
     /// Result from configuration validation.
     /// </summary>
     [Serializable]
-    public class ValidationResult
+    internal class ValidationResult
     {
         /// <summary>False only for <see cref="Error"/> results.</summary>
         public bool IsValid { get; set; }

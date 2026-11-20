@@ -62,7 +62,6 @@ namespace Unity.Pipeline.Commands
         internal const string CaptureEditorWindow = "capture editor_window";
         internal const string CaptureGameView = "capture game_view";
         internal const string CaptureSceneView = "capture scene_view";
-        internal const string CaptureScreenshot = "capture screenshot";
 #if UNITY_6000_7_OR_NEWER
         // Declared only on 6000.7+, like the commands themselves.
         internal const string CaptureEditorElement = "capture editor_element";
@@ -86,10 +85,17 @@ namespace Unity.Pipeline.Commands
         internal const string DiagnosticsGetPerformance = "diagnostics get_performance";
         internal const string DiagnosticsMemorySnapshot = "diagnostics memory_snapshot";
         internal const string DiagnosticsMemorySnapshotStatus = "diagnostics memory_snapshot_status";
+        internal const string DiagnosticsProfilerClose = "diagnostics profiler_close";
         internal const string DiagnosticsProfilerConnect = "diagnostics profiler_connect";
+        internal const string DiagnosticsProfilerCounters = "diagnostics profiler_counters";
+        internal const string DiagnosticsProfilerFrame = "diagnostics profiler_frame";
+        internal const string DiagnosticsProfilerMarkers = "diagnostics profiler_markers";
         internal const string DiagnosticsProfilerRecord = "diagnostics profiler_record";
         internal const string DiagnosticsProfilerRecordStatus = "diagnostics profiler_record_status";
         internal const string DiagnosticsProfilerRecordStop = "diagnostics profiler_record_stop";
+        internal const string DiagnosticsProfilerSample = "diagnostics profiler_sample";
+        internal const string DiagnosticsProfilerSession = "diagnostics profiler_session";
+        internal const string DiagnosticsProfilerSummary = "diagnostics profiler_summary";
         internal const string DiagnosticsProfilerTargets = "diagnostics profiler_targets";
         internal const string DiagnosticsRecentAnalytics = "diagnostics recent_analytics";
         internal const string DiagnosticsRecordAnalytics = "diagnostics record_analytics";
@@ -193,7 +199,6 @@ namespace Unity.Pipeline.Commands
         internal const string ScriptAttach = "script attach";
         internal const string ScriptCreate = "script create";
         internal const string ScriptEval = "script eval";
-        internal const string ScriptEvalFile = "script eval_file";
         internal const string ScriptRecompile = "script recompile";
         internal const string ScriptRecompileStatus = "script recompile_status";
         internal const string ScriptRun = "script run";

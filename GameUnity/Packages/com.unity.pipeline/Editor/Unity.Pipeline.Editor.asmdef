@@ -5,7 +5,8 @@
         "Unity.Pipeline",
         "Unity.Pipeline.Attributes",
         "Unity.Pipeline.IlInterpreter",
-        "Unity.Nuget.Newtonsoft-Json"
+        "Unity.Nuget.Newtonsoft-Json",
+        "Unity.Pipeline.ScenePreview"
     ],
     "includePlatforms": [
         "Editor"

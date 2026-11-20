@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Newtonsoft.Json;
 using Unity.Pipeline.Commands;
 using Unity.Pipeline.Compilation;
 using Unity.Pipeline.MethodReload;
@@ -55,27 +56,42 @@ namespace Unity.Pipeline.Editor.Commands
         [CliGroupCommand(Group,
             "Compile a file's (or folder's) [MethodReload] method(s) and push the IL to a connected player (IL2CPP-safe) over PlayerConnection. Folders are walked recursively and pushed once.",
             MainThreadRequired = true,
-            Tags = new[] { "scripts/methodreload" })]
-        public static object ReloadPlayer(
+            Tags = new[] { "scripts/methodreload" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode ReloadPlayer(CommandContext cmd,
             [CliArg("filename", "Source .cs file or a folder containing [MethodReload] methods (e.g. Assets/pong.cs or Assets/Scripts)", Required = true)] string filename,
             [CliArg("player", "Target connected player id; -1 = broadcast to all connected players")] int player = -1)
         {
             if (string.IsNullOrWhiteSpace(filename))
-                return new { success = false, error = "filename is required" };
+            {
+                cmd.Log.Error("filename is required.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (!TryResolvePath(filename, out var fullPath, out var isFolder))
-                return new { success = false, error = $"Could not locate source file or folder: {filename}" };
+            {
+                cmd.Log.Error($"Could not locate source file or folder: {filename}");
+                return ExitCode.NotFound;
+            }
 
             if (isFolder)
-                return PushFolderOnce(fullPath, player);
+                return PushFolderOnce(cmd, fullPath, player);
 
-            var ok = DoCompileAndSend(fullPath, player, out var summary, out var diagnostics);
-            return new { success = ok, message = summary, diagnostics };
+            var result = CompileAndSend(fullPath, player, out var summary);
+            if (!result.Pushed)
+            {
+                cmd.Log.Error(WithDiagnostics(summary, result.Diagnostics));
+                return ExitCode.Failed;
+            }
+
+            cmd.Log.Info(summary);
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
-        /// <summary>Compile and push every reloadable .cs under a folder once. Files that don't opt into
-        /// method reload are skipped (not errors).</summary>
-        private static object PushFolderOnce(string folder, int player)
+        /// <summary>Compile and push every reloadable .cs under a folder once, writing one record per
+        /// file. Files that don't opt into method reload are skipped (not errors).</summary>
+        private static ExitCode PushFolderOnce(CommandContext cmd, string folder, int player)
         {
             List<string> files;
             try
@@ -86,31 +102,53 @@ namespace Unity.Pipeline.Editor.Commands
             }
             catch (Exception ex)
             {
-                return new { success = false, error = $"Could not enumerate {folder}: {ex.Message}" };
+                cmd.Log.Error($"Could not enumerate {folder}: {ex.Message}");
+                return ExitCode.Failed;
             }
 
             if (files.Count == 0)
-                return new { success = false, error = $"No .cs files mentioning [MethodReload] found under {folder}" };
-
-            var pushed = new List<string>();
-            var failed = new List<object>();
-            foreach (var f in files)
             {
-                if (DoCompileAndSend(f, player, out var summary, out var diagnostics))
-                    pushed.Add(Path.GetFileName(f));
-                else
-                    failed.Add(new { file = Path.GetFileName(f), error = summary, diagnostics });
+                cmd.Log.Error($"No .cs files mentioning [MethodReload] found under {folder}");
+                return ExitCode.NotFound;
             }
 
-            return new
+            var pushed = new List<string>();
+            var failed = 0;
+            foreach (var f in files)
             {
-                success = failed.Count == 0,
-                message = $"Pushed {pushed.Count}/{files.Count} file(s) from {DisplayName(folder)}" +
-                    (pushed.Count > 0 ? $": {string.Join(", ", pushed)}" : ""),
-                pushed,
-                failed
+                cmd.CancellationToken.ThrowIfCancellationRequested();
+                var result = CompileAndSend(f, player, out _);
+                if (result.Pushed)
+                    pushed.Add(result.File);
+                else
+                    failed++;
+                cmd.Result.WriteRecord(result);
+            }
+
+            cmd.Log.Info($"Pushed {pushed.Count}/{files.Count} file(s) from {DisplayName(folder)}" +
+                (pushed.Count > 0 ? $": {string.Join(", ", pushed)}" : ""));
+            if (failed == 0)
+                return ExitCode.Success;
+
+            cmd.Log.Error($"{failed} of {files.Count} file(s) from {DisplayName(folder)} failed to push; see each record's error.");
+            return ExitCode.Failed;
+        }
+
+        /// <summary>Compile and push one file, as the record <c>reload_player</c> reports it.</summary>
+        private static PushReloadFileResult CompileAndSend(string fullPath, int player, out string summary)
+        {
+            var ok = DoCompileAndSend(fullPath, player, out summary, out var diagnostics);
+            return new PushReloadFileResult
+            {
+                File = Path.GetFileName(fullPath),
+                Pushed = ok,
+                Error = ok ? null : summary,
+                Diagnostics = diagnostics
             };
         }
+
+        private static string WithDiagnostics(string message, List<string> diagnostics) =>
+            diagnostics != null && diagnostics.Count > 0 ? message + ":\n- " + string.Join("\n- ", diagnostics) : message;
 
         /// <summary>Watcher-save push: like <see cref="ReloadPlayer"/> for a single file, but diffed
         /// against the watch-start <see cref="MethodReloadBaseline"/> — methods still matching it are
@@ -514,5 +552,21 @@ namespace Unity.Pipeline.Editor.Commands
 
         private static string DisplayName(string path) =>
             string.IsNullOrEmpty(path) ? "?" : Path.GetFileName(path.TrimEnd('/', '\\'));
+    }
+
+    /// <summary>A file <c>script.methodreload reload_player</c> compiled and pushed, or failed to.</summary>
+    sealed class PushReloadFileResult
+    {
+        [JsonProperty("file")]
+        public string File { get; set; }
+
+        [JsonProperty("pushed")]
+        public bool Pushed { get; set; }
+
+        [JsonProperty("error", NullValueHandling = NullValueHandling.Ignore)]
+        public string Error { get; set; }
+
+        [JsonProperty("diagnostics", NullValueHandling = NullValueHandling.Ignore)]
+        public List<string> Diagnostics { get; set; }
     }
 }

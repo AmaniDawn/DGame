@@ -11,25 +11,27 @@ namespace Unity.Pipeline.Runtime.Commands
     {
         const string Group = "runtime";
 
-        [CliGroupCommand(Group, "Gracefully quit the Unity application. In the Editor, behaves like editor quit.", MainThreadRequired = true, Tags = new[] { "runtime/application" })]
-        public static string Quit(
+        [CliGroupCommand(Group, "Gracefully quit the Unity application. In the Editor, behaves like editor quit.", MainThreadRequired = true, Tags = new[] { "runtime/application" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Quit(CommandContext cmd,
             [CliArg("exit-code", "Exit code for the application")] int exitCode = 0)
         {
 #if UNITY_EDITOR
             EditorQuit.Quit(save: false, discard: false, exitCode);
-            return $"Editor quit scheduled with exit code {exitCode}";
+            cmd.Log.Info($"Editor quit scheduled with exit code {exitCode}");
 #else
             // Schedule quit on next frame to allow HTTP response to be sent
             var quitObject = new GameObject("PipelineQuitScheduler");
             var quitScheduler = quitObject.AddComponent<QuitScheduler>();
             quitScheduler.Initialize(exitCode);
 
-            return $"Application quit scheduled with exit code {exitCode}";
+            cmd.Log.Info($"Application quit scheduled with exit code {exitCode}");
 #endif
+            cmd.Result.Write(new { exitCode });
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Set the target frame rate for the application", MainThreadRequired = true, Tags = new[] { "runtime/application" })]
-        public static string SetTargetFrameRate(
+        [CliGroupCommand(Group, "Set the target frame rate for the application", MainThreadRequired = true, Tags = new[] { "runtime/application" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetTargetFrameRate(CommandContext cmd,
             [CliArg("frame-rate", "Target frame rate (-1 for platform default, 0 for unlimited)", Required = true)] int frameRate)
         {
             var previousFrameRate = Application.targetFrameRate;
@@ -42,16 +44,19 @@ namespace Unity.Pipeline.Runtime.Commands
                 _ => $"{frameRate} FPS"
             };
 
-            return $"Target frame rate set to {frameRateDescription} (was {previousFrameRate})";
+            cmd.Log.Info($"Target frame rate set to {frameRateDescription} (was {previousFrameRate})");
+            cmd.Result.Write(new { frameRate, previousFrameRate });
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Set the time scale for the application", MainThreadRequired = true, Tags = new[] { "runtime/application" })]
-        public static string SetTimeScale(
+        [CliGroupCommand(Group, "Set the time scale for the application", MainThreadRequired = true, Tags = new[] { "runtime/application" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetTimeScale(CommandContext cmd,
             [CliArg("scale", "Time scale multiplier (0.0 to pause, 1.0 for normal speed)", Required = true)] float scale)
         {
             if (scale < 0f)
             {
-                return "Error: Time scale cannot be negative";
+                cmd.Log.Error("Time scale cannot be negative; use 0 to pause.");
+                return ExitCode.InvalidUsage;
             }
 
             var previousScale = Time.timeScale;
@@ -64,7 +69,9 @@ namespace Unity.Pipeline.Runtime.Commands
                 _ => $"{scale}x speed"
             };
 
-            return $"Time scale set to {scaleDescription} (was {previousScale}x)";
+            cmd.Log.Info($"Time scale set to {scaleDescription} (was {previousScale}x)");
+            cmd.Result.Write(new { scale, previousScale });
+            return ExitCode.Success;
         }
 
         /// <summary>

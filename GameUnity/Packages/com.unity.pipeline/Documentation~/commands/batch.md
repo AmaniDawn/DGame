@@ -16,7 +16,18 @@ Run multiple registered commands in one transactional request.
 | `result-fields` | no | – | Optional per-op result projection: a map of op id-or-index → array of result field paths to keep (context economy). |
 | `timeout` | no | `60` | Timeout for the whole batch, in seconds. Checked before each op after the first; when it is about to run out, the remaining ops are skipped and a transactional batch rolls back. |
 
-**Returns:** `BatchResult` — `{ results: [{ id?, command, success, result? | error?, skipped?, resultTruncated?, revertible? }], applied, reverted, transactional, onError, error?, undoGroup?, dryRun?, valid? }`. The batch-level `error` is set only for aborts not attributable to a single op ("batch time budget exceeded", "batch canceled").
+**Returns:** `BatchResult` — `{ results: [{ id?, command, success, result? | error?, output?, log?, skipped?, resultTruncated?, revertible? }], applied, reverted, transactional, onError, undoGroup?, dryRun?, valid? }`, written whether or not the batch succeeded.
+
+**Exit codes:** `Success` when every op succeeded (or, on a dry run, validated). Otherwise:
+
+| Outcome | Exit code | stderr |
+|---------|-----------|--------|
+| An op failed under `on-error=abort` | `Failed` (6) | the failing op and its error, and whether applied ops were reverted |
+| One or more ops failed under `on-error=continue` | `Failed` (6) | how many ops failed; each op's `error` says why |
+| The timeout was about to run out | `TimedOut` (14) | "batch timeout about to run out", with how far it got |
+| The job was canceled | `Cancelled` (130) | "batch canceled", with how far it got; also in the job's `errorDetails` |
+| A dry run found invalid ops (`valid: false`) | `InvalidUsage` (2) | how many ops failed validation |
+| No operations, more than 200, an unknown `on-error`, or a malformed op `id` | `InvalidUsage` (2) | the error; no result is written |
 
 **Notes:** Runs on the main thread. Each sub-operation goes through the same dispatch path as `/api/exec`, so its result is shaped identically to running that command standalone.
 
@@ -61,9 +72,18 @@ Example — create a GameObject, add a Rigidbody to it, then set the Rigidbody's
 }
 ```
 
+#### Commands that take a `CommandContext`
+
+A command that takes a `CommandContext` and returns its `ExitCode` (not a `Task<ExitCode>`, which a batch refuses like any async command) runs in a batch like any other, with these differences, since the batch's own reply carries what it produces:
+
+- The result it writes through `Result.Write` is the op's `result`; records it writes through `Result.WriteRecord` are the op's `result` as a list. References and `result-fields` read it as they read any result.
+- Any exit code other than `ExitCode.Success` fails the op: `on-error=abort` stops the batch, and a transactional batch rolls back. The op's `error` names the exit code, followed by what the command logged to Error; that log counts against the result size bounds like `output`, and when too little room is left to keep the command's name, `error` only names the command and its exit code. A command that throws fails the op the same way, with what it threw logged last. A result the failing command wrote is still reported as the op's `result`, but later ops can't reference it.
+- What it writes to `Std.Out` is kept in the op's `output`, whether it succeeded or failed. What a command that succeeded logged to Error, such as a warning, is in `log`. Both count against the result size bounds above, after the op's `result`, and are cut past them; a cut sets `resultTruncated`.
+- It logs at the batch request's `--log-level`, reads nothing from `Std.In`, and its `Arguments` are empty: its parameters come by name in `params`.
+
 #### Atomicity
 
-The whole batch runs inside one `AuthoringUndoScope`, so every op (each of which registers its own Undo operations) collapses into a **single** Editor Undo step. When `transactional` (the default) and the batch aborts — an op fails under `on-error=abort`, the time budget runs out, or the job is canceled — every applied op is reverted with `Undo.RevertAllDownToGroup` (including partial mutations registered by the failing op itself), the scene returns to its pre-batch state, and nothing is left on the Undo stack. `reverted: true` and the failing op's `error` are reported.
+The whole batch runs inside one `AuthoringUndoScope`, so every op (each of which registers its own Undo operations) collapses into a **single** Editor Undo step. When `transactional` (the default) and the batch aborts — an op fails under `on-error=abort`, the time budget runs out, or the job is canceled — every applied op is reverted with `Undo.RevertAllDownToGroup` (including partial mutations registered by the failing op itself), the scene returns to its pre-batch state, and nothing is left on the Undo stack. `reverted: true` and the failing op's `error` are reported, and the batch fails.
 
 #### Transactional restrictions
 
@@ -83,7 +103,7 @@ The non-revertible set (v1 — a curated list, pending per-command `Revertible` 
 
 #### Timing, budget and cancellation
 
-The batch executes in a **single main-thread turn** — the Editor UI is frozen for its duration, bounded by `timeout` (frame-spanning execution is future work). The elapsed time is checked cooperatively before each op after the first; when the timeout is about to run out, the remaining ops are reported `skipped: true`, the batch-level `error` is set to "batch timeout about to run out", and a transactional batch rolls back. For long batches, submit the request as a detached job (`"job": true` on `/api/exec`), which has no timeout — jobs also make the batch cancelable: cooperative cancellation (`POST /api/job/cancel`) is checked between ops and aborts the batch the same way ("batch canceled"). Per-op progress is reported (`op i/n: <command>`) and visible via `GET /api/progress`.
+The batch executes in a **single main-thread turn** — the Editor UI is frozen for its duration, bounded by `timeout` (frame-spanning execution is future work). The elapsed time is checked cooperatively before each op after the first; when the timeout is about to run out, the remaining ops are reported `skipped: true`, the batch fails with "batch timeout about to run out" on stderr, and a transactional batch rolls back. For long batches, submit the request as a detached job (`"job": true` on `/api/exec`), which has no timeout — jobs also make the batch cancelable: cooperative cancellation (`POST /api/job/cancel`) is checked between ops and aborts the batch the same way, exiting `Cancelled` with "batch canceled" on stderr. Per-op progress is reported (`op i/n: <command>`) and visible via `GET /api/progress`.
 
 #### Dry run
 
@@ -94,7 +114,7 @@ The batch executes in a **single main-thread turn** — the Editor UI is frozen 
 The following are rejected with a structured `not_batchable` error:
 
 - **Out of scope:** `build run`, `build.target switch`, every command in the `package` group, `editor.playmode start`/`editor.playmode stop`/`editor.playmode pause`, `script recompile`
-- **Arbitrary code:** `script eval`, `script eval_file`, `script run`, and nested `job batch`
+- **Arbitrary code:** `script eval`, `script run`, and nested `job batch`
 - **Modal-dialog hazard:** `editor invoke_menu` (menu items can open modal dialogs that wedge an unattended batch)
 - **Cannot make progress:** synchronous `job wait` — the batch holds the main thread for its whole turn, so the editor state a condition watches cannot change; the wait would just burn its timeout inside the batch. Run an async `job wait` before/after the batch instead (`job wait_status`/`job wait_cancel` are quick reads and stay batchable)
 - **Undo-stack wipe:** `scene open`, `scene create`

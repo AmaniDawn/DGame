@@ -17,13 +17,16 @@ namespace Unity.Pipeline.Editor.Commands.Assets
     {
         const string Group = "asset";
 
-        [CliGroupCommand(Group, "Create a folder under the authoring root (creates intermediate folders).", Tags = new[] { "assets" })]
-        public static AuthoringResult CreateFolder(
+        [CliGroupCommand(Group, "Create a folder under the authoring root (creates intermediate folders).", Tags = new[] { "assets" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode CreateFolder(CommandContext cmd,
             [CliArg("path", "Folder path relative to the authoring root (default Assets/); the Assets/ prefix is optional. e.g. Gameplay/Enemies or Assets/Gameplay/Enemies", Required = true)] string path)
         {
             var normalized = ProjectPaths.Resolve(path, out var error);
             if (normalized == null)
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.InvalidUsage;
+            }
 
             CreateFolderRecursive(normalized);
             AssetDatabase.Refresh();
@@ -31,7 +34,8 @@ namespace Unity.Pipeline.Editor.Commands.Assets
             var folder = AssetDatabase.LoadAssetAtPath<DefaultAsset>(normalized);
             var result = ObjectResolver.Describe(folder) ?? new AuthoringResult { Type = "DefaultAsset" };
             result.AssetPath = normalized;
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         private static void CreateFolderRecursive(string assetsPath)

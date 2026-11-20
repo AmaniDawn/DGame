@@ -22,7 +22,8 @@ Create a new C# script (default base class MonoBehaviour) from a template under 
 | `base-class` | no | `MonoBehaviour` | Base class to derive from. Defaults to MonoBehaviour. |
 | `overwrite` | no | `false` | Overwrite the file if it already exists. Defaults to false (an existing file is an error). |
 
-**Returns:** `AuthoringResult`
+**Returns:** `AuthoringResult` of the new `MonoScript` asset (with `assetPath`).
+**Fails:** `InvalidUsage` for an empty or invalid class name, or a `path` outside the authoring root; `NotFound` when the destination folder doesn't exist; `Failed` when the file exists and `overwrite` is false.
 **Notes:** Does not trigger a recompile; the created type is not usable until a recompile completes (poll `script recompile_status`).
 
 ### `script attach`
@@ -34,21 +35,23 @@ Add a MonoBehaviour to a GameObject by its (compiled) type name OR by its script
 | `type` | no | `–` | Component type name to add, e.g. PlayerController or Game.Player.PlayerController. Must already be compiled. Mutually exclusive with 'script'. |
 | `script` | no | `–` | Script asset path, e.g. 'Assets/Pool/Scripts/CueShooter.cs'. The backing class is resolved via MonoScript.GetClass(), so the class name may differ from the filename. Mutually exclusive with 'type'. |
 
-**Returns:** `AuthoringResult`
-**Notes:** Undo-able. Provide exactly one of `type` or `script`. A not-yet-compiled type returns a recoverable error (recompile, poll `script recompile_status`, then retry).
+**Returns:** `AuthoringResult` of the new component.
+**Fails:** `InvalidUsage` when both or neither of `type` and `script` are given, or `target` isn't a GameObject; `NotFound` when `target` doesn't resolve or no `MonoScript` is at `script`; `Failed` when the type isn't compiled yet (the error says to recompile, poll `script recompile_status`, then retry), isn't a concrete MonoBehaviour, or Unity refuses the component.
+**Notes:** Undo-able. Provide exactly one of `type` or `script`.
 
 ### `component set_field`
-Set a serialized field on a component/asset. Supports primitives, enums, Vector/Color/Rect/Bounds, object references (value = an ObjectRef: asset by guid/fileId/path or scene object by instanceId/hierarchyPath), and array elements via 'name.Array.data[i]' (or 'name.Array.size' to resize).
+Set a serialized field on a component/asset. Supports primitives, enums, Vector/Color/Rect/Bounds, object references (value = an ObjectRef: asset by guid/fileId/path or scene object by instanceId/hierarchyPath), [Serializable] structs/classes (value = an object of their fields), whole arrays/lists, and array elements via 'name.Array.data[i]' (or 'name.Array.size' to resize).
 
 | Parameter | Required | Default | Description |
 |-----------|----------|---------|-------------|
 | `target` | yes | – | Reference to the component or asset to modify (globalId/path/guid/instanceId/hierarchyPath). May be a GameObject when 'component' is given. |
 | `field` | yes | – | SerializedProperty path, e.g. 'speed', 'settings.speed', or 'waypoints.Array.data[0]'. |
-| `value` | yes | – | JSON value to assign. For object references pass an ObjectRef object (or null to clear). For enums pass the value name. |
+| `value` | yes | – | JSON value to assign. Vectors, colors and rects as {"x":1,"y":2}, [1,2] or "1,2". A struct/class as an object of the fields to change. Enums by name ([Flags]: "A\|B") or underlying value. For object references pass an ObjectRef object (or null to clear). |
 | `component` | no | `–` | Component type name on the target GameObject (e.g. 'Rigidbody'). Use when 'target' is a GameObject; omit when 'target' is already a component handle. |
 
-**Returns:** `AuthoringResult`
-**Notes:** Undo-able.
+**Returns:** `AuthoringResult` of the modified component or asset.
+**Fails:** `NotFound` when `target`, the `component` type, a matching component, or `field` doesn't exist; `InvalidUsage` when `target` is a GameObject and `component` is omitted, has several components of that type (the error lists their instanceIds), or is an asset given a `component`. Nothing changes when it fails.
+**Notes:** Undo-able. A `target` path of the form `Assets/UI/Screen.prefab:Canvas/Header` addresses a GameObject inside a prefab asset; see [Receiving objects](../authoring-commands.md#receiving-objects-objectref).
 
 ### `component get_fields`
 Read serialized fields of a component/asset. Returns each top-level field's name, type and value (object references are returned as re-usable handles). Pass 'field' to read a single SerializedProperty path. Pass detail='value' to return just the value(s) — a token-efficient read for scalars.
@@ -60,7 +63,14 @@ Read serialized fields of a component/asset. Returns each top-level field's name
 | `component` | no | `–` | Component type name on the target GameObject (e.g. 'Rigidbody'). Use when 'target' is a GameObject; omit when 'target' is already a component handle. |
 | `detail` | no | `full` | full for a descriptor per field {name,path,propertyType,isArray,arrayLength,value}; value for just the value(s): the raw value for a single 'field', or a {name: value} map for all fields. |
 
-**Returns:** `object`
+**Returns:** depends on `field` and `detail`:
+
+| | `detail=full` (default) | `detail=value` |
+|---|---|---|
+| With `field` | One descriptor `{ name, path, propertyType, isArray, arrayLength, value }` | The raw value |
+| Without `field` | One descriptor record per top-level field | One `{ name: value }` map |
+
+**Fails:** as `component set_field`, and `NotFound` when `field` doesn't exist.
 
 ### `script eval`
 Compile and run C# as a script: statements, `using` directives, top-level methods and types, and
@@ -71,8 +81,8 @@ Compile and run C# as a script: statements, `using` directives, top-level method
 | `code` | no | `–` | C# code to evaluate. Give either `code` or `file`. May be given first, without `--code`. |
 | `file` | no | `–` | Path to a `.cs` file to evaluate instead of `code`. In the Editor, relative paths resolve against the project root (the parent of `Assets/`); in a player, against the working directory. |
 | `timeout` | no | `30` | Timeout in seconds for the whole run, awaits included. |
-| `dry-run` | no | `false` | Compile only: return diagnostics. Nothing is loaded or run. |
-| `auto-import` | no | `false` | When a type or name is not found, add a `using` for the one namespace that declares it and compile again. The reply lists the usings it added in `addedUsings`. A name declared in several namespaces fails and lists them. |
+| `dry-run` | no | `false` | Compile only: report diagnostics. Nothing is loaded or run. |
+| `auto-import` | no | `false` | When a type or name is not found, add a `using` for the one namespace that declares it and compile again. Each using it added is a warning on stderr. A name declared in several namespaces fails and lists them. |
 | `internals` | no | `false` | Editor only. Compile so Unity's internal APIs are callable. Each run borrows an assembly name that Unity's modules grant internal access; once all of them are in use, it fails until the next domain reload. |
 
 A script can use these without a `using` line: `System`, `System.Collections.Generic`,
@@ -85,18 +95,21 @@ main thread: `Wait.Until(condition)`, `Wait.Until(getValue, condition)`, `Wait.F
 and `Wait.ForImport(assetPath)` in the Editor. A wait that runs out of time throws
 `WaitTimeoutException`; cancelling the job stops it. A wait cannot span a domain reload.
 
-**Returns:** `EvalResponse` — `{ result, diagnostics, addedUsings }`. Diagnostic lines are 1-based
-and count the script's own lines; warnings are returned on success too. A dry run returns no result.
-**Errors:** a failed eval fails the reply, with its `EvalResponse` still in `result`:
+**Returns:** the script's value, as JSON: `4`, `"text"`, an object. A script with no value returns
+`null`, and a dry run writes nothing: its exit code says whether the script compiled. Compiler warnings are warnings on stderr, as `line L, col C: warning ID:
+message`; lines are 1-based and count the script's own lines.
+**Errors:** a failed eval writes no result and exits non-zero. Its error on stderr starts with the
+category, then says what failed:
 
-| `errorCode` | When | HTTP |
+| Category | When | Exit code |
 |---|---|---|
-| `INVALID_COMMAND_ARGS` | No code, both `code` and `file`, a missing, empty or non-`.cs` file, or `internals` in a player | 400 |
-| `COMPILATION_ERROR` | The script does not compile; `errorDetails` lists each error with its line and column | 400 |
-| `RUNTIME_EXCEPTION` | The script threw, including a `WaitTimeoutException`; `errorDetails` has the exception and its stack trace, with script lines | 400 |
-| `TIMEOUT` | The run outlasted `timeout`; the script keeps running detached | 504 |
-| `UNSUPPORTED_PLATFORM` | A player that is not a desktop development build | 400 |
-| `EVAL_INTERNAL_ERROR` | The compiled script could not be loaded or started | 500 |
+| `INVALID_COMMAND_ARGS` | No code, both `code` and `file`, a missing, empty or non-`.cs` file, or `internals` in a player | `InvalidUsage` |
+| `COMPILATION_ERROR` | The script does not compile. The first error line gives the count, then each compile error is its own error line, as `line L, col C: error ID: message` | `Failed` |
+| `RUNTIME_EXCEPTION` | The script threw, including a `WaitTimeoutException`; the error has the exception and its stack trace, with script lines | `Failed` |
+| `UNSUPPORTED_PLATFORM` | A player that is not a desktop development build | `Failed` |
+| `EVAL_INTERNAL_ERROR` | The compiled script could not be loaded or started | `Failed` |
+
+A run that outlasts `timeout` times out (HTTP 504, `TIMEOUT`); the script keeps running detached.
 
 **Notes:** `MainThreadRequired = true`. Available on both editor and runtime. Run it as a job
 (`--detach`) for long waits. Each run loads one small assembly that Unity cannot unload; a dry run
@@ -163,16 +176,16 @@ report.ToString()
 
 ```bash
 unity command script eval --file AgentScripts/CountByTag.cs             # "MainCamera: 1\nUntagged: 1\n"
-unity command script eval --file AgentScripts/CountByTag.cs --dry-run   # compiles; result is null, nothing runs
+unity command script eval --file AgentScripts/CountByTag.cs --dry-run   # compiles and reports diagnostics; nothing runs
 ```
 
 Add missing `using` directives, or see which namespaces to choose from:
 
 ```bash
 unity command script eval 'return new StringBuilder("auto").Append("-import").ToString();' --auto-import
-# "auto-import", with addedUsings: ["System.Text"]
+# "auto-import"; stderr: warning: auto-import added: using System.Text;
 unity command script eval 'return EditorSceneManager.GetActiveScene().name;' --auto-import
-# addedUsings: ["UnityEditor.SceneManagement"]
+# stderr: warning: auto-import added: using UnityEditor.SceneManagement;
 unity command script eval 'return new Image();' --auto-import
 # COMPILATION_ERROR: ... auto-import found it in several namespaces: ..., UnityEngine.UIElements.Image. Add a using directive for the one you mean.
 ```
@@ -193,17 +206,6 @@ unity command script eval 'return Foo(;'
 #   line 1, col 11: error CS1026: ) expected
 #   line 1, col 7: error CS0103: The name 'Foo' does not exist in the current context
 ```
-
-### `script eval_file`
-Deprecated: use `script eval --file`. Takes the same parameters, with `file` required and given
-first, and adds a deprecation warning to its result.
-
-```bash
-unity command script eval_file AgentScripts/CountByTag.cs   # same as: unity command script eval --file AgentScripts/CountByTag.cs
-```
-
-**Returns:** `EvalResponse`
-**Notes:** `MainThreadRequired = true`. Available on both editor and runtime.
 
 ### `script run`
 Compile a single project `.cs` file in memory (no domain reload, no code carried through the
@@ -230,10 +232,19 @@ runs unless `entry` names it.
 | `timeout` | no | `60` | Timeout in seconds for the whole run, like `script eval`. |
 | `dry-run` | no | `false` | Compile only: return diagnostics; the emitted assembly is **not loaded** into the domain and nothing executes (the response carries no `assemblyName`). Rejected with `mode=hotpatch` — a hotpatch "dry run" would still apply live method replacements. |
 
-**Returns:** `RunScriptResponse` — `{ result, diagnostics, compileMs, executeMs, assemblyName }` on top
-of the standard envelope. The result carries no echo of the source (path + diagnostics only). Compile
-errors return full Roslyn diagnostics (with line/column) and execute nothing; runtime exceptions
-surface as structured errors with `file:line` mapped to the source file.
+**Returns:** `{ result, diagnostics, compileMs, executeMs, assemblyName }`: the entry point's return
+value, the compile's Roslyn diagnostics (warnings, with line/column), and timings. The result carries
+no echo of the source (path + diagnostics only). A dry run logs `Compiled successfully` at info level
+and writes `result: null` and no `assemblyName`.
+**Fails:** errors go to stderr.
+- `InvalidUsage`: an empty `file` or one without a `.cs` extension, an unknown `mode`, `dry-run`,
+  `entry` or `args` with `mode=hotpatch`, or `args` that don't fit the entry point's parameters.
+- `NotFound`: the file doesn't exist, or `entry` doesn't resolve to exactly one static method (the
+  error lists the candidates).
+- `Failed`: compile errors (each Roslyn error with its line, column and id, also kept as the
+  result's `diagnostics`; nothing executes), an
+  unreadable or empty file, an entry point that throws (its exception with `file:line` mapped to the
+  source file), a timeout, or a hotpatch reload that fails.
 **Notes:** `MainThreadRequired = true`. Editor command.
 
 - Executing runs always compile **unoptimized (Debug codegen)** so the emitted symbols keep full
@@ -244,11 +255,12 @@ surface as structured errors with `file:line` mapped to the source file.
   is **asynchronous** — the Editor main thread keeps pumping, so awaits that resume on Unity's
   main-thread context (`Task.Yield()`, `Task.Delay()`, Awaitable, …) work naturally; no
   `ConfigureAwait(false)` contortions are required. The wait is bounded by what remains of
-  `timeout`; on expiry the command returns a `Timeout` error and the task keeps running
+  `timeout`; on expiry the command exits `Failed` with a timeout error and the task keeps running
   detached (its effects may still land), like an abandoned `script eval`.
-- **hotpatch specifics:** `entry`, `args` and `dry-run` are rejected (Bad Request); `references` and
+- **hotpatch specifics:** `entry`, `args` and `dry-run` are rejected (`InvalidUsage`); `references` and
   `defines` are not applied. Path resolution follows `script.methodreload reload`, which probes under `Assets/`
-  for bare filenames (unlike ephemeral's project-root resolution). Timing: `executeMs` carries the
+  for bare filenames (unlike ephemeral's project-root resolution), and only accepts files under `Assets/`
+  or a loaded package: anything else fails with an `Out Of Project Scope` error. Timing: `executeMs` carries the
   whole reload duration (compile + apply, not split by `script.methodreload reload`); `compileMs` is `0`. Advisory
   reload diagnostics are surfaced as severity-`warning` entries on success.
 - Under Unity's Mono runtime the in-memory assembly emitted by an executing `ephemeral` run is

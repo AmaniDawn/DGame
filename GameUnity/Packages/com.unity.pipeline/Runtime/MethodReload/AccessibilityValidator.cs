@@ -56,12 +56,11 @@ namespace Unity.Pipeline.MethodReload
             {
                 var classSymbol = model.GetDeclaredSymbol(classDecl);
 
-                foreach (var method in classDecl.Members.OfType<MethodDeclarationSyntax>())
+                var methods = SourceCodeTransformer.TypeParts(classDecl)
+                    .SelectMany(p => p.Members.OfType<MethodDeclarationSyntax>());
+                foreach (var method in SourceCodeTransformer.OverrideDeclarations(methods, methodBodies.Keys))
                 {
                     var methodName = method.Identifier.ValueText;
-                    if (!methodBodies.ContainsKey(methodName) || method.Body == null)
-                        continue;
-
                     var seen = new HashSet<string>();
                     foreach (var name in method.Body.DescendantNodes().OfType<SimpleNameSyntax>())
                     {

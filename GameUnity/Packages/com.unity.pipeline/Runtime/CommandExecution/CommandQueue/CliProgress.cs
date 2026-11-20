@@ -194,7 +194,7 @@ namespace Unity.Pipeline
     /// Editor is busy.
     ///
     /// This is a thin static façade over the executing queue's own <see cref="CliProgressState"/>
-    /// (resolved via <see cref="Commands.CommandContext.Current"/>) so command code — which has
+    /// (resolved via <see cref="Commands.CommandExecutionContext.Current"/>) so command code — which has
     /// no reference to "which execution is running me" — can keep calling this the same way
     /// regardless of which server dispatched it.
     ///
@@ -221,13 +221,13 @@ namespace Unity.Pipeline
         /// <param name="progress">Progress in [0, 1], used instead of current/total when set.</param>
         public static void Report(string title, string info = null, long? current = null, long? total = null, double? progress = null)
         {
-            Commands.CommandContext.Current?.Progress.Report(title, info, current, total, progress);
+            Commands.CommandExecutionContext.Current?.Progress.Report(title, info, current, total, progress);
         }
 
         /// <summary>Clear an explicit <see cref="Report"/> (e.g. when the reported task finishes).</summary>
         public static void Clear()
         {
-            Commands.CommandContext.Current?.Progress.Clear();
+            Commands.CommandExecutionContext.Current?.Progress.Clear();
         }
     }
 }

@@ -132,6 +132,17 @@ class ConnectionTests(unittest.TestCase):
         self.root = Path(self.temp.name)
         self.unity = Unity(SimpleNamespace(context=context(self.root)))
 
+    def test_empty_native_test_list_is_not_a_runnable_test(self):
+        self.unity.capabilities = {"test list"}
+        for output in ("", "null\n", "[]\n"):
+            with self.subTest(output=output):
+                self.unity.raw = Mock(return_value=output)
+                tests = self.unity.call("test list", {"mode": "editor"})
+                self.assertEqual(tests, [])
+                with self.assertRaises(WorkflowError) as err:
+                    select_tests(tests, "editor", "Game.Tests", "assembly")
+                self.assertEqual(err.exception.status, "blocked")
+
     def test_exact_project_ready_instance_is_selected(self):
         selected = parse_instances(json.dumps(instance(self.root)), self.root)
         self.assertEqual(selected["projectPath"], str(self.root))
@@ -227,6 +238,18 @@ class InvocationTests(unittest.TestCase):
                 self.unity.raw(["status"])
             self.assertEqual(caught.exception.status, "blocked")
 
+    def test_status_only_pipeline_load_pending_is_a_reconnect_not_a_test_failure(self):
+        def response(code):
+            return subprocess.CompletedProcess([], 6, json.dumps({"command": "status", "success": False,
+                "errors": [{"code": code}]}), "")
+        for args, code, expected in ((["status"], "STATUS_PIPELINE_LOAD_PENDING", "blocked"),
+                                     (["status"], "OTHER_FAILURE", "failed"),
+                                     (["command", "test", "run"], "STATUS_PIPELINE_LOAD_PENDING", "failed")):
+            self.execute.return_value = response(code)
+            with self.subTest(args=args, code=code), self.assertRaises(WorkflowError) as caught:
+                self.unity.raw(args, mutating=args[0] == "command")
+            self.assertEqual(caught.exception.status, expected)
+
 
 
     def test_describe_is_exposed_by_argument_parser(self):
@@ -248,7 +271,11 @@ class InvocationTests(unittest.TestCase):
 
 class TestExecutionTests(unittest.TestCase):
     def setUp(self):
-        self.unity = Unity(SimpleNamespace(context=None))
+        temp = tempfile.TemporaryDirectory()
+        self.addCleanup(temp.cleanup)
+        self.project = Path(temp.name)
+        (self.project / "Temp").mkdir()
+        self.unity = Unity(SimpleNamespace(context=context(self.project)))
         self.unity.ready = Mock()
         self.unity.poll = Mock(return_value=results())
         self.ack = {"success": True, "result": "running", "Mode": "EditMode",
@@ -268,6 +295,19 @@ class TestExecutionTests(unittest.TestCase):
             self.unity.tests("editor", "Game.Tests", "assembly", 30)
         self.assertEqual(caught.exception.status, "blocked")
         self.unity.call.assert_called_once_with("test list", {"mode": "editor"})
+
+    def test_stable_record_listing_and_silent_start_require_a_new_status_file(self):
+        stamp = self.project / "Temp/pipeline_test_status.json"
+        data = results()
+        self.unity.call = Mock(side_effect=[listing()["Tests"], data, None] * 2)
+        def complete(*args):
+            stamp.write_text(json.dumps(data))
+            return data
+        self.unity.poll = Mock(side_effect=complete)
+        self.assertEqual(self.unity.tests("editor", "Game.Tests", "assembly", 30)["summary"]["passed"], 1)
+        self.unity.poll = Mock(return_value=data)
+        with self.assertRaisesRegex(WorkflowError, "no fresh test status"):
+            self.unity.tests("editor", "Game.Tests", "assembly", 30)
 
     def test_running_test_is_not_replaced(self):
         self.unity.call = Mock(side_effect=[listing(), {"status": "running"}])
@@ -366,9 +406,10 @@ class BuildPreviewTests(unittest.TestCase):
         self.unity.ready = Mock()
         self.unity.discover = Mock()
         self.unity.capabilities = {"build run"}
-        self.valid_preview = {"status": "dry_run", "valid": True, "validationErrors": []}
         self.parameters = {"target": "StandaloneWindows64", "output-path": "Builds/Fixture/Game.exe",
                            "scenes": ["Assets/Scenes/Main.unity"]}
+        self.valid_preview = {"status": "dry_run", "valid": True, "target": self.parameters["target"],
+                              "scenes": self.parameters["scenes"]}
 
     def invalid_previews(self):
         return (
@@ -378,6 +419,9 @@ class BuildPreviewTests(unittest.TestCase):
             {"status": "dry_run", "valid": 1, "validationErrors": []},
             {"status": "dry_run", "validationErrors": []},
             {"status": "dry_run", "valid": True},
+            {**self.valid_preview, "target": "Android"},
+            {**self.valid_preview, "scenes": []},
+            {**self.valid_preview, "validationErrors": ["invalid scene"]},
             {"status": "queued", "valid": True, "validationErrors": []},
             None,
         )

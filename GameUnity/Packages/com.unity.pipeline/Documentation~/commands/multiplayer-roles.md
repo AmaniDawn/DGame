@@ -28,6 +28,14 @@ Every `role` argument takes one of `client`, `server` or `client_and_server`. Ca
 `_` and `-` are ignored, so `ClientAndServer` and `client-and-server` work too. Results report the
 role as Unity names it: `Client`, `Server` or `ClientAndServer`.
 
+## Results and failures
+
+Results go to stdout; notes and errors go to stderr, filtered by `--log-level` (`warning` by
+default). A command that fails writes no result and exits non-zero: `InvalidUsage` (2) for an
+unknown role or a handle of the wrong kind, `NotFound` (13) for a `target`, build `profile` or
+component `type` that doesn't exist, and `Failed` (6) for a change refused in Play Mode or on a
+`[MultiplayerRoleRestricted]` component.
+
 ## The Editor's role
 
 Project-wide settings (enabling roles, safety checks, the server's automatic stripping) are project
@@ -39,8 +47,8 @@ Get the role the Editor runs as in Play Mode, and whether Multiplayer Roles are 
 
 No parameters.
 
-**Returns:** `{ activeRole, enabled, note }`
-**Notes:** `note` says when roles are disabled, and how to enable them.
+**Returns:** `{ activeRole, enabled }`
+**Notes:** When roles are disabled, an `info` note says how to enable them.
 
 ### `multiplayer.role set_active`
 Set the role the Editor runs as in Play Mode.
@@ -49,8 +57,8 @@ Set the role the Editor runs as in Play Mode.
 |-----------|----------|---------|-------------|
 | `role` | yes | `–` | Role to run as. |
 
-**Returns:** `{ activeRole, previousRole, note }`
-**Notes:** Also updates the Multiplayer Role dropdown in the main toolbar. `note` says when roles are
+**Returns:** `{ activeRole, previousRole }`
+**Notes:** Also updates the Multiplayer Role dropdown in the main toolbar. A warning says when roles are
 disabled, in which case the role strips nothing until they are enabled. Refused in Play Mode.
 
 ## Objects
@@ -133,7 +141,7 @@ rendering and UI stripping.
 
 No parameters.
 
-**Returns:** `{ count, componentTypes: [{ type, role }] }`
+**Returns:** one record per component type, `{ type, role }`, sorted by `type`. No records when there are none.
 
 ### `multiplayer.role set_component_type`
 Keep every component of a type for the given roles only, project-wide.
@@ -143,8 +151,8 @@ Keep every component of a type for the given roles only, project-wide.
 | `type` | yes | `–` | Component type name (e.g. `AudioSource` or `UnityEngine.Camera`). |
 | `role` | yes | `–` | Roles to keep the component type for. `client_and_server` keeps it everywhere. |
 
-**Returns:** `{ type, role, note }`
-**Notes:** Refused in Play Mode.
+**Returns:** `{ type, role }`
+**Notes:** Refused in Play Mode. A `type` that doesn't resolve exits `NotFound` (13).
 
 ## Play Mode
 

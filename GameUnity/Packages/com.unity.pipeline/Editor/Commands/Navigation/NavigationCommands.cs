@@ -14,10 +14,11 @@ namespace Unity.Pipeline.Editor.Commands.Navigation
 {
     /// <summary>
     /// Navigation and targeting commands (CLI-200): read and drive the Editor selection, and run
-    /// Unity Search queries — both returning the canonical <see cref="AuthoringResult"/> object
-    /// identity (via <see cref="ObjectResolver.Describe"/>) so an agent can reference results in a
-    /// follow-up call. All commands are read-only or non-destructive (set_selection only changes the
-    /// Editor selection, which carries no undo/safety policy), and run on the main thread.
+    /// Unity Search queries. The selection commands write one record per selected object, each the
+    /// canonical <see cref="AuthoringResult"/> identity (via <see cref="ObjectResolver.Describe"/>) so
+    /// an agent can reference it in a follow-up call; search writes one record per hit. All commands
+    /// are read-only or non-destructive (set_selection only changes the Editor selection, which carries
+    /// no undo/safety policy), and run on the main thread.
     /// </summary>
     static class NavigationCommands
     {
@@ -26,10 +27,11 @@ namespace Unity.Pipeline.Editor.Commands.Navigation
 
         private const int MaxSearchResults = 200;
 
-        [CliGroupCommand(Group, "Read the current Editor selection as structured object identities.", Tags = new[] { "navigation" })]
-        public static SelectionResult GetSelection()
+        [CliGroupCommand(Group, "Read the current Editor selection as structured object identities.", Tags = new[] { "navigation" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetSelection(CommandContext cmd)
         {
-            return DescribeSelection(null);
+            WriteSelection(cmd);
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -41,8 +43,8 @@ namespace Unity.Pipeline.Editor.Commands.Navigation
         /// each through <see cref="ObjectResolver.TryResolve"/> for the full handle surface.
         /// </para>
         /// </summary>
-        [CliGroupCommand(Group, "Set the Editor selection to the given assets/scene objects.", Tags = new[] { "navigation" })]
-        public static SelectionResult SetSelection(
+        [CliGroupCommand(Group, "Set the Editor selection to the given assets/scene objects.", Tags = new[] { "navigation" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetSelection(CommandContext cmd,
             [CliArg("instance-ids", "Scene/loaded object instance IDs to select.")] ObjectId[] instanceIds = null,
             [CliArg("paths", "Asset paths to select (e.g. Assets/Foo.prefab).")] string[] paths = null)
         {
@@ -82,39 +84,41 @@ namespace Unity.Pipeline.Editor.Commands.Navigation
 
             // Inputs were given but none resolved: that's a hard error, not a silent clear.
             if (resolved.Count == 0 && hadInputs)
-                throw new ArgumentException($"No objects resolved from the given inputs. Unresolved: {string.Join(", ", unresolved)}");
+            {
+                cmd.Log.Error($"No objects resolved from the given inputs; the selection is unchanged. Unresolved: {string.Join(", ", unresolved)}");
+                return ExitCode.NotFound;
+            }
+
+            if (unresolved.Count > 0)
+                cmd.Log.Warning($"Skipped {unresolved.Count} input(s) that did not resolve: {string.Join(", ", unresolved)}");
 
             // No inputs at all is a valid request to clear the selection.
-            var objects = resolved.ToArray();
-            Selection.objects = objects;
+            Selection.objects = resolved.ToArray();
             Selection.activeObject = resolved.FirstOrDefault();
 
-            return DescribeSelection(unresolved.ToArray());
+            WriteSelection(cmd);
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(EditorGroup, "Run a Unity Search query and return structured results.", Tags = new[] { "navigation" })]
-        public static SearchResult Search(
+        [CliGroupCommand(EditorGroup, "Run a Unity Search query and return structured results.", Tags = new[] { "navigation" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Search(CommandContext cmd,
             [CliArg("query", "Unity Search query string, e.g. 't:Material', 'p: my asset', 'h: Main Camera'.", Required = true)] string query,
             [CliArg("limit", "Max results to return (capped 200).")] int limit = 50)
         {
             if (string.IsNullOrEmpty(query))
-                throw new ArgumentException("query must be a non-empty Unity Search query string.");
+            {
+                cmd.Log.Error("query must be a non-empty Unity Search query string.");
+                return ExitCode.InvalidUsage;
+            }
 
             var clamped = Mathf.Clamp(limit, 0, MaxSearchResults);
 
             // A non-positive limit can't return any rows; skip the potentially expensive request.
             if (clamped <= 0)
-            {
-                return new SearchResult
-                {
-                    Query = query,
-                    Count = 0,
-                    Results = Array.Empty<SearchResultItem>()
-                };
-            }
+                return ExitCode.Success;
 
-            var results = new List<SearchResultItem>();
-
+            var written = 0;
+            var skipped = 0;
             ISearchList list = null;
             try
             {
@@ -123,25 +127,31 @@ namespace Unity.Pipeline.Editor.Commands.Navigation
 
                 foreach (var item in list)
                 {
-                    if (results.Count >= clamped)
+                    if (written >= clamped)
                         break;
                     if (item == null)
                         continue;
 
                     // One malformed item must not fail the whole call.
+                    SearchResultItem mapped;
                     try
                     {
-                        results.Add(MapItem(item));
+                        mapped = MapItem(item);
                     }
                     catch
                     {
-                        // skip the unmappable item
+                        skipped++;
+                        continue;
                     }
+
+                    cmd.Result.WriteRecord(mapped);
+                    written++;
                 }
             }
             catch (Exception ex)
             {
-                throw new InvalidOperationException($"Unity Search query '{query}' failed: {ex.Message}", ex);
+                cmd.Log.Error($"Unity Search query '{query}' failed: {ex.Message}");
+                return ExitCode.Failed;
             }
             finally
             {
@@ -150,12 +160,9 @@ namespace Unity.Pipeline.Editor.Commands.Navigation
                 (list as IDisposable)?.Dispose();
             }
 
-            return new SearchResult
-            {
-                Query = query,
-                Count = results.Count,
-                Results = results.ToArray()
-            };
+            if (skipped > 0)
+                cmd.Log.Warning($"Skipped {skipped} search result(s) that could not be read.");
+            return ExitCode.Success;
         }
 
         private static SearchResultItem MapItem(SearchItem item)
@@ -210,70 +217,54 @@ namespace Unity.Pipeline.Editor.Commands.Navigation
         }
 
         /// <summary>
-        /// Snapshot the current <see cref="Selection"/> as canonical identities, optionally tagging on
-        /// the <paramref name="unresolved"/> list from a set_selection call.
+        /// Writes the current <see cref="Selection"/> as one record per selected object, marking the
+        /// active one. An active object outside <see cref="Selection.objects"/> is written last.
         /// </summary>
-        private static SelectionResult DescribeSelection(string[] unresolved)
+        private static void WriteSelection(CommandContext cmd)
         {
-            var objects = Selection.objects ?? Array.Empty<Object>();
-            var described = objects
-                .Select(ObjectResolver.Describe)
-                .Where(r => r != null)
-                .ToArray();
-
-            return new SelectionResult
+            var active = Selection.activeObject;
+            var wroteActive = false;
+            foreach (var obj in Selection.objects ?? Array.Empty<Object>())
             {
-                Count = described.Length,
-                Active = ObjectResolver.Describe(Selection.activeObject),
-                Objects = described,
-                Unresolved = unresolved
-            };
+                var described = ObjectResolver.Describe(obj);
+                if (described == null)
+                    continue;
+                var isActive = active != null && obj == active;
+                wroteActive |= isActive;
+                cmd.Result.WriteRecord(SelectedObject.From(described, isActive));
+            }
+
+            if (!wroteActive && active != null)
+            {
+                var described = ObjectResolver.Describe(active);
+                if (described != null)
+                    cmd.Result.WriteRecord(SelectedObject.From(described, true));
+            }
         }
     }
 
     /// <summary>
-    /// Structured snapshot of the Editor selection: the active object plus every selected object,
-    /// each as a canonical <see cref="AuthoringResult"/> identity. <see cref="Unresolved"/> is only
-    /// populated by set_selection (inputs that did not resolve to a loaded object/asset).
+    /// One selected object: its canonical <see cref="AuthoringResult"/> identity, and whether it is
+    /// the active object of the selection.
     /// </summary>
     [Serializable]
-    class SelectionResult
+    class SelectedObject : AuthoringResult
     {
-        /// <summary>Number of selected objects (excludes nulls).</summary>
-        [JsonProperty("count")]
-        public int Count { get; set; }
-
-        /// <summary>The active selection object, or null when the selection is empty.</summary>
+        /// <summary>True for the selection's active object.</summary>
         [JsonProperty("active")]
-        public AuthoringResult Active { get; set; }
+        public bool Active { get; set; }
 
-        /// <summary>Every selected object as a canonical identity (nulls skipped).</summary>
-        [JsonProperty("objects")]
-        public AuthoringResult[] Objects { get; set; }
-
-        /// <summary>Inputs that did not resolve (set_selection only); null for get_selection.</summary>
-        [JsonProperty("unresolved")]
-        public string[] Unresolved { get; set; }
-    }
-
-    /// <summary>
-    /// Structured result of a Unity Search query: the echoed query, the returned count, and the
-    /// mapped <see cref="SearchResultItem"/> rows (capped at the requested limit).
-    /// </summary>
-    [Serializable]
-    class SearchResult
-    {
-        /// <summary>The query that was executed (echoed back).</summary>
-        [JsonProperty("query")]
-        public string Query { get; set; }
-
-        /// <summary>Number of results returned (after the limit cap).</summary>
-        [JsonProperty("count")]
-        public int Count { get; set; }
-
-        /// <summary>The mapped search result rows.</summary>
-        [JsonProperty("results")]
-        public SearchResultItem[] Results { get; set; }
+        public static SelectedObject From(AuthoringResult described, bool active) => new SelectedObject
+        {
+            GlobalId = described.GlobalId,
+            AssetPath = described.AssetPath,
+            Guid = described.Guid,
+            FileId = described.FileId,
+            InstanceId = described.InstanceId,
+            HierarchyPath = described.HierarchyPath,
+            Type = described.Type,
+            Active = active
+        };
     }
 
     /// <summary>

@@ -2,6 +2,8 @@
 
 Commands covering the prefab lifecycle an agent needs to build content procedurally: saving a configured GameObject as a prefab asset, instantiating it into a scene, deriving a variant, applying/reverting instance overrides, unpacking, and editing prefab contents through the prefab stage. Asset paths are sandboxed to the authoring root; scene-side mutations are Undo-able, but prefab asset writes are AssetDatabase operations and are not part of Unity's Undo system.
 
+Each command writes one `AuthoringResult` (`globalId`, `assetPath`, `guid`, `instanceId`, `hierarchyPath`, `type`) to stdout and its errors to stderr. A reference that doesn't resolve exits `NotFound`; a reference to the wrong kind of object (not a GameObject, not a prefab asset, not part of a prefab instance) or a path outside the authoring root exits `InvalidUsage`; a Unity operation that fails exits `Failed`.
+
 ### `prefab create`
 Save a GameObject as a prefab asset at a project path; the source becomes a connected instance.
 
@@ -10,7 +12,7 @@ Save a GameObject as a prefab asset at a project path; the source becomes a conn
 | `source` | yes | – | Reference to the source GameObject to save as a prefab (globalId/path/guid/instanceId/hierarchyPath). |
 | `path` | yes | – | Prefab asset path relative to the authoring root (the Assets/ prefix is optional and the .prefab extension is added if missing). e.g. Prefabs/Enemy or Prefabs/Enemy.prefab |
 
-**Returns:** `AuthoringResult`
+**Returns:** `AuthoringResult` of the saved prefab asset.
 **Notes:** Scene-side effects are Undo-able; the prefab asset write is not undoable.
 
 ### `prefab instantiate`
@@ -22,7 +24,8 @@ Instantiate a prefab asset into a loaded scene and return the created instance.
 | `scene-path` | no | `–` | Optional path of a loaded scene to instantiate into; defaults to the active scene. |
 | `name` | no | `–` | Optional name for the created instance; defaults to the prefab name. |
 
-**Returns:** `AuthoringResult`
+**Returns:** `AuthoringResult` of the scene instance (with `instanceId` and `hierarchyPath`).
+**Fails:** `NotFound` when no loaded scene matches `scene-path`.
 **Notes:** Undo-able.
 
 ### `prefab create_variant`
@@ -33,7 +36,7 @@ Create a prefab variant asset that inherits from a base prefab.
 | `base` | yes | – | Reference to the base prefab asset (path/guid/globalId). |
 | `path` | yes | – | Variant prefab asset path relative to the authoring root (.prefab added if missing). |
 
-**Returns:** `AuthoringResult`
+**Returns:** `AuthoringResult` of the variant asset.
 **Notes:** Prefab asset write is not undoable.
 
 ### `prefab apply_overrides`
@@ -43,7 +46,7 @@ Apply a prefab instance's overrides back to its source prefab asset.
 |-----------|----------|---------|-------------|
 | `instance` | yes | – | Reference to a prefab instance GameObject in a scene (instanceId/hierarchyPath/globalId). |
 
-**Returns:** `AuthoringResult`
+**Returns:** `AuthoringResult` of the source prefab asset.
 **Notes:** Scene-side effects are Undo-able; the asset write is not. The instance's source prefab asset must live under the authoring root.
 
 ### `prefab revert_overrides`
@@ -53,7 +56,7 @@ Revert a prefab instance's overrides so it matches its source prefab asset.
 |-----------|----------|---------|-------------|
 | `instance` | yes | – | Reference to a prefab instance GameObject in a scene (instanceId/hierarchyPath/globalId). |
 
-**Returns:** `AuthoringResult`
+**Returns:** `AuthoringResult` of the instance root.
 **Notes:** Undo-able.
 
 ### `prefab unpack`
@@ -64,7 +67,7 @@ Unpack a prefab instance into plain GameObjects (outermost level or completely).
 | `instance` | yes | – | Reference to a prefab instance GameObject in a scene (instanceId/hierarchyPath/globalId). |
 | `completely` | no | `false` | If true, unpack all nested prefab levels (Completely); if false, only the outermost level (OutermostRoot). |
 
-**Returns:** `AuthoringResult`
+**Returns:** `AuthoringResult` of the unpacked root.
 **Notes:** Undo-able.
 
 ### `prefab save_contents`
@@ -78,7 +81,8 @@ Open a prefab asset in an isolated prefab stage, apply a declarative edit, and s
 | `set-active-child` | no | `–` | Optional child name (relative path under the root) whose active state to set. |
 | `active` | no | `true` | Active state to apply when set-active-child is provided. |
 
-**Returns:** `AuthoringResult`
+**Returns:** `AuthoringResult` of the edited prefab asset.
+**Fails:** `InvalidUsage` when `rename-child` is given without `new-name`; `NotFound` when a named child doesn't exist (nothing is saved).
 **Notes:** Prefab asset write (prefab-stage save) is not part of Unity's Undo system. The prefab asset must live under the authoring root.
 
 See [Creating commands](../creating-commands.md) and [Connectivity](../connectivity.md).

@@ -35,8 +35,9 @@ namespace Unity.Pipeline.Editor.Commands.Animation
         [CliGroupCommand(Group,
             "Create an empty .anim AnimationClip asset under the authoring root, with an optional frame rate and loop flag.",
             MainThreadRequired = true,
-            Tags = new[] { "animation/clip" })]
-        public static AuthoringResult Create(
+            Tags = new[] { "animation/clip" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode Create(CommandContext cmd,
             [CliArg("path", "Asset path ending in .anim, relative to the authoring root. The Assets/ prefix is optional.", Required = true)] string path,
             [CliArg("frame-rate", "Sampling frame rate of the clip (default 60).")] float frameRate = 60f,
             [CliArg("loop", "If true, set the clip's loop-time flag in its AnimationClipSettings (default false).")] bool loop = false,
@@ -45,20 +46,35 @@ namespace Unity.Pipeline.Editor.Commands.Animation
         {
             var normalized = ProjectPaths.Resolve(path, out var error);
             if (normalized == null)
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.InvalidUsage;
+            }
 
             if (!string.Equals(Path.GetExtension(normalized), ".anim", StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException($"Animation clip path '{normalized}' must end in .anim.");
+            {
+                cmd.Log.Error($"Animation clip path '{normalized}' must end in .anim.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (frameRate <= 0f)
-                throw new ArgumentException($"frame-rate must be positive (got {frameRate}).");
+            {
+                cmd.Log.Error($"frame-rate must be positive (got {frameRate}).");
+                return ExitCode.InvalidUsage;
+            }
 
             var exists = AssetDatabase.LoadMainAssetAtPath(normalized) != null;
             if (exists && !confirm)
-                throw new ArgumentException($"An asset already exists at '{normalized}'. Pass confirm=true to overwrite it.");
+            {
+                cmd.Log.Error($"An asset already exists at '{normalized}'. Pass confirm=true to overwrite it.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (dryRun)
-                return new AuthoringResult { AssetPath = normalized, Type = nameof(AnimationClip) };
+            {
+                cmd.Result.Write(new AuthoringResult { AssetPath = normalized, Type = nameof(AnimationClip) });
+                return ExitCode.Success;
+            }
 
             EnsureParentFolder(normalized);
 
@@ -81,15 +97,17 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             var loaded = AssetDatabase.LoadMainAssetAtPath(normalized);
             var result = ObjectResolver.Describe(loaded) ?? new AuthoringResult { Type = nameof(AnimationClip) };
             result.AssetPath = normalized;
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Add or replace a single float curve binding on an AnimationClip (via AnimationUtility.SetEditorCurve). " +
             "Replacing an existing binding overwrites it rather than duplicating.",
             MainThreadRequired = true,
-            Tags = new[] { "animation/clip" })]
-        public static SetAnimationCurveResult SetCurve(
+            Tags = new[] { "animation/clip" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode SetCurve(CommandContext cmd,
             [CliArg("clip", "Reference to the AnimationClip to edit (path / guid / globalId).", Required = true)] ObjectRef clip,
             [CliArg("path", "GameObject path relative to the animated root the property lives on. Empty string (default) targets the root.")] string path = "",
             [CliArg("type", "Component type the property lives on, e.g. \"Transform\", \"UnityEngine.Light\". Resolved via the component TypeResolver.", Required = true)] string type = null,
@@ -97,10 +115,14 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             [CliArg("keys", "Keyframes: [{ time, value, inTangent?, outTangent?, weightedMode?: \"None\"|\"In\"|\"Out\"|\"Both\" }]. Omitted tangents default to 0 (flat); this is NOT Unity's Auto tangent mode.", Required = true)] JArray keys = null,
             [CliArg("dry-run", "If true, validate type/property/keys without writing the curve.")] bool dryRun = false)
         {
-            var (clipAsset, clipPath) = ResolveClip(clip);
+            if (!TryResolveClip(cmd, clip, out var clipAsset, out var clipPath, out var failure))
+                return failure;
             var componentType = ResolveCurveType(type);
             if (string.IsNullOrWhiteSpace(property))
-                throw new ArgumentException("property is required.");
+            {
+                cmd.Log.Error("property is required.");
+                return ExitCode.InvalidUsage;
+            }
 
             var bindingPath = path ?? string.Empty;
             var curve = BuildCurve(keys, out var keyCount);
@@ -114,7 +136,10 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             };
 
             if (dryRun)
-                return result;
+            {
+                cmd.Result.Write(result);
+                return ExitCode.Success;
+            }
 
             var binding = EditorCurveBinding.FloatCurve(bindingPath, componentType, property);
             AnimationUtility.SetEditorCurve(clipAsset, binding, curve);
@@ -130,18 +155,21 @@ namespace Unity.Pipeline.Editor.Commands.Animation
                 result.GlobalId = described.GlobalId;
             }
 
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Read an AnimationClip's metadata and all float curve bindings (optionally with keyframes).",
             MainThreadRequired = true,
-            Tags = new[] { "animation/clip" })]
-        public static AnimationClipInfo Get(
+            Tags = new[] { "animation/clip" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Get(CommandContext cmd,
             [CliArg("clip", "Reference to the AnimationClip to read (path / guid / globalId).", Required = true)] ObjectRef clip,
             [CliArg("include-keys", "If true, include each binding's keyframes (default false).")] bool includeKeys = false)
         {
-            var (clipAsset, clipPath) = ResolveClip(clip);
+            if (!TryResolveClip(cmd, clip, out var clipAsset, out var clipPath, out var failure))
+                return failure;
 
             var settings = AnimationUtility.GetAnimationClipSettings(clipAsset);
             var info = new AnimationClipInfo
@@ -183,14 +211,16 @@ namespace Unity.Pipeline.Editor.Commands.Animation
                 info.Bindings.Add(entry);
             }
 
-            return info;
+            cmd.Result.Write(info);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Remove a float curve binding from an AnimationClip (SetEditorCurve(clip, binding, null)). Destructive: requires confirm=true.",
             MainThreadRequired = true,
-            Tags = new[] { "animation/clip" })]
-        public static SetAnimationCurveResult RemoveCurve(
+            Tags = new[] { "animation/clip" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode RemoveCurve(CommandContext cmd,
             [CliArg("clip", "Reference to the AnimationClip to edit (path / guid / globalId).", Required = true)] ObjectRef clip,
             [CliArg("path", "GameObject path relative to the animated root the binding lives on. Empty string (default) targets the root.")] string path = "",
             [CliArg("type", "Component type of the binding to remove, e.g. \"Transform\". Resolved via the component TypeResolver.", Required = true)] string type = null,
@@ -198,17 +228,23 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             [CliArg("confirm", "Must be true to actually remove the binding (destructive guard).")] bool confirm = false,
             [CliArg("dry-run", "If true, report the binding that would be removed without removing it.")] bool dryRun = false)
         {
-            var (clipAsset, clipPath) = ResolveClip(clip);
+            if (!TryResolveClip(cmd, clip, out var clipAsset, out var clipPath, out var failure))
+                return failure;
             var componentType = ResolveCurveType(type);
             if (string.IsNullOrWhiteSpace(property))
-                throw new ArgumentException("property is required.");
+            {
+                cmd.Log.Error("property is required.");
+                return ExitCode.InvalidUsage;
+            }
 
             var bindingPath = path ?? string.Empty;
             var binding = EditorCurveBinding.FloatCurve(bindingPath, componentType, property);
             var existing = AnimationUtility.GetEditorCurve(clipAsset, binding);
             if (existing == null)
-                throw new ArgumentException(
-                    $"No curve binding for path='{bindingPath}', type='{componentType.Name}', property='{property}' on '{clipPath}'.");
+            {
+                cmd.Log.Error($"No curve binding for path='{bindingPath}', type='{componentType.Name}', property='{property}' on '{clipPath}'.");
+                return ExitCode.NotFound;
+            }
 
             var keyCount = existing.length;
             var result = new SetAnimationCurveResult
@@ -220,44 +256,72 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             };
 
             if (dryRun)
-                return result;
+            {
+                cmd.Result.Write(result);
+                return ExitCode.Success;
+            }
 
             if (!confirm)
-                throw new ArgumentException(
-                    $"Refusing to remove curve '{property}' from '{clipPath}'. Pass confirm=true (destructive, not undoable via Unity's Undo).");
+            {
+                cmd.Log.Error($"Refusing to remove curve '{property}' from '{clipPath}'. Pass confirm=true (destructive, not undoable via Unity's Undo).");
+                return ExitCode.InvalidUsage;
+            }
 
             AnimationUtility.SetEditorCurve(clipAsset, binding, null);
             EditorUtility.SetDirty(clipAsset);
             AssetDatabase.SaveAssets();
 
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         /// <summary>
         /// Resolve a clip handle to a loaded <see cref="AnimationClip"/> and its sandbox-confined asset
-        /// path, rejecting handles that don't point at an on-disk AnimationClip or that escape the root.
+        /// path. Logs why and returns false, with the exit code to return, for a handle that resolves to
+        /// nothing (<see cref="ExitCode.NotFound"/>), to something other than an on-disk AnimationClip, or
+        /// outside the authoring root (<see cref="ExitCode.InvalidUsage"/>).
         /// </summary>
-        private static (AnimationClip clip, string path) ResolveClip(ObjectRef clip)
+        private static bool TryResolveClip(CommandContext cmd, ObjectRef clip, out AnimationClip clipAsset, out string clipPath, out ExitCode failure)
         {
+            clipAsset = null;
+            clipPath = null;
+            failure = ExitCode.InvalidUsage;
+
             if (clip == null || clip.IsEmpty)
-                throw new ArgumentException("clip is required.");
+            {
+                cmd.Log.Error("clip is required.");
+                return false;
+            }
 
             if (!ObjectResolver.TryResolve(clip, out var obj, out var error))
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                failure = ExitCode.NotFound;
+                return false;
+            }
 
-            if (!(obj is AnimationClip clipAsset))
-                throw new ArgumentException($"Reference '{clip}' resolved to a {obj.GetType().Name}, not an AnimationClip.");
+            clipAsset = obj as AnimationClip;
+            if (clipAsset == null)
+            {
+                cmd.Log.Error($"Reference '{clip}' resolved to a {obj.GetType().Name}, not an AnimationClip.");
+                return false;
+            }
 
             var assetPath = AssetDatabase.GetAssetPath(clipAsset);
             if (string.IsNullOrEmpty(assetPath))
-                throw new ArgumentException($"Reference '{clip}' does not point at an on-disk AnimationClip.");
+            {
+                cmd.Log.Error($"Reference '{clip}' does not point at an on-disk AnimationClip.");
+                return false;
+            }
 
-            var confined = ProjectPaths.Resolve(assetPath, out var confineError);
-            if (confined == null)
-                throw new ArgumentException(
-                    $"Clip '{assetPath}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {confineError}");
+            clipPath = ProjectPaths.Resolve(assetPath, out var confineError);
+            if (clipPath == null)
+            {
+                cmd.Log.Error($"Clip '{assetPath}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {confineError}");
+                return false;
+            }
 
-            return (clipAsset, confined);
+            return true;
         }
 
         /// <summary>

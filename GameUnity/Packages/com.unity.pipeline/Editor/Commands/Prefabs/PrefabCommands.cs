@@ -43,55 +43,67 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
         /// Save a source GameObject (typically a scene object) as a prefab asset. The source becomes
         /// a connected instance of the new prefab (interactionMode: AutomatedAction).
         /// </summary>
-        [CliGroupCommand(Group, "Save a GameObject as a prefab asset at a project path; the source becomes a connected instance.", Tags = new[] { "prefabs" })]
-        public static AuthoringResult Create(
+        [CliGroupCommand(Group, "Save a GameObject as a prefab asset at a project path; the source becomes a connected instance.", Tags = new[] { "prefabs" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Create(CommandContext cmd,
             [CliArg("source", "Reference to the source GameObject to save as a prefab (globalId/path/guid/instanceId/hierarchyPath).", Required = true)] ObjectRef source,
             [CliArg("path", "Prefab asset path relative to the authoring root (the Assets/ prefix is optional and the .prefab extension is added if missing). e.g. Prefabs/Enemy or Prefabs/Enemy.prefab", Required = true)] string path)
         {
-            var go = ResolveGameObject(source, "source");
+            var code = ResolveGameObject(cmd, source, "source", out var go);
+            if (code != ExitCode.Success)
+                return code;
 
             var assetPath = ResolvePrefabPath(path);
             EnsureParentFolder(assetPath);
 
-            GameObject saved;
             using (new AuthoringUndoScope("Create Prefab"))
             {
                 // ConnectToInstance leaves the source as an instance of the saved prefab so the agent
                 // can keep editing it; SaveAsPrefabAsset itself is an AssetDatabase op (not undoable).
-                saved = PrefabUtility.SaveAsPrefabAssetAndConnect(go, assetPath, InteractionMode.AutomatedAction, out var success);
+                var saved = PrefabUtility.SaveAsPrefabAssetAndConnect(go, assetPath, InteractionMode.AutomatedAction, out var success);
                 if (!success || saved == null)
-                    throw new InvalidOperationException($"Failed to save prefab at '{assetPath}'.");
+                {
+                    cmd.Log.Error($"Failed to save prefab at '{assetPath}'.");
+                    return ExitCode.Failed;
+                }
             }
 
             AssetDatabase.SaveAssets();
-            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
-            var result = ObjectResolver.Describe(asset) ?? new AuthoringResult { Type = nameof(GameObject) };
-            result.AssetPath = assetPath;
-            return result;
+            cmd.Result.Write(DescribePrefabAsset(assetPath));
+            return ExitCode.Success;
         }
 
         /// <summary>
         /// Instantiate a prefab asset into the active (or specified) loaded scene and return the
         /// scene instance's identity.
         /// </summary>
-        [CliGroupCommand(Group, "Instantiate a prefab asset into a loaded scene and return the created instance.", Tags = new[] { "prefabs" })]
-        public static AuthoringResult Instantiate(
+        [CliGroupCommand(Group, "Instantiate a prefab asset into a loaded scene and return the created instance.", Tags = new[] { "prefabs" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode Instantiate(CommandContext cmd,
             [CliArg("prefab", "Reference to the prefab asset to instantiate (path/guid/globalId).", Required = true)] ObjectRef prefab,
             [CliArg("scene-path", "Optional path of a loaded scene to instantiate into; defaults to the active scene.")] string scenePath = null,
             [CliArg("name", "Optional name for the created instance; defaults to the prefab name.")] string name = null)
         {
-            var prefabAsset = ResolvePrefabAsset(prefab, "prefab");
+            var code = ResolvePrefabAsset(cmd, prefab, "prefab", out var prefabAsset);
+            if (code != ExitCode.Success)
+                return code;
 
             var scene = ResolveTargetScene(scenePath);
             if (!scene.IsValid() || !scene.isLoaded)
-                throw new InvalidOperationException("No valid loaded scene to instantiate into.");
+            {
+                cmd.Log.Error(string.IsNullOrEmpty(scenePath)
+                    ? "No valid loaded scene to instantiate into."
+                    : $"No loaded scene matching '{scenePath}'.");
+                return ExitCode.NotFound;
+            }
 
             AuthoringResult result;
             using (new AuthoringUndoScope("Instantiate Prefab"))
             {
                 var instance = (GameObject)PrefabUtility.InstantiatePrefab(prefabAsset, scene);
                 if (instance == null)
-                    throw new InvalidOperationException($"Failed to instantiate prefab '{AssetDatabase.GetAssetPath(prefabAsset)}'.");
+                {
+                    cmd.Log.Error($"Failed to instantiate prefab '{AssetDatabase.GetAssetPath(prefabAsset)}'.");
+                    return ExitCode.Failed;
+                }
 
                 if (!string.IsNullOrEmpty(name))
                     instance.name = name;
@@ -102,7 +114,8 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
                 result = ObjectResolver.Describe(instance) ?? new AuthoringResult { Type = nameof(GameObject) };
             }
 
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -111,12 +124,14 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
         /// asset (which becomes a variant because its root is a base-prefab instance), then removing
         /// the temporary scene instance.
         /// </summary>
-        [CliGroupCommand(Group, "Create a prefab variant asset that inherits from a base prefab.", Tags = new[] { "prefabs" })]
-        public static AuthoringResult CreateVariant(
+        [CliGroupCommand(Group, "Create a prefab variant asset that inherits from a base prefab.", Tags = new[] { "prefabs" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode CreateVariant(CommandContext cmd,
             [CliArg("base", "Reference to the base prefab asset (path/guid/globalId).", Required = true)] ObjectRef basePrefab,
             [CliArg("path", "Variant prefab asset path relative to the authoring root (.prefab added if missing).", Required = true)] string path)
         {
-            var basePrefabAsset = ResolvePrefabAsset(basePrefab, "base");
+            var code = ResolvePrefabAsset(cmd, basePrefab, "base", out var basePrefabAsset);
+            if (code != ExitCode.Success)
+                return code;
 
             var assetPath = ResolvePrefabPath(path);
             EnsureParentFolder(assetPath);
@@ -127,16 +142,21 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
             // scene is never touched, dirtied, or subjected to object lifecycle callbacks.
             var previewScene = EditorSceneManager.NewPreviewScene();
             GameObject instance = null;
-            GameObject variant;
             try
             {
                 instance = (GameObject)PrefabUtility.InstantiatePrefab(basePrefabAsset, previewScene);
                 if (instance == null)
-                    throw new InvalidOperationException("Failed to instantiate base prefab for variant creation.");
+                {
+                    cmd.Log.Error("Failed to instantiate base prefab for variant creation.");
+                    return ExitCode.Failed;
+                }
 
-                variant = PrefabUtility.SaveAsPrefabAsset(instance, assetPath, out var success);
+                var variant = PrefabUtility.SaveAsPrefabAsset(instance, assetPath, out var success);
                 if (!success || variant == null)
-                    throw new InvalidOperationException($"Failed to save prefab variant at '{assetPath}'.");
+                {
+                    cmd.Log.Error($"Failed to save prefab variant at '{assetPath}'.");
+                    return ExitCode.Failed;
+                }
             }
             finally
             {
@@ -146,29 +166,27 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
             }
 
             AssetDatabase.SaveAssets();
-            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
-            var result = ObjectResolver.Describe(asset) ?? new AuthoringResult { Type = nameof(GameObject) };
-            result.AssetPath = assetPath;
-            return result;
+            cmd.Result.Write(DescribePrefabAsset(assetPath));
+            return ExitCode.Success;
         }
 
         /// <summary>
         /// Apply a prefab instance's overrides back to its source prefab asset. By default applies
         /// the whole instance; the asset is updated on disk.
         /// </summary>
-        [CliGroupCommand(Group, "Apply a prefab instance's overrides back to its source prefab asset.", Tags = new[] { "prefabs" })]
-        public static AuthoringResult ApplyOverrides(
+        [CliGroupCommand(Group, "Apply a prefab instance's overrides back to its source prefab asset.", Tags = new[] { "prefabs" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode ApplyOverrides(CommandContext cmd,
             [CliArg("instance", "Reference to a prefab instance GameObject in a scene (instanceId/hierarchyPath/globalId).", Required = true)] ObjectRef instance)
         {
-            var go = ResolveGameObject(instance, "instance");
-            var root = PrefabUtility.GetOutermostPrefabInstanceRoot(go);
-            if (root == null)
-                throw new ArgumentException($"Object '{instance}' is not part of a prefab instance.");
+            var code = ResolveInstanceRoot(cmd, instance, out var root);
+            if (code != ExitCode.Success)
+                return code;
 
             var assetPath = PrefabUtility.GetPrefabAssetPathOfNearestInstanceRoot(root);
             // Applying overrides writes back to the source prefab asset, so confine it to the
             // authoring root and reject instances whose source lives outside the sandbox.
-            ConfineToAuthoringRoot(assetPath, "instance's source prefab asset");
+            if (!IsInAuthoringRoot(cmd, assetPath, "instance's source prefab asset"))
+                return ExitCode.InvalidUsage;
 
             using (new AuthoringUndoScope("Apply Prefab Overrides"))
             {
@@ -183,20 +201,20 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
             var result = ObjectResolver.Describe(asset) ?? new AuthoringResult { Type = nameof(GameObject) };
             if (!string.IsNullOrEmpty(assetPath))
                 result.AssetPath = assetPath;
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         /// <summary>
         /// Revert a prefab instance's overrides, restoring it to match its source prefab asset.
         /// </summary>
-        [CliGroupCommand(Group, "Revert a prefab instance's overrides so it matches its source prefab asset.", Tags = new[] { "prefabs" })]
-        public static AuthoringResult RevertOverrides(
+        [CliGroupCommand(Group, "Revert a prefab instance's overrides so it matches its source prefab asset.", Tags = new[] { "prefabs" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode RevertOverrides(CommandContext cmd,
             [CliArg("instance", "Reference to a prefab instance GameObject in a scene (instanceId/hierarchyPath/globalId).", Required = true)] ObjectRef instance)
         {
-            var go = ResolveGameObject(instance, "instance");
-            var root = PrefabUtility.GetOutermostPrefabInstanceRoot(go);
-            if (root == null)
-                throw new ArgumentException($"Object '{instance}' is not part of a prefab instance.");
+            var code = ResolveInstanceRoot(cmd, instance, out var root);
+            if (code != ExitCode.Success)
+                return code;
 
             using (new AuthoringUndoScope("Revert Prefab Overrides"))
             {
@@ -205,8 +223,8 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
                 EditorSceneManager.MarkSceneDirty(root.scene);
             }
 
-            var result = ObjectResolver.Describe(root) ?? new AuthoringResult { Type = nameof(GameObject) };
-            return result;
+            cmd.Result.Write(ObjectResolver.Describe(root) ?? new AuthoringResult { Type = nameof(GameObject) });
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -215,15 +233,14 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
         /// <see cref="PrefabUnpackMode.OutermostRoot"/> (one level) and
         /// <see cref="PrefabUnpackMode.Completely"/> (all nested levels).
         /// </summary>
-        [CliGroupCommand(Group, "Unpack a prefab instance into plain GameObjects (outermost level or completely).", Tags = new[] { "prefabs" })]
-        public static AuthoringResult Unpack(
+        [CliGroupCommand(Group, "Unpack a prefab instance into plain GameObjects (outermost level or completely).", Tags = new[] { "prefabs" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Unpack(CommandContext cmd,
             [CliArg("instance", "Reference to a prefab instance GameObject in a scene (instanceId/hierarchyPath/globalId).", Required = true)] ObjectRef instance,
             [CliArg("completely", "If true, unpack all nested prefab levels (Completely); if false, only the outermost level (OutermostRoot).", DefaultValue = false)] bool completely = false)
         {
-            var go = ResolveGameObject(instance, "instance");
-            var root = PrefabUtility.GetOutermostPrefabInstanceRoot(go);
-            if (root == null)
-                throw new ArgumentException($"Object '{instance}' is not part of a prefab instance.");
+            var code = ResolveInstanceRoot(cmd, instance, out var root);
+            if (code != ExitCode.Success)
+                return code;
 
             var mode = completely ? PrefabUnpackMode.Completely : PrefabUnpackMode.OutermostRoot;
 
@@ -233,8 +250,8 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
                 EditorSceneManager.MarkSceneDirty(root.scene);
             }
 
-            var result = ObjectResolver.Describe(root) ?? new AuthoringResult { Type = nameof(GameObject) };
-            return result;
+            cmd.Result.Write(ObjectResolver.Describe(root) ?? new AuthoringResult { Type = nameof(GameObject) });
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -250,20 +267,28 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
         /// A no-op call (no edit args) simply round-trips the asset through the stage, which is a useful
         /// integrity check that the open/edit/close cycle does not corrupt the asset.
         /// </summary>
-        [CliGroupCommand(Group, "Open a prefab asset in an isolated prefab stage, apply a declarative edit, and save it back (nested-prefab safe).", Tags = new[] { "prefabs" })]
-        public static AuthoringResult SaveContents(
+        [CliGroupCommand(Group, "Open a prefab asset in an isolated prefab stage, apply a declarative edit, and save it back (nested-prefab safe).", Tags = new[] { "prefabs" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode SaveContents(CommandContext cmd,
             [CliArg("prefab", "Reference to the prefab asset to edit (path/guid/globalId).", Required = true)] ObjectRef prefab,
             [CliArg("rename-child", "Optional child name (relative path under the root, e.g. 'Body/Head') to rename.")] string renameChild = null,
             [CliArg("new-name", "New name for the child identified by rename-child.")] string newName = null,
             [CliArg("set-active-child", "Optional child name (relative path under the root) whose active state to set.")] string setActiveChild = null,
             [CliArg("active", "Active state to apply when set-active-child is provided.", DefaultValue = true)] bool active = true)
         {
-            var prefabAsset = ResolvePrefabAsset(prefab, "prefab");
+            if (!string.IsNullOrEmpty(renameChild) && string.IsNullOrEmpty(newName))
+            {
+                cmd.Log.Error("new-name is required when rename-child is provided.");
+                return ExitCode.InvalidUsage;
+            }
+
+            var code = ResolvePrefabAsset(cmd, prefab, "prefab", out var prefabAsset);
+            if (code != ExitCode.Success)
+                return code;
+
             var assetPath = AssetDatabase.GetAssetPath(prefabAsset);
-            if (string.IsNullOrEmpty(assetPath))
-                throw new ArgumentException($"'{prefab}' does not resolve to a prefab asset on disk.");
             // This command writes the prefab asset back to disk, so confine it to the authoring root.
-            ConfineToAuthoringRoot(assetPath, "prefab asset");
+            if (!IsInAuthoringRoot(cmd, assetPath, "prefab asset"))
+                return ExitCode.InvalidUsage;
 
             // LoadPrefabContents gives an isolated, fully-editable copy of the prefab (with nested
             // prefabs intact). All edits happen on this copy; SaveAsPrefabAsset writes it back without
@@ -275,9 +300,10 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
                 {
                     var child = FindChild(contentsRoot.transform, renameChild);
                     if (child == null)
-                        throw new ArgumentException($"No child '{renameChild}' under prefab root '{contentsRoot.name}'.");
-                    if (string.IsNullOrEmpty(newName))
-                        throw new ArgumentException("new-name is required when rename-child is provided.");
+                    {
+                        cmd.Log.Error($"No child '{renameChild}' under prefab root '{contentsRoot.name}'.");
+                        return ExitCode.NotFound;
+                    }
                     child.name = newName;
                 }
 
@@ -285,13 +311,19 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
                 {
                     var child = FindChild(contentsRoot.transform, setActiveChild);
                     if (child == null)
-                        throw new ArgumentException($"No child '{setActiveChild}' under prefab root '{contentsRoot.name}'.");
+                    {
+                        cmd.Log.Error($"No child '{setActiveChild}' under prefab root '{contentsRoot.name}'.");
+                        return ExitCode.NotFound;
+                    }
                     child.gameObject.SetActive(active);
                 }
 
                 PrefabUtility.SaveAsPrefabAsset(contentsRoot, assetPath, out var success);
                 if (!success)
-                    throw new InvalidOperationException($"Failed to save prefab contents to '{assetPath}'.");
+                {
+                    cmd.Log.Error($"Failed to save prefab contents to '{assetPath}'.");
+                    return ExitCode.Failed;
+                }
             }
             finally
             {
@@ -299,40 +331,92 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
             }
 
             AssetDatabase.SaveAssets();
-            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
-            var result = ObjectResolver.Describe(asset) ?? new AuthoringResult { Type = nameof(GameObject) };
-            result.AssetPath = assetPath;
-            return result;
+            cmd.Result.Write(DescribePrefabAsset(assetPath));
+            return ExitCode.Success;
         }
 
         #region Helpers
 
-        /// <summary>Resolve an <see cref="ObjectRef"/> to a GameObject (a component ref maps to its GameObject).</summary>
-        private static GameObject ResolveGameObject(ObjectRef handle, string argName)
+        /// <summary>
+        /// Resolve an <see cref="ObjectRef"/> to a GameObject (a component ref maps to its GameObject).
+        /// Logs why and returns the exit code to end with when it can't.
+        /// </summary>
+        private static ExitCode ResolveGameObject(CommandContext cmd, ObjectRef handle, string argName, out GameObject go)
         {
+            go = null;
             if (!ObjectResolver.TryResolve(handle, out var obj, out var error))
-                throw new ArgumentException($"Could not resolve {argName}: {error}");
+            {
+                cmd.Log.Error($"Could not resolve {argName}: {error}");
+                return ExitCode.NotFound;
+            }
 
-            var go = obj as GameObject ?? (obj as Component)?.gameObject;
+            go = obj as GameObject ?? (obj as Component)?.gameObject;
             if (go == null)
-                throw new ArgumentException($"{argName} '{handle}' does not resolve to a GameObject (got {obj.GetType().Name}).");
-            return go;
+            {
+                cmd.Log.Error($"{argName} '{handle}' does not resolve to a GameObject (got {obj.GetType().Name}).");
+                return ExitCode.InvalidUsage;
+            }
+            return ExitCode.Success;
         }
 
-        /// <summary>Resolve an <see cref="ObjectRef"/> to a prefab asset GameObject on disk.</summary>
-        private static GameObject ResolvePrefabAsset(ObjectRef handle, string argName)
+        /// <summary>
+        /// Resolve an <see cref="ObjectRef"/> to the outermost prefab instance root it is part of.
+        /// Logs why and returns the exit code to end with when it can't.
+        /// </summary>
+        private static ExitCode ResolveInstanceRoot(CommandContext cmd, ObjectRef handle, out GameObject root)
         {
+            root = null;
+            var code = ResolveGameObject(cmd, handle, "instance", out var go);
+            if (code != ExitCode.Success)
+                return code;
+
+            root = PrefabUtility.GetOutermostPrefabInstanceRoot(go);
+            if (root == null)
+            {
+                cmd.Log.Error($"Object '{handle}' is not part of a prefab instance.");
+                return ExitCode.InvalidUsage;
+            }
+            return ExitCode.Success;
+        }
+
+        /// <summary>
+        /// Resolve an <see cref="ObjectRef"/> to a prefab asset GameObject on disk. Logs why and returns
+        /// the exit code to end with when it can't.
+        /// </summary>
+        private static ExitCode ResolvePrefabAsset(CommandContext cmd, ObjectRef handle, string argName, out GameObject go)
+        {
+            go = null;
             if (!ObjectResolver.TryResolve(handle, out var obj, out var error))
-                throw new ArgumentException($"Could not resolve {argName}: {error}");
+            {
+                cmd.Log.Error($"Could not resolve {argName}: {error}");
+                return ExitCode.NotFound;
+            }
 
-            var go = obj as GameObject;
-            if (go == null)
-                throw new ArgumentException($"{argName} '{handle}' does not resolve to a prefab GameObject (got {obj.GetType().Name}).");
+            var candidate = obj as GameObject;
+            if (candidate == null)
+            {
+                cmd.Log.Error($"{argName} '{handle}' does not resolve to a prefab GameObject (got {obj.GetType().Name}).");
+                return ExitCode.InvalidUsage;
+            }
 
-            var assetPath = AssetDatabase.GetAssetPath(go);
+            var assetPath = AssetDatabase.GetAssetPath(candidate);
             if (string.IsNullOrEmpty(assetPath) || !assetPath.EndsWith(".prefab", StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException($"{argName} '{handle}' is not a prefab asset.");
-            return go;
+            {
+                cmd.Log.Error($"{argName} '{handle}' is not a prefab asset.");
+                return ExitCode.InvalidUsage;
+            }
+
+            go = candidate;
+            return ExitCode.Success;
+        }
+
+        /// <summary>The identity of the prefab asset at <paramref name="assetPath"/>.</summary>
+        private static AuthoringResult DescribePrefabAsset(string assetPath)
+        {
+            var asset = AssetDatabase.LoadAssetAtPath<GameObject>(assetPath);
+            var result = ObjectResolver.Describe(asset) ?? new AuthoringResult { Type = nameof(GameObject) };
+            result.AssetPath = assetPath;
+            return result;
         }
 
         /// <summary>Sandbox + normalize a prefab asset path, ensuring the .prefab extension.</summary>
@@ -348,15 +432,18 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
         }
 
         /// <summary>
-        /// Confine an existing asset path (one discovered from a resolved object, not user-supplied)
-        /// to the authoring root, rejecting writes outside the sandbox. Runs the path through
+        /// Whether an existing asset path (one discovered from a resolved object, not user-supplied)
+        /// lies under the authoring root; logs why when it doesn't. Runs the path through
         /// <see cref="ProjectPaths.Resolve"/>, which honors explicit "Assets/..." paths as-is and
         /// errors when they escape the root. <paramref name="what"/> describes the path for the error.
         /// </summary>
-        private static void ConfineToAuthoringRoot(string assetPath, string what)
+        private static bool IsInAuthoringRoot(CommandContext cmd, string assetPath, string what)
         {
-            if (ProjectPaths.Resolve(assetPath, out var error) == null)
-                throw new ArgumentException($"The {what} ('{assetPath}') is outside the authoring root: {error}");
+            if (ProjectPaths.Resolve(assetPath, out var error) != null)
+                return true;
+
+            cmd.Log.Error($"The {what} ('{assetPath}') is outside the authoring root: {error}");
+            return false;
         }
 
         /// <summary>Create the parent folder chain for an asset path if it does not yet exist.</summary>
@@ -385,7 +472,10 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
             AssetDatabase.CreateFolder(parent, name);
         }
 
-        /// <summary>Resolve the scene to instantiate into: a named loaded scene, or the active scene.</summary>
+        /// <summary>
+        /// Resolve the scene to instantiate into: a named loaded scene, or the active scene. Returns an
+        /// invalid scene when no loaded scene matches.
+        /// </summary>
         private static Scene ResolveTargetScene(string scenePath)
         {
             if (string.IsNullOrEmpty(scenePath))
@@ -402,7 +492,7 @@ namespace Unity.Pipeline.Editor.Commands.Prefabs
                 }
             }
 
-            throw new ArgumentException($"No loaded scene matching '{scenePath}'.");
+            return default;
         }
 
         /// <summary>Find a descendant by a '/'-separated relative path under a root transform.</summary>

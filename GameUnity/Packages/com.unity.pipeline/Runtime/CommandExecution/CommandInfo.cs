@@ -47,6 +47,13 @@ namespace Unity.Pipeline.Commands
         internal bool Immediate { get; }
 
         /// <summary>
+        /// What running the command does, as it declares it; <see cref="CommandEffect.Unspecified"/>
+        /// when it declares nothing. The catalog serves it as the command's <c>readOnly</c>,
+        /// <c>destructive</c> and <c>idempotent</c> hints.
+        /// </summary>
+        public CommandEffect Effect { get; }
+
+        /// <summary>
         /// Hierarchical tags used to group and browse commands (path-style, '/'-separated).
         /// Empty for untagged commands; never null.
         /// </summary>
@@ -76,6 +83,17 @@ namespace Unity.Pipeline.Commands
         public object Target { get; }
 
         /// <summary>
+        /// The index of <see cref="Method"/>'s <see cref="CommandContext"/> parameter; -1 for none. That
+        /// parameter isn't among <see cref="Parameters"/>: the pipeline passes it.
+        /// </summary>
+        internal int ContextParameterIndex { get; }
+
+        /// <summary>
+        /// Whether <see cref="Method"/> returns its exit code (<see cref="ExitCode"/>) rather than a result for the pipeline to write.
+        /// </summary>
+        internal bool ReturnsExitCode { get; }
+
+        /// <summary>
         /// Create command information from discovery.
         /// </summary>
         /// <param name="name">Name of the command within its group.</param>
@@ -93,15 +111,18 @@ namespace Unity.Pipeline.Commands
         public CommandInfo(string name, string description, bool mainThreadRequired,
             MethodInfo method, IReadOnlyList<CommandParameterInfo> parameters,
             IReadOnlyList<string> tags = null, string package = null, object target = null, string group = null)
-            : this(name, description, mainThreadRequired, false, method, parameters, tags, package, target, group)
+            : this(name, description, mainThreadRequired, false, method, parameters, tags, package, target, group,
+                CommandEffect.Unspecified)
         {
         }
 
         /// <inheritdoc cref="CommandInfo(string, string, bool, MethodInfo, IReadOnlyList{CommandParameterInfo}, IReadOnlyList{string}, string, object, string)"/>
         /// <param name="immediate">Whether the command runs at once, outside the queue.</param>
+        /// <param name="effect">What running the command does.</param>
         internal CommandInfo(string name, string description, bool mainThreadRequired, bool immediate,
             MethodInfo method, IReadOnlyList<CommandParameterInfo> parameters,
-            IReadOnlyList<string> tags = null, string package = null, object target = null, string group = null)
+            IReadOnlyList<string> tags = null, string package = null, object target = null, string group = null,
+            CommandEffect effect = CommandEffect.Unspecified)
         {
             Name = name ?? throw new ArgumentNullException(nameof(name));
             Group = group;
@@ -114,6 +135,9 @@ namespace Unity.Pipeline.Commands
             Tags = tags ?? Array.Empty<string>();
             Package = package;
             Target = target;
+            ContextParameterIndex = CommandSignature.ContextParameterIndex(method);
+            ReturnsExitCode = CommandSignature.ReturnsExitCode(method);
+            Effect = effect;
         }
 
         /// <summary>

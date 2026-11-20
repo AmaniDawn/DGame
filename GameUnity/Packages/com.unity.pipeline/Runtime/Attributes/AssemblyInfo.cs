@@ -1,6 +1,9 @@
 using System.Runtime.CompilerServices;
 
 // Lets the package's own commands use ImmediateCommandAttribute, which stays internal so
-// only the package decides which commands run outside the queue.
+// only the package decides which commands run outside the queue, and lets the pipeline back
+// CommandContext through ICommandHost.
 [assembly: InternalsVisibleTo("Unity.Pipeline")]
 [assembly: InternalsVisibleTo("Unity.Pipeline.Editor")]
+[assembly: InternalsVisibleTo("Unity.Pipeline.Tests.Editor")]
+[assembly: InternalsVisibleTo("Unity.Pipeline.Tests.Runtime")]

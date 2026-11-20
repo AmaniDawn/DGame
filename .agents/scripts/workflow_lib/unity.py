@@ -35,7 +35,8 @@ MUTATIONS = {
 RESERVED = {"project-path", "project_path", "runtime", "runtime-path", "runtime_path",
             "port", "pid", "instance",
             "format", "json", "confirm", "dry_run", "dry-run", "non-interactive", "non_interactive", "timeout",
-            "fields", "verbose", "omit-nulls", "omit_nulls", "host", "token", "no-log-proxy", "no_log_proxy"}
+            "fields", "verbose", "omit-nulls", "omit_nulls", "host", "token", "no-log-proxy", "no_log_proxy",
+            "result-only", "result_only", "detach"}
 
 STATUS_QUERIES = frozenset({
     "editor status", "test status", "script recompile_status", "build status", "build.target switch_status",
@@ -67,10 +68,10 @@ def validate_mutation_parameters(command, parameters):
     return parameters
 
 
-def validate_mutation_preview(command, value):
-    if command == "build run" and (
-            not isinstance(value, dict) or value.get("status") != "dry_run"
-            or value.get("valid") is not True or value.get("validationErrors") != []):
+def validate_mutation_preview(command, value, parameters):
+    if command == "build run" and (not isinstance(value, dict) or value.get("status") != "dry_run"
+            or value.get("valid") is not True or value.get("validationErrors", []) != []
+            or value.get("target") != parameters["target"] or value.get("scenes") != parameters["scenes"]):
         raise WorkflowError("Build dry-run validation did not pass: " + json.dumps(value, ensure_ascii=False))
     return value
 
@@ -192,14 +193,14 @@ def validate_editor_status(value, project):
 
 
 def test_listing(value, mode, query, filter_type):
-    if not isinstance(value, dict):
-        raise WorkflowError("Invalid test listing.")
-    tests = value.get("tests", value.get("Tests"))
+    tests = value.get("tests", value.get("Tests")) if isinstance(value, dict) else value
     if not isinstance(tests, list):
         raise WorkflowError("Test listing lacks individual test identities.")
     expected_mode = {"editor": "EditMode", "playmode": "PlayMode"}[mode]
     names = []
     for test in tests:
+        if not isinstance(test, dict):
+            raise WorkflowError("Invalid test listing record.")
         name = test.get("fullName", test.get("FullName", ""))
         test_mode = test.get("mode", test.get("Mode", ""))
         explicit = test.get("explicit", test.get("Explicit", False))
@@ -213,6 +214,15 @@ def test_listing(value, mode, query, filter_type):
     if not names:
         blocked(f"No runnable {mode} tests match {filter_type}={query!r}.")
     return set(names)
+
+
+def test_status_stamp(project):
+    # Pipeline clears the previous status synchronously before an accepted async run returns.
+    try:
+        stat = (project / "Temp/pipeline_test_status.json").stat()
+    except FileNotFoundError:
+        return None
+    return stat.st_ino, stat.st_mtime_ns
 
 
 def validate_test_result(value, expected_names):
@@ -256,6 +266,8 @@ class Unity:
     def raw(self, arguments, timeout=45, mutating=False):
         if not self.context.cli.is_file():
             blocked(f"Unity CLI is missing: {self.context.cli}")
+        if arguments[0] == "command":
+            arguments = ["command", "--result-only", *arguments[1:]]
         result = self.run.execute(
             [self.context.cli, *arguments, "--format", "json", "--non-interactive", "--no-log-proxy"],
             timeout=timeout, mutating=mutating,
@@ -264,8 +276,18 @@ class Unity:
             if result.returncode == 14:
                 suffix = " Mutation outcome is unknown; inspect state, do not replay." if mutating else ""
                 blocked("Unity CLI operation timed out; see command evidence." + suffix)
+            if result.returncode == 6 and arguments[0] == "status" and not mutating:
+                # A live Editor temporarily has no Pipeline endpoint during a PlayMode domain reload.
+                try:
+                    status = json.loads(result.stdout)
+                except ValueError:
+                    status = None
+                if isinstance(status, dict) and status.get("command") == "status" and any(
+                        isinstance(e, dict) and e.get("code") == "STATUS_PIPELINE_LOAD_PENDING"
+                        for e in (status.get("errors") or [])):
+                    blocked("Project Editor is loading Pipeline; wait for the existing operation.")
             # Connection errors are blockers, never a successful validation.
-            if (result.returncode in (17, 18)
+            if (result.returncode in (12, 17, 18)
                     or any(code in result.stdout + result.stderr for code in ("NO_INSTANCES", "UNREACHABLE", "CONNECTION", "ECONNREFUSED", "TIMEOUT",
                                                                             "502 Bad Gateway", "503 Service Unavailable"))):
                 blocked("Unity CLI connection unavailable; see command evidence.")
@@ -303,7 +325,13 @@ class Unity:
                      "--timeout", str(timeout), *command.split()]
         for key, value in (parameters or {}).items():
             arguments.extend(["--" + key, json.dumps(value, ensure_ascii=False) if not isinstance(value, str) else value])
-        return decode_response(self.raw(arguments, timeout=timeout + 5, mutating=mutating))
+        output = self.raw(arguments, timeout=timeout + 5, mutating=mutating)
+        if command == "test list" and output.strip() in ("", "null"):
+            return []
+        if (not output.strip() and command == "test run" and mutating
+                and (parameters or {}).get("async-tests") is True):
+            return None  # No records at launch; require fresh status evidence below.
+        return decode_response(output)
 
     def query(self, command, parameters):
         validate_parameters(parameters)
@@ -373,18 +401,22 @@ class Unity:
         if isinstance(before, dict) and before.get("status") == "running":
             blocked("Another test run is active.")
         self.ready()
-        # The package synchronously clears prior status before acknowledging the start.
-        # An unacknowledged start is ambiguous; never fall back to a retained completed result.
+        previous_stamp = test_status_stamp(self.context.project)
         started = self.call("test run", {"mode": mode, "filter": query, "filter-type": filter_type,
                                         "async-tests": True}, mutating=True)
         if isinstance(started, dict) and started.get("status") == "completed":
             summary = validate_test_result(started, expected)
             return {"mode": mode, "filter": query, "summary": summary, "results": started["results"]}
-        if not isinstance(started, dict) or started.get("result", started.get("Result")) != "running":
-            blocked("Async test start was not acknowledged; do not accept the last retained result.")
-        if started.get("mode", started.get("Mode")) != {"editor": "EditMode", "playmode": "PlayMode"}[mode]:
-            blocked("Async test acknowledgement differs from the requested test mode.")
+        if started is not None and started != []:
+            if not isinstance(started, dict) or started.get("result", started.get("Result")) != "running":
+                blocked("Async test start was not acknowledged; do not accept the last retained result.")
+            if started.get("mode", started.get("Mode")) != {"editor": "EditMode", "playmode": "PlayMode"}[mode]:
+                blocked("Async test acknowledgement differs from the requested test mode.")
         value = self.poll("test status", {"completed"}, timeout)
+        if started is None or started == []:
+            stamp = test_status_stamp(self.context.project)
+            if stamp is None or stamp == previous_stamp:
+                blocked("The async command returned no records and no fresh test status file was observed.")
         summary = validate_test_result(value, expected)
         return {"mode": mode, "filter": query, "summary": summary, "results": value["results"]}
 
@@ -395,7 +427,7 @@ class Unity:
         self.ready()
         policy = MUTATIONS[command]
         preview = self.call(command, {**parameters, "dry-run": True}) if policy["dry-run"] else {"staticOnly": True}
-        validate_mutation_preview(command, preview)
+        validate_mutation_preview(command, preview, parameters)
         return make_plan(self.run, "unity", command, parameters, high_risk=True, inputs=inputs, preview=preview)
 
     def apply(self, plan, approval_file):
@@ -408,7 +440,7 @@ class Unity:
         if command not in self.capabilities:
             blocked(f"Missing capability: {command}")
         current_preview = self.call(command, {**plan["parameters"], "dry-run": True})
-        validate_mutation_preview(command, current_preview)
+        validate_mutation_preview(command, current_preview, plan["parameters"])
         if digest(current_preview) != digest(plan.get("preview")):
             blocked("Editor preview changed since authorization; inspect the new state and authorize a fresh preview.")
         self.ready()

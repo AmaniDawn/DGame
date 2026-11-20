@@ -16,6 +16,7 @@ using UnityEditor;
 using UnityEngine;
 using Debug = UnityEngine.Debug;
 using Object = UnityEngine.Object;
+using static Unity.Pipeline.Editor.Commands.CommandFailure;
 
 namespace Unity.Pipeline.Editor.Commands.Scripts
 {
@@ -27,7 +28,7 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
     /// disk (ideally OUTSIDE <c>Assets/</c>, so writing it triggers no asset import / domain reload)
     /// and invoked here by name, instead of shipping escaped C# strings through <c>eval</c>.
     ///
-    /// It composes the two halves the pipeline already had — <c>eval_file</c> (code from disk) and
+    /// It composes the two halves the pipeline already had — <c>eval --file</c> (code from disk) and
     /// <c>reload_file</c> (single-file in-memory Roslyn compile) — into one first-class command:
     ///   - <c>ephemeral</c> (default): compile to an in-memory assembly, run the entry point, discard.
     ///   - <c>hotpatch</c>: delegate to <c>reload_file</c>'s in-place <c>[MethodReload]</c> semantics.
@@ -44,12 +45,13 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
             "Compile a project C# file in memory (no domain reload) and execute a named static entry point. " +
             "The builder-pattern path for bulk construction. Still arbitrary code execution — shares " + CommandNames.ScriptEval + "'s capability gate.",
             MainThreadRequired = true,
-            Tags = new[] { "scripts/eval" })]
-        public static async Task<RunScriptResponse> Run(
+            Tags = new[] { "scripts/eval" },
+            Effect = CommandEffect.Destructive)]
+        internal static async Task<ExitCode> Run(CommandContext cmd,
             [CliArg("file", "Path to a .cs file to compile. Relative paths resolve against the PROJECT ROOT (the parent of Assets/), not the process working directory. May live OUTSIDE Assets/ (e.g. AgentScripts/) so writing it never triggers an asset import or domain reload.", Required = true)] string file,
             [CliArg("entry", "Entry point as Namespace.Type.Method (or Type.Method, or a bare Method name). Default: the single public static method if unambiguous, else a method named Main. Static methods only in v1. Ephemeral mode only (rejected with mode=hotpatch, which never invokes an entry point).")] string entry = null,
             [CliArg("args", "JSON array of arguments passed to the entry point, coerced to its parameter types: primitives, enum names, string[], and a string/object handle (ObjectRef) for UnityEngine.Object parameters. Ephemeral mode only (rejected with mode=hotpatch).")] JArray args = null,
-            [CliArg("mode", "ephemeral (default): compile to an in-memory assembly, run the entry, discard. hotpatch: apply [MethodReload] method replacements to already-loaded types (" + CommandNames.ScriptMethodreloadReload + " semantics).")] string mode = "ephemeral",
+            [CliArg("mode", "ephemeral (default): compile to an in-memory assembly, run the entry, discard. hotpatch: apply [MethodReload] method replacements to already-loaded types (" + CommandNames.ScriptMethodreloadReload + " semantics; the file must be under Assets/ or a loaded package).")] string mode = "ephemeral",
             [CliArg("references", "Extra assembly name prefixes to reference beyond the auto-resolved set. In the Editor all loaded assemblies are already referenced, so this is effectively a no-op there. Ephemeral mode only; not applied by hotpatch (which delegates to " + CommandNames.ScriptMethodreloadReload + "'s own compile).")] string[] references = null,
             [CliArg("defines", "Extra scripting define symbols APPENDED to the project's active editor defines (UNITY_EDITOR etc. are already set) for the compilation's #if directives. Ephemeral mode only; not applied by hotpatch.")] string[] defines = null,
             [CliArg("pdb", "Emit a portable PDB mapped to the source file so breakpoints bind and exception stack traces map to file:line. Compiles unoptimized.")] bool pdb = false,
@@ -59,56 +61,46 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
             var total = Stopwatch.StartNew();
 
             if (string.IsNullOrWhiteSpace(file))
-                return RunScriptResponse.Fail("Bad Request", "The 'file' parameter is required and cannot be empty.", total.ElapsedMilliseconds);
+                return Fail(cmd, ExitCode.InvalidUsage, "The 'file' parameter is required and cannot be empty.");
 
             if (!file.EndsWith(".cs", StringComparison.OrdinalIgnoreCase))
-                return RunScriptResponse.Fail("Bad Request", "The 'file' must have a .cs extension.", total.ElapsedMilliseconds);
+                return Fail(cmd, ExitCode.InvalidUsage, "The 'file' must have a .cs extension.");
 
             var timeout = PipelineTimeout.FromSeconds(timeoutInSeconds);
             var normalizedMode = (mode ?? "ephemeral").Trim().ToLowerInvariant();
 
-            try
+            switch (normalizedMode)
             {
-                switch (normalizedMode)
+                case "ephemeral":
+                    return await RunEphemeral(cmd, file, entry, args, references, defines, pdb, dryRun, timeout, total);
+                case "hotpatch":
                 {
-                    case "ephemeral":
-                        return await RunEphemeral(file, entry, args, references, defines, pdb, dryRun, timeout, total);
-                    case "hotpatch":
+                    // hotpatch delegates wholesale to reload_file's [MethodReload] semantics:
+                    // nothing is invoked, so entry/args are meaningless, and there is no
+                    // compile-only path — a "dry run" would still apply live method
+                    // replacements. Reject rather than silently ignore or, worse, apply.
+                    if (dryRun)
                     {
-                        // hotpatch delegates wholesale to reload_file's [MethodReload] semantics:
-                        // nothing is invoked, so entry/args are meaningless, and there is no
-                        // compile-only path — a "dry run" would still apply live method
-                        // replacements. Reject rather than silently ignore or, worse, apply.
-                        if (dryRun)
-                        {
-                            return RunScriptResponse.Fail("Bad Request",
-                                "'dry-run' is not supported with mode=hotpatch; it would apply live method replacements. " +
-                                "Use mode=ephemeral (the default) for a compile-only check.",
-                                total.ElapsedMilliseconds);
-                        }
-
-                        var unsupported = new List<string>();
-                        if (!string.IsNullOrWhiteSpace(entry)) unsupported.Add("'entry'");
-                        if (args != null && args.Count > 0) unsupported.Add("'args'");
-                        if (unsupported.Count > 0)
-                        {
-                            return RunScriptResponse.Fail("Bad Request",
-                                $"{string.Join(" and ", unsupported)} {(unsupported.Count == 1 ? "is" : "are")} not supported with mode=hotpatch: " +
-                                "it applies [MethodReload] method replacements in place and never invokes an entry point. " +
-                                "Use mode=ephemeral to run an entry point.",
-                                total.ElapsedMilliseconds);
-                        }
-
-                        return RunHotpatch(file, pdb, timeout, total);
+                        return Fail(cmd, ExitCode.InvalidUsage,
+                            "'dry-run' is not supported with mode=hotpatch; it would apply live method replacements. " +
+                            "Use mode=ephemeral (the default) for a compile-only check.");
                     }
-                    default:
-                        return RunScriptResponse.Fail("Bad Request", $"Unknown mode '{mode}'. Expected 'ephemeral' or 'hotpatch'.", total.ElapsedMilliseconds);
+
+                    var unsupported = new List<string>();
+                    if (!string.IsNullOrWhiteSpace(entry)) unsupported.Add("'entry'");
+                    if (args != null && args.Count > 0) unsupported.Add("'args'");
+                    if (unsupported.Count > 0)
+                    {
+                        return Fail(cmd, ExitCode.InvalidUsage,
+                            $"{string.Join(" and ", unsupported)} {(unsupported.Count == 1 ? "is" : "are")} not supported with mode=hotpatch: " +
+                            "it applies [MethodReload] method replacements in place and never invokes an entry point. " +
+                            "Use mode=ephemeral to run an entry point.");
+                    }
+
+                    return RunHotpatch(cmd, file, pdb, timeout);
                 }
-            }
-            catch (Exception ex)
-            {
-                Debug.LogError($"Pipeline: {CommandNames.ScriptRun} failed: {ex}");
-                return RunScriptResponse.Fail("Execution Failed", ex.ToString(), total.ElapsedMilliseconds);
+                default:
+                    return Fail(cmd, ExitCode.InvalidUsage, $"Unknown mode '{mode}'. Expected 'ephemeral' or 'hotpatch'.");
             }
         }
 
@@ -118,7 +110,7 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
         /// a Task-returning entry point can be awaited without blocking the main thread (see the
         /// comment at the await); <paramref name="timeout"/> bounds that wait.
         /// </summary>
-        private static async Task<RunScriptResponse> RunEphemeral(
+        private static async Task<ExitCode> RunEphemeral(CommandContext cmd,
             string file, string entry, JArray args, string[] references, string[] defines, bool pdb, bool dryRun, TimeSpan timeout, Stopwatch total)
         {
             // Resolve the path: absolute as-is, else relative to the PROJECT ROOT (the parent of
@@ -128,7 +120,7 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
             var projectRoot = Directory.GetParent(Application.dataPath)?.FullName ?? Directory.GetCurrentDirectory();
             var fullPath = ProjectPaths.ResolveFile(file, projectRoot);
             if (!File.Exists(fullPath))
-                return RunScriptResponse.Fail("File Not Found", $"Source file not found: {fullPath}", total.ElapsedMilliseconds);
+                return Fail(cmd, ExitCode.NotFound, $"Source file not found: {fullPath}");
 
             string source;
             try
@@ -137,11 +129,11 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
             }
             catch (Exception ex)
             {
-                return RunScriptResponse.Fail("Bad Request", $"Failed to read file: {ex.Message}", total.ElapsedMilliseconds);
+                return Fail(cmd, ExitCode.Failed, $"Failed to read file: {ex.Message}");
             }
 
             if (string.IsNullOrWhiteSpace(source))
-                return RunScriptResponse.Fail("Bad Request", $"File is empty: {fullPath}", total.ElapsedMilliseconds);
+                return Fail(cmd, ExitCode.Failed, $"File is empty: {fullPath}");
 
             var assemblyName = $"PipelineRunScript_{Path.GetFileNameWithoutExtension(fullPath)}_{Guid.NewGuid():N}";
 
@@ -159,7 +151,7 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
                 ? activeDefines
                 : activeDefines.Concat(defines).Distinct().ToArray();
 
-            var details = CommandContext.Current?.EvalDetails;
+            var details = CommandExecutionContext.Current?.EvalDetails;
             var compileSw = Stopwatch.StartNew();
             var compilation = RoslynCompilationService.Compile(new CompilationRequest
             {
@@ -178,38 +170,36 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
 
             if (!compilation.Success)
             {
-                return RunScriptResponse.Fail(
-                    "Compilation Failed",
-                    EvalCodeCompiler.SummarizeErrors(compilation.Diagnostics),
-                    total.ElapsedMilliseconds,
-                    compilation.Diagnostics,
-                    compileSw.ElapsedMilliseconds,
-                    0,
-                    assemblyName);
+                // Kept as the result so a caller can act on each diagnostic's line and column.
+                cmd.Result.Write(new RunScriptResult
+                {
+                    CompileMs = compileSw.ElapsedMilliseconds,
+                    AssemblyName = assemblyName,
+                    Diagnostics = compilation.Diagnostics ?? new List<DiagnosticInfo>()
+                });
+                return Fail(cmd, ExitCode.Failed, EvalCodeCompiler.SummarizeErrors(compilation.Diagnostics));
             }
 
             if (dryRun)
             {
                 // Emit-only: no assembly was loaded, so there is no assemblyName to report.
-                var dr = RunScriptResponse.Ok(null, null, compileSw.ElapsedMilliseconds, 0, total.ElapsedMilliseconds, compilation.Diagnostics);
-                dr.Message = "Compiled successfully (dry run; nothing was loaded or executed).";
-                return dr;
+                cmd.Log.Info("Compiled successfully (dry run; nothing was loaded or executed).");
+                cmd.Result.Write(new RunScriptResult
+                {
+                    CompileMs = compileSw.ElapsedMilliseconds,
+                    Diagnostics = compilation.Diagnostics ?? new List<DiagnosticInfo>()
+                });
+                return ExitCode.Success;
             }
 
             // Resolve the entry point.
             var method = ResolveEntryPoint(compilation.Assembly, entry, Path.GetFileName(fullPath), out var entryError);
             if (method == null)
-            {
-                return RunScriptResponse.Fail("Entry Point Not Found", entryError, total.ElapsedMilliseconds,
-                    compilation.Diagnostics, compileSw.ElapsedMilliseconds, 0, assemblyName);
-            }
+                return Fail(cmd, ExitCode.NotFound, entryError);
 
             // Coerce JSON args to the entry point's parameter types.
             if (!TryCoerceArguments(method, args, out var callArgs, out var argError))
-            {
-                return RunScriptResponse.Fail("Bad Request", argError, total.ElapsedMilliseconds,
-                    compilation.Diagnostics, compileSw.ElapsedMilliseconds, 0, assemblyName);
-            }
+                return Fail(cmd, ExitCode.InvalidUsage, argError);
 
             // Execute.
             var execSw = Stopwatch.StartNew();
@@ -226,30 +216,25 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
                 // blocking wait here deadlocks the whole Editor permanently. Awaiting instead
                 // returns control to the editor loop at this point (the server unwraps the
                 // command's own Task off the main thread), letting those continuations pump.
-                // The wait is bounded by what remains of the timeout; on expiry the task keeps
-                // running detached, like an abandoned eval. Task<T> exposes Result via reflection
-                // (an `async Task` materializes as Task<VoidTaskResult>, whose Result carries no
-                // value — treat it as null).
+                // The wait is bounded by what remains of the timeout, and ends early when the
+                // command is cancelled; either way the task keeps running detached, like an
+                // abandoned eval. Task<T> exposes Result via reflection (an `async Task`
+                // materializes as Task<VoidTaskResult>, whose Result carries no value — treat it
+                // as null).
                 if (returnValue is Task task)
                 {
                     var stopAt = PipelineTimeout.StopBefore(timeout);
                     var remaining = PipelineTimeout.IsInfinite(stopAt)
                         ? stopAt
                         : (stopAt > total.Elapsed ? stopAt - total.Elapsed : TimeSpan.Zero);
-                    var completed = await Task.WhenAny(task, Task.Delay(remaining));
+                    var completed = await Task.WhenAny(task, Task.Delay(remaining, cmd.CancellationToken));
+                    cmd.CancellationToken.ThrowIfCancellationRequested();
                     if (completed != task)
                     {
-                        execSw.Stop();
-                        return RunScriptResponse.Fail(
-                            "Timeout",
+                        return Fail(cmd, ExitCode.Failed,
                             $"The entry point's Task did not complete within the {PipelineTimeout.Describe(timeout)} timeout " +
                             $"({PipelineTimeout.Describe(remaining)} remained after the synchronous part). The task keeps running detached and " +
-                            "its effects may still land; raise --timeout if it legitimately needs longer.",
-                            total.ElapsedMilliseconds,
-                            compilation.Diagnostics,
-                            compileSw.ElapsedMilliseconds,
-                            execSw.ElapsedMilliseconds,
-                            assemblyName);
+                            "its effects may still land; raise --timeout if it legitimately needs longer.");
                     }
 
                     await task; // a faulted task throws the entry point's own exception here
@@ -259,9 +244,9 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
                         : null;
                 }
             }
-            catch (Exception ex) when (ex is TargetInvocationException || returnValue is Task)
+            catch (Exception ex) when ((ex is TargetInvocationException || returnValue is Task)
+                && !(ex is OperationCanceledException && cmd.CancellationToken.IsCancellationRequested))
             {
-                execSw.Stop();
                 // Reflection wraps a synchronous throw in a TargetInvocationException; a faulted
                 // task rethrows the entry point's own exception from the await. Normalize both
                 // to the entry point's exception. With the PDB emitted above and DocumentPath set
@@ -269,58 +254,62 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
                 // failure maps back to the original source.
                 var inner = (ex as TargetInvocationException)?.InnerException ?? ex;
                 details?.RecordException(inner, compilation.Assembly);
-                return RunScriptResponse.Fail(
-                    "Runtime Error",
-                    $"{inner.GetType().Name}: {inner.Message}\n{inner.StackTrace}",
-                    total.ElapsedMilliseconds,
-                    compilation.Diagnostics,
-                    compileSw.ElapsedMilliseconds,
-                    execSw.ElapsedMilliseconds,
-                    assemblyName);
+                return Fail(cmd, ExitCode.Failed, $"The entry point threw {inner.GetType().Name}: {inner.Message}\n{inner.StackTrace}");
             }
             execSw.Stop();
 
-            return RunScriptResponse.Ok(
-                SerializeResult(returnValue),
-                assemblyName,
-                compileSw.ElapsedMilliseconds,
-                execSw.ElapsedMilliseconds,
-                total.ElapsedMilliseconds,
-                compilation.Diagnostics);
+            cmd.Result.Write(new RunScriptResult
+            {
+                Result = SerializeResult(returnValue),
+                AssemblyName = assemblyName,
+                CompileMs = compileSw.ElapsedMilliseconds,
+                ExecuteMs = execSw.ElapsedMilliseconds,
+                Diagnostics = compilation.Diagnostics ?? new List<DiagnosticInfo>()
+            });
+            return ExitCode.Success;
         }
 
         /// <summary>
         /// hotpatch mode: apply in-place <c>[MethodReload]</c> method replacements to already-loaded
         /// types, delegating to the existing <c>reload_file</c> command so its behavior/tests are
-        /// preserved. The result is re-shaped into a <see cref="RunScriptResponse"/>.
+        /// preserved. Its response is re-shaped into a <see cref="RunScriptResult"/>.
         /// </summary>
-        private static RunScriptResponse RunHotpatch(string file, bool pdb, TimeSpan timeout, Stopwatch total)
+        private static ExitCode RunHotpatch(CommandContext cmd, string file, bool pdb, TimeSpan timeout)
         {
-            var hr = MethodReloadCommands.Reload(file, PipelineTimeout.IsInfinite(timeout) ? double.PositiveInfinity : timeout.TotalSeconds, null, pdb);
+            var hr = MethodReloadCommands.ReloadFile(file, PipelineTimeout.IsInfinite(timeout) ? double.PositiveInfinity : timeout.TotalSeconds, null, pdb);
+            var diagnostics = hr.Diagnostics ?? new List<string>();
+
+            if (!hr.Success)
+            {
+                var message = $"{hr.Error ?? "Method Reload Failed"}: {hr.ErrorDetails}";
+                if (diagnostics.Count > 0)
+                    message += "\n  " + string.Join("\n  ", diagnostics);
+                cmd.Result.Write(new RunScriptResult
+                {
+                    AssemblyName = hr.AssemblyName,
+                    ExecuteMs = hr.ExecutionTimeMs ?? 0L,
+                    Diagnostics = diagnostics.Select(d => new DiagnosticInfo { Severity = "error", Message = d }).ToList()
+                });
+                return Fail(cmd, ExitCode.Failed, message);
+            }
+
+            if (!string.IsNullOrEmpty(hr.Message))
+                cmd.Log.Info(hr.Message);
 
             // reload_file reports a single duration for the whole reload (compile + apply); surface
             // it as executeMs rather than mislabeling it compile time. compileMs stays 0 here.
-            var reloadMs = hr.ExecutionTimeMs ?? 0L;
-
-            if (hr.Success)
+            // It can succeed with advisory diagnostics (e.g. partially-skipped overrides) — keep
+            // them, as "warning" entries in the shape ephemeral mode uses.
+            cmd.Result.Write(new RunScriptResult
             {
-                // reload_file can succeed with advisory diagnostics (e.g. partially-skipped
-                // overrides) — keep them, as "warning" entries in the same shape the failure
-                // path uses, instead of dropping them on the floor.
-                var warnings = (hr.Diagnostics ?? new List<string>())
-                    .Select(d => new DiagnosticInfo { Severity = "warning", Message = d })
-                    .ToList();
-                var ok = RunScriptResponse.Ok(hr.Items, hr.AssemblyName, 0, reloadMs, total.ElapsedMilliseconds, warnings);
-                ok.Message = hr.Message;
-                return ok;
-            }
-
-            var diagnostics = (hr.Diagnostics ?? new List<string>())
-                .Select(d => new DiagnosticInfo { Severity = "error", Message = d })
-                .ToList();
-            return RunScriptResponse.Fail(hr.Error ?? "Method Reload Failed", hr.ErrorDetails, total.ElapsedMilliseconds,
-                diagnostics, 0, reloadMs, hr.AssemblyName);
+                Result = hr.Items,
+                AssemblyName = hr.AssemblyName,
+                ExecuteMs = hr.ExecutionTimeMs ?? 0L,
+                Diagnostics = diagnostics.Select(d => new DiagnosticInfo { Severity = "warning", Message = d }).ToList()
+            });
+            return ExitCode.Success;
         }
+
 
         /// <summary>
         /// Resolve the static entry method from a compiled assembly.
@@ -602,13 +591,17 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
     }
 
     /// <summary>
-    /// Response for <c>run_script</c>. Result shape: <c>{ result, diagnostics, compileMs, executeMs,
-    /// assemblyName }</c> on top of the standard command envelope. Deliberately carries no echo of the
-    /// source (path + diagnostics only), so MCP results stay small and reviewable.
+    /// Result of <c>script run</c>: <c>{ result, diagnostics, compileMs, executeMs, assemblyName }</c>.
+    /// Deliberately carries no echo of the source (path + diagnostics only), so results stay small
+    /// and reviewable.
     /// </summary>
     [Serializable]
-    class RunScriptResponse : CommandExecutionResponse
+    class RunScriptResult
     {
+        /// <summary>The entry point's return value, serialized like an eval result; null for dry-run.</summary>
+        [JsonProperty("result")]
+        public object Result { get; set; }
+
         /// <summary>Compilation diagnostics (errors, warnings) from Roslyn, with line/column.</summary>
         [JsonProperty("diagnostics")]
         public List<DiagnosticInfo> Diagnostics { get; set; } = new List<DiagnosticInfo>();
@@ -627,42 +620,8 @@ namespace Unity.Pipeline.Editor.Commands.Scripts
         [JsonProperty("executeMs")]
         public long ExecuteMs { get; set; }
 
-        /// <summary>Name of the generated in-memory assembly.</summary>
+        /// <summary>Name of the generated in-memory assembly; null for dry-run.</summary>
         [JsonProperty("assemblyName")]
         public string AssemblyName { get; set; }
-
-        public static RunScriptResponse Ok(object result, string assemblyName, long compileMs, long executeMs, long executionTimeMs, List<DiagnosticInfo> diagnostics)
-        {
-            return new RunScriptResponse
-            {
-                Success = true,
-                Command = CommandNames.ScriptRun,
-                Result = result,
-                AssemblyName = assemblyName,
-                CompileMs = compileMs,
-                ExecuteMs = executeMs,
-                ExecutionTimeMs = executionTimeMs,
-                Diagnostics = diagnostics ?? new List<DiagnosticInfo>(),
-                ExecutedAt = DateTime.UtcNow
-            };
-        }
-
-        public static RunScriptResponse Fail(string error, string errorDetails, long executionTimeMs,
-            List<DiagnosticInfo> diagnostics = null, long compileMs = 0, long executeMs = 0, string assemblyName = null)
-        {
-            return new RunScriptResponse
-            {
-                Success = false,
-                Command = CommandNames.ScriptRun,
-                Error = error,
-                ErrorDetails = errorDetails,
-                AssemblyName = assemblyName,
-                CompileMs = compileMs,
-                ExecuteMs = executeMs,
-                ExecutionTimeMs = executionTimeMs,
-                Diagnostics = diagnostics ?? new List<DiagnosticInfo>(),
-                ExecutedAt = DateTime.UtcNow
-            };
-        }
     }
 }

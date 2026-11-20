@@ -25,7 +25,10 @@ namespace Unity.Pipeline.Telemetry
         [JsonProperty("time")]
         public string Time { get; set; }
 
-        /// <summary>The command that ran the source, as a user types it: "script eval" or "script eval_file".</summary>
+        /// <summary>
+        /// The command that ran the source, as a user types it: "script eval". Records written
+        /// before 1.0 may name "script eval_file".
+        /// </summary>
         [JsonProperty("command")]
         public string Command { get; set; }
 
@@ -61,7 +64,7 @@ namespace Unity.Pipeline.Telemetry
     }
 
     /// <summary>
-    /// Local-first, privacy-first instrumentation of <c>eval</c>/<c>eval_file</c> (AUTHAPI-29). Per
+    /// Local-first, privacy-first instrumentation of <c>script eval</c> (AUTHAPI-29). Per
     /// invocation it appends one <see cref="EvalUsageRecord"/> to
     /// <c>&lt;project&gt;/Library/Pipeline/eval-usage.jsonl</c>. There is NO off-machine transmission:
     /// disabling <see cref="Enabled"/> stops even local recording, which satisfies "analytics opt-out
@@ -290,7 +293,7 @@ namespace Unity.Pipeline.Telemetry
 
         /// <summary>
         /// Bound the opt-in raw source at <see cref="MaxStoredSourceChars"/>, appending
-        /// <see cref="SourceTruncationMarker"/> when cut, so one giant eval_file body can't balloon
+        /// <see cref="SourceTruncationMarker"/> when cut, so one giant eval body can't balloon
         /// a single record (the JSONL size cap only rotates between appends).
         /// </summary>
         private static string BoundStoredSource(string code)

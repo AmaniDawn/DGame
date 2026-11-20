@@ -3,7 +3,7 @@
 Commands to drive Multiplayer Play Mode (MPPM) **Play Mode Scenarios** — the main Editor plus one
 or more virtual player (clone) Editors — and to discover those instances so you can drive each one.
 
-These are distinct from `editor_play` / `editor_stop` / `editor_pause`
+These are distinct from `editor.playmode start` / `editor.playmode stop` / `editor.playmode pause`
 (see [Editor lifecycle & observability](editor-lifecycle-and-observability.md)), which control the
 **main Editor only** and never launch virtual players.
 
@@ -19,9 +19,9 @@ own `Library`, port, and Pipeline server).
 - On 6000.5 and newer, scenario control runs on the public `Unity.PlayMode.Editor.PlayModeScenarioManager`
   API in `UnityEditor.PlayModeModule`, a built-in editor module that carries no public types before 6000.5.
 - On 6000.3 and 6000.4 (MPPM 2.0.x), the same commands, arguments and return shapes are implemented by
-  reflection over MPPM's internal scenario types. Two differences: a player's `id` is its name (6000.3
-  players have no GUID), and `editor.playmode create_scenario` always writes to `Assets/Settings/PlayMode/`, using
-  `path` only for the file name.
+  reflection over MPPM's internal scenario types. Three differences: a player's `id` is its name (6000.3
+  players have no GUID), `editor.playmode create_scenario` always writes to `Assets/Settings/PlayMode/`, using
+  `path` only for the file name, and `editor.playmode add_player` reports no `name`.
 - Virtual players come from the MPPM package. Without it there is nothing to orchestrate, so the
   commands are compiled out rather than registered and answering `available: false`. The package
   presence is detected by an `asmdef` version define (`MPPM_AVAILABLE`), so removing MPPM removes the
@@ -37,7 +37,7 @@ port descriptor files, so it lists whatever clones happen to be running.
 Scenario **authoring** (`editor.playmode create_scenario`, `editor.playmode add_player`,
 `editor.playmode remove_player`) still reflects within that gate: the `OrchestratedScenario` asset type,
 its `m_Settings` struct, and the instance controller types have no public surface. Those three
-report a `"not found. Is Multiplayer Play Mode installed?"` error if the types are missing at
+fail with a `"not found. Is Multiplayer Play Mode installed?"` error if the types are missing at
 runtime even though the package is installed — an MPPM version whose internals moved.
 
 ## Two things to know before you start
@@ -54,6 +54,14 @@ non-persistent `DefaultScenario` that runs the main Editor alone, no clones. The
 that case as `active: null` with `isDefaultScenario: true`, and `editor.playmode start_scenario` refuses
 to run rather than silently entering ordinary single-Editor Play Mode.
 
+## Results and failures
+
+Results go to stdout; notes and errors go to stderr, filtered by `--log-level` (`warning` by
+default). A command that fails writes no result and exits non-zero: `NotFound` (13) when a named
+scenario asset or player doesn't exist, `InvalidUsage` (2) for a bad argument or a missing
+`confirm`, and `Failed` (6) otherwise, such as a command that needs `Idle` while a scenario runs,
+or no `path` with no scenario asset active.
+
 ## Scenario control
 
 ### `editor.playmode list_scenarios`
@@ -61,7 +69,7 @@ List all Play Mode Scenario assets in the project.
 
 No parameters.
 
-**Returns:** `{ count, scenarios: [{ name, path, type }] }`
+**Returns:** one record per scenario asset: `{ name, path, type }`. No records when the project has none.
 
 ### `editor.playmode set_active_scenario`
 Set the active Play Mode Scenario by asset path.
@@ -76,21 +84,30 @@ Set the active Play Mode Scenario by asset path.
 [`editor.playmode get_scenario_status`](#editorplaymode-get_scenario_status)'s `active`.
 
 ### `editor.playmode start_scenario`
-Start the active Play Mode Scenario (enters Play Mode with its players).
+Start the active Play Mode Scenario (enters Play Mode with its players). Turns Run In Background on in this Editor until play mode exits.
 
-No parameters.
+| Parameter | Required | Default | Description |
+|-----------|----------|---------|-------------|
+| `run-in-background` | no | `true` | Turn Run In Background on in this Editor for the Play session (`true`), or keep the project's own value (`false`). |
 
-**Returns:** `{ started, active: { name, path }, state, message }`
-**Notes:** The scenario manager enters Play Mode itself — do **not** call `editor_play`. Player
+**Returns:** `{ started, active: { name, path }, state, note }`. Its message, that the players launch asynchronously, is logged at the `info` level.
+**Notes:** The scenario manager enters Play Mode itself — do **not** call `editor.playmode start`. Run In Background works as for [`editor.playmode start`](editor-lifecycle-and-observability.md#editorplaymode-start), in the Editor that runs the command: `note` says what changed or warns that the game pauses while the Editor is unfocused, and is `null` when Run In Background is on and nothing changed. Each clone that enters Play mode for the scenario also turns Run In Background on, in memory only (a clone can't save Player Settings), and puts its own value back when it returns to Edit mode. This applies even when a clone's value is already on: a clone enters Play mode without ever having focus, and Unity keeps its player paused until Run In Background is set. With `run-in-background` set to `false`, clones keep their own value. Player
 editors launch asynchronously; poll `editor.playmode get_scenario_status` or `editor.playmode list_instances`. Fails
-if no scenario asset is active — the implicit `DefaultScenario` does not count.
+if no scenario asset is active — the implicit `DefaultScenario` does not count — and while scripts have compile errors, before
+anything starts. When this Editor is already in Play mode, Run In Background is left as it is.
+
+On Unity 6000.5 and later, `started` is `false` when the scenario refuses to start (for example, it is invalid or the
+save-scenes prompt is cancelled), and Run In Background is restored at once. If the scenario goes back to Idle before this
+Editor enters Play mode, for example because a player fails to launch, Run In Background is restored then. On 6000.3 and
+6000.4, `started` is always `true`, and a scenario that never reaches Play mode leaves Run In Background on until the next
+return to Edit mode or Editor reload.
 
 ### `editor.playmode stop_scenario`
 Stop the active / running Play Mode Scenario.
 
 No parameters.
 
-**Returns:** `{ stopped, state, note }`
+**Returns:** `{ state }`
 **Notes:** State settles asynchronously (`Running` → `Stopping` → `Idle`); poll
 `editor.playmode get_scenario_status` for the final state.
 
@@ -99,10 +116,11 @@ Live state of the active / running Play Mode Scenario and of the Editor instance
 
 No parameters.
 
-**Returns:** `{ state, playMode, active: { name, path } | null, isDefaultScenario, players: [{ id, name, type, state, reachable, vpId, port, endpoints, projectPath }], playerError, note }`
+**Returns:** `{ state, playMode, active: { name, path } | null, isDefaultScenario, players: [{ id, name, type, state, reachable, vpId, port, endpoints, projectPath }] }`
 **Notes:** `MainThreadRequired = true`. `state` is the scenario manager's state (`Idle` / `Starting`
 / `Running` / `Stopping`); `playMode` is `playing` / `paused` / `stopped`. `active` is `null` and
-`isDefaultScenario` is `true` when no scenario asset is assigned.
+`isDefaultScenario` is `true` when no scenario asset is assigned (an `info` note then explains the
+`DefaultScenario`).
 
 `players` is **one entry per player the active scenario declares** — never MPPM's fixed four slots,
 so a two-player scenario reports two players and no phantom `NotLaunched` rows. Each entry joins
@@ -122,9 +140,9 @@ that player directly with `unity command --project-path <its projectPath>`.
 Each player is matched to a descriptor in this order: by `vpId` when MPPM reports one (a `vpId` with
 no descriptor yet reports nothing rather than matching another player); the main player by `role`;
 otherwise a clone by its name, against clone descriptors only. A `local` (built) player has no Editor
-descriptor, so it never reports `reachable`. `playerError`
-carries a scenario-settings or MPPM reflection failure; the whole command is compiled out when the
-package is absent, so an error here never means "not installed".
+descriptor, so it never reports `reachable`. A scenario-settings or MPPM reflection failure is
+logged as a warning and leaves `players` empty or without run state; the whole command is compiled
+out when the package is absent, so such a warning never means "not installed".
 
 For the declared roster on its own — including a scenario that is not the active one — call
 [`editor.playmode list_players`](#editorplaymode-list_players).
@@ -136,10 +154,11 @@ List the players a Play Mode Scenario asset declares.
 |-----------|----------|---------|-------------|
 | `path` | no | active scenario | Scenario asset path. |
 
-**Returns:** `{ path, count, players: [{ id, name, type, controller, runMode }], playerError, note }`
-**Notes:** One entry per declared player, with the `id` you pass to `editor.playmode remove_player` and a
-`type` of `main` / `clone` / `local`. `players` is empty and `note` explains why when no scenario
-asset is active. This is the **declared** roster and cannot change while a scenario runs — it is not
+**Returns:** one record per declared player: `{ id, name, type, controller, runMode }`.
+**Notes:** Each record carries the `id` you pass to `editor.playmode remove_player` and a
+`type` of `main` / `clone` / `local`. With no `path` and no scenario asset active it writes no
+records and a warning explains why. A `path` that is not a scenario asset exits `NotFound` (13); a
+scenario whose players can't be read fails (`Failed`, exit 6). This is the **declared** roster and cannot change while a scenario runs — it is not
 something to poll. Unlike [`editor.playmode get_scenario_status`](#editorplaymode-get_scenario_status) it takes a `path`, so it can
 read a scenario that is not the active one; it reports no run state or reachability.
 
@@ -153,12 +172,12 @@ Create a new orchestrated Play Mode Scenario asset.
 | `name` | yes | `–` | Scenario name (also the asset file name). |
 | `path` | no | `<authoring root>/Settings/PlayMode/<name>.asset` | Asset path for the new scenario. Must be inside the authoring root (`Assets/` unless changed in Project Settings) and end in `.asset`. On 6000.3/6000.4 the folder is always `Assets/Settings/PlayMode/`. |
 
-**Returns:** `{ created, name, path, active, note }` — `active` is `false` and `note` gives the exact
-`editor.playmode set_active_scenario --path <path>` command to run next.
+**Returns:** `{ name, path, active }` — `active` is `false`, and an `info` note gives the exact
+`editor.playmode set_active_scenario --path <path>` command to run next (see it with `--log-level info`).
 **Notes:** Creating a scenario does not make it active. `editor.playmode add_player` and
 `editor.playmode remove_player` without `path`, and `editor.playmode start_scenario`, act on the active
 scenario, so run `editor.playmode set_active_scenario` first. The Main Editor player is added
-automatically by the scenario itself; only add clones and local players. A `path` outside `Assets/` or with an extension other than `.asset` is rejected
+automatically by the scenario itself; only add clones and local players. A `name` that is not a plain file name exits `InvalidUsage` (2). A `path` outside `Assets/` or with an extension other than `.asset`, or one where an asset already exists, fails
 before anything is written, and the command re-loads the asset after creating it so a file Unity
 declined to import is reported as a failure instead of a success.
 
@@ -171,8 +190,8 @@ Add a player to a scenario asset.
 | `type` | yes | `–` | Player type: `clone` (virtual player) or `local` (built player). |
 | `name` | no | `–` | Name for a local player. Ignored for a clone on 6000.5+ (see Notes). |
 
-**Returns:** `{ added, id, type, name, path, note }` — `path` is the scenario that was actually modified,
-`name` is the player's name as Multiplayer Play Mode shows it, and `note` says when `--name` was not used.
+**Returns:** `{ id, type, name, path }` — `path` is the scenario that was actually modified, and
+`name` is the player's name as Multiplayer Play Mode shows it (6000.5+ only). A warning says when `--name` was not used.
 **Notes:** The Main Editor is added automatically and cannot be added as a player. On 6000.5+, a
 clone takes the next Multiplayer Play Mode player slot and the name that goes with it (`Player 2`,
 `Player 3`, `Player 4`), so it launches on the next `editor.playmode start_scenario` without a
@@ -191,8 +210,9 @@ Remove a scenario player by its id.
 | `confirm` | no | `false` | Must be `true` to remove the player; without it the command refuses. |
 | `dry-run` | no | `false` | Report the player that would be removed without changing the scenario. |
 
-**Returns:** `{ removed, id, path }`, or `{ status: "dry_run", wouldRemove: { id, name, type }, path }` on a dry run.
-**Notes:** Destructive: it rewrites the scenario asset and is not undoable via Unity's Undo, so it follows the
+**Returns:** `{ id, path }`, or `{ status: "dry_run", wouldRemove: { id, name, type }, path }` on a dry run.
+**Notes:** Without `confirm` (and without `dry-run`) it changes nothing and exits `InvalidUsage` (2).
+A dry run for an id the scenario doesn't have exits `NotFound` (13). Destructive: it rewrites the scenario asset and is not undoable via Unity's Undo, so it follows the
 `confirm`/`dry-run` convention in [Safety and mutations](../safety-and-mutations.md).
 
 ## Reachable instances
@@ -202,7 +222,7 @@ List running Editor instances reachable over Pipeline (this Editor + its MPPM vi
 
 No parameters.
 
-**Returns:** `{ count, instances: [{ name, role, port, endpoints, pid, vpId, projectPath }] }`
+**Returns:** one record per instance: `{ name, role, port, endpoints, pid, vpId, projectPath }`. No records when none is reachable.
 **Notes:** `MainThreadRequired = false`. Only instances whose PID is still alive are listed; the
 main Editor sorts first. `endpoints` is the instance's advertised connection list, as in its descriptor; `port` is `0` when
 its HTTP service is turned off and it is reachable only over its `pipeline` endpoint. `projectPath` is what you pass to `unity command --project-path` to talk to
@@ -214,8 +234,8 @@ Talk to a clone directly. Each one runs its own Pipeline server and publishes it
 pointing the CLI at the clone's project directory gives you the whole command surface against it:
 
 ```bash
-unity command --project-path <mainProject>/Library/VP/<vpId> editor_status
-unity command --project-path <mainProject>/Library/VP/<vpId> run_tests --mode playmode
+unity command --project-path <mainProject>/Library/VP/<vpId> editor status
+unity command --project-path <mainProject>/Library/VP/<vpId> test run --mode playmode --async-tests
 ```
 
 Get the path from `editor.playmode list_instances` (its `projectPath`) or from `unity pipeline list`, which

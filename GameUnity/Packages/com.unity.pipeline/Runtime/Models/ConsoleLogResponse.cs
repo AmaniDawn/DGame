@@ -8,7 +8,7 @@ namespace Unity.Pipeline.Models
     /// the cursor needed to fetch the next page.
     /// </summary>
     [Serializable]
-    public class ConsoleLogResponse
+    internal class ConsoleLogResponse
     {
         /// <summary>
         /// The matching entries, oldest first, after applying the level filter, <c>since</c> cursor,
@@ -82,7 +82,7 @@ namespace Unity.Pipeline.Models
     /// still shows.
     /// </summary>
     [Serializable]
-    public class ConsoleLevelCounts
+    internal class ConsoleLevelCounts
     {
         /// <summary>
         /// Retained entries at error severity. Unity's Error, Exception and Assert log types all

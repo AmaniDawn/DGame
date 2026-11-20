@@ -15,28 +15,27 @@ namespace Unity.Pipeline.Editor.Commands
         [CliGroupCommand(Group,
             "List running Editor instances reachable over Pipeline (this Editor + its MPPM virtual player clones). Connect to one with 'unity command --project-path <its projectPath>'.",
             MainThreadRequired = false,
-            Tags = new[] { "editor/instances" })]
-        public static object ListInstances()
+            Tags = new[] { "editor/instances" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode ListInstances(CommandContext cmd)
         {
-            var live = ReadLiveInstances(ProjectRoot());
-            return new
+            var live = ReadLiveInstances(ProjectRoot())
+                .OrderBy(d => d.Role == MppmInstanceInfo.RoleMain ? 0 : 1)
+                .ThenBy(d => d.Port);
+            foreach (var d in live)
             {
-                count = live.Count,
-                instances = live
-                    .OrderBy(d => d.Role == MppmInstanceInfo.RoleMain ? 0 : 1)
-                    .ThenBy(d => d.Port)
-                    .Select(d => new
-                    {
-                        name = d.InstanceName,
-                        role = d.Role,
-                        port = d.Port,
-                        endpoints = d.Endpoints,
-                        pid = d.Pid,
-                        vpId = d.VpId,
-                        projectPath = d.ProjectPath
-                    })
-                    .ToList()
-            };
+                cmd.Result.WriteRecord(new
+                {
+                    name = d.InstanceName,
+                    role = d.Role,
+                    port = d.Port,
+                    endpoints = d.Endpoints,
+                    pid = d.Pid,
+                    vpId = d.VpId,
+                    projectPath = d.ProjectPath
+                });
+            }
+            return ExitCode.Success;
         }
 
         internal static List<EditorInstanceDescriptor> LiveInstances()

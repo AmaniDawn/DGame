@@ -33,87 +33,115 @@ namespace Unity.Pipeline.Editor.Commands
 
         [CliGroupCommand(Group,
             "List all Play Mode Scenario assets in the project",
-            Tags = new[] { "editor/playmode" })]
-        public static object ListScenarios()
+            Tags = new[] { "editor/playmode" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode ListScenarios(CommandContext cmd)
         {
-            var scenarios = Mppm63.FindScenarioAssets()
-                .Select(obj => new
+            foreach (var obj in Mppm63.FindScenarioAssets())
+            {
+                cmd.Result.WriteRecord(new
                 {
                     name = obj.name,
                     path = AssetDatabase.GetAssetPath(obj),
                     type = obj.GetType().Name
-                })
-                .ToList();
+                });
+            }
 
-            return new { count = scenarios.Count, scenarios };
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Set the active Play Mode Scenario by asset path (Edit Mode / Idle only)",
-            Tags = new[] { "editor/playmode" })]
-        public static object SetActiveScenario(
+            Tags = new[] { "editor/playmode" },
+            Effect = CommandEffect.Idempotent)]
+        internal static ExitCode SetActiveScenario(CommandContext cmd,
             [CliArg("path", "Asset path of the scenario, e.g. Assets/Settings/PlayMode/2Players.asset", Required = true)] string path)
         {
             if (string.IsNullOrEmpty(path))
-                throw new ArgumentException("path is required.");
+            {
+                cmd.Log.Error("path is required.");
+                return ExitCode.InvalidUsage;
+            }
 
             var state = Mppm63.CurrentPlayModeState();
             if (state != "NotRunning")
-                throw new InvalidOperationException($"Cannot change the active scenario while play mode state is '{state}'. Stop it first (editor.playmode stop_scenario).");
+            {
+                cmd.Log.Error($"Cannot change the active scenario while play mode state is '{state}'. Stop it first (editor.playmode stop_scenario).");
+                return ExitCode.Failed;
+            }
 
             var scenario = Mppm63.LoadScenarioAsset(path, out var loadError);
             if (scenario == null)
-                throw new InvalidOperationException(loadError ?? $"No Play Mode Scenario asset at '{path}'.");
+            {
+                cmd.Log.Error(loadError ?? $"No Play Mode Scenario asset at '{path}'.");
+                return ExitCode.NotFound;
+            }
 
             Mppm63.SetActiveConfig(scenario);
 
-            return new
+            cmd.Result.Write(new
             {
                 active = new { name = scenario.name, path = AssetDatabase.GetAssetPath(scenario) },
                 state = Mppm63.ScenarioState()
-            };
+            });
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
-            "Start the active Play Mode Scenario (enters Play Mode with its players)",
-            Tags = new[] { "editor/playmode" })]
-        public static object StartScenario()
+            "Start the active Play Mode Scenario (enters Play Mode with its players). Turns Run In Background on in this Editor until play mode exits, so the game keeps running while it is unfocused; builds keep the project's value",
+            Tags = new[] { "editor/playmode" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode StartScenario(CommandContext cmd,
+            [CliArg("run-in-background", "Turn Run In Background on in this Editor for the Play session (true, default) so the game keeps running while it is unfocused, or keep the project's own value (false)")] bool runInBackground = true)
         {
             var active = Mppm63.GetActiveScenarioAsset();
             if (active == null)
-                throw new InvalidOperationException($"No scenario asset is active. {Mppm63.DefaultScenarioNote}");
+            {
+                cmd.Log.Error($"No scenario asset is active. {Mppm63.DefaultScenarioNote}");
+                return ExitCode.Failed;
+            }
 
-            Mppm63.Start();
+            var note = PlayModeCommands.BeginRunInBackgroundForClientPlaySession(runInBackground);
+            try
+            {
+                Mppm63.Start();
+            }
+            catch
+            {
+                PipelineServerStartup.EndClientPlaySessionIfPlayModeRefused();
+                throw;
+            }
 
-            return new
+            cmd.Log.Info("Scenario starting. Player editors launch asynchronously; poll editor.playmode get_scenario_status or editor.playmode list_instances.");
+            cmd.Result.Write(new
             {
                 started = true,
                 active = new { name = active.name, path = AssetDatabase.GetAssetPath(active) },
                 state = Mppm63.ScenarioState(),
-                message = "Scenario starting. Player editors launch asynchronously; poll editor.playmode get_scenario_status or editor.playmode list_instances."
-            };
+                note
+            });
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Stop the active/running Play Mode Scenario",
-            Tags = new[] { "editor/playmode" })]
-        public static object StopScenario()
+            Tags = new[] { "editor/playmode" },
+            Effect = CommandEffect.Idempotent)]
+        internal static ExitCode StopScenario(CommandContext cmd)
         {
             Mppm63.Stop();
 
-            return new
-            {
-                stopped = true,
-                state = Mppm63.ScenarioState(),
-                note = "State settles asynchronously; poll editor.playmode get_scenario_status for the final state."
-            };
+            cmd.Log.Info("State settles asynchronously; poll editor.playmode get_scenario_status for the final state.");
+            cmd.Result.Write(new { state = Mppm63.ScenarioState() });
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Live state of the active/running Play Mode Scenario: its state plus one entry per player the scenario declares, each with its run state and, once its Editor is up, the port and project path to reach it.",
             MainThreadRequired = true,
-            Tags = new[] { "editor/playmode" })]
-        public static object GetScenarioStatus()
+            Tags = new[] { "editor/playmode" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetScenarioStatus(CommandContext cmd)
         {
             var active = Mppm63.GetActiveScenarioAsset();
             var declared = Mppm63.DescribePlayers(active, out var playerError);
@@ -140,16 +168,20 @@ namespace Unity.Pipeline.Editor.Commands
                 };
             }).ToList();
 
-            return new
+            if (playerError != null || mppmError != null)
+                cmd.Log.Warning($"Could not read the scenario's players: {playerError ?? mppmError}");
+            if (active == null)
+                cmd.Log.Info(Mppm63.DefaultScenarioNote);
+
+            cmd.Result.Write(new
             {
                 state = Mppm63.ScenarioState(),
                 playMode = EditorApplication.isPaused ? "paused" : (EditorApplication.isPlaying ? "playing" : "stopped"),
                 active = active == null ? null : new { name = active.name, path = AssetDatabase.GetAssetPath(active) },
                 isDefaultScenario = active == null,
-                players,
-                playerError = playerError ?? mppmError,
-                note = active == null ? Mppm63.DefaultScenarioNote : null
-            };
+                players
+            });
+            return ExitCode.Success;
         }
 
         internal static EditorInstanceDescriptor FindInstance(
@@ -177,8 +209,9 @@ namespace Unity.Pipeline.Editor.Commands
 
         [CliGroupCommand(Group,
             "List the players a Play Mode Scenario asset declares (main, clones and local players), with the ids editor.playmode remove_player takes",
-            Tags = new[] { "editor/playmode" })]
-        public static object ListPlayers(
+            Tags = new[] { "editor/playmode" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode ListPlayers(CommandContext cmd,
             [CliArg("path", "Scenario asset path (defaults to the active scenario).")] string path = null)
         {
             UnityEngine.Object scenario;
@@ -190,32 +223,44 @@ namespace Unity.Pipeline.Editor.Commands
             {
                 scenario = Mppm63.LoadScenarioAsset(path, out var loadError);
                 if (scenario == null)
-                    throw new InvalidOperationException(loadError ?? $"No Play Mode Scenario asset at '{path}'.");
+                {
+                    cmd.Log.Error(loadError ?? $"No Play Mode Scenario asset at '{path}'.");
+                    return ExitCode.NotFound;
+                }
             }
 
-            var declared = Mppm63.DescribePlayers(scenario, out var playerError);
+            if (scenario == null)
+                cmd.Log.Warning(Mppm63.DefaultScenarioNote);
+            else
+                cmd.Log.Debug($"Listing the players of '{AssetDatabase.GetAssetPath(scenario)}'.");
 
-            return new
+            var declared = Mppm63.DescribePlayers(scenario, out var playerError);
+            if (declared == null)
             {
-                path = scenario == null ? null : AssetDatabase.GetAssetPath(scenario),
-                count = declared?.Count ?? 0,
-                players = declared?.Select(p => new
+                cmd.Log.Error($"Could not read the scenario's players: {playerError}");
+                return ExitCode.Failed;
+            }
+
+            foreach (var p in declared)
+            {
+                cmd.Result.WriteRecord(new
                 {
                     id = p.Id,
                     name = p.Name,
                     type = p.Type,
                     controller = p.Controller,
                     runMode = p.RunMode
-                }).ToList(),
-                playerError,
-                note = scenario == null ? Mppm63.DefaultScenarioNote : null
-            };
+                });
+            }
+
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Create a new Play Mode Scenario asset (auto-adds the Main Editor player). On 6.3 the asset is written under Assets/Settings/PlayMode/<name>.asset." + ScenarioCreateNotes.DescriptionSuffix,
-            Tags = new[] { "editor/playmode" })]
-        public static object CreateScenario(
+            Tags = new[] { "editor/playmode" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode CreateScenario(CommandContext cmd,
             [CliArg("name", "Scenario name (also the asset file name).", Required = true)] string name,
             [CliArg("path", "Optional asset path; on 6.3 only the file name is used (the folder is fixed to Assets/Settings/PlayMode).")] string path = null)
         {
@@ -226,62 +271,85 @@ namespace Unity.Pipeline.Editor.Commands
                 effectiveName = System.IO.Path.GetFileNameWithoutExtension(path);
 
             if (string.IsNullOrWhiteSpace(effectiveName))
-                throw new ArgumentException("name is required.");
+            {
+                cmd.Log.Error("name is required.");
+                return ExitCode.InvalidUsage;
+            }
 
             // On 6.3 the name is used verbatim as the asset file name, so validate it here rather than
             // letting CreatePlayModeConfig throw an opaque InvalidOperationException on a path separator.
             if (effectiveName.IndexOfAny(System.IO.Path.GetInvalidFileNameChars()) >= 0 || effectiveName.IndexOf('\\') >= 0)
-                throw new ArgumentException($"Scenario name '{effectiveName}' contains characters that are not valid in a file name (for example '/' or '\\'). It is written under Assets/Settings/PlayMode/<name>.asset, so pick a plain file name.");
+            {
+                cmd.Log.Error($"Scenario name '{effectiveName}' contains characters that are not valid in a file name (for example '/' or '\\'). It is written under Assets/Settings/PlayMode/<name>.asset, so pick a plain file name.");
+                return ExitCode.InvalidUsage;
+            }
 
             // The folder is fixed, so refuse rather than silently overwriting an existing scenario there.
             var targetPath = $"Assets/Settings/PlayMode/{effectiveName}.asset";
             if (AssetDatabase.LoadMainAssetAtPath(targetPath) != null || System.IO.File.Exists(targetPath))
-                throw new InvalidOperationException($"A scenario already exists at '{targetPath}'. Choose a different name or delete the existing asset first; create refuses rather than overwriting it.");
+            {
+                cmd.Log.Error($"A scenario already exists at '{targetPath}'. Choose a different name or delete the existing asset first; create refuses rather than overwriting it.");
+                return ExitCode.Failed;
+            }
 
             var created = Mppm63.CreateScenario(effectiveName, out var error);
             if (created == null)
-                throw new InvalidOperationException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.Failed;
+            }
 
             var createdPath = AssetDatabase.GetAssetPath(created);
             var active = Mppm63.GetActiveScenarioAsset() == created;
-            return new
+            if (!active)
+                cmd.Log.Info(ScenarioCreateNotes.NotActive(createdPath));
+
+            cmd.Result.Write(new
             {
-                created = true,
                 name = created.name,
                 path = createdPath,
-                active,
-                note = active ? null : ScenarioCreateNotes.NotActive(createdPath)
-            };
+                active
+            });
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Add a player to a scenario asset. type: clone | local",
-            Tags = new[] { "editor/playmode" })]
-        public static object AddPlayer(
+            Tags = new[] { "editor/playmode" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode AddPlayer(CommandContext cmd,
             [CliArg("path", "Scenario asset path (defaults to the active scenario).")] string path = null,
             [CliArg("type", "Player type: 'clone' (virtual player) or 'local' (built player).", Required = true)] string type = null,
             [CliArg("name", "Name for the new player (optional).")] string name = null)
         {
             var runState = Mppm63.CurrentPlayModeState();
             if (runState != "NotRunning")
-                throw new InvalidOperationException($"Cannot add a player while play mode state is '{runState}'. Stop it first (editor.playmode stop_scenario).");
+            {
+                cmd.Log.Error($"Cannot add a player while play mode state is '{runState}'. Stop it first (editor.playmode stop_scenario).");
+                return ExitCode.Failed;
+            }
 
             var scenario = Mppm63.ResolveScenario(path, out var resolveError);
             if (scenario == null)
-                throw new InvalidOperationException(resolveError);
+                return ScenarioNotResolved(cmd, path, resolveError);
 
             var resolvedPath = AssetDatabase.GetAssetPath(scenario);
             var id = Mppm63.AddInstance(scenario, type, name, out var error);
             if (id == null)
-                throw new InvalidOperationException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.Failed;
+            }
 
-            return new { added = true, id, type, path = resolvedPath };
+            cmd.Result.Write(new { id, type, path = resolvedPath });
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Remove a scenario player by its id (on 6.3 the id is the player Name). Destructive: requires confirm=true (use dry-run to preview).",
-            Tags = new[] { "editor/playmode" })]
-        public static object RemovePlayer(
+            Tags = new[] { "editor/playmode" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode RemovePlayer(CommandContext cmd,
             [CliArg("id", "Player id to remove (the player Name on 6.3).", Required = true)] string id,
             [CliArg("path", "Scenario asset path (defaults to the active scenario).")] string path = null,
             [CliArg("confirm", "Must be true to actually remove the player. Without it the command refuses (destructive guard).")] bool confirm = false,
@@ -289,33 +357,63 @@ namespace Unity.Pipeline.Editor.Commands
         {
             var runState = Mppm63.CurrentPlayModeState();
             if (runState != "NotRunning")
-                throw new InvalidOperationException($"Cannot remove a player while play mode state is '{runState}'. Stop it first (editor.playmode stop_scenario).");
+            {
+                cmd.Log.Error($"Cannot remove a player while play mode state is '{runState}'. Stop it first (editor.playmode stop_scenario).");
+                return ExitCode.Failed;
+            }
 
             if (string.Equals(id, MppmInstanceInfo.MainInstanceName, StringComparison.OrdinalIgnoreCase))
-                throw new InvalidOperationException($"'{MppmInstanceInfo.MainInstanceName}' is the scenario's main Editor and cannot be removed; only clone and local players can. It is listed by editor.playmode list_players for reference but is not a removable player.");
+            {
+                cmd.Log.Error($"'{MppmInstanceInfo.MainInstanceName}' is the scenario's main Editor and cannot be removed; only clone and local players can. It is listed by editor.playmode list_players for reference but is not a removable player.");
+                return ExitCode.Failed;
+            }
 
             var scenario = Mppm63.ResolveScenario(path, out var resolveError);
             if (scenario == null)
-                throw new InvalidOperationException(resolveError);
+                return ScenarioNotResolved(cmd, path, resolveError);
 
             var scenarioPath = AssetDatabase.GetAssetPath(scenario);
             if (dryRun)
             {
-                var player = Mppm63.DescribePlayers(scenario, out var describeError)?
-                    .FirstOrDefault(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
-                if (player == null)
-                    throw new InvalidOperationException(describeError ?? $"No player with id '{id}' in '{scenarioPath}'. List them with editor.playmode list_players.");
+                var players = Mppm63.DescribePlayers(scenario, out var describeError);
+                if (players == null)
+                {
+                    cmd.Log.Error(describeError);
+                    return ExitCode.Failed;
+                }
 
-                return new { status = "dry_run", wouldRemove = new { id = player.Id, name = player.Name, type = player.Type }, path = scenarioPath };
+                var player = players.FirstOrDefault(p => string.Equals(p.Id, id, StringComparison.OrdinalIgnoreCase));
+                if (player == null)
+                {
+                    cmd.Log.Error($"No player with id '{id}' in '{scenarioPath}'. List them with editor.playmode list_players.");
+                    return ExitCode.NotFound;
+                }
+
+                cmd.Result.Write(new { status = "dry_run", wouldRemove = new { id = player.Id, name = player.Name, type = player.Type }, path = scenarioPath });
+                return ExitCode.Success;
             }
 
             if (!confirm)
-                throw new ArgumentException($"Refusing to remove player '{id}' from '{scenarioPath}'. Pass confirm=true to remove it (rewrites the scenario asset, not undoable via Unity's Undo), or dry-run=true to preview.");
+            {
+                cmd.Log.Error($"Refusing to remove player '{id}' from '{scenarioPath}'. Pass confirm=true to remove it (rewrites the scenario asset, not undoable via Unity's Undo), or dry-run=true to preview.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (!Mppm63.RemoveInstance(scenario, id, out var error))
-                throw new InvalidOperationException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.Failed;
+            }
 
-            return new { removed = true, id, path = scenarioPath };
+            cmd.Result.Write(new { id, path = scenarioPath });
+            return ExitCode.Success;
+        }
+
+        // A named scenario that doesn't load is not found; with no path, nothing is active to act on.
+        static ExitCode ScenarioNotResolved(CommandContext cmd, string path, string error)
+        {
+            cmd.Log.Error(error);
+            return string.IsNullOrEmpty(path) ? ExitCode.Failed : ExitCode.NotFound;
         }
     }
 

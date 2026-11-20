@@ -11,7 +11,7 @@ namespace Unity.Pipeline.Config
     /// real build (e.g. Editor Play Mode without ever having built) is not an error;
     /// RuntimePipelineBootstrap simply has no roots to allow in that case.
     /// </summary>
-    public class RuntimePipelineBuildInfo : ScriptableObject
+    internal class RuntimePipelineBuildInfo : ScriptableObject
     {
         /// <summary>Resource name this asset must be saved under inside a Resources folder for <see cref="Load"/> to find it.</summary>
         public const string ResourceName = "RuntimePipelineBuildInfo";
@@ -23,6 +23,10 @@ namespace Unity.Pipeline.Config
         /// A player build rejects every method-reload push not signed by the matching private key; empty
         /// means reject all pushes (strict policy — there is deliberately no unsigned fallback).</summary>
         public string pushPublicKey = "";
+
+        /// <summary>Version of the com.unity.pipeline package the build was made with, reported by /api/commands.
+        /// Empty when the Package Manager could not resolve the package.</summary>
+        public string packageVersion = "";
 
         /// <summary>Load the asset from Resources, or null if this is not a real build.</summary>
         /// <returns>The build-time-baked info, or null if this is not a real build.</returns>

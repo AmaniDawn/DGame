@@ -14,7 +14,7 @@ namespace Unity.Pipeline.Threading
     /// and pumped from the main thread — auto-pumped via EditorApplication.update in the editor, and
     /// by RuntimePipelineDriver.Update in a player.
     /// </summary>
-    public class Dispatcher
+    internal class Dispatcher
     {
         private readonly ConcurrentQueue<WorkItem> m_WorkQueue = new ConcurrentQueue<WorkItem>();
         private volatile bool m_IsInitialized;

@@ -145,7 +145,7 @@ Each Editor and Player publishes a small JSON **instance descriptor** so clients
 | **Editor** | `<projectPath>/Library/Pipeline/.unity-pipeline-port` |
 | **Runtime** | `<workingDirectory>/.unity-pipeline-runtime-port` |
 
-The Editor descriptor lives under the git-ignored `Library/` folder. The file exists while at least one endpoint is registered: it is written when the first server starts, rewritten whenever the set of endpoints changes and every 15 seconds to refresh `lastHeartbeat`, and deleted when the last server stops, before a domain reload, and on quit. The file is rewritten in place and is readable only by the current user (it carries the auth token). An instance never deletes a descriptor whose `pid` is another process that is still running. A file left by an instance that is gone is replaced when the next one starts, or removed if that one has nothing to advertise.
+The Editor descriptor lives under the git-ignored `Library/` folder. The file exists while at least one endpoint is registered: it is written when the first server starts, rewritten whenever the set of endpoints changes and every 15 seconds to refresh `lastHeartbeat`, and deleted when the last server stops, before a domain reload, and on quit. The file is rewritten in place and is readable only by the current user (it carries the auth token). If those permissions can't be applied, for example because `icacls` or `chmod` is blocked, the file is not written, clients can't connect, and the Editor logs an error. An instance never deletes a descriptor whose `pid` is another process that is still running. A file left by an instance that is gone is replaced when the next one starts, or removed if that one has nothing to advertise.
 
 The Runtime descriptor is written next to the Player, at `{Application.dataPath}/..`:
 
@@ -168,7 +168,7 @@ The Runtime descriptor is written next to the Player, at `{Application.dataPath}
   "startedAt": "2026-06-25T10:00:00Z",
   "lastHeartbeat": "2026-06-25T10:05:00Z",
   "evalToken": "<base64 token>",
-  "capabilities": ["exec.argv", "exec.commandLine", "exec.commandTimeouts", "commands.obsoleteNames", "transport.pipelineProtocol", "pipeline.terminal"],
+  "capabilities": ["exec.argv", "exec.commandLine", "exec.commandTimeouts", "transport.pipelineProtocol", "pipeline.terminal", "tests.camelCase"],
   "info": "This editor has not been opened in automated mode and therefore could get stuck on modal dialogs. Human intervention may be required.",
   "endpoints": [
     { "type": "http", "port": "7800" }
@@ -201,7 +201,7 @@ The runtime descriptor shares `pid`, `port`, `unityVersion`, `startedAt`, `lastH
 | `buildGuid` | Unique build identifier (`Application.buildGUID`). |
 | `workingDirectory` | Directory the Player is running from. |
 
-The runtime descriptor also carries `capabilities`, with the same meaning and the same absent-key rule. A Player never advertises `commands.obsoleteNames`.
+The runtime descriptor also carries `capabilities`, with the same meaning and the same absent-key rule.
 
 (The runtime descriptor carries `platform`/`buildGuid`/`workingDirectory` in place of the editor's `projectPath`/`projectName`/`mode`.)
 
@@ -309,7 +309,9 @@ The settle gate is one-way and scoped to the **editor session**: once the Editor
 
 ### Play mode and the player loop
 
-`"playMode": "playing"` means the Editor is in Play mode, not that the game is running. An unfocused Editor without `Application.runInBackground` stays in Play mode with its player loop stopped, and commands that render on demand, such as `capture game_view`, still return a frame. `editor.playmode start` itself never changes `Application.runInBackground` — call [`editor.playmode set_run_in_background`](commands/editor-lifecycle-and-observability.md#editorplaymode-set_run_in_background) before entering Play mode, or enable "Ensure editor runs in background in PlayMode" in Project Settings > Pipeline > Editor, so the setting isn't silently changed on your behalf. Either one is recorded so it can be undone, and neither one ever reaches a build — a Player build always uses the project's own Run In Background value.
+`"playMode": "playing"` means the Editor is in Play mode, not that the game is running. Unity pauses the player of an unfocused Editor whose Run In Background (`Application.runInBackground`) is off: it stays in Play mode with its player loop stopped, and commands that render on demand, such as `capture game_view`, still return a frame. Auto-tick doesn't change this.
+
+`editor.playmode start` and `editor.playmode start_scenario` turn Run In Background on for the Play session they start when the project's value is off, say so in their reply, and restore the project's value when Play mode ends. Pass `--run-in-background false` to keep the project's value. To keep it on across sessions, or for Play mode entered from the Editor's Play button, call [`editor.playmode set_run_in_background`](commands/editor-lifecycle-and-observability.md#editorplaymode-set_run_in_background) or enable "Ensure editor runs in background in PlayMode" in Project Settings > Pipeline > Editor. Each of these is recorded so it can be undone, and none ever reaches a build: a Player build always uses the project's own Run In Background value.
 
 In Play mode, `/api/status` and `editor status` add three keys. `/api/status` omits all three in Edit Mode, so the common response keeps its shape. `editor status` omits `frameCount` and `playerLoopTicking` in Edit Mode, but always reports `runInBackground`:
 
@@ -319,7 +321,7 @@ In Play mode, `/api/status` and `editor status` add three keys. `/api/status` om
 | `playerLoopTicking` | `true` when the frame count advanced within the last second. `false` while paused, while the loop is frozen, and before the first frame advance of a session. This is about frames actually advancing, so it also covers pause and a stalled loop. |
 | `runInBackground` | `Application.runInBackground` as last sampled: the setting, not the outcome. It can be `true` while `playerLoopTicking` is `false` (paused, stalled), and `false` means an unfocused Editor stops the loop. |
 
-If you turn Run In Background off yourself while an override from `editor.playmode set_run_in_background` or the Play-mode setting is active, your value wins: the override ends, and it comes back only when you ask again (the command, or the next Play entry with the setting on).
+If you turn Run In Background off yourself while an override from `editor.playmode start`, `editor.playmode set_run_in_background` or the Play-mode setting is active, your value wins: the override ends, and it comes back only when you ask again (the command, or the next Play entry through `editor.playmode start` or with the setting on).
 
 A server that predates these keys never sends them. Treat an absent key in Play mode as "unknown", not as "not ticking".
 
@@ -337,7 +339,7 @@ Coverage is mechanism-based: native message boxes and `EditorWindow` modals are 
 
 `/api/commands` accepts optional query parameters for discovery:
 
-- `detail` — `full` (the **default**) returns the complete command metadata including `parameters` and the generated `schema`; `compact` returns a lightweight index per command (`command`, `name`, `group`, `description`, `tags`, `package`); `groups` and `tags` return a **group index** or a **tag index** instead of commands (see below). The recommended discovery flow is to start from the group index, list one group's commands with `group=`, then request full detail only for the few commands you intend to invoke. The tag index and `tag=` do the same across groups. On the Editor, `obsolete_names` returns the **obsolete-name index** instead (see below).
+- `detail` — `full` (the **default**) returns the complete command metadata including `parameters` and the generated `schema`; `compact` returns a lightweight index per command (`command`, `name`, `group`, `description`, `tags`, `package`, and the effect hints below); `groups` and `tags` return a **group index** or a **tag index** instead of commands (see below). The recommended discovery flow is to start from the group index, list one group's commands with `group=`, then request full detail only for the few commands you intend to invoke. The tag index and `tag=` do the same across groups.
 - `query` — case-insensitive substring match on a command's full name, description, or any tag.
 - `group` — scope results to a group and its subgroups via segment-aware prefix match (`group=build` matches `build` and `build.target`, not `buildx`).
 - `include_tests` — `true` also lists the commands declared by the test assemblies, which are hidden by default. They stay executable either way.
@@ -351,6 +353,8 @@ Filters combine with AND; a filter that matches nothing returns an empty result,
 
 ### `/api/commands` response shape
 
+A command entry, compact or full, also carries `readOnly`, `destructive` and `idempotent`: booleans that say whether the command only reads, can delete or overwrite work, and can be repeated with the same result. They come from the command's declared `Effect` (see [Declaring the effect](creating-commands.md#declaring-the-effect)), and are left out when it declares none. A read-only command also reports `idempotent: true`. That adds nothing: MCP clients only weigh `idempotentHint` when `readOnlyHint` is false.
+
 Every response carries the pagination counters plus a `server` block. The command payload is either a flat `commands` array or — under `group_by` — a `groups` array in its place:
 
 | Field | Meaning |
@@ -358,12 +362,11 @@ Every response carries the pagination counters plus a `server` block. The comman
 | `commands` | The page of commands. Present only when `group_by=flat` (the default) and `detail` is not `tags` or `groups`. |
 | `groups` | Present *instead of* `commands` when `group_by=package`, `group_by=tag` or `group_by=group`. Also present under `detail=groups`, as one `{group, count}` row per group. |
 | `tags` | Present *instead of* `commands` when `detail=tags`: one `{tag, count}` row per distinct tag. |
-| `obsoleteNames` | Present *instead of* `commands` when `detail=obsolete_names`: one `{oldName, command}` row per old command name. |
 | `count` | How many rows this page actually returned — commands, or tags or groups under `detail=tags` or `detail=groups`. |
 | `total` | How many rows matched the filters, **before** `offset`/`limit` were applied — matching commands, or distinct tags or groups under `detail=tags` or `detail=groups`. |
 | `offset` | Echo of the requested `offset` (`0` when not supplied). |
 | `limit` | Echo of the requested `limit` (`null` when not supplied — no cap). |
-| `server` | The responding server's `version`, `port`, and `startTime`. |
+| `server` | The responding server's `version` (the com.unity.pipeline package version; `unknown` in a Player built without the Pipeline build processor, which bakes it in), `port`, and `startTime`. |
 
 `GET /api/commands?detail=compact&tag=baking/lighting&limit=2` — `count` is the 2 returned here, while `total` is all 6 commands under `baking/lighting`, so the next page is `offset=2`. Commands are sorted by full name; `command` is that full name, `<group> <name>`, the same field name the exec envelope uses:
 
@@ -376,7 +379,10 @@ Every response carries the pagination counters plus a `server` block. The comman
       "group": "lighting",
       "description": "Trigger an async lightmap bake of the open scene(s) via Lightmapping.BakeAsync(). Returns immediately; poll lighting bake_status until completed.",
       "tags": ["baking/lighting"],
-      "package": "Unity.Pipeline.Editor"
+      "package": "Unity.Pipeline.Editor",
+      "readOnly": false,
+      "destructive": true,
+      "idempotent": false
     },
     {
       "command": "lighting bake_status",
@@ -384,7 +390,10 @@ Every response carries the pagination counters plus a `server` block. The comman
       "group": "lighting",
       "description": "Get the status of the last lighting bake: idle | baking | completed.",
       "tags": ["baking/lighting"],
-      "package": "Unity.Pipeline.Editor"
+      "package": "Unity.Pipeline.Editor",
+      "readOnly": true,
+      "destructive": false,
+      "idempotent": true
     }
   ],
   "count": 2,
@@ -392,7 +401,7 @@ Every response carries the pagination counters plus a `server` block. The comman
   "offset": 0,
   "limit": 2,
   "server": {
-    "version": "0.0.1",
+    "version": "1.0.0",
     "port": 54321,
     "startTime": "2026-07-29T09:14:22.113Z"
   }
@@ -447,7 +456,7 @@ Under `group_by=tag` the same envelope carries a nested `groups` tree instead. T
   "offset": 0,
   "limit": 2,
   "server": {
-    "version": "0.0.1",
+    "version": "1.0.0",
     "port": 54321,
     "startTime": "2026-07-29T09:14:22.113Z"
   }
@@ -475,7 +484,7 @@ prefab-ish commands". `GET /api/commands?detail=tags`:
   "total": 50,
   "offset": 0,
   "limit": null,
-  "server": { "version": "0.7.0", "port": 7801, "startTime": "..." }
+  "server": { "version": "1.0.0", "port": 7801, "startTime": "..." }
 }
 ```
 
@@ -502,35 +511,9 @@ returns. Under a `group=` filter only that subtree's groups are listed. Rows are
   "total": 37,
   "offset": 0,
   "limit": null,
-  "server": { "version": "0.7.0", "port": 7801, "startTime": "..." }
+  "server": { "version": "1.0.0", "port": 7801, "startTime": "..." }
 }
 ```
-
-`detail=obsolete_names` maps each flat name a command had before commands were grouped to its
-full name now. Only the Editor serves it, and it advertises the `commands.obsoleteNames`
-capability; a Player or an older package answers `400 Unknown detail value`. Rows are sorted by
-old name, `query` matches either name, and `order`, `offset` and `limit` apply. `tag`, `group`,
-`group_by` and `sort=package` are rejected with `400`: an old name is not a command.
-`GET /api/commands?detail=obsolete_names&query=reload_file`:
-
-```json
-{
-  "obsoleteNames": [
-    { "oldName": "reload_file", "command": "script.methodreload reload" },
-    { "oldName": "reload_file_editor_interpreter", "command": "script.methodreload reload_editor" },
-    { "oldName": "reload_file_player_interpreter", "command": "script.methodreload reload_player" }
-  ],
-  "count": 3,
-  "total": 3,
-  "offset": 0,
-  "limit": null,
-  "server": { "version": "0.7.0", "port": 7801, "startTime": "..." }
-}
-```
-
-The Editor also answers an old name sent to `/api/exec`, or used in a `job batch` operation, with
-Command Not Found naming its replacement:
-`No command named 'reload_file' is available. It was renamed: run 'unity command script.methodreload reload'.`
 
 ## Executing a command (`POST /api/exec`)
 
@@ -559,12 +542,6 @@ close, the key it meant (`unknown key 'fixedDeltaTime'. Did you mean 'fixed-delt
 One key is exempt: `token`, which the `unity` CLI adds to some commands' parameters, among them its MCP
 tools for `script eval`, `test run` and `script recompile`. No command declares it, so it is dropped without
 effect; authenticate with the `Authorization` header.
-
-**Deprecated, removed in 1.0.0:** three names from before parameters were kebab-case are still
-accepted, as structured keys or as `--name` flags, because released `unity` CLIs send them.
-`build run` takes `outputPath` as `output-path`, `console get` takes `since_session` as
-`since-session`, and `pipeline list_commands` takes `group_by` as `group-by`. This holds for those
-three commands only, and not when the request also sends the new name. Send the new names.
 
 **Prefer `argv` whenever you already have split tokens.** On POSIX a CLI never holds the original
 command *string* — the shell already split and unquoted argv — so re-quoting those tokens for the
@@ -731,6 +708,27 @@ the English fallback, and for any `kind` your client does not recognize.
 element (without the generated `schema`). It lets a client print usage without a separate schema
 fetch.
 
+### Failures of a command that returns its exit code
+
+A command that returns its exit code (see [Creating commands](creating-commands.md#the-command-method))
+succeeds or fails by that code alone, whatever it wrote. A success is `200` with what it wrote as
+`result`, or `null` when it wrote nothing. A failure is `400` (`504` for a timeout), with `error`
+naming the exit code and `errorDetails` holding what it logged to Error. If it wrote a result before
+failing, such as a wait that timed out, the reply keeps it as `result`:
+
+| Exit code | `error` |
+|---|---|
+| `InvalidUsage` | `Parameter Validation Failed` |
+| `NotFound` | `Not Found` |
+| `Cancelled` | `Command Cancelled` |
+| `TimedOut` | `Request Timed Out` (with `errorCode` `TIMEOUT`) |
+| `Failed` | `Command Execution Failed` |
+
+A job's reply follows the same rule: `state` is `completed` or `failed`, with the same `error`,
+`errorDetails` and `result`. A job canceled through `/api/job/cancel` is `canceled` instead, and keeps
+any `result` the command wrote before it stopped, and in `errorDetails` what it logged as an error, such as
+how far it got.
+
 ### Caller context
 
 Optional fields that describe the calling client. They never affect execution, and a server that
@@ -757,7 +755,7 @@ Servers advertise optional wire features in `capabilities`, both on `GET /api/st
 **port descriptor**:
 
 ```json
-"capabilities": ["exec.argv", "exec.commandLine", "exec.commandTimeouts", "commands.obsoleteNames", "transport.pipelineProtocol", "pipeline.terminal"]
+"capabilities": ["exec.argv", "exec.commandLine", "exec.commandTimeouts", "transport.pipelineProtocol", "pipeline.terminal", "tests.camelCase"]
 ```
 
 | Capability | Meaning |
@@ -765,9 +763,9 @@ Servers advertise optional wire features in `capabilities`, both on `GET /api/st
 | `exec.argv` | `/api/exec` accepts the `argv` form. |
 | `exec.commandLine` | `/api/exec` accepts the `commandLine` form. |
 | `exec.commandTimeouts` | A request may omit `timeout` and get the command's own default, and the server always answers (`504 TIMEOUT`) when a timeout runs out (see [Timeouts](#timeouts)). |
-| `commands.obsoleteNames` | `/api/commands` accepts `detail=obsolete_names`. Editor only. |
 | `transport.pipelineProtocol` | The `pipeline` entry in `endpoints` speaks the Pipeline protocol. |
 | `pipeline.terminal` | The Pipeline protocol transport formats and streams a command's result (`--format`, `--fields`) for a client that sends `stdout.tty` (see [Output formats](#output-formats)). Editor only. |
+| `tests.camelCase` | `test run` and `test status` name every reply field in camelCase (`summary.total`, `results[].fullName`). An older Editor answers `test run` with `Summary.Total` and both with `results[].FullName`. Editor only. |
 
 The descriptor is the carrier that matters: clients already read it locally to obtain `evalToken`,
 so negotiation costs **zero extra requests**.
@@ -811,6 +809,37 @@ unity command editor status --format json
 An empty list writes nothing and exits `0`. Formats may gain fields in any release, so scripts should
 name the fields they read with `--fields` rather than rely on column positions.
 
+### Log level
+
+A command that takes a `CommandContext` (see [Creating commands](creating-commands.md#commands-that-take-a-commandcontext))
+logs to stderr. `--log-level`, also anywhere before `--`, picks how much: `error`, `warning` (the
+default), `info` or `debug`, each including the ones before it. It never changes stdout. An unknown
+value ends the request with exit code `2` before the command runs. Like the format options,
+`--log-level` is the server's own: no command can name a parameter `log-level`.
+
+```bash
+unity command editor status --log-level info
+```
+
+### Log lines
+
+Lines a command logs while it runs go to stderr, apart from the result. Their format is chosen with
+`--log-format`, independently of `--format`: `--json` or `--format json` leaves log lines as text.
+
+| Option | Output |
+|---|---|
+| none or `--log-format human` | Info lines as written. Error, warning and debug lines start with a label: `error: `, `warning: `, `debug: `. When the client sends `stderr.tty=1`, the label is colored (red, yellow, dim). |
+| `--log-format json` (or `ndjson`) | One JSON object per line, `{"level":"error","message":"…"}`, where `level` is `info`, `warning`, `error` or `debug`. Never colored. |
+
+Warning, info and debug lines go to stderr too but never explain a failure: a failure's message is
+the error lines alone, not the whole of stderr. Over HTTP (`/api/exec`), `--log-format` is accepted
+but has no effect: `errorDetails` holds each error message as written, without a label. Like
+`--log-level`, `--log-format` is the server's own: no command can name a parameter `log-format`.
+
+```bash
+unity command editor status --format json --log-format json
+```
+
 ## Multiple instances (Multiplayer Play Mode)
 
 Multiplayer Play Mode (MPPM) runs additional **virtual player** Editors alongside the main Editor.
@@ -838,7 +867,7 @@ unity command editor.playmode list_instances
 unity pipeline list
 
 # Talk to one directly — the full command surface, not a subset
-unity command --project-path <mainProject>/Library/VP/<vpId> editor_status
+unity command --project-path <mainProject>/Library/VP/<vpId> editor status
 ```
 
 `unity command` with no `--project-path` still resolves to the **main** Editor. The CLI collapses a
@@ -852,7 +881,7 @@ Play Mode Scenarios are assets (`OrchestratedScenario`, e.g.
 `Assets/Settings/PlayMode/2Players.asset`) describing the main Editor plus virtual players.
 These commands require **Unity 6000.3 or newer** and the **`com.unity.multiplayer.playmode`**
 package; without both they are not registered at all (see
-[Availability](commands/multiplayer-play-mode.md#availability)). Do **not** use `editor_play` for a
+[Availability](commands/multiplayer-play-mode.md#availability)). Do **not** use `editor.playmode start` for a
 scenario — the manager enters Play Mode itself and guards against manual entry.
 
 ```bash

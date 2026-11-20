@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Unity.Pipeline.MethodReload;
 using UnityEngine;
@@ -40,12 +41,40 @@ namespace Unity.Pipeline.Editor
                 // treated as unreadable, so LoadOrCreate regenerates the key — the documented recovery.
                 PushEnvelope.DerivePublicKey(text);
                 privateKey = text;
-                return true;
             }
             catch (Exception ex)
             {
                 Debug.LogWarning($"Pipeline: could not read push-signing key at {path} ({ex.Message}) — a fresh key will be generated on the next build.");
                 return false;
+            }
+
+            RestrictOnce(path, privateKey);
+            return true;
+        }
+
+        static readonly HashSet<string> s_RestrictedPaths = new HashSet<string>();
+
+        // A key file written by an older version may still be readable by other users. Rewriting it
+        // through SecureFile keeps the key, so players already built with it keep accepting pushes, and
+        // drops any existing grant to others. Once per path per domain, as restricting launches processes
+        // on Windows.
+        static void RestrictOnce(string path, string privateKey)
+        {
+            lock (s_RestrictedPaths)
+            {
+                if (!s_RestrictedPaths.Add(path))
+                    return;
+            }
+
+            try
+            {
+                SecureFile.WriteAllText(path, privateKey);
+            }
+            catch (IOException ex)
+            {
+                lock (s_RestrictedPaths)
+                    s_RestrictedPaths.Remove(path);
+                Debug.LogWarning($"Pipeline: could not restrict push-signing key at {path} to the current user ({ex.Message}).");
             }
         }
 
@@ -65,7 +94,7 @@ namespace Unity.Pipeline.Editor
             var fingerprint = PushEnvelope.Fingerprint(publicKey);
 
             Directory.CreateDirectory(directory);
-            File.WriteAllText(Path.Combine(directory, KeyFileName), privateKey);
+            SecureFile.WriteAllText(Path.Combine(directory, KeyFileName), privateKey);
             File.WriteAllText(Path.Combine(directory, PublicInfoFileName),
                 $"# com.unity.pipeline push-signing public key (fingerprint {fingerprint})\n" +
                 "# The private half is signing.key next to this file — never commit or share it.\n" +

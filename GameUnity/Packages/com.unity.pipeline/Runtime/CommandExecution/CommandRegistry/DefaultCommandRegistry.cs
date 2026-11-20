@@ -13,9 +13,9 @@ namespace Unity.Pipeline.Commands
 
         /// <inheritdoc/>
         public void Register(string group, string name, string description, Delegate handler,
-            bool mainThreadRequired, string[] tags)
+            bool mainThreadRequired, string[] tags, CommandEffect effect)
         {
-            CommandRegistry.RegisterCommand(group, name, description, handler, mainThreadRequired, tags);
+            CommandRegistry.RegisterCommand(group, name, description, handler, mainThreadRequired, tags, effect);
         }
 
         /// <inheritdoc/>

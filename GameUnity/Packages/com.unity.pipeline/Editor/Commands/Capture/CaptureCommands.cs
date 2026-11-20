@@ -31,25 +31,33 @@ namespace Unity.Pipeline.Editor.Commands.Capture
 
         private const int MaxDimension = 4096;
 
-        [CliGroupCommand(Group, "Capture the game view as a PNG. source=screen (default) captures what the Game window shows, incl. Screen Space - Overlay UI; source=camera renders a single camera instead, with overlay UI drawn on top on URP/HDRP (overlay=auto|true|false). Returns it inline as base64, unless output-path is set (path-only result; pass include-inline-image=true to get both).", Tags = new[] { "capture" })]
-        public static CaptureResult GameView(
+        [CliGroupCommand(Group, "Capture the game view as a PNG. source=screen (default) captures what the Game window shows, incl. Screen Space - Overlay UI; source=camera renders a single camera instead, with overlay UI drawn on top on URP/HDRP (overlay=auto|true|false). Returns it inline as base64, unless output-path is set (path-only result; pass include-inline-image=true to get both).", Tags = new[] { "capture" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode GameView(CommandContext cmd,
             [CliArg("width", "Output width in px (default 1280; capped 4096).")] int width = 1280,
             [CliArg("height", "Output height in px (default 720; capped 4096).")] int height = 720,
             [CliArg("camera", "Optional camera name (source=camera only); defaults to Camera.main, else the first enabled camera.")] string camera = null,
             [CliArg("output-path", "Optional path to write the PNG: absolute, or relative to the project root (e.g. Screenshots/foo.png, outside Assets/ so no .meta is created). When set, the result omits the inline base64 image unless include-inline-image=true.")] string savePath = null,
             [CliArg("include-inline-image", "Also return the image inline as base64 when output-path is set (default false: path-only result). Only meaningful together with output-path.")] bool includeInlineImage = false,
             [CliArg("max-resolution", "Cap on the inline image's longest edge (e.g. 512). Only applies when an inline image is returned (no output-path, or output-path + include-inline-image=true); the output-path file keeps the requested resolution.")] int maxResolution = 0,
-            [CliArg("source", "What to capture: 'screen' (default) captures the game view's own render target — what the Game window shows, incl. Screen Space - Overlay UI (HUDs) in Play Mode, opening a Game view window when none is open, in batchmode too; 'camera' renders a single camera off-screen instead, with overlay UI drawn on top on URP/HDRP (see overlay). Defaults to 'camera' when a camera name is given, or when a just-opened Game view has not rendered a frame yet; the result's message then says so.")] string source = null,
+            [CliArg("source", "What to capture: 'screen' (default) captures the game view's own render target — what the Game window shows, incl. Screen Space - Overlay UI (HUDs) in Play Mode, opening a Game view window when none is open, in batchmode too; 'camera' renders a single camera off-screen instead, with overlay UI drawn on top on URP/HDRP (see overlay). Defaults to 'camera' when a camera name is given, or when a just-opened Game view has not rendered a frame yet; a warning then says so.")] string source = null,
             [CliArg("overlay", "Camera captures only: draw Screen Space - Overlay UI on top of the camera image. 'auto' (default) draws it for a camera that renders to the screen, 'true' for any camera, 'false' never. Needs a Scriptable Render Pipeline (URP/HDRP).")] string overlay = null)
+        {
+            return Report(cmd, CaptureGameView(width, height, camera, savePath, includeInlineImage, maxResolution, source, overlay));
+        }
+
+        /// <summary>The <see cref="GameView"/> capture, for callers that are not a command.</summary>
+        internal static CaptureResult CaptureGameView(int width = DefaultWidth, int height = DefaultHeight, string camera = null,
+            string savePath = null, bool includeInlineImage = false, int maxResolution = 0, string source = null, string overlay = null)
         {
             // The screen source draws the Game view before reading it, opening one when none exists (in
             // batchmode too) and leaving it open. Camera requests never touch the window layout.
             var wantsScreen = ResolveGameViewSource(source, camera, true, out _) == "screen";
             var gameView = GameViewState.Ready;
+            bool? redrawn = null;
             if (wantsScreen)
             {
                 GuardHasGpu();
-                gameView = PrepareGameView();
+                gameView = PrepareGameView(out redrawn);
             }
 
             var screenAvailable = gameView == GameViewState.Ready || gameView == GameViewState.Opened;
@@ -108,8 +116,13 @@ namespace Unity.Pipeline.Editor.Commands.Capture
 
                     var result = Capture(EncodeScreenToPng, "screen",
                         width, height, savePath, includeInlineImage, maxResolution);
+                    var screenMessages = new List<string>();
                     if (gameView == GameViewState.Opened)
-                        result.Message = "No Game view window was showing, so one was opened to capture the screen. It stays open.";
+                        screenMessages.Add("No Game view window was showing, so one was opened to capture the screen. It stays open.");
+                    var staleFrame = StaleFrameMessage((IsPlayingProbe ?? (() => EditorApplication.isPlaying))(), redrawn);
+                    if (staleFrame != null)
+                        screenMessages.Add(staleFrame);
+                    result.Message = string.Join(" ", screenMessages);
 
                     return result;
                 }
@@ -175,14 +188,21 @@ namespace Unity.Pipeline.Editor.Commands.Capture
         private const int DefaultWidth = 1280;
         private const int DefaultHeight = 720;
 
-        [CliGroupCommand(Group, "Capture the active Scene View as a PNG. source=camera (default) renders the Scene view camera: the scene only, at width x height; source=screen captures the Scene window as drawn, with grid, gizmos and toolbars, at the window's size (as " + CommandNames.CaptureEditorWindow + " does). Returns it inline as base64, unless output-path is set (path-only result; pass include-inline-image=true to get both).", Tags = new[] { "capture" })]
-        public static CaptureResult SceneView(
+        [CliGroupCommand(Group, "Capture the active Scene View as a PNG. source=camera (default) renders the Scene view camera: the scene only, at width x height; source=screen captures the Scene window as drawn, with grid, gizmos and toolbars, at the window's size (as " + CommandNames.CaptureEditorWindow + " does). Returns it inline as base64, unless output-path is set (path-only result; pass include-inline-image=true to get both).", Tags = new[] { "capture" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode SceneView(CommandContext cmd,
             [CliArg("width", "Output width in px (default 1280; capped 4096). source=camera only.")] int width = DefaultWidth,
             [CliArg("height", "Output height in px (default 720; capped 4096). source=camera only.")] int height = DefaultHeight,
             [CliArg("output-path", "Optional path to write the PNG: absolute, or relative to the project root (e.g. Screenshots/foo.png, outside Assets/ so no .meta is created). When set, the result omits the inline base64 image unless include-inline-image=true.")] string savePath = null,
             [CliArg("include-inline-image", "Also return the image inline as base64 when output-path is set (default false: path-only result). Only meaningful together with output-path.")] bool includeInlineImage = false,
             [CliArg("max-resolution", "Cap on the inline image's longest edge (e.g. 512). Only applies when an inline image is returned (no output-path, or output-path + include-inline-image=true); the output-path file keeps its full resolution.")] int maxResolution = 0,
             [CliArg("source", "What to capture: 'camera' (default) renders the Scene view camera, the scene only, at width x height; 'screen' captures the Scene window as drawn, with grid, gizmos, icons, handles and toolbars, at the window's size. Not available in batchmode.")] string source = null)
+        {
+            return Report(cmd, CaptureSceneView(width, height, savePath, includeInlineImage, maxResolution, source));
+        }
+
+        /// <summary>The <see cref="SceneView"/> capture, for callers that are not a command.</summary>
+        internal static CaptureResult CaptureSceneView(int width = DefaultWidth, int height = DefaultHeight, string savePath = null,
+            bool includeInlineImage = false, int maxResolution = 0, string source = null)
         {
             var src = string.IsNullOrWhiteSpace(source) ? "camera" : source.Trim().ToLowerInvariant();
             if (src != "camera" && src != "screen")
@@ -214,19 +234,25 @@ namespace Unity.Pipeline.Editor.Commands.Capture
             return result;
         }
 
-        [CliGroupCommand(Group, "Capture an open Editor window of any type (Inspector, Console, Project, a custom window...) as a PNG at the window's size. A window behind another tab is brought to the front while it is read, then the previous tab is put back. Not available in batchmode. Returns it inline as base64, unless output-path is set (path-only result; pass include-inline-image=true to get both).", Tags = new[] { "capture" })]
-        public static CaptureResult EditorWindow(
+        [CliGroupCommand(Group, "Capture an open Editor window of any type (Inspector, Console, Project, a custom window...) as a PNG at the window's size. A window behind another tab is brought to the front while it is read, then the previous tab is put back. Not available in batchmode. Returns it inline as base64, unless output-path is set (path-only result; pass include-inline-image=true to get both).", Tags = new[] { "capture" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode EditorWindow(CommandContext cmd,
             [CliArg("window", "The window to capture: its title (e.g. Inspector) or its type name (e.g. InspectorWindow).", Required = true)] string window = null,
             [CliArg("output-path", "Optional path to write the PNG: absolute, or relative to the project root (e.g. Screenshots/foo.png, outside Assets/ so no .meta is created). When set, the result omits the inline base64 image unless include-inline-image=true.")] string savePath = null,
             [CliArg("include-inline-image", "Also return the image inline as base64 when output-path is set (default false: path-only result). Only meaningful together with output-path.")] bool includeInlineImage = false,
             [CliArg("max-resolution", "Cap on the inline image's longest edge (e.g. 512). Only applies when an inline image is returned (no output-path, or output-path + include-inline-image=true); the output-path file keeps the window's resolution.")] int maxResolution = 0)
         {
             if (string.IsNullOrWhiteSpace(window))
-                throw new ArgumentException("Give the window to capture: its title (e.g. Inspector) or its type name (e.g. InspectorWindow).");
+            {
+                cmd.Log.Error("Give the window to capture: its title (e.g. Inspector) or its type name (e.g. InspectorWindow).");
+                return ExitCode.InvalidUsage;
+            }
 
             // Batchmode opens no windows, so none has pixels to read.
             if (Application.isBatchMode)
-                throw new InvalidOperationException("Editor windows are not drawn in batchmode, so there is no window to capture.");
+            {
+                cmd.Log.Error("Editor windows are not drawn in batchmode, so there is no window to capture.");
+                return ExitCode.Failed;
+            }
 
             GuardHasGpu();
 
@@ -236,10 +262,20 @@ namespace Unity.Pipeline.Editor.Commands.Capture
             {
                 var open = windows.Where(IsDrawable).Select(w => w.titleContent.text).Where(t => !string.IsNullOrEmpty(t))
                     .Distinct().OrderBy(t => t, StringComparer.OrdinalIgnoreCase);
-                throw new ArgumentException($"No open Editor window matched '{window}' by title or type name. Open windows: {string.Join(", ", open)}.");
+                cmd.Log.Error($"No open Editor window matched '{window}' by title or type name. Open windows: {string.Join(", ", open)}.");
+                return ExitCode.NotFound;
             }
 
-            return CaptureWindow(target, windows, $"window:{target.titleContent.text}", savePath, includeInlineImage, maxResolution);
+            return Report(cmd, CaptureWindow(target, windows, $"window:{target.titleContent.text}", savePath, includeInlineImage, maxResolution));
+        }
+
+        /// <summary>Writes a capture as the command's result; what the caller should know about it goes to the log.</summary>
+        static ExitCode Report(CommandContext cmd, CaptureResult result)
+        {
+            if (!string.IsNullOrEmpty(result.Message))
+                cmd.Log.Warning(result.Message);
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -746,8 +782,10 @@ namespace Unity.Pipeline.Editor.Commands.Capture
         /// move. In Play Mode the view only draws from its GUI when the player loop has a frame due, in
         /// which case its target still holds the player loop's latest frame.
         /// </summary>
-        private static GameViewState PrepareGameView()
+        /// <param name="redrawn">Whether the view drew the game for this call; null when that is unknown.</param>
+        private static GameViewState PrepareGameView(out bool? redrawn)
         {
+            redrawn = null;
             var gameViewType = Type.GetType("UnityEditor.GameView,UnityEditor");
             var windows = Resources.FindObjectsOfTypeAll<UnityEditor.EditorWindow>();
             var window = FindPlayModeView(windows, gameViewType);
@@ -778,7 +816,10 @@ namespace Unity.Pipeline.Editor.Commands.Capture
             var previousFront = window.hasFocus ? null : windows.FirstOrDefault(w => w != window && w.hasFocus && SameHost(w, window));
             window.Show();
             window.ShowTab();
-            var drew = RendersInGui() && RepaintImmediately(window);
+            var rendersInGui = (RendersInGuiProbe ?? RendersInGui)();
+            var drew = rendersInGui == true && RepaintImmediately(window);
+            // Unknown when the Editor's internals could not say whether a frame was due.
+            redrawn = rendersInGui == null ? null : drew;
             if (previousFront != null)
                 previousFront.ShowTab();
 
@@ -814,18 +855,25 @@ namespace Unity.Pipeline.Editor.Commands.Capture
             return viewType == null ? null : windows.FirstOrDefault(w => viewType.IsInstanceOfType(w) && IsDrawable(w));
         }
 
-        // Whether a Game view repaint draws the game at all: in Play Mode only when the player loop has a frame due.
-        private static bool RendersInGui()
+        /// <summary>Replaces <see cref="RendersInGui"/> in tests; null uses the Editor's own answer.</summary>
+        internal static Func<bool?> RendersInGuiProbe { get; set; }
+
+        /// <summary>Replaces <see cref="EditorApplication.isPlaying"/> in tests; null uses the Editor's own answer.</summary>
+        internal static Func<bool> IsPlayingProbe { get; set; }
+
+        // Whether a Game view repaint draws the game at all: in Play Mode only when the player loop has a
+        // frame due. Null when the internal API is unavailable, so nothing is known.
+        private static bool? RendersInGui()
         {
             try
             {
                 var playModeView = Type.GetType("UnityEditor.PlayModeView,UnityEditor");
                 return playModeView?.GetProperty("renderViewCallNeededInOnGUI", BindingFlags.Static | BindingFlags.NonPublic)
-                    ?.GetValue(null) as bool? == true;
+                    ?.GetValue(null) as bool?;
             }
             catch
             {
-                return false;
+                return null;
             }
         }
 
@@ -840,6 +888,23 @@ namespace Unity.Pipeline.Editor.Commands.Capture
                 default:
                     return "No Game view window was showing, and none could be opened";
             }
+        }
+
+        /// <summary>
+        /// What the result says when a screen capture read a frame drawn before the call: in Play Mode
+        /// the Game view only draws when the player loop has a frame due, and an Editor in the
+        /// background with Run In Background off has none. Null when there is nothing to say: the view
+        /// was redrawn, it is unknown whether it was, or in Edit Mode, where the repaint always draws the scene as it is.
+        /// </summary>
+        internal static string StaleFrameMessage(bool playing, bool? redrawn)
+        {
+            if (!playing || redrawn != false)
+                return null;
+
+            return "The Game view was not redrawn for this capture: in Play Mode it draws only when the player loop has a frame due, "
+                + "and none was (the Editor is in the background with Run In Background off), "
+                + "so the image is the last frame the game rendered and may not show recent changes. "
+                + "Pass source=\"camera\" to render a camera now, or turn on " + CommandNames.EditorPlaymodeSetRunInBackground + " to keep the game running.";
         }
 
         private static string NoGameViewTargetMessage()
@@ -1039,9 +1104,10 @@ namespace Unity.Pipeline.Editor.Commands.Capture
 
         /// <summary>
         /// What the caller should know about the capture, e.g. that a Game view was opened for it, or
-        /// that a camera was captured instead of the screen. Empty when there is nothing to say.
+        /// that a camera was captured instead of the screen. Empty when there is nothing to say. Not part
+        /// of the command's result: the command logs it as a warning.
         /// </summary>
-        [JsonProperty("message")]
+        [JsonIgnore]
         public string Message { get; set; } = "";
     }
 }

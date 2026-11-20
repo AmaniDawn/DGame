@@ -106,18 +106,7 @@ namespace Unity.Pipeline.Editor.Commands.Materials
         public bool IsSupported { get; set; }
     }
 
-    /// <summary>Result of <c>get_shader_properties</c> (CLI-213): a shader's declared property list.</summary>
-    [Serializable]
-    class ShaderPropertiesResult
-    {
-        [JsonProperty("shader")]
-        public string Shader { get; set; }
-
-        [JsonProperty("properties")]
-        public List<ShaderPropertyInfo> Properties { get; set; } = new List<ShaderPropertyInfo>();
-    }
-
-    /// <summary>A single declared shader property, introspected via <c>ShaderUtil</c>.</summary>
+    /// <summary>A single declared shader property, one record of <c>material get_shader_properties</c>.</summary>
     [Serializable]
     class ShaderPropertyInfo
     {

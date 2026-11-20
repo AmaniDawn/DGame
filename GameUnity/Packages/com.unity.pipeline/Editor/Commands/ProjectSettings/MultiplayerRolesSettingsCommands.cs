@@ -18,17 +18,17 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
         const string Domain = "multiplayer_roles";
         const string Group = "settings." + Domain;
 
-        [CliGroupCommand(Group, "Read Multiplayer Roles settings (enabled, safety-checks, strip-audio, strip-rendering, strip-ui).", MainThreadRequired = true, Tags = new[] { "settings/multiplayer_roles", "multiplayer/roles" })]
-        public static ProjectSettingsResponse Get() => ProjectSettingsCommand.Get(Domain, Read);
+        [CliGroupCommand(Group, "Read Multiplayer Roles settings (enabled, safety-checks, strip-audio, strip-rendering, strip-ui).", MainThreadRequired = true, Tags = new[] { "settings/multiplayer_roles", "multiplayer/roles" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Get(CommandContext cmd) => ProjectSettingsCommand.Get(cmd, Domain, Read);
 
-        [CliGroupCommand(Group, "Change Multiplayer Roles settings: enable roles, safety checks, and the server's automatic stripping of audio, rendering and UI components (Edit Mode only). Requires confirm=true; use dry-run to preview. Not undoable via Ctrl+Z.", MainThreadRequired = true, Tags = new[] { "settings/multiplayer_roles", "multiplayer/roles" })]
-        public static ProjectSettingsResponse Set(
+        [CliGroupCommand(Group, "Change Multiplayer Roles settings: enable roles, safety checks, and the server's automatic stripping of audio, rendering and UI components (Edit Mode only). Requires confirm=true; use dry-run to preview. Not undoable via Ctrl+Z.", MainThreadRequired = true, Tags = new[] { "settings/multiplayer_roles", "multiplayer/roles" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Set(CommandContext cmd,
             [CliArg("settings", "Fields to change; omitted fields are left unchanged.")] MultiplayerRolesSettingsInput settings = null,
             [CliArg("confirm", "Apply the change. Without it the call is refused.")] bool confirm = false,
             [CliArg("dry-run", "Preview the change without applying it.")] bool dryRun = false)
         {
             if (settings == null)
-                return ProjectSettingsResponse.Fail(Domain, "No 'settings' object provided.");
+                return ProjectSettingsCommand.Fail(cmd, ExitCode.InvalidUsage, "No 'settings' object provided.");
 
             var changes = new List<string>();
             Describe(changes, "enabled", EditorMultiplayerRolesManager.EnableMultiplayerRoles, settings.Enabled);
@@ -38,12 +38,12 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
             Describe(changes, "strip-ui", ServerStripping.StripUIComponents, settings.StripUI);
 
             if (changes.Count == 0)
-                return NoChanges();
+                return ProjectSettingsCommand.NoChanges(cmd, Domain, Read);
 
             // Roles are applied when the Editor enters Play Mode, so a change made in Play Mode would
             // not take effect until the next entry; refuse it rather than appear to succeed.
             if (confirm && !dryRun && EditorApplication.isPlayingOrWillChangePlaymode)
-                return ProjectSettingsResponse.Fail(Domain,
+                return ProjectSettingsCommand.Fail(cmd, ExitCode.Failed,
                     $"Multiplayer Roles settings cannot change while the Editor is in (or entering) Play Mode, where roles have already been applied. " +
                     $"Exit Play Mode ({CommandNames.EditorPlaymodeStop}) and retry. Nothing was changed.");
 
@@ -58,20 +58,13 @@ namespace Unity.Pipeline.Editor.Commands.ProjectSettings
                 if (settings.StripUI.HasValue) ServerStripping.StripUIComponents = settings.StripUI.Value;
             }
 
-            return ProjectSettingsCommand.Apply(Domain, confirm, dryRun, settings, () => planText, Apply, Read);
+            return ProjectSettingsCommand.Apply(cmd, Domain, confirm, dryRun, settings, () => planText, Apply, Read);
         }
 
         static void Describe(List<string> changes, string name, bool current, bool? requested)
         {
             if (requested.HasValue && requested.Value != current)
                 changes.Add($"{name} {current} -> {requested.Value}");
-        }
-
-        static ProjectSettingsResponse NoChanges()
-        {
-            var response = ProjectSettingsCommand.Get(Domain, Read);
-            response.Message = "No changes specified; nothing to apply.";
-            return response;
         }
 
         static Dictionary<string, object> Read()

@@ -50,7 +50,7 @@ namespace Unity.Pipeline.Editor.Commands
 
         // Focus action, indirected so tests can observe whether focus was performed without
         // actually stealing the OS foreground window.
-        internal static Action s_FocusAction = () => FocusEditorCommand.Focus();
+        internal static Action s_FocusAction = () => FocusEditorCommand.TryFocus(out _, out _);
 
         // Indirected for the same reason: a test cannot make Unity's native compile-failure flag
         // true, but it can point this at a stub.
@@ -82,8 +82,8 @@ namespace Unity.Pipeline.Editor.Commands
             CompilationPipeline.compilationFinished += OnCompilationFinished;
         }
 
-        [CliGroupCommand(Group, "Force a script recompile (works while unfocused/minimized). Poll " + CommandNames.ScriptRecompileStatus + " for completion.", MainThreadRequired = true, Tags = new[] { "scripts/compile" })]
-        public static object Recompile(
+        [CliGroupCommand(Group, "Force a script recompile (works while unfocused/minimized). Poll " + CommandNames.ScriptRecompileStatus + " for completion.", MainThreadRequired = true, Tags = new[] { "scripts/compile" }, Effect = CommandEffect.Additive)]
+        internal static ExitCode Recompile(CommandContext cmd,
             [CliArg("focus", "If true, bring the Editor to the foreground before compiling. Off by default.")] bool focus = false)
         {
             // Unity compiles only while it is the active application. Optionally bring it to the
@@ -101,7 +101,9 @@ namespace Unity.Pipeline.Editor.Commands
             if (EditorApplication.isCompiling)
             {
                 // compilationStarted has written "compiling"; a domain reload will follow on success.
-                return new { status = "compiling", message = "Recompilation started. Poll " + CommandNames.ScriptRecompileStatus + " until completed." };
+                cmd.Result.Write(new { status = "compiling" });
+                cmd.Log.Info("Recompilation started. Poll " + CommandNames.ScriptRecompileStatus + " until completed.");
+                return ExitCode.Success;
             }
 
             // Nothing was imported and nothing compiled. That is only "up to date" if the code
@@ -115,15 +117,19 @@ namespace Unity.Pipeline.Editor.Commands
                 else
                     WriteStatus("completed", true, Array.Empty<string>());
 
-                return new { status = "failed", message = "Scripts still have compile errors; nothing was recompiled. Read them with the " + CommandNames.ConsoleGet + " command." };
+                cmd.Result.Write(new { status = "failed" });
+                cmd.Log.Error("Scripts still have compile errors; nothing was recompiled. Read them with the " + CommandNames.ConsoleGet + " command.");
+                return ExitCode.Failed;
             }
 
             WriteStatus("up_to_date", false, null);
-            return new { status = "up_to_date", message = "No scripts needed recompilation." };
+            cmd.Result.Write(new { status = "up_to_date" });
+            cmd.Log.Info("No scripts needed recompilation.");
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Get the status of the last recompile: idle | triggered | compiling | completed | up_to_date.", MainThreadRequired = false, Tags = new[] { "scripts/compile" })]
-        public static RecompileStatusPayload RecompileStatus()
+        [CliGroupCommand(Group, "Get the status of the last recompile: idle | triggered | compiling | completed | up_to_date.", MainThreadRequired = false, Tags = new[] { "scripts/compile" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode RecompileStatus(CommandContext cmd)
         {
             var status = ReadStatusOrIdle();
 
@@ -149,7 +155,8 @@ namespace Unity.Pipeline.Editor.Commands
                 status.Failed = true;
             }
 
-            return status;
+            cmd.Result.Write(status);
+            return ExitCode.Success;
         }
 
         static void OnCompilationStarted(object _)

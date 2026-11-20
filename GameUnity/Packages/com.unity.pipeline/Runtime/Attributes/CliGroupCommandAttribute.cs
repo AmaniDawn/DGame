@@ -37,6 +37,16 @@ namespace Unity.Pipeline.Commands
         public bool MainThreadRequired { get; set; } = true;
 
         /// <summary>
+        /// What running the command does: <see cref="CommandEffect.ReadOnly"/>,
+        /// <see cref="CommandEffect.Idempotent"/>, <see cref="CommandEffect.Additive"/> or
+        /// <see cref="CommandEffect.Destructive"/>. Served in the command catalog as the
+        /// <c>readOnly</c>, <c>destructive</c> and <c>idempotent</c> hints a client uses to decide
+        /// whether to ask before running it. Default: <see cref="CommandEffect.Unspecified"/>, which
+        /// serves no hints.
+        /// </summary>
+        public CommandEffect Effect { get; set; }
+
+        /// <summary>
         /// Optional hierarchical tags used to browse commands across groups (e.g. "runtime" for the
         /// Player command surface). Path-style: a '/' separates tag from subtag (e.g. "assets/import").
         /// Default: empty (untagged).

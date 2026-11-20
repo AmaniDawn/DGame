@@ -27,4 +27,4 @@ List the registered commands, filtered, sorted and grouped as `/api/commands` se
 | `limit` | no | `–` | How many to return at most; all by default. |
 
 **Returns:** `object` — the `/api/commands` answer for the same options, without its `server` block.
-**Notes:** `MainThreadRequired = false`. Immediate. `detail=obsolete_names` stays on `/api/commands`. A value that is unknown, or can't be combined with another, fails with `InvalidUsage`.
+**Notes:** `MainThreadRequired = false`. Immediate. A value that is unknown, or can't be combined with another, fails with `InvalidUsage`.

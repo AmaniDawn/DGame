@@ -30,8 +30,9 @@ namespace Unity.Pipeline.Editor.Commands.Build
         [CliGroupCommand(TargetGroup,
             "List the known BuildTarget values with their group and whether build support is installed.",
             MainThreadRequired = true,
-            Tags = new[] { "build/targets" })]
-        public static object List()
+            Tags = new[] { "build/targets" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode List(CommandContext cmd)
         {
             var targets = new List<BuildTargetInfo>();
             var seen = new HashSet<string>();
@@ -67,14 +68,24 @@ namespace Unity.Pipeline.Editor.Commands.Build
                 });
             }
 
-            return targets.OrderBy(t => t.TargetGroup).ThenBy(t => t.Name).ToList();
+            foreach (var target in targets.OrderBy(t => t.TargetGroup).ThenBy(t => t.Name))
+                cmd.Result.WriteRecord(target);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Read the current build configuration from EditorUserBuildSettings / EditorBuildSettings.",
             MainThreadRequired = true,
-            Tags = new[] { "build/settings" })]
-        public static object GetSettings()
+            Tags = new[] { "build/settings" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode GetSettings(CommandContext cmd)
+        {
+            cmd.Result.Write(ReadSettings());
+            return ExitCode.Success;
+        }
+
+        /// <summary>The current build configuration, as <see cref="GetSettings"/> writes it.</summary>
+        internal static BuildSettingsResult ReadSettings()
         {
             var target = EditorUserBuildSettings.activeBuildTarget;
             var group = BuildPipeline.GetBuildTargetGroup(target);
@@ -102,19 +113,35 @@ namespace Unity.Pipeline.Editor.Commands.Build
             "Set mutable EditorUserBuildSettings fields. Does NOT manage scenes (use " + CommandNames.SceneAddToBuild + " / " +
             CommandNames.SceneRemoveFromBuild + ") or switch target (use " + CommandNames.BuildTargetSwitch + "). Use dry-run to preview.",
             MainThreadRequired = true,
-            Tags = new[] { "build/settings" })]
-        public static object SetSettings(
+            Tags = new[] { "build/settings" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode SetSettings(CommandContext cmd,
             [CliArg("settings", "Fields to change; omitted fields are left unchanged.")] SetBuildSettingsInput settings = null,
             [CliArg("confirm", "Apply the changes. Without it the call is refused.")] bool confirm = false,
             [CliArg("dry-run", "Preview the change without applying it.")] bool dryRun = false)
         {
             if (settings == null)
-                return SetBuildSettingsResult.Fail("No 'settings' object provided.");
+            {
+                cmd.Log.Error("No 'settings' object provided.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (!dryRun && !confirm)
-                return SetBuildSettingsResult.Fail(
-                    "Refused: this operation mutates the project. Re-run with confirm=true to apply, or dry-run=true to preview the change.");
-            var result = new SetBuildSettingsResult { DryRun = dryRun, Success = true };
+            {
+                cmd.Log.Error("Refused: this operation mutates the project. Re-run with confirm=true to apply, or dry-run=true to preview the change.");
+                return ExitCode.InvalidUsage;
+            }
+
+            // Validated before any field is written, so a bad value changes nothing.
+            var requestedIl2Cpp = default(Il2CppCodeGeneration);
+            var setIl2Cpp = !string.IsNullOrWhiteSpace(settings.Il2CppCodeGeneration);
+            if (setIl2Cpp && !TryParseIl2Cpp(settings.Il2CppCodeGeneration, out requestedIl2Cpp))
+            {
+                cmd.Log.Error($"Invalid il2cpp-code-generation '{settings.Il2CppCodeGeneration}'. Use OptimizeSpeed | OptimizeSize.");
+                return ExitCode.InvalidUsage;
+            }
+
+            var result = new SetBuildSettingsResult { DryRun = dryRun };
             var group = BuildPipeline.GetBuildTargetGroup(EditorUserBuildSettings.activeBuildTarget);
 
             // For each supplied field: change it (recording in Applied) only if it differs from the
@@ -130,11 +157,9 @@ namespace Unity.Pipeline.Editor.Commands.Build
             Plan(result, "symlink-sources", settings.SymlinkSources, EditorUserBuildSettings.symlinkSources,
                 v => EditorUserBuildSettings.symlinkSources = v, dryRun);
 
-            if (!string.IsNullOrWhiteSpace(settings.Il2CppCodeGeneration))
+            if (setIl2Cpp)
             {
-                if (!TryParseIl2Cpp(settings.Il2CppCodeGeneration, out var requested))
-                    return SetBuildSettingsResult.Fail($"Invalid il2cpp-code-generation '{settings.Il2CppCodeGeneration}'. Use OptimizeSpeed | OptimizeSize.");
-
+                var requested = requestedIl2Cpp;
                 var current = ReadIl2CppCodeGeneration(group);
                 if (!string.Equals(current, requested.ToString(), StringComparison.Ordinal))
                 {
@@ -148,22 +173,29 @@ namespace Unity.Pipeline.Editor.Commands.Build
                 }
             }
 
-            result.Message = dryRun
+            cmd.Log.Info(dryRun
                 ? $"Dry run — {result.Applied.Count} field(s) would change, {result.Skipped.Count} unchanged."
-                : $"Applied {result.Applied.Count} field(s); {result.Skipped.Count} unchanged.";
-            return result;
+                : $"Applied {result.Applied.Count} field(s); {result.Skipped.Count} unchanged.");
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
-            "List Build Profile assets in the project (Unity 6 only). Returns feature_unavailable on earlier versions.",
+            "List Build Profile assets in the project (Unity 6 only). Fails on earlier versions.",
             MainThreadRequired = true,
-            Tags = new[] { "build/settings" })]
-        public static object ListProfiles()
+            Tags = new[] { "build/settings" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode ListProfiles(CommandContext cmd)
         {
             if (!BuildProfiles.IsSupported)
-                return new { error = "Build Profiles require Unity 6 (6000.0) or later", code = "feature_unavailable" };
+            {
+                cmd.Log.Error("Build Profiles require Unity 6 (6000.0) or later.");
+                return ExitCode.Failed;
+            }
 
-            return BuildProfiles.List();
+            foreach (var profile in BuildProfiles.List())
+                cmd.Result.WriteRecord(profile);
+            return ExitCode.Success;
         }
 
         // ---- Helpers ---------------------------------------------------------------------------
@@ -315,14 +347,32 @@ namespace Unity.Pipeline.Editor.Commands.Build
             };
         }
 
+        /// <summary>The profile asset <paramref name="info"/> describes, or null.</summary>
+        public static UnityEngine.Object Load(BuildProfileInfo info)
+        {
+            if (s_Type == null || info == null)
+                return null;
+            return AssetDatabase.LoadAssetAtPath(AssetDatabase.GUIDToAssetPath(info.Guid), s_Type);
+        }
+
+        /// <summary>
+        /// The scenes a build with this profile uses — its own list when it overrides the global one, otherwise
+        /// the global list — read from the asset without activating it. Null when this editor's
+        /// <c>BuildProfile</c> has no <c>GetScenesForBuild()</c>.
+        /// </summary>
+        public static EditorBuildSettingsScene[] GetScenesForBuild(BuildProfileInfo info)
+        {
+            var asset = Load(info);
+            var method = s_Type?.GetMethod("GetScenesForBuild", BindingFlags.Public | BindingFlags.Instance, null, Type.EmptyTypes, null);
+            if (asset == null || method == null)
+                return null;
+            return (EditorBuildSettingsScene[])method.Invoke(asset, null) ?? Array.Empty<EditorBuildSettingsScene>();
+        }
+
         /// <summary>Activate the named profile via the API's static setter; returns false if unavailable.</summary>
         public static bool TrySetActive(BuildProfileInfo info)
         {
-            if (s_Type == null || info == null)
-                return false;
-
-            var path = AssetDatabase.GUIDToAssetPath(info.Guid);
-            var asset = AssetDatabase.LoadAssetAtPath(path, s_Type);
+            var asset = Load(info);
             if (asset == null)
                 return false;
 

@@ -22,8 +22,8 @@ namespace Unity.Pipeline.Editor.Commands.Animation
     /// <c>com.unity.timeline</c> package, so the Editor assembly does NOT reference <c>Unity.Timeline</c>
     /// (that would break compilation when the package is absent). Every command:
     ///
-    /// 1. runs <see cref="TimelineGuard.IsInstalled"/>; if Timeline is absent it returns a structured
-    ///    <c>{ error, code: "package_not_found" }</c> at HTTP 200 (no exception thrown), and
+    /// 1. runs <see cref="TimelineGuard.IsInstalled"/>; if Timeline is absent it logs
+    ///    <see cref="TimelineGuard.NotInstalledMessage"/> and exits <see cref="ExitCode.Failed"/>, and
     /// 2. reaches the Timeline API entirely through reflection.
     ///
     /// Type names used (all in <c>Unity.Timeline</c>): <c>UnityEngine.Timeline.TimelineAsset</c>,
@@ -58,32 +58,51 @@ namespace Unity.Pipeline.Editor.Commands.Animation
         [CliGroupCommand(Group,
             "Create a .playable TimelineAsset under the authoring root (optional frame rate). Requires the com.unity.timeline package.",
             MainThreadRequired = true,
-            Tags = new[] { "animation/timeline" })]
-        public static object Create(
+            Tags = new[] { "animation/timeline" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode Create(CommandContext cmd,
             [CliArg("path", "Asset path ending in .playable, relative to the authoring root. The Assets/ prefix is optional.", Required = true)] string path,
             [CliArg("frame-rate", "Timeline frame rate (default 60).")] float frameRate = 60f,
             [CliArg("confirm", "Required (true) only when overwriting an existing asset at the path.")] bool confirm = false,
             [CliArg("dry-run", "If true, validate inputs and report what would be created without writing anything.")] bool dryRun = false)
         {
             if (!TimelineGuard.IsInstalled())
-                return TimelineGuard.NotInstalledError();
+            {
+                cmd.Log.Error(TimelineGuard.NotInstalledMessage);
+                return ExitCode.Failed;
+            }
 
             var normalized = ProjectPaths.Resolve(path, out var error);
             if (normalized == null)
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                return ExitCode.InvalidUsage;
+            }
 
             if (!string.Equals(Path.GetExtension(normalized), ".playable", StringComparison.OrdinalIgnoreCase))
-                throw new ArgumentException($"Timeline path '{normalized}' must end in .playable.");
+            {
+                cmd.Log.Error($"Timeline path '{normalized}' must end in .playable.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (frameRate <= 0f)
-                throw new ArgumentException($"frame-rate must be positive (got {frameRate}).");
+            {
+                cmd.Log.Error($"frame-rate must be positive (got {frameRate}).");
+                return ExitCode.InvalidUsage;
+            }
 
             var exists = AssetDatabase.LoadMainAssetAtPath(normalized) != null;
             if (exists && !confirm)
-                throw new ArgumentException($"An asset already exists at '{normalized}'. Pass confirm=true to overwrite it.");
+            {
+                cmd.Log.Error($"An asset already exists at '{normalized}'. Pass confirm=true to overwrite it.");
+                return ExitCode.InvalidUsage;
+            }
 
             if (dryRun)
-                return new AuthoringResult { AssetPath = normalized, Type = "TimelineAsset" };
+            {
+                cmd.Result.Write(new AuthoringResult { AssetPath = normalized, Type = "TimelineAsset" });
+                return ExitCode.Success;
+            }
 
             EnsureParentFolder(normalized);
 
@@ -102,14 +121,16 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             var loaded = AssetDatabase.LoadMainAssetAtPath(normalized);
             var result = ObjectResolver.Describe(loaded) ?? new AuthoringResult { Type = "TimelineAsset" };
             result.AssetPath = normalized;
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Add a track (Animation | Audio | Activation | Control | Playable | Signal | Marker) to a TimelineAsset, optionally nested under a parent group/track. Requires the com.unity.timeline package.",
             MainThreadRequired = true,
-            Tags = new[] { "animation/timeline" })]
-        public static object AddTrack(
+            Tags = new[] { "animation/timeline" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode AddTrack(CommandContext cmd,
             [CliArg("timeline", "Reference to the TimelineAsset to edit (path / guid / globalId).", Required = true)] ObjectRef timeline,
             [CliArg("track-type", "Track type: Animation | Audio | Activation | Control | Playable | Signal | Marker.", Required = true)] string trackType = null,
             [CliArg("name", "Optional track display name.")] string name = null,
@@ -117,16 +138,26 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             [CliArg("dry-run", "If true, validate inputs without writing the track.")] bool dryRun = false)
         {
             if (!TimelineGuard.IsInstalled())
-                return TimelineGuard.NotInstalledError();
+            {
+                cmd.Log.Error(TimelineGuard.NotInstalledMessage);
+                return ExitCode.Failed;
+            }
 
-            var (asset, assetPath, timelineType) = ResolveTimeline(timeline);
+            if (!TryResolveTimeline(cmd, timeline, out var asset, out var assetPath, out var timelineType, out var failure))
+                return failure;
 
             if (string.IsNullOrWhiteSpace(trackType) || !TrackTypeNames.TryGetValue(trackType, out var trackTypeFullName))
-                throw new ArgumentException($"Unknown track-type '{trackType}'. Use Animation | Audio | Activation | Control | Playable | Signal | Marker.");
+            {
+                cmd.Log.Error($"Unknown track-type '{trackType}'. Use Animation | Audio | Activation | Control | Playable | Signal | Marker.");
+                return ExitCode.InvalidUsage;
+            }
 
             var concreteTrackType = Type.GetType($"{trackTypeFullName}, {Asm}", throwOnError: false);
             if (concreteTrackType == null)
-                throw new ArgumentException($"Track type '{trackTypeFullName}' is not available in this version of {TimelineGuard.PackageId}.");
+            {
+                cmd.Log.Error($"Track type '{trackTypeFullName}' is not available in this version of {TimelineGuard.PackageId}.");
+                return ExitCode.InvalidUsage;
+            }
 
             var trackName = string.IsNullOrEmpty(name) ? trackType : name;
 
@@ -136,7 +167,10 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             {
                 parent = FindTrackByName(asset, timelineType, parentTrack);
                 if (parent == null)
-                    throw new ArgumentException($"Parent track '{parentTrack}' not found on the timeline.");
+                {
+                    cmd.Log.Error($"Parent track '{parentTrack}' not found on the timeline.");
+                    return ExitCode.NotFound;
+                }
             }
 
             var result = new AddTimelineTrackResult
@@ -147,12 +181,18 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             };
 
             if (dryRun)
-                return result;
+            {
+                cmd.Result.Write(result);
+                return ExitCode.Success;
+            }
 
             // TrackAsset CreateTrack(Type type, TrackAsset parent, string name)
             var createTrack = timelineType.GetMethod("CreateTrack", new[] { typeof(Type), GetTrackAssetType(), typeof(string) });
             if (createTrack == null)
-                throw new InvalidOperationException("TimelineAsset.CreateTrack(Type, TrackAsset, string) not found via reflection.");
+            {
+                cmd.Log.Error("TimelineAsset.CreateTrack(Type, TrackAsset, string) not found via reflection.");
+                return ExitCode.Failed;
+            }
 
             createTrack.Invoke(asset, new object[] { concreteTrackType, parent, trackName });
 
@@ -160,14 +200,16 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             AssetDatabase.SaveAssets();
 
             FillIdentity(result, asset);
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Add a clip to a named track on a TimelineAsset. For Animation tracks pass an AnimationClip asset; for Audio tracks an AudioClip. Requires the com.unity.timeline package.",
             MainThreadRequired = true,
-            Tags = new[] { "animation/timeline" })]
-        public static object AddClip(
+            Tags = new[] { "animation/timeline" },
+            Effect = CommandEffect.Additive)]
+        internal static ExitCode AddClip(CommandContext cmd,
             [CliArg("timeline", "Reference to the TimelineAsset to edit (path / guid / globalId).", Required = true)] ObjectRef timeline,
             [CliArg("track", "Target track name.", Required = true)] string track = null,
             [CliArg("start", "Clip start time in seconds.", Required = true)] float start = 0f,
@@ -176,39 +218,63 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             [CliArg("dry-run", "If true, validate inputs without writing the clip.")] bool dryRun = false)
         {
             if (!TimelineGuard.IsInstalled())
-                return TimelineGuard.NotInstalledError();
+            {
+                cmd.Log.Error(TimelineGuard.NotInstalledMessage);
+                return ExitCode.Failed;
+            }
 
-            var (timelineAsset, assetPath, timelineType) = ResolveTimeline(timeline);
+            if (!TryResolveTimeline(cmd, timeline, out var timelineAsset, out var assetPath, out var timelineType, out var failure))
+                return failure;
 
             if (string.IsNullOrWhiteSpace(track))
-                throw new ArgumentException("track is required.");
+            {
+                cmd.Log.Error("track is required.");
+                return ExitCode.InvalidUsage;
+            }
             if (duration <= 0f)
-                throw new ArgumentException($"duration must be positive (got {duration}).");
+            {
+                cmd.Log.Error($"duration must be positive (got {duration}).");
+                return ExitCode.InvalidUsage;
+            }
             if (start < 0f)
-                throw new ArgumentException($"start must be >= 0 (got {start}).");
+            {
+                cmd.Log.Error($"start must be >= 0 (got {start}).");
+                return ExitCode.InvalidUsage;
+            }
 
             var trackObj = FindTrackByName(timelineAsset, timelineType, track);
             if (trackObj == null)
-                throw new ArgumentException($"Track '{track}' not found on the timeline.");
+            {
+                cmd.Log.Error($"Track '{track}' not found on the timeline.");
+                return ExitCode.NotFound;
+            }
 
             // Resolve the optional clip-source asset BEFORE any write.
             Object sourceAsset = null;
             if (asset != null && !asset.IsEmpty)
             {
                 if (!ObjectResolver.TryResolve(asset, out var srcObj, out var srcError))
-                    throw new ArgumentException($"Could not resolve clip asset: {srcError}");
+                {
+                    cmd.Log.Error($"Could not resolve clip asset: {srcError}");
+                    return ExitCode.NotFound;
+                }
                 sourceAsset = srcObj;
 
                 // Re-confine the clip source to the authoring root: a restricted root must not be
                 // bypassed by referencing an AnimationClip/AudioClip that lives outside the sandbox.
                 var sourcePath = AssetDatabase.GetAssetPath(sourceAsset);
                 if (string.IsNullOrEmpty(sourcePath))
-                    throw new ArgumentException($"Clip asset reference '{asset}' does not point at an on-disk asset.");
+                {
+                    cmd.Log.Error($"Clip asset reference '{asset}' does not point at an on-disk asset.");
+                    return ExitCode.InvalidUsage;
+                }
 
                 var confinedSource = ProjectPaths.Resolve(sourcePath, out var sourceConfineError);
                 if (confinedSource == null)
-                    throw new ArgumentException(
-                        $"Clip asset '{sourcePath}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {sourceConfineError}");
+                {
+                    cmd.Log.Error($"Clip asset '{sourcePath}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {sourceConfineError}");
+                    return ExitCode.InvalidUsage;
+                }
             }
 
             var result = new AddTimelineClipResult
@@ -223,12 +289,16 @@ namespace Unity.Pipeline.Editor.Commands.Animation
                 // Even in dry-run, validate that a clip can be created for this track/asset combination so
                 // a missing-required-asset case fails fast and writes nothing.
                 ValidateClipCreatable(trackObj, sourceAsset);
-                return result;
+                cmd.Result.Write(result);
+                return ExitCode.Success;
             }
 
             var clip = CreateClip(trackObj, sourceAsset);
             if (clip == null)
-                throw new InvalidOperationException($"Failed to create a clip on track '{track}'.");
+            {
+                cmd.Log.Error($"Failed to create a clip on track '{track}'.");
+                return ExitCode.Failed;
+            }
 
             SetClipTiming(clip, start, duration);
 
@@ -236,20 +306,26 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             AssetDatabase.SaveAssets();
 
             FillIdentity(result, timelineAsset);
-            return result;
+            cmd.Result.Write(result);
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Read a TimelineAsset's structure: frame rate, duration, and its tracks with their clips. Requires the com.unity.timeline package.",
             MainThreadRequired = true,
-            Tags = new[] { "animation/timeline" })]
-        public static object Get(
+            Tags = new[] { "animation/timeline" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Get(CommandContext cmd,
             [CliArg("timeline", "Reference to the TimelineAsset to read (path / guid / globalId).", Required = true)] ObjectRef timeline)
         {
             if (!TimelineGuard.IsInstalled())
-                return TimelineGuard.NotInstalledError();
+            {
+                cmd.Log.Error(TimelineGuard.NotInstalledMessage);
+                return ExitCode.Failed;
+            }
 
-            var (asset, assetPath, timelineType) = ResolveTimeline(timeline);
+            if (!TryResolveTimeline(cmd, timeline, out var asset, out var assetPath, out var timelineType, out var failure))
+                return failure;
 
             var info = new TimelineInfo
             {
@@ -287,7 +363,8 @@ namespace Unity.Pipeline.Editor.Commands.Animation
                 info.Tracks.Add(trackInfo);
             }
 
-            return info;
+            cmd.Result.Write(info);
+            return ExitCode.Success;
         }
 
         // ---- reflection helpers ----
@@ -300,28 +377,55 @@ namespace Unity.Pipeline.Editor.Commands.Animation
             return t;
         }
 
-        private static (Object asset, string path, Type timelineType) ResolveTimeline(ObjectRef timeline)
+        /// <summary>
+        /// Resolve a timeline handle to an on-disk TimelineAsset, its sandbox-confined path and the
+        /// TimelineAsset type. Logs why and returns false, with the exit code to return, for a handle
+        /// that resolves to nothing (<see cref="ExitCode.NotFound"/>), to something other than an
+        /// on-disk TimelineAsset, or outside the authoring root (<see cref="ExitCode.InvalidUsage"/>).
+        /// </summary>
+        private static bool TryResolveTimeline(CommandContext cmd, ObjectRef timeline, out Object asset, out string assetPath, out Type timelineType, out ExitCode failure)
         {
+            asset = null;
+            assetPath = null;
+            timelineType = null;
+            failure = ExitCode.InvalidUsage;
+
             if (timeline == null || timeline.IsEmpty)
-                throw new ArgumentException("timeline is required.");
+            {
+                cmd.Log.Error("timeline is required.");
+                return false;
+            }
 
             if (!ObjectResolver.TryResolve(timeline, out var obj, out var error))
-                throw new ArgumentException(error);
+            {
+                cmd.Log.Error(error);
+                failure = ExitCode.NotFound;
+                return false;
+            }
 
-            var timelineType = TimelineGuard.ResolveTimelineAssetType();
+            timelineType = TimelineGuard.ResolveTimelineAssetType();
             if (timelineType == null || !timelineType.IsInstanceOfType(obj))
-                throw new ArgumentException($"Reference '{timeline}' resolved to a {obj.GetType().Name}, not a TimelineAsset.");
+            {
+                cmd.Log.Error($"Reference '{timeline}' resolved to a {obj.GetType().Name}, not a TimelineAsset.");
+                return false;
+            }
 
-            var assetPath = AssetDatabase.GetAssetPath(obj);
-            if (string.IsNullOrEmpty(assetPath))
-                throw new ArgumentException($"Reference '{timeline}' does not point at an on-disk TimelineAsset.");
+            var path = AssetDatabase.GetAssetPath(obj);
+            if (string.IsNullOrEmpty(path))
+            {
+                cmd.Log.Error($"Reference '{timeline}' does not point at an on-disk TimelineAsset.");
+                return false;
+            }
 
-            var confined = ProjectPaths.Resolve(assetPath, out var confineError);
-            if (confined == null)
-                throw new ArgumentException(
-                    $"Timeline '{assetPath}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {confineError}");
+            assetPath = ProjectPaths.Resolve(path, out var confineError);
+            if (assetPath == null)
+            {
+                cmd.Log.Error($"Timeline '{path}' is outside the authoring root '{ProjectPaths.AuthoringRoot}': {confineError}");
+                return false;
+            }
 
-            return (obj, confined, timelineType);
+            asset = obj;
+            return true;
         }
 
         /// <summary>

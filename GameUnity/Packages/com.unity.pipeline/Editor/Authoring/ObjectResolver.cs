@@ -56,22 +56,28 @@ namespace Unity.Pipeline.Editor.Authoring
             if (!string.IsNullOrEmpty(handle.Path))
             {
                 var raw = handle.Path;
-                var explicitlyRooted = IsExplicitlyRooted(raw);
-                var assetPath = raw;
-                if (!explicitlyRooted)
+
+                // "<asset>:<child path>" addresses a GameObject inside a prefab (or model) asset, but only
+                // when the part before ':' loads as an asset. Otherwise the whole string resolves as
+                // usual, so a scene object literally named "Cube.001:Child" still resolves.
+                var hasChildPath = TrySplitChildPath(raw, out var assetPart, out var childPath);
+                if (hasChildPath)
                 {
-                    var resolved = ProjectPaths.Resolve(raw, out _);
-                    if (!string.IsNullOrEmpty(resolved))
-                        assetPath = resolved;
+                    var container = LoadAsset(assetPart, out _);
+                    if (container != null)
+                        return TryFindChild(container, assetPart, childPath, out obj, out error);
                 }
 
-                obj = AssetDatabase.LoadMainAssetAtPath(assetPath);
+                var explicitlyRooted = IsExplicitlyRooted(raw);
+                obj = LoadAsset(raw, out var assetPath);
                 if (obj != null)
                     return true;
 
                 if (explicitlyRooted)
                 {
-                    error = $"No asset at path '{raw}'.";
+                    error = hasChildPath
+                        ? $"No asset at path '{assetPart}' (from '{raw}')."
+                        : $"No asset at path '{raw}'.";
                     return false;
                 }
 
@@ -200,6 +206,82 @@ namespace Unity.Pipeline.Editor.Authoring
             path == "Assets" || path == "Packages"
             || path.StartsWith("Assets/", System.StringComparison.Ordinal)
             || path.StartsWith("Packages/", System.StringComparison.Ordinal);
+
+        /// <summary>
+        /// Load the main asset at a path. An "Assets/"/"Packages/"-rooted path loads as-is; a bare
+        /// relative one is normalized under the authoring root first. Null when nothing is there.
+        /// </summary>
+        private static Object LoadAsset(string raw, out string assetPath)
+        {
+            assetPath = raw;
+            if (!IsExplicitlyRooted(raw))
+            {
+                var resolved = ProjectPaths.Resolve(raw, out _);
+                if (!string.IsNullOrEmpty(resolved))
+                    assetPath = resolved;
+            }
+
+            return AssetDatabase.LoadMainAssetAtPath(assetPath);
+        }
+
+        /// <summary>
+        /// Split "Assets/UI/Screen.prefab:Canvas/Header" at the first ':' that follows a file name with
+        /// an extension. A drive letter ("C:/...") has no extension before its ':' and is left alone.
+        /// </summary>
+        private static bool TrySplitChildPath(string path, out string assetPath, out string childPath)
+        {
+            assetPath = childPath = null;
+            var separator = path.IndexOf(':');
+            if (separator <= 0)
+                return false;
+
+            var candidate = path.Substring(0, separator);
+            if (!System.IO.Path.HasExtension(candidate))
+                return false;
+
+            assetPath = candidate;
+            childPath = path.Substring(separator + 1);
+            return true;
+        }
+
+        /// <summary>
+        /// Find a GameObject inside a prefab or model asset. The path is relative to the asset's root;
+        /// it may also start with the root's own name, and naming only the root returns the root.
+        /// </summary>
+        private static bool TryFindChild(Object asset, string assetPath, string childPath, out Object obj, out string error)
+        {
+            obj = null;
+            error = null;
+            if (!(asset is GameObject root))
+            {
+                error = $"'{assetPath}' is a {asset.GetType().Name}, not a prefab; " +
+                        "a ':<child path>' suffix addresses a GameObject inside a prefab or model asset.";
+                return false;
+            }
+
+            var trimmed = childPath.Trim('/');
+            Transform found = null;
+            if (trimmed.Length == 0 || trimmed == root.name)
+                found = root.transform;
+            else
+                found = root.transform.Find(trimmed)
+                    ?? (trimmed.StartsWith(root.name + "/", System.StringComparison.Ordinal)
+                        ? root.transform.Find(trimmed.Substring(root.name.Length + 1))
+                        : null);
+
+            if (found == null)
+            {
+                var children = new System.Collections.Generic.List<string>();
+                foreach (Transform child in root.transform)
+                    children.Add(child.name);
+                error = $"No GameObject at '{childPath}' in '{assetPath}' (root '{root.name}'; its children: " +
+                        $"{(children.Count > 0 ? string.Join(", ", children) : "none")}).";
+                return false;
+            }
+
+            obj = found.gameObject;
+            return true;
+        }
 
         private static GameObject FindByHierarchyPath(string path)
         {

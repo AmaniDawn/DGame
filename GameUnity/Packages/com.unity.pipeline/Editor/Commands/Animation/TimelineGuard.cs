@@ -49,10 +49,9 @@ namespace Unity.Pipeline.Editor.Commands.Animation
         public static Type ResolveTimelineAssetType() => Type.GetType(TimelineAssetTypeName, throwOnError: false);
 
         /// <summary>
-        /// The structured "package not installed" error (HTTP 200, no exception) that every Timeline
-        /// command returns when <see cref="IsInstalled"/> is false.
+        /// The error every Timeline command logs, exiting <c>ExitCode.Failed</c>, when
+        /// <see cref="IsInstalled"/> is false.
         /// </summary>
-        public static ErrorResult NotInstalledError() =>
-            ErrorResult.PackageStyle("package_not_found", $"{PackageId} is not installed");
+        public const string NotInstalledMessage = PackageId + " is not installed. Add it with the Package Manager to use the Timeline commands.";
     }
 }

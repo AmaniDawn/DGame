@@ -90,10 +90,11 @@ namespace Unity.Pipeline.MethodReload
         /// source against the compiled type, and with public-only import every PRIVATE compiled
         /// method would look new and get wrongly co-emitted. <paramref name="preprocessorSymbols"/>
         /// (the project's, or a push target's) makes #if regions match the assembly being patched.
+        /// <paramref name="typeArity"/> tells Probe from a Probe&lt;T&gt; in the same file.
         /// </summary>
         internal static SemanticModel BuildSemanticModel(
             string source, string typeName, out ClassDeclarationSyntax classDecl,
-            string[] preprocessorSymbols = null)
+            string[] preprocessorSymbols = null, int typeArity = 0)
         {
             var tree = CSharpSyntaxTree.ParseText(source,
                 RoslynCompilationService.ProjectParseOptions(preprocessorSymbols));
@@ -106,7 +107,7 @@ namespace Unity.Pipeline.MethodReload
             var model = compilation.GetSemanticModel(tree);
             classDecl = tree.GetRoot().DescendantNodes()
                 .OfType<ClassDeclarationSyntax>()
-                .FirstOrDefault(c => c.Identifier.ValueText == typeName);
+                .FirstOrDefault(c => c.Identifier.ValueText == typeName && c.Arity == typeArity);
             return model;
         }
 
@@ -136,11 +137,14 @@ namespace Unity.Pipeline.MethodReload
                 // dispatch passes null for statics anyway). Instance-member access still can't
                 // compile in that state; new-type reloads are for self-contained static methods.
                 var wholeTypeIsNew = compiledTwin == null && classSymbol?.ContainingType == null;
-                var newMethods = ComputeNewMethodNames(classDecl, compiledTwin, wholeTypeIsNew);
+                // A partial type's methods are spread over its parts; read them all.
+                var parts = TypeParts(classDecl);
+                var methods = parts.SelectMany(p => p.Members.OfType<MethodDeclarationSyntax>()).ToList();
+                var newMethods = ComputeNewMethodNames(methods, compiledTwin, wholeTypeIsNew);
                 // A static type can't appear as a parameter (CS0721), so its receiver slot — always
                 // dispatched null anyway — degrades to object. Check the compiled twin too: the
                 // source may have dropped the static keyword while the running build still has it.
-                var typeIsStatic = classDecl.Modifiers.Any(SyntaxKind.StaticKeyword)
+                var typeIsStatic = parts.Any(p => p.Modifiers.Any(SyntaxKind.StaticKeyword))
                     || (compiledTwin?.IsStatic ?? false);
                 var instanceTypeName = wholeTypeIsNew || typeIsStatic ? "object" : originalTypeName;
                 var rewriter = new ImplicitScopeQualifier(model, classSymbol, newMethods,
@@ -164,10 +168,12 @@ namespace Unity.Pipeline.MethodReload
                 sb.AppendLine($"public static class {originalTypeName}MethodReloadOverrides");
                 sb.AppendLine("{");
 
-                foreach (var method in classDecl.Members.OfType<MethodDeclarationSyntax>())
+                var overrides = new HashSet<MethodDeclarationSyntax>(
+                    OverrideDeclarations(methods, methodBodies.Keys));
+                foreach (var method in methods)
                 {
                     var methodName = method.Identifier.ValueText;
-                    var isOverride = methodBodies.ContainsKey(methodName) && method.Body != null;
+                    var isOverride = overrides.Contains(method);
                     // A method the compiled type doesn't declare is NEW — nothing compiled can
                     // dispatch to it, but a reloaded body can: co-emit it into the override class
                     // so it becomes an interpreted method the rewritten call sites reach directly.
@@ -238,6 +244,89 @@ namespace Unity.Pipeline.MethodReload
             }
         }
 
+        /// <summary>
+        /// Every declaration of <paramref name="decl"/>'s type in its file: one for an ordinary
+        /// class, several for a partial one. A [MethodReload] method may sit in any part, so readers
+        /// of the type's methods walk all of them. Matched on syntax alone: same name, same
+        /// enclosing namespaces and types.
+        /// </summary>
+        /// <param name="decl">One declaration of the type.</param>
+        /// <returns>The type's declarations in source order, <paramref name="decl"/> included.</returns>
+        internal static List<ClassDeclarationSyntax> TypeParts(ClassDeclarationSyntax decl)
+        {
+            var container = ContainerPath(decl);
+            return decl.SyntaxTree.GetRoot().DescendantNodes()
+                .OfType<ClassDeclarationSyntax>()
+                .Where(c => c.Identifier.ValueText == decl.Identifier.ValueText && c.Arity == decl.Arity
+                    && ContainerPath(c) == container)
+                .ToList();
+        }
+
+        // Arity is part of a type's identity: Probe and Probe<T> are distinct types.
+        private static string ContainerPath(SyntaxNode node)
+        {
+            var names = new List<string>();
+            foreach (var ancestor in node.Ancestors())
+            {
+                if (ancestor is NamespaceDeclarationSyntax ns)
+                    names.Add(ns.Name.ToString());
+                else if (ancestor is TypeDeclarationSyntax type)
+                    names.Add($"{type.Identifier.ValueText}`{type.Arity}");
+            }
+            names.Reverse();
+            return string.Join(".", names);
+        }
+
+        /// <summary>
+        /// The declarations among <paramref name="methods"/> whose bodies replace the compiled ones:
+        /// those named in <paramref name="names"/> with a block body. When a name has overloads and
+        /// some are tagged [MethodReload], only the tagged ones count; an untagged overload sharing
+        /// the name would otherwise be emitted under the same override and run in its place.
+        /// </summary>
+        internal static List<MethodDeclarationSyntax> OverrideDeclarations(
+            IEnumerable<MethodDeclarationSyntax> methods, ICollection<string> names)
+        {
+            var candidates = methods
+                .Where(m => m.Body != null && names.Contains(m.Identifier.ValueText))
+                .ToList();
+            var taggedNames = new HashSet<string>(candidates
+                .Where(HasMethodReloadAttribute)
+                .Select(m => m.Identifier.ValueText));
+            return candidates
+                .Where(m => !taggedNames.Contains(m.Identifier.ValueText)
+                    || HasMethodReloadAttribute(m))
+                .ToList();
+        }
+
+        /// <summary>
+        /// Check if method has [MethodReload] attribute. The unqualified name must match exactly: a
+        /// looser match (a substring test) also catches [OnMethodReloaded] — the post-reload callback,
+        /// not a reload target — and pushing that name makes the player-side registry lookup fail for
+        /// the whole file.
+        /// Internal so <see cref="MethodReloadBaseline"/> hashes exactly the methods extraction picks.
+        /// </summary>
+        internal static bool HasMethodReloadAttribute(MethodDeclarationSyntax method)
+        {
+            return method.AttributeLists
+                .SelectMany(al => al.Attributes)
+                .Any(a => UnqualifiedAttributeName(a) == "MethodReload");
+        }
+
+        /// <summary>
+        /// Attribute name as the source wrote it, minus any namespace qualifier and the optional
+        /// "Attribute" suffix — [Foo.BarAttribute] and [Bar] both yield "Bar".
+        /// </summary>
+        private static string UnqualifiedAttributeName(AttributeSyntax attr)
+        {
+            var name = attr.Name.ToString();
+            var lastDot = name.LastIndexOf('.');
+            if (lastDot >= 0)
+                name = name.Substring(lastDot + 1);
+            if (name.EndsWith("Attribute"))
+                name = name.Substring(0, name.Length - "Attribute".Length);
+            return name;
+        }
+
         private static string GetNamespace(SyntaxNode node)
         {
             for (var current = node.Parent; current != null; current = current.Parent)
@@ -258,13 +347,13 @@ namespace Unity.Pipeline.MethodReload
         /// host, the pre-existing behavior.
         /// </summary>
         private static HashSet<string> ComputeNewMethodNames(
-            ClassDeclarationSyntax classDecl, INamedTypeSymbol compiledType, bool wholeTypeIsNew)
+            IEnumerable<MethodDeclarationSyntax> methods, INamedTypeSymbol compiledType, bool wholeTypeIsNew)
         {
             var result = new HashSet<string>();
             if (compiledType == null && !wholeTypeIsNew)
                 return result;
 
-            foreach (var method in classDecl.Members.OfType<MethodDeclarationSyntax>())
+            foreach (var method in methods)
             {
                 if (method.Body == null && method.ExpressionBody == null)
                     continue;

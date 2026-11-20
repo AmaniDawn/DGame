@@ -7,7 +7,7 @@ namespace Unity.Pipeline.Models
     /// A single captured Unity console entry, as returned by the <c>console</c> command.
     /// </summary>
     [Serializable]
-    public class ConsoleLogEntry
+    internal class ConsoleLogEntry
     {
         /// <summary>
         /// Monotonic sequence number assigned when the entry was captured. Acts as the cursor for

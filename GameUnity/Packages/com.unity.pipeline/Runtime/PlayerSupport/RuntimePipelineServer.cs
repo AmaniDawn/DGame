@@ -7,7 +7,7 @@ using UnityEngine;
 namespace Unity.Pipeline
 {
     /// <summary>The Player-side <see cref="BasePipelineServer"/>, owned by a <see cref="RuntimePipelineDriver"/>.</summary>
-    public class RuntimePipelineServer : BasePipelineServer
+    internal class RuntimePipelineServer : BasePipelineServer
     {
         private RuntimePipelineConfig m_Config;
 

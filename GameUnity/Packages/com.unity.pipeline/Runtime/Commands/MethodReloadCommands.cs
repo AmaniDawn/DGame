@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.IO;
 using Unity.Pipeline.Commands;
 using Unity.Pipeline.Compilation;
@@ -16,24 +17,71 @@ namespace Unity.Pipeline.Runtime.Commands
     {
         const string Group = "script.methodreload";
 
-        [CliGroupCommand(Group, "Compile and apply in-place [MethodReload] edits from a source file", MainThreadRequired = true, Tags = new[] { "scripts/methodreload" })]
-        public static MethodReloadResponse Reload(
-            [CliArg("filename", "Source file containing [MethodReload] methods (e.g. Assets/Scripts/Player.cs)", Required = true)] string filename,
+        [CliGroupCommand(Group, "Compile and apply in-place [MethodReload] edits from a source file", MainThreadRequired = true, Tags = new[] { "scripts/methodreload" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Reload(CommandContext cmd,
+            [CliArg("filename", "Source file containing [MethodReload] methods, under Assets/ or a loaded package (e.g. Assets/Scripts/Player.cs)", Required = true)] string filename,
             [CliArg("timeout", "Compilation timeout in seconds")] double timeoutInSeconds = 60,
             [CliArg("assembly-dir", "Directory to save compiled assemblies to disk (optional, default is in-memory only)")] string assemblyDir = null,
             [CliArg("pdb", "Emit debug symbols (portable PDB) mapped to the original source so breakpoints bind in your editor. Compiles unoptimized.")] bool pdb = false)
         {
-            return ReloadFileCore(CommandNames.ScriptMethodreloadReload, filename, PipelineTimeout.FromSeconds(timeoutInSeconds), assemblyDir, pdb, useInterpreter: false);
+            return ReportReload(cmd, ReloadFile(filename, timeoutInSeconds, assemblyDir, pdb, useInterpreter: false));
         }
 
-        [CliGroupCommand(Group, "Compile in-place [MethodReload] edits and run them through the IlInterpreter VM in this process instead of Assembly.Load (IL2CPP-safe; only a minimal host API + the target type are available)", MainThreadRequired = true, Tags = new[] { "scripts/methodreload" })]
-        public static MethodReloadResponse ReloadEditor(
-            [CliArg("filename", "Source file containing [MethodReload] methods (e.g. Assets/Scripts/Player.cs)", Required = true)] string filename,
+        [CliGroupCommand(Group, "Compile in-place [MethodReload] edits and run them through the IlInterpreter VM in this process instead of Assembly.Load (IL2CPP-safe; only a minimal host API + the target type are available)", MainThreadRequired = true, Tags = new[] { "scripts/methodreload" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode ReloadEditor(CommandContext cmd,
+            [CliArg("filename", "Source file containing [MethodReload] methods, under Assets/ or a loaded package (e.g. Assets/Scripts/Player.cs)", Required = true)] string filename,
             [CliArg("timeout", "Compilation timeout in seconds")] double timeoutInSeconds = 60,
             [CliArg("assembly-dir", "Directory to save compiled assemblies to disk (optional, default is in-memory only)")] string assemblyDir = null,
             [CliArg("pdb", "Emit debug symbols (portable PDB) mapped to the original source so breakpoints bind in your editor. Compiles unoptimized.")] bool pdb = false)
         {
-            return ReloadFileCore(CommandNames.ScriptMethodreloadReloadEditor, filename, PipelineTimeout.FromSeconds(timeoutInSeconds), assemblyDir, pdb, useInterpreter: true);
+            return ReportReload(cmd, ReloadFile(filename, timeoutInSeconds, assemblyDir, pdb, useInterpreter: true));
+        }
+
+        /// <summary>
+        /// What <c>script.methodreload reload</c> (or, with <paramref name="useInterpreter"/>,
+        /// <c>reload_editor</c>) does, as a response: the methods it registered, or why it failed.
+        /// </summary>
+        internal static MethodReloadResponse ReloadFile(string filename, double timeoutInSeconds = 60, string assemblyDir = null, bool pdb = false, bool useInterpreter = false)
+        {
+            var commandName = useInterpreter ? CommandNames.ScriptMethodreloadReloadEditor : CommandNames.ScriptMethodreloadReload;
+            return ReloadFileCore(commandName, filename, PipelineTimeout.FromSeconds(timeoutInSeconds), assemblyDir, pdb, useInterpreter);
+        }
+
+        /// <summary>
+        /// Writes what a reload registered, or logs why it failed. Diagnostics are warnings on a
+        /// success (methods it skipped), and errors on a failure unless the error already lists them.
+        /// </summary>
+        static ExitCode ReportReload(CommandContext cmd, MethodReloadResponse response)
+        {
+            if (!response.Success)
+            {
+                LogFailure(cmd, response);
+                return ExitCode.Failed;
+            }
+
+            if (response.Diagnostics != null)
+            {
+                foreach (var diagnostic in response.Diagnostics)
+                    cmd.Log.Warning(diagnostic);
+            }
+
+            if (!string.IsNullOrEmpty(response.Message))
+                cmd.Log.Info(response.Message);
+            cmd.Result.Write(new MethodReloadResult { AssemblyName = response.AssemblyName, Items = response.Items });
+            return ExitCode.Success;
+        }
+
+        static void LogFailure(CommandContext cmd, MethodReloadResponse response)
+        {
+            var details = response.ErrorDetails ?? "";
+            cmd.Log.Error(string.IsNullOrEmpty(details) ? response.Error : $"{response.Error}. {details}");
+            if (response.Diagnostics == null)
+                return;
+            foreach (var diagnostic in response.Diagnostics)
+            {
+                if (!details.Contains(diagnostic))
+                    cmd.Log.Error(diagnostic);
+            }
         }
 
         /// <summary>Shared body of <c>reload_file</c> and <c>reload_file_editor_interpreter</c>:
@@ -80,20 +128,14 @@ namespace Unity.Pipeline.Runtime.Commands
                         stopwatch.ElapsedMilliseconds);
                 }
 
-                // In a Player build, the file must be inside the project's build-baked roots. The
-                // project layout cannot be resolved from a running build, so this is skipped in the
-                // editor (which resolves files against the live project).
-                if (!Application.isEditor)
+                var scopeCheck = ValidateReloadPath(fullPath, AllowedReloadRoots());
+                if (!scopeCheck.IsValid)
                 {
-                    var scopeCheck = ValidateReloadPath(fullPath, MethodReloadRegistry.AllowedReloadRoots);
-                    if (!scopeCheck.IsValid)
-                    {
-                        stopwatch.Stop();
-                        return MethodReloadResponse.CmdFailure(
-                            scopeCheck.Error,
-                            scopeCheck.ErrorDetails,
-                            stopwatch.ElapsedMilliseconds);
-                    }
+                    stopwatch.Stop();
+                    return MethodReloadResponse.CmdFailure(
+                        scopeCheck.Error,
+                        scopeCheck.ErrorDetails,
+                        stopwatch.ElapsedMilliseconds);
                 }
 
                 Debug.Log($"MethodReload: Executing {commandName} command: {fullPath}, timeout: {PipelineTimeout.Describe(timeout)}, assembly-dir: {assemblyDir ?? "in-memory"}, pdb: {pdb}, interpreter: {useInterpreter}");
@@ -179,106 +221,57 @@ namespace Unity.Pipeline.Runtime.Commands
         // registry statics, neither of which needs a driver. Reload targets are discovered on
         // demand (see RuntimePipelineDriver.EnsureDiscoveredMethodReloadMethods), so the editor
         // reloads this cleans up after happen with no driver in the process at all.
-        [CliGroupCommand(Group, "Remove old method reload DLL versions and clear registry", MainThreadRequired = true, Tags = new[] { "scripts/methodreload" })]
-        public static MethodReloadResponse Cleanup(
+        [CliGroupCommand(Group, "Remove old method reload DLL versions and clear registry", MainThreadRequired = true, Tags = new[] { "scripts/methodreload" }, Effect = CommandEffect.Destructive)]
+        internal static ExitCode Cleanup(CommandContext cmd,
             [CliArg("assembly-dir", "Directory containing assemblies to cleanup", Required = true)] string assemblyDir,
             [CliArg("force-domain-reload", "Force Unity domain reload after cleanup")] bool forceDomainReload = true)
         {
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
+            Debug.Log($"MethodReload: Executing {CommandNames.ScriptMethodreloadCleanup} command for directory: {assemblyDir}");
 
-            try
+            var cleanupResult = MethodReloadCompiler.CleanupMethodReloadDlls(assemblyDir);
+            if (!cleanupResult.Success)
             {
-                Debug.Log($"MethodReload: Executing {CommandNames.ScriptMethodreloadCleanup} command for directory: {assemblyDir}");
+                cmd.Log.Error(cleanupResult.Message ?? "Cleanup failed.");
+                return ExitCode.Failed;
+            }
 
-                // Execute cleanup
-                var cleanupResult = MethodReloadCompiler.CleanupMethodReloadDlls(assemblyDir);
+            cmd.Log.Info($"Cleanup successful: {cleanupResult.Message}");
 
-                stopwatch.Stop();
-
-                if (cleanupResult.Success)
-                {
-                    var message = $"Cleanup successful: {cleanupResult.Message}";
-                    if (cleanupResult.DeletedFiles.Count > 0)
-                    {
-                        message += $" Files removed: {string.Join(", ", cleanupResult.DeletedFiles)}";
-                    }
-
-                    // Force domain reload if requested (interrupts gameplay but ensures clean state)
-                    if (forceDomainReload && Application.isEditor)
-                    {
+            // Force domain reload if requested (interrupts gameplay but ensures clean state)
+            var domainReloadRequested = false;
 #if UNITY_EDITOR
-                        Debug.Log("MethodReload: Requesting Unity domain reload to clean memory state");
-                        UnityEditor.EditorUtility.RequestScriptReload();
-                        message += " Unity domain reload requested.";
-#endif
-                    }
-
-                    Debug.Log($"MethodReload: {CommandNames.ScriptMethodreloadCleanup} completed successfully in {stopwatch.ElapsedMilliseconds}ms");
-
-                    return MethodReloadResponse.CmdSuccess(
-                        "cleanup_completed",
-                        message,
-                        cleanupResult.DeletedFiles,
-                        stopwatch.ElapsedMilliseconds);
-                }
-                else
-                {
-                    return MethodReloadResponse.CmdFailure(
-                        "Cleanup Failed",
-                        cleanupResult.Message,
-                        stopwatch.ElapsedMilliseconds);
-                }
-            }
-            catch (Exception ex)
+            if (forceDomainReload && Application.isEditor)
             {
-                stopwatch.Stop();
-                Debug.LogError($"MethodReload: {CommandNames.ScriptMethodreloadCleanup} command failed: {ex.Message}");
-
-                return MethodReloadResponse.CmdFailure(
-                    "Execution Failed",
-                    ex.ToString(),
-                    stopwatch.ElapsedMilliseconds);
+                Debug.Log("MethodReload: Requesting Unity domain reload to clean memory state");
+                UnityEditor.EditorUtility.RequestScriptReload();
+                domainReloadRequested = true;
+                cmd.Log.Info("Unity domain reload requested.");
             }
+#endif
+
+            cmd.Result.Write(new
+            {
+                DeletedFiles = cleanupResult.DeletedFiles ?? new List<string>(),
+                DomainReloadRequested = domainReloadRequested
+            });
+            return ExitCode.Success;
         }
 
         // Not RuntimeOnly: this only reads registry statics, and it is the command that answers
         // "did my reload bind?" — the question the missing-target diagnostics raise. Gating it on a
         // driver made it unreachable in exactly the editor session that needed it.
-        [CliGroupCommand(Group, "Show current method reload registry status and statistics", MainThreadRequired = true, Tags = new[] { "scripts/methodreload" })]
-        public static MethodReloadResponse Status()
+        [CliGroupCommand(Group, "Show current method reload registry status and statistics", MainThreadRequired = true, Tags = new[] { "scripts/methodreload" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Status(CommandContext cmd)
         {
-            var stopwatch = System.Diagnostics.Stopwatch.StartNew();
-
-            try
+            var stats = MethodReloadRegistry.GetStats();
+            cmd.Result.Write(new
             {
-                // Get current registry stats
-                var stats = MethodReloadRegistry.GetStats();
-
-                stopwatch.Stop();
-
-                var statusMessage = $"Method Reload Status - " +
-                    $"Reloadable Methods: {stats.ReloadableMethodCount}, " +
-                    $"Active Overrides: {stats.ActiveOverrideCount}, " +
-                    $"Loaded Types: {stats.LoadedTypeCount}";
-
-                Debug.Log($"MethodReload: {statusMessage}");
-
-                return MethodReloadResponse.CmdSuccess(
-                    "status_retrieved",
-                    statusMessage,
-                    stats.ActiveOverrideIds,
-                    stopwatch.ElapsedMilliseconds);
-            }
-            catch (Exception ex)
-            {
-                stopwatch.Stop();
-                Debug.LogError($"MethodReload: {CommandNames.ScriptMethodreloadStatus} command failed: {ex.Message}");
-
-                return MethodReloadResponse.CmdFailure(
-                    "Execution Failed",
-                    ex.ToString(),
-                    stopwatch.ElapsedMilliseconds);
-            }
+                stats.ReloadableMethodCount,
+                stats.ActiveOverrideCount,
+                stats.LoadedTypeCount,
+                stats.ActiveOverrideIds
+            });
+            return ExitCode.Success;
         }
 
         /// <summary>
@@ -368,6 +361,35 @@ namespace Unity.Pipeline.Runtime.Commands
             return path.StartsWith(prefix, comparison);
         }
 
+        // The Editor reads the live project; a Player only has the roots baked in at build time.
+        static IReadOnlyCollection<string> AllowedReloadRoots()
+        {
+#if UNITY_EDITOR
+            if (Application.isEditor)
+                return CollectProjectRoots();
+#endif
+            return MethodReloadRegistry.AllowedReloadRoots;
+        }
+
+#if UNITY_EDITOR
+        /// <summary>
+        /// Absolute paths of the project's Assets folder and of every loaded package. A local package
+        /// may live anywhere on disk, not only under Packages.
+        /// </summary>
+        internal static List<string> CollectProjectRoots()
+        {
+            var roots = new List<string> { Path.GetFullPath(Application.dataPath) };
+
+            foreach (var package in UnityEditor.PackageManager.PackageInfo.GetAllRegisteredPackages())
+            {
+                if (!string.IsNullOrEmpty(package.resolvedPath))
+                    roots.Add(Path.GetFullPath(package.resolvedPath));
+            }
+
+            return roots;
+        }
+#endif
+
         /// <summary>
         /// Resolve source file path from various possible locations.
         /// </summary>
@@ -450,6 +472,17 @@ namespace Unity.Pipeline.Runtime.Commands
                 ExecutedAt = DateTime.UtcNow
             };
         }
+    }
+
+    /// <summary>
+    /// What a successful reload writes: the assembly it loaded (empty when every method was already
+    /// up to date) and the ids of the methods it registered.
+    /// </summary>
+    class MethodReloadResult
+    {
+        public string AssemblyName { get; set; }
+
+        public List<string> Items { get; set; } = new List<string>();
     }
 
     /// <summary>

@@ -129,6 +129,14 @@ namespace Unity.Pipeline.Compilation
                 var targetMethodId = $"{typeName}.{methodName}";
                 var name = methodName; // capture per iteration
 
+                // Bound without this, a name the transform failed to emit fails on every call
+                // instead of once here.
+                if (!interpreter.HasMethod(methodName))
+                {
+                    skipped.Add($"{methodName}: not in the compiled override assembly");
+                    continue;
+                }
+
                 // Skipped under lenient load — its body couldn't be lowered. Report the reason and
                 // move on rather than register a dispatcher that throws on first call. The most
                 // common cause across the editor→player boundary is a reference the running build

@@ -48,22 +48,20 @@ namespace Unity.Pipeline
         const string ClientSkillKey = "client.skill";
         const string TimeoutKey = "timeout";
         const string StdoutTtyKey = "stdout.tty";
+        const string StderrTtyKey = "stderr.tty";
         const string TerminalWidthKey = "terminal.width";
 
         readonly Socket m_Socket;
         readonly Stream m_Stream;
         readonly ICommandExecutor m_Executor;
         readonly Func<string> m_GetToken;
-        readonly IReadOnlyDictionary<string, string> m_ObsoleteCommandNames;
 
-        PipelineProtocolSession(Socket socket, ICommandExecutor executor, Func<string> getToken,
-            IReadOnlyDictionary<string, string> obsoleteCommandNames)
+        PipelineProtocolSession(Socket socket, ICommandExecutor executor, Func<string> getToken)
         {
             m_Socket = socket;
             m_Stream = new NetworkStream(socket, ownsSocket: true);
             m_Executor = executor;
             m_GetToken = getToken;
-            m_ObsoleteCommandNames = obsoleteCommandNames;
         }
 
         /// <summary>
@@ -71,19 +69,16 @@ namespace Unity.Pipeline
         /// it. Never throws.
         /// </summary>
         /// <param name="getToken">The token clients must send; read once per connection.</param>
-        /// <param name="obsoleteCommandNames">
-        /// Old command name to the full name that replaced it, for a request naming one; null for none.
-        /// </param>
         /// <param name="stopping">
         /// Closes the connection when the transport stops, which cancels its command.
         /// </param>
         public static async Task ServeAsync(Socket socket, ICommandExecutor executor, Func<string> getToken,
-            IReadOnlyDictionary<string, string> obsoleteCommandNames, CancellationToken stopping)
+            CancellationToken stopping)
         {
             try
             {
                 // Inside the try: the stream throws for a socket the client already reset.
-                var session = new PipelineProtocolSession(socket, executor, getToken, obsoleteCommandNames);
+                var session = new PipelineProtocolSession(socket, executor, getToken);
 
                 // NetworkStream doesn't honour cancellation on every runtime; closing the socket ends
                 // any read or write in flight.
@@ -119,7 +114,7 @@ namespace Unity.Pipeline
 
             if (request.SkippedRequestSize > 0)
             {
-                await RefuseAsync(ExitCode.InvalidUsage, DescribeTooLarge(request.SkippedRequestSize));
+                await RefuseAsync(ProtocolExitCode.InvalidUsage, DescribeTooLarge(request.SkippedRequestSize));
                 return;
             }
 
@@ -207,19 +202,19 @@ namespace Unity.Pipeline
         {
             if (commandLine.Count == 0 || string.IsNullOrWhiteSpace(commandLine[0]))
             {
-                await RefuseAsync(ExitCode.InvalidUsage, "No command given.");
+                await RefuseAsync(ProtocolExitCode.InvalidUsage, "No command given.");
                 return;
             }
 
-            if (!TryReadMetadata(metadata, out var timeout, out var requester, out var outIsTerminal, out var terminalWidth,
-                    out var metadataError))
+            if (!TryReadMetadata(metadata, out var timeout, out var requester, out var outIsTerminal, out var errorIsTerminal,
+                    out var terminalWidth, out var metadataError))
             {
-                await RefuseAsync(ExitCode.InvalidUsage, metadataError);
+                await RefuseAsync(ProtocolExitCode.InvalidUsage, metadataError);
                 return;
             }
 
             var output = new FrameOutput();
-            var input = new FrameInput();
+            var input = new CommandInput();
             var request = new CommandRequest(commandLine[0], commandLine.GetRange(1, commandLine.Count - 1), input,
                 output.Out, output.Error)
             {
@@ -227,6 +222,8 @@ namespace Unity.Pipeline
                 Requester = requester,
                 FormatOutput = outIsTerminal.HasValue,
                 OutIsTerminal = outIsTerminal == true,
+                ErrorIsTerminal = errorIsTerminal == true,
+                FormatsLogs = true,
                 TerminalWidth = terminalWidth,
             };
 
@@ -244,7 +241,7 @@ namespace Unity.Pipeline
             var sending = output.SendAsync(m_Stream, CancellationToken.None);
             var receiving = ReceiveAsync(input, execution);
 
-            ExitCode result;
+            ProtocolExitCode result;
             using (var ended = new CancellationTokenSource())
             // A read of In doesn't check for cancellation, so a command blocked in one, even on the
             // main thread, would never see a signal: ending the input lets the read return.
@@ -290,27 +287,25 @@ namespace Unity.Pipeline
         /// its command may take, and where the client shows its output.
         /// </summary>
         /// <param name="outIsTerminal">Whether the client's stdout is a terminal; null when not sent.</param>
+        /// <param name="errorIsTerminal">Whether the client's stderr is a terminal; null when not sent.</param>
         /// <param name="terminalWidth">The client's terminal width in columns; null when not sent.</param>
         /// <param name="error">Why a value can't be read, for the client; null otherwise.</param>
         /// <returns>False when a value can't be read.</returns>
         static bool TryReadMetadata(Dictionary<string, string> metadata, out TimeSpan? timeout, out Requester requester,
-            out bool? outIsTerminal, out int? terminalWidth, out string error)
+            out bool? outIsTerminal, out bool? errorIsTerminal, out int? terminalWidth, out string error)
         {
             timeout = null;
             requester = default;
             outIsTerminal = null;
+            errorIsTerminal = null;
             terminalWidth = null;
             error = null;
 
-            if (metadata.TryGetValue(StdoutTtyKey, out var ttyText))
-            {
-                if (ttyText != "0" && ttyText != "1")
-                {
-                    error = $"The request's {StdoutTtyKey} must be 1 or 0; got '{ttyText}'.";
-                    return false;
-                }
-                outIsTerminal = ttyText == "1";
-            }
+            if (!TryReadFlag(metadata, StdoutTtyKey, out outIsTerminal, out error))
+                return false;
+
+            if (!TryReadFlag(metadata, StderrTtyKey, out errorIsTerminal, out error))
+                return false;
 
             if (metadata.TryGetValue(TerminalWidthKey, out var widthText))
             {
@@ -425,7 +420,7 @@ namespace Unity.Pipeline
         /// Reads the client's Stdin and Signal frames while the command runs. A signal, or the client
         /// going away, cancels the command; frames of a type this version doesn't know are skipped.
         /// </summary>
-        async Task ReceiveAsync(FrameInput input, CommandExecution execution)
+        async Task ReceiveAsync(CommandInput input, CommandExecution execution)
         {
             try
             {
@@ -480,7 +475,7 @@ namespace Unity.Pipeline
         }
 
         /// <summary>Answers a command that didn't run: why on err, then its exit code.</summary>
-        async Task RefuseAsync(ExitCode result, string message)
+        async Task RefuseAsync(ProtocolExitCode result, string message)
         {
             if (!string.IsNullOrEmpty(message))
             {
@@ -518,15 +513,14 @@ namespace Unity.Pipeline
         /// <summary>
         /// Why the executor refused a request, as text for err: all the HTTP API's envelope says,
         /// apart from the error's class, which the exit code carries. The command's usage after
-        /// arguments that don't fit it, the open dialogs after a refusal they caused, and the new
-        /// name of a command that was renamed.
+        /// arguments that don't fit it, and the open dialogs after a refusal they caused.
         /// </summary>
         string DescribeRefusal(Exception exception)
         {
             switch (exception)
             {
                 case CommandNotFoundException notFound:
-                    return ObsoleteCommandNameMessage.ForMiss(notFound.CommandName, m_ObsoleteCommandNames) ?? notFound.Message;
+                    return notFound.Message;
                 // The message is the problems, through DescribeArgProblems.
                 case CommandArgumentsException arguments:
                     return arguments.Message + "\n\n" + DescribeUsage(arguments.CommandInfo);
@@ -585,24 +579,24 @@ namespace Unity.Pipeline
         static bool IsBoolean(CommandParameterInfo parameter) => UnderlyingType(parameter) == typeof(bool);
 
         /// <summary>The exit code of a refusal the executor threw before anything ran.</summary>
-        static ExitCode RefusalResult(Exception exception)
+        static ProtocolExitCode RefusalResult(Exception exception)
         {
             switch (exception)
             {
                 case CommandNotFoundException _:
-                    return ExitCode.NotFound;
+                    return ProtocolExitCode.NotFound;
                 // Arguments that don't bind or convert.
                 case CommandArgumentsException _:
                 case ArgumentException _:
-                    return ExitCode.InvalidUsage;
+                    return ProtocolExitCode.InvalidUsage;
                 case CommandUnavailableException unavailable:
                     return unavailable.Reason == CommandUnavailableReason.BlockedByDialog
-                        ? ExitCode.BlockedByDialog
-                        : ExitCode.Unavailable;
+                        ? ProtocolExitCode.BlockedByDialog
+                        : ProtocolExitCode.Unavailable;
                 case TooManyCommandsException _:
-                    return ExitCode.Unavailable;
+                    return ProtocolExitCode.Unavailable;
                 default:
-                    return ExitCode.Failed;
+                    return ProtocolExitCode.Failed;
             }
         }
 
@@ -631,6 +625,23 @@ namespace Unity.Pipeline
             {
                 // Already closed.
             }
+        }
+
+        /// <summary>Reads the 1-or-0 <paramref name="key"/>; null when not sent.</summary>
+        /// <returns>False, with <paramref name="error"/> for the client, when the value is neither.</returns>
+        static bool TryReadFlag(Dictionary<string, string> metadata, string key, out bool? value, out string error)
+        {
+            value = null;
+            error = null;
+            if (!metadata.TryGetValue(key, out var text))
+                return true;
+            if (text != "0" && text != "1")
+            {
+                error = $"The request's {key} must be 1 or 0; got '{text}'.";
+                return false;
+            }
+            value = text == "1";
+            return true;
         }
     }
 }

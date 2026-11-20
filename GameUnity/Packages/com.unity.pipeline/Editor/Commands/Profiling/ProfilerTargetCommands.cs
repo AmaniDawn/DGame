@@ -30,15 +30,12 @@ namespace Unity.Pipeline.Editor.Commands.Profiling
         internal static bool IsConnectionSettled =>
             EditorApplication.timeSinceStartup >= s_SwitchedAt + SwitchSettleSeconds;
 
-        [CliGroupCommand(Group, "List what the Editor's Profiler can connect to: this Editor plus any connected development Players. 'current' marks what " + CommandNames.DiagnosticsProfilerRecord + " and " + CommandNames.DiagnosticsMemorySnapshot + " capture from; change it with " + CommandNames.DiagnosticsProfilerConnect + ".", Tags = new[] { "observability/profiling" })]
-        public static object ProfilerTargets()
+        [CliGroupCommand(Group, "List what the Editor's Profiler can connect to: this Editor plus any connected development Players. 'current' marks what " + CommandNames.DiagnosticsProfilerRecord + " and " + CommandNames.DiagnosticsMemorySnapshot + " capture from; change it with " + CommandNames.DiagnosticsProfilerConnect + ".", Tags = new[] { "observability/profiling" }, Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode ProfilerTargets(CommandContext cmd)
         {
-            var targets = ProfilerTarget.Enumerate();
-            return new
+            foreach (var t in ProfilerTarget.Enumerate())
             {
-                status = "ok",
-                current = targets.FirstOrDefault(t => t.IsCurrent)?.Name,
-                targets = targets.Select(t => new
+                cmd.Result.WriteRecord(new
                 {
                     guid = t.Guid,
                     name = t.Name,
@@ -46,52 +43,61 @@ namespace Unity.Pipeline.Editor.Commands.Profiling
                     connectable = t.Connectable,
                     current = t.IsCurrent,
                     deepProfilingSupported = t.DeepProfilingSupported
-                }).ToArray()
-            };
+                });
+            }
+
+            return ExitCode.Success;
         }
 
-        [CliGroupCommand(Group, "Point the Editor's Profiler connection at a target from " + CommandNames.DiagnosticsProfilerTargets + ", as choosing it in the Profiler window does. It stays there afterwards. Refused while a recording or memory snapshot is in progress.", Tags = new[] { "observability/profiling" })]
-        public static object ProfilerConnect(
+        [CliGroupCommand(Group, "Point the Editor's Profiler connection at a target from " + CommandNames.DiagnosticsProfilerTargets + ", as choosing it in the Profiler window does. It stays there afterwards. Refused while a recording or memory snapshot is in progress.", Tags = new[] { "observability/profiling" }, Effect = CommandEffect.Idempotent)]
+        internal static ExitCode ProfilerConnect(CommandContext cmd,
             [CliArg("target", "'editor' for this Editor, or a guid or name from " + CommandNames.DiagnosticsProfilerTargets + ".", Required = true)] string target = "")
         {
             if (string.IsNullOrWhiteSpace(target))
-                return new { status = "error", message = "target is required: 'editor', or a guid or name from " + CommandNames.DiagnosticsProfilerTargets + "." };
+            {
+                cmd.Log.Error("target is required: 'editor', or a guid or name from " + CommandNames.DiagnosticsProfilerTargets + ".");
+                return ExitCode.InvalidUsage;
+            }
 
             var busy = BusyMessage();
             if (busy != null)
-                return new { status = "busy", message = busy };
+            {
+                cmd.Log.Error(busy);
+                return ExitCode.Failed;
+            }
 
             var targets = ProfilerTarget.Enumerate();
             var match = ProfilerTarget.Match(targets, target);
             if (match == null)
             {
-                return new
-                {
-                    status = "error",
-                    message = $"Unknown target '{target}'. Available targets: {string.Join(", ", targets.Select(t => t.Name))}. " +
-                        "A Player must be a development build connected to this Editor."
-                };
+                cmd.Log.Error($"Unknown target '{target}'. Available targets: {string.Join(", ", targets.Select(t => t.Name))}. " +
+                    "A Player must be a development build connected to this Editor.");
+                return ExitCode.NotFound;
             }
 
             if (match.IsCurrent)
-                return new { status = "ok", target = match.Name, guid = match.Guid, switched = false };
+            {
+                cmd.Result.Write(new { target = match.Name, guid = match.Guid, switched = false });
+                return ExitCode.Success;
+            }
 
             if (!match.Connectable)
-                return new { status = "error", message = $"Target '{match.Name}' is not connectable." };
+            {
+                cmd.Log.Error($"Target '{match.Name}' is not connectable.");
+                return ExitCode.Failed;
+            }
 
             ProfilerDriver.connectedProfiler = match.Guid;
             if (ProfilerDriver.connectedProfiler != match.Guid)
-                return new { status = "error", message = $"The Editor refused to connect to '{match.Name}'. Check that it is still running." };
+            {
+                cmd.Log.Error($"The Editor refused to connect to '{match.Name}'. Check that it is still running.");
+                return ExitCode.Failed;
+            }
 
             s_SwitchedAt = EditorApplication.timeSinceStartup;
-            return new
-            {
-                status = "ok",
-                target = match.Name,
-                guid = match.Guid,
-                switched = true,
-                message = $"Connected. The connection takes about {SwitchSettleSeconds}s to settle; a recording or snapshot started before then waits for it."
-            };
+            cmd.Log.Info($"Connected. The connection takes about {SwitchSettleSeconds}s to settle; a recording or snapshot started before then waits for it.");
+            cmd.Result.Write(new { target = match.Name, guid = match.Guid, switched = true });
+            return ExitCode.Success;
         }
 
         /// <summary>A recording and a snapshot each read from the connection for their whole run, so

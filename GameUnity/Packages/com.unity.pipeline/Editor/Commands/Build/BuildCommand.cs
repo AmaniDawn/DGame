@@ -94,33 +94,37 @@ namespace Unity.Pipeline.Editor.Commands.Build
             "poll " + CommandNames.BuildStatus + " until status is 'completed'. DetailedBuildReport is included by default unless " +
             "'options' is supplied. Use dry-run to validate without building.",
             MainThreadRequired = false,
-            Tags = new[] { "build" })]
-        public static object Run(
+            Tags = new[] { "build" },
+            Effect = CommandEffect.Destructive)]
+        internal static ExitCode Run(CommandContext cmd,
             [CliArg("target", "BuildTarget name (e.g. StandaloneWindows64). Defaults to the active target. Must be installed.")] string target = "",
             [CliArg("output-path", "Output path (absolute, or relative to the project root). Defaults to the last/auto path.")] string outputPath = "",
-            [CliArg("profile-name", "Build Profile name to activate before building (Unity 6 only; ignored otherwise).")] string profileName = "",
+            [CliArg("profile-name", "Build Profile to activate and build with (Unity 6 only). Must be on the active build target; without scenes, its scene list is built.")] string profileName = "",
             [CliArg("options", "BuildOptions names. Omit to get just DetailedBuildReport; supplying any disables that default.")] string[] options = null,
-            [CliArg("scenes", "Scene asset paths to build (e.g. Assets/Scenes/Main.unity). Defaults to EditorBuildSettings.")] string[] scenes = null,
+            [CliArg("scenes", "Scene asset paths to build (e.g. Assets/Scenes/Main.unity). Defaults to the profile's scene list, or EditorBuildSettings.")] string[] scenes = null,
             [CliArg("confirm", "Acknowledge and run the build; without it the call is refused. Use dry-run to validate only.")] bool confirm = false,
-            [CliArg("dry-run", "Validate target/output-path/scenes without building.")] bool dryRun = false,
+            [CliArg("dry-run", "Validate target/output-path/profile-name/scenes without building; reports the target and scenes the build would use.")] bool dryRun = false,
             [CliArg("timeout", "Seconds to wait for the build to be validated and queued (the build itself is polled via " + CommandNames.BuildStatus + ").")] double timeoutInSeconds = 60)
         {
             // Validation + queueing both touch Unity APIs, so run them on the main thread. When invoked
             // off-thread (the normal HTTP path) this marshals through the server dispatcher; in-process
             // (tests, no server) it runs inline.
-            return RunOnMain<object>(() => ValidateAndQueue(target, outputPath, profileName, options, scenes, confirm, dryRun), PipelineTimeout.FromSeconds(timeoutInSeconds));
+            return RunOnMain(() => ValidateAndQueue(cmd, target, outputPath, profileName, options, scenes, confirm, dryRun), PipelineTimeout.FromSeconds(timeoutInSeconds));
         }
 
-        static object ValidateAndQueue(string targetArg, string outputArg, string profileName,
+        static ExitCode ValidateAndQueue(CommandContext cmd, string targetArg, string outputArg, string profileName,
             string[] optionArgs, string[] sceneArgs, bool confirm, bool dryRun)
         {
             lock (s_Lock)
             {
                 if (!dryRun && (s_Building || s_Pending))
-                    return new { status = "busy", success = false, message = "A build is already queued or in progress. Poll " + CommandNames.BuildStatus + "." };
+                {
+                    cmd.Log.Error("A build is already queued or in progress. Poll " + CommandNames.BuildStatus + ".");
+                    return ExitCode.Failed;
+                }
             }
 
-            var errors = new List<object>();
+            var errors = new List<string>();
 
             // ---- target ----
             var target = EditorUserBuildSettings.activeBuildTarget;
@@ -152,10 +156,18 @@ namespace Unity.Pipeline.Editor.Commands.Build
                 options = BuildOptions.DetailedBuildReport;
             }
 
+            // ---- profile ----
+            // Resolved here, not when the build runs: the profile decides the scene list and must not switch
+            // the target, and a dry run has to report both.
+            var explicitScenes = sceneArgs != null && sceneArgs.Length > 0;
+            string[] profileScenes = null;
+            if (!string.IsNullOrWhiteSpace(profileName))
+                profileScenes = ValidateProfile(profileName.Trim(), targetArg, target, needScenes: !explicitScenes, errors);
+
             // ---- scenes ----
-            var scenes = (sceneArgs != null && sceneArgs.Length > 0)
+            var scenes = explicitScenes
                 ? sceneArgs
-                : EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
+                : profileScenes ?? EditorBuildSettings.scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
 
             if (sceneArgs != null)
             {
@@ -182,29 +194,26 @@ namespace Unity.Pipeline.Editor.Commands.Build
                 errors.Add(Invalid("output-path", $"Output path is invalid: {ex.Message}"));
             }
 
-            if (dryRun)
-            {
-                return new
-                {
-                    status = "dry_run",
-                    valid = errors.Count == 0,
-                    validationErrors = errors
-                };
-            }
-
             if (errors.Count > 0)
             {
                 // Fail immediately — do not queue (acceptance criteria 5).
-                return new { status = "error", success = false, validationErrors = errors, message = "Build configuration is invalid; nothing was queued." };
+                cmd.Log.Error((dryRun ? "Build configuration is invalid: " : "Build configuration is invalid; nothing was queued: ") +
+                              string.Join(" ", errors));
+                return ExitCode.InvalidUsage;
+            }
+
+            if (dryRun)
+            {
+                cmd.Log.Info("Build configuration is valid.");
+                cmd.Result.Write(new { status = "dry_run", valid = true, target = target.ToString(), scenes });
+                return ExitCode.Success;
             }
 
             if (!confirm)
-                return new
-                {
-                    status = "error",
-                    success = false,
-                    message = "Refused: this triggers a player build. Pass confirm=true to build, or dry-run=true to validate without building."
-                };
+            {
+                cmd.Log.Error("Refused: this triggers a player build. Pass confirm=true to build, or dry-run=true to validate without building.");
+                return ExitCode.InvalidUsage;
+            }
 
             var buildId = NewBuildId();
 
@@ -221,15 +230,25 @@ namespace Unity.Pipeline.Editor.Commands.Build
 
             WriteStatusJson(new { status = "queued", buildId, message = "Build queued. Poll " + CommandNames.BuildStatus + " until status is 'completed'." });
 
-            return new { status = "queued", buildId };
+            cmd.Log.Info("Build queued. Poll " + CommandNames.BuildStatus + " until status is 'completed'.");
+            cmd.Result.Write(new { status = "queued", buildId });
+            return ExitCode.Success;
         }
 
         [CliGroupCommand(Group,
             "Status of the current/most recent build: idle | queued | building | completed, with the full " +
             "BuildReport (files, packedAssets, buildSteps, errors, warnings) once completed. Retained until the next build.",
             MainThreadRequired = false,
-            Tags = new[] { "build" })]
-        public static JToken Status()
+            Tags = new[] { "build" },
+            Effect = CommandEffect.ReadOnly)]
+        internal static ExitCode Status(CommandContext cmd)
+        {
+            cmd.Result.Write(ReadStatus());
+            return ExitCode.Success;
+        }
+
+        /// <summary>The status <see cref="Status"/> writes: the status file, with a live elapsedMs while building.</summary>
+        internal static JToken ReadStatus()
         {
             var status = StatusFileReader.ReadOrIdle(StatusFile);
 
@@ -319,9 +338,10 @@ namespace Unity.Pipeline.Editor.Commands.Build
                 outputPath
             });
 
-            // Best-effort Build Profile activation (Unity 6 only). Never fails the build.
+            // Validated when queued; a profile that cannot be activated now fails the build rather than
+            // building with whatever configuration happens to be active.
             if (!string.IsNullOrWhiteSpace(profileName))
-                TryActivateBuildProfile(profileName);
+                ActivateBuildProfile(profileName.Trim());
 
             var buildOptions = new BuildPlayerOptions
             {
@@ -492,7 +512,7 @@ namespace Unity.Pipeline.Editor.Commands.Build
             }
         }
 
-        static object Invalid(string field, string message) => new { field, message };
+        static string Invalid(string field, string message) => $"{field}: {message}";
 
         static string NewBuildId() => "build_" + Guid.NewGuid().ToString("N").Substring(0, 12);
 
@@ -538,27 +558,94 @@ namespace Unity.Pipeline.Editor.Commands.Build
         }
 
         /// <summary>
-        /// Best-effort: activate a Build Profile by name via reflection so the assembly still compiles on
-        /// Unity versions without the Build Profile API. Any failure is logged and ignored — the build
-        /// proceeds with the current configuration.
+        /// Validate <c>profile-name</c> when the build is queued, adding any problem to <paramref name="errors"/>,
+        /// and return the enabled scenes the profile builds (its own list when it overrides the global one).
+        /// Refuses a profile that is missing, that disagrees with an explicit <c>target</c>, or whose
+        /// activation would switch the build target or subtarget — a reimport and domain reload inside the
+        /// build, which Unity disallows in batch mode (the same rule as <c>create_build_profile --activate</c>).
         /// </summary>
-        static void TryActivateBuildProfile(string profileName)
+        static string[] ValidateProfile(string name, string targetArg, BuildTarget target, bool needScenes, List<string> errors)
         {
-            try
+            if (!BuildProfiles.IsSupported)
             {
-                var info = BuildProfiles.FindByName(profileName);
-                if (info == null)
-                {
-                    Debug.LogWarning($"[pipeline] {CommandNames.BuildRun}: profile '{profileName}' not found; building with current settings.");
-                    return;
-                }
-                if (!BuildProfiles.TrySetActive(info))
-                    Debug.LogWarning($"[pipeline] {CommandNames.BuildRun}: could not activate profile '{profileName}'; building with current settings.");
+                errors.Add(Invalid("profile-name", "Build Profiles require Unity 6 (6000.0) or later."));
+                return null;
             }
-            catch (Exception ex)
+
+            var info = BuildProfiles.FindByName(name);
+            if (info == null)
             {
-                Debug.LogWarning($"[pipeline] {CommandNames.BuildRun}: profile activation failed ({ex.Message}); building with current settings.");
+                errors.Add(Invalid("profile-name", $"No Build Profile named '{name}'. See {CommandNames.BuildListProfiles}."));
+                return null;
             }
+
+            if (!string.IsNullOrWhiteSpace(targetArg) && !string.Equals(info.Platform, target.ToString(), StringComparison.OrdinalIgnoreCase))
+            {
+                // Omitting target is enough only when the profile's platform is already active; otherwise
+                // the next attempt would hit the target-switch refusal below, so name the switch now.
+                var profileOnActiveTarget = string.Equals(info.Platform, EditorUserBuildSettings.activeBuildTarget.ToString(), StringComparison.OrdinalIgnoreCase);
+                errors.Add(Invalid("profile-name",
+                    $"Build Profile '{info.Name}' is for {info.Platform}, but target is {target}. " +
+                    (profileOnActiveTarget
+                        ? "Omit target to build for the profile's platform."
+                        : $"To build for the profile's platform, run {CommandNames.BuildTargetSwitch} with target={info.Platform} and confirm=true, " +
+                          $"wait for {CommandNames.BuildTargetSwitchStatus} to report completion, then build without target.")));
+            }
+            else
+            {
+                var platform = PlatformOf(info);
+                var change = BuildProfileCommands.ActivationSwitch(platform, out var targetDiffers);
+                if (change != null)
+                    errors.Add(Invalid("profile-name",
+                        $"Activating Build Profile '{info.Name}' would switch {change}, a full reimport and domain reload that a build cannot run. " +
+                        (targetDiffers
+                            ? $"Run {CommandNames.BuildTargetSwitch} with target={platform.BuildTarget} and confirm=true first, and wait for " +
+                              CommandNames.BuildTargetSwitchStatus + " to report completion."
+                            : "Switch the subtarget from the Build Profiles window first.")));
+                // Without a readable platform id the subtarget is unknown, so on a standalone target a
+                // Server profile cannot be told from a Player one. Refuse rather than risk switching the
+                // subtarget inside the build. An already-active profile switches nothing when activated.
+                else if (platform.Subtarget == null && !info.IsActive &&
+                         BuildPipeline.GetBuildTargetGroup(EditorUserBuildSettings.activeBuildTarget) == BuildTargetGroup.Standalone)
+                    errors.Add(Invalid("profile-name",
+                        $"This editor cannot tell whether Build Profile '{info.Name}' is a Player or a Server profile, so activating it " +
+                        "could switch the standalone subtarget inside the build. Activate it from the Build Profiles window first."));
+            }
+
+            if (!needScenes)
+                return null;
+
+            var scenes = BuildProfiles.GetScenesForBuild(info);
+            if (scenes == null)
+            {
+                errors.Add(Invalid("profile-name", $"This editor cannot read Build Profile '{info.Name}''s scene list. Pass scenes explicitly."));
+                return null;
+            }
+            return scenes.Where(s => s.enabled).Select(s => s.path).ToArray();
+        }
+
+        /// <summary>
+        /// The profile's platform, by its platform id where readable so the standalone subtarget is known;
+        /// otherwise just its build target.
+        /// </summary>
+        static BuildPlatformInfo PlatformOf(BuildProfileInfo info)
+        {
+            var id = BuildProfiles.ReadPlatformId(BuildProfiles.Load(info));
+            if (id != null && BuildProfilePlatforms.IsSupported && BuildProfilePlatforms.TryResolve(id, "", out var platform, out _))
+                return platform;
+            return new BuildPlatformInfo { BuildTarget = info.Platform };
+        }
+
+        /// <summary>
+        /// Activate the profile validated when the build was queued. Throws if it is gone or cannot be
+        /// activated, which fails the build: the caller asked for this profile, not the current settings.
+        /// </summary>
+        static void ActivateBuildProfile(string profileName)
+        {
+            var info = BuildProfiles.FindByName(profileName)
+                ?? throw new InvalidOperationException($"Build Profile '{profileName}' no longer exists.");
+            if (!BuildProfiles.TrySetActive(info))
+                throw new InvalidOperationException($"Build Profile '{profileName}' could not be activated.");
         }
 
         /// <summary>

@@ -1,4 +1,8 @@
 using System.IO;
+#if UNITY_6000_0_OR_NEWER
+using Unity.Pipeline.Editor.Previews;
+using UnityEditor.Build.Profile;
+#endif
 using UnityEditor;
 using UnityEngine;
 
@@ -104,6 +108,9 @@ namespace Unity.Pipeline.Editor
             }
 
             DrawMethodReloadWatchSection();
+#if UNITY_6000_0_OR_NEWER
+            DrawScenePreviewSection();
+#endif
             // Live status is kept current by ThrottledStatusRepaint — never Repaint() from here.
         }
 
@@ -335,6 +342,66 @@ namespace Unity.Pipeline.Editor
                 }
             }
         }
+
+#if UNITY_6000_0_OR_NEWER
+        /// <summary>
+        /// The Scene Preview settings asset: the build profile previews are built against and the
+        /// assemblies a preview may contain. Imports depend on the asset, so changing it rebuilds previews
+        /// already produced.
+        /// </summary>
+        private void DrawScenePreviewSection()
+        {
+            EditorGUILayout.Space();
+            EditorGUILayout.LabelField("Scene Preview", EditorStyles.boldLabel);
+
+            var profilePath = ScenePreviewSettings.ConfiguredBuildProfilePath;
+            var profile = string.IsNullOrEmpty(profilePath) ? null : AssetDatabase.LoadAssetAtPath<BuildProfile>(profilePath);
+
+            EditorGUI.BeginChangeCheck();
+            var picked = (BuildProfile)EditorGUILayout.ObjectField(
+                new GUIContent("Preview Build Profile",
+                    "The build profile the preview player is built from. Its scenes decide the lighting and fog " +
+                    "modes previews are stripped for. Empty: the active build profile."),
+                profile, typeof(BuildProfile), false);
+            if (EditorGUI.EndChangeCheck())
+                ScenePreviewSettings.SetBuildProfilePath(picked != null ? AssetDatabase.GetAssetPath(picked) : string.Empty);
+
+            if (profile == null)
+                EditorGUILayout.HelpBox("Not set: previews are built against the active build profile.", MessageType.Info);
+            else if (!ScenePreviewSettings.HasScriptingDefine(profile))
+            {
+                EditorGUILayout.HelpBox($"The preview build profile does not define {ScenePreviewSettings.ScriptingDefine}, " +
+                    "so its players cannot load previews and its builds fail.", MessageType.Warning);
+                if (GUILayout.Button($"Add {ScenePreviewSettings.ScriptingDefine} to the Profile"))
+                {
+                    ScenePreviewSettings.AddScriptingDefine(profile);
+                    AssetDatabase.SaveAssetIfDirty(profile);
+                }
+            }
+
+            using (new EditorGUILayout.HorizontalScope())
+            {
+                if (GUILayout.Button(new GUIContent("Create Preview Build Profile",
+                        "Create a build profile for the active platform whose only scene is the open scene.")))
+                {
+                    var created = PreviewBuildProfileSetup.CreateForActiveScene();
+                    if (!string.IsNullOrEmpty(created))
+                        ScenePreviewSettings.SetBuildProfilePath(created);
+                }
+
+                if (GUILayout.Button(new GUIContent("Generate Preview Assemblies",
+                        "List the engine and render pipeline assemblies a preview may contain, so the preview " +
+                        "player keeps them and previews never reference a type it stripped.")))
+                    PreviewLinkXml.Generate();
+            }
+
+            var assemblyCount = ScenePreviewSettings.PreservedAssemblies.Count;
+            using (new EditorGUI.DisabledScope(true))
+                EditorGUILayout.LabelField("Settings Asset", File.Exists(ScenePreviewSettings.AssetPath)
+                    ? $"{ScenePreviewSettings.AssetPath} ({(assemblyCount > 0 ? $"{assemblyCount} preview assemblies" : "no preview assemblies: no filtering")})"
+                    : "not created");
+        }
+#endif
 
         private static string Ago(System.DateTime? utc)
         {

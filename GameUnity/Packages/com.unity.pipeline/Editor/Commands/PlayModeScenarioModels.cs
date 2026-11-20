@@ -20,13 +20,13 @@ namespace Unity.Pipeline.Editor.Commands
         public string VpId;
     }
 
-    // create_scenario never activates the scenario it writes, and an agent driving the CLI only
-    // sees the JSON response, so the response has to say so and give the next command.
+    // create_scenario never activates the scenario it writes, so it says so (its result's 'active')
+    // and logs the next command.
     internal static class ScenarioCreateNotes
     {
         public const string DescriptionSuffix =
             " Does not make the new scenario active: run editor.playmode set_active_scenario --path <path> next, " +
-            "before add_player or remove_player without --path, or start_scenario. The response's 'note' gives the exact command.";
+            "before add_player or remove_player without --path, or start_scenario. It logs the exact command at --log-level info.";
 
         public static string NotActive(string path) =>
             "The new scenario is not active yet. editor.playmode add_player and remove_player without --path, and start_scenario, " +
