@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<obfuz>
+  <!-- 配置和 Luban 枚举用于 ToString、Enum.Parse 及语言映射，保留成员名。 -->
+  <assembly name="GameProto">
+    <type name="*" classType="enum">
+      <field name="*" obName="false" />
+    </type>
+  </assembly>
+</obfuz>

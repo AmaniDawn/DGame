@@ -51,7 +51,8 @@ MonoBehaviour:
     keepUnknownSymbolInSymbolMappingFile: 1
     symbolMappingFile: Assets/Obfuz/SymbolObfus/symbol-mapping.xml
     debugSymbolMappingFile: Assets/Obfuz/SymbolObfus/symbol-mapping-debug.xml
-    ruleFiles: []
+    ruleFiles:
+    - Assets/Obfuz/PreserveConfigEnumNames.xml
     customRenamePolicyTypes: []
   constEncryptSettings:
     encryptionLevel: 1
@@ -89,7 +90,3 @@ MonoBehaviour:
   watermarkSettings:
     text: Obfuscated by Obfuz
     signatureLength: 256
-  polymorphicDllSettings:
-    enable: 1
-    codeGenerationSecretKey: obfuz-polymorphic-key
-    disableLoadStandardDll: 0
