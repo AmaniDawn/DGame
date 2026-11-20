@@ -8,7 +8,7 @@
 
 技能目录遵循 Agent Skills 结构：入口为 `SKILL.md`，详细资料放在 `references/`，可执行辅助脚本放在 `scripts/`。`agents/openai.yaml` 只提供 Codex 的界面元数据，不影响 Claude Code 读取 `SKILL.md`。
 
-Luban 正式生成器、官方 Agent CLI / MCP 统一固定为 5.1.0，AI 工具通过 `python .agents/skills/luban-dev/scripts/luban_ai.py` 调用。工具缺失恢复、项目级 MCP 配置和生成器升级见 [工具恢复指南](skills/luban-dev/references/tool-recovery.md)；版本来源与兼容范围见 [官方工具接入](skills/luban-dev/references/official-ai.md)，技能加载本身不注册工具。
+Luban 正式生成器、官方 Agent CLI / MCP 统一固定为 5.1.0，AI 工具通过 `python .agents/skills/luban-dev/scripts/luban_ai.py` 调用。工具缺失恢复、项目级 MCP 配置和生成器升级见 [工具恢复指南](skills/luban-dev/references/tool-recovery.md)；版本来源与部署见 [官方工具接入](skills/luban-dev/references/official-ai.md)，技能加载本身不注册工具。
 
 需要仓库结构检查或环境报告时，从仓库根目录运行 Workflow：
 
@@ -49,7 +49,7 @@ CLI 优先使用 `GameUnity/Tools/unity.exe`，与 Unity Editor 的同名程序�
 
 直接 CLI 的路径、参数和授权示例见 [操作规程](skills/unity-cli/references/operations.md)。需要组合验证或 CI 报告时，以下 Workflow 命令从仓库根目录执行：
 
-Pipeline 0.10 使用分组命令，Workflow 的 `unity query/preview` 名称需整体引用，例如 `unity query "editor status"`。
+Pipeline 使用分组命令，Workflow 的 `unity query/preview` 名称需整体引用，例如 `unity query "editor status"`。
 
 直接编译/测试和等待已有测试默认每阶段设 300 秒总体期限，成功查询不重置计时；到期记录结果未知并保留现场，不自动取消或重放。
 

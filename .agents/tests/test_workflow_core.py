@@ -136,7 +136,7 @@ class WorkflowCoreTests(unittest.TestCase):
         project = self.project()
         scripts = project.parent / ".agents/scripts"
         scripts.mkdir(parents=True)
-        (scripts / "tool-versions.json").write_text('{"unityCli":"1.0.0-beta.16"}', encoding="utf-8")
+        (scripts / "tool-versions.json").write_text('{"unityCli":"1.0.1"}', encoding="utf-8")
 
         class Response:
             def __enter__(self):
@@ -158,7 +158,7 @@ class WorkflowCoreTests(unittest.TestCase):
         self.assertTrue(path.is_file())
         open_url.assert_called_once()
         self.assertEqual(validate.call_count, 1)
-        self.assertEqual(validate.call_args.args[1], "1.0.0-beta.16")
+        self.assertEqual(validate.call_args.args[1], "1.0.1")
         self.assertEqual(validate.call_args.args[0].parent, path.parent)
 
     def test_pipeline_registry_dependency_without_library_cache(self):
@@ -190,17 +190,17 @@ class WorkflowCoreTests(unittest.TestCase):
         project = self.project()
         package = project / "Packages/com.unity.pipeline/package.json"
         package.parent.mkdir()
-        package.write_text('{"version":"0.3.1-exp.1"}', encoding="utf-8")
+        package.write_text('{"version":"1.0.1"}', encoding="utf-8")
         (project / "ProjectSettings/ProjectVersion.txt").write_text("m_EditorVersion: 2022.3.62f3", encoding="utf-8")
         (project / "GameUnity.sln").write_text("solution", encoding="utf-8")
         scripts = project.parent / ".agents/scripts"
         scripts.mkdir(parents=True)
-        (scripts / "tool-versions.json").write_text('{"unityCli":"1.0.0-beta.16"}', encoding="utf-8")
+        (scripts / "tool-versions.json").write_text('{"unityCli":"1.0.1"}', encoding="utf-8")
         local_cli = project / "Tools/unity.exe"
         local_cli.parent.mkdir()
         local_cli.write_bytes(b"cli")
         context = Context(project)
-        for actual_version in ("1.0.0-beta.16", "0.1.0-beta.3", "1.0.0-beta.12"):
+        for actual_version in ("1.0.1", "1.0.0-beta.16", "1.0.0"):
             with self.subTest(version=actual_version):
                 def execute(args, **kwargs):
                     if args[0] == context.cli and args[1] == "--version":
@@ -214,7 +214,7 @@ class WorkflowCoreTests(unittest.TestCase):
                 run = Mock(context=context)
                 run.execute.side_effect = execute
                 with patch.object(checks.shutil, "which", return_value="tool"):
-                    if actual_version == "1.0.0-beta.16":
+                    if actual_version == "1.0.1":
                         result = checks.doctor(run)
                         self.assertEqual(result["cli"], result["cliExpectedVersion"])
                         self.assertEqual(result["cliPath"], str(context.cli))

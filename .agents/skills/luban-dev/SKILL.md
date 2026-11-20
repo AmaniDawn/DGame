@@ -12,7 +12,7 @@ description: DGame Luban 配置开发与排错。用于 GameConfig 数据、表�
 | 查询编译后的表、Bean、Enum、Schema，执行 Luban 校验 | 官方 Agent CLI；已加载时也可用 Luban MCP |
 | 修改 Excel、字段、数据行，检查引用 | `scripts/luban_helper.py`；写入前读取 [操作指南](references/operating-guide.md) |
 | 校验现有导表流程、隔离导表、生产导表 | 仓库 Workflow，见下方导表流程 |
-| 工具安装、恢复、版本、MCP 配置 | [工具恢复指南](references/tool-recovery.md)；来源与兼容范围见 [官方工具接入](references/official-ai.md) |
+| 工具安装、恢复、版本、MCP 配置 | [工具恢复指南](references/tool-recovery.md)；来源与部署见 [官方工具接入](references/official-ai.md) |
 
 所有命令从仓库根执行。查询示例：
 
@@ -36,7 +36,7 @@ Agent CLI 默认目标为 `client`，可显式使用 `--target server/all`。MCP
 - 命名空间为 `GameProto`，总表为 `Tables`。业务访问通过 `GameLogic/ConfigMgr/XxxConfigMgr` 封装；运行时沿用 ConfigSystem、LazyLoad 和 DGame 资源加载规则。
 - 运行时消费遵守项目文本规范，不将玩家可见文本硬编码进业务代码。
 - 字段分组以现有定义和需求为准，helper 自动推断只作辅助；联合导表分别校验 client / server，保证各目标的表主键可见。
-- 正式导表、Agent CLI 和 MCP 统一固定 5.1.0；兼容范围和部署方式见 [官方工具接入](references/official-ai.md)。不能将上游 `main` 的示例视为本地命令保证。
+- 正式导表、Agent CLI 和 MCP 统一固定 5.1.0；部署方式见 [官方工具接入](references/official-ai.md)。不能将上游 `main` 的示例视为本地命令保证。
 
 ## 配置修改流程
 
